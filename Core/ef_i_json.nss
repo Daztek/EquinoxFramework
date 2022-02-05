@@ -1,0 +1,228 @@
+/*
+    Script: ef_i_json
+    Author: Daz
+
+    Description: Equinox Framework Json Utility Include
+*/
+
+// Convert vVector to a json array
+json VectorToJson(vector vVector);
+// Convert jVector to vector
+vector JsonToVector(json jVector);
+// Convert locLocation to a json object
+json LocationToJson(location locLocation);
+// Convert jLocation to a location
+location JsonToLocation(json jLocation);
+// Get oObject's local json variable sVarName or jDefault if not set
+json GetLocalJsonOrDefault(object oObject, string sVarName, json jDefault);
+// Get sKey as string from jObject
+string JsonObjectGetString(json jObject, string sKey);
+// Set sKey to sValue as JsonString() on jObject
+json JsonObjectSetString(json jObject, string sKey, string sValue);
+// Get sKey as int from jObject
+int JsonObjectGetInt(json jObject, string sKey);
+// Set sKey to nValue as JsonInt() on jObject
+json JsonObjectSetInt(json jObject, string sKey, int nValue);
+// Get sKey as float from jObject
+float JsonObjectGetFloat(json jObject, string sKey);
+// Set sKey to fValue as JsonFloat() on jObject
+json JsonObjectSetFloat(json jObject, string sKey, float fValue);
+// Get sKey as vector from jObject
+vector JsonObjectGetVector(json jObject, string sKey);
+// Set sKey to vValue as VectorJsonArray() on jObject
+json JsonObjectSetVector(json jObject, string sKey, vector vValue);
+// Get sKey as location from jObject
+location JsonObjectGetLocation(json jObject, string sKey);
+// Set sKey to locValue as JsonObjectLocation() on jObject
+json JsonObjectSetLocation(json jObject, string sKey, location locValue);
+// Gets the string at jArray index position nIndex.
+string JsonArrayGetString(json jArray, int nIndex);
+// Returns a modified copy of jArray with sValue inserted as JsonString() at position nIndex.
+// All succeeding objects in the array will move by one.
+// By default (-1), inserts objects at the end of the array ("push").
+// nIndex = 0 inserts at the beginning of the array.
+// Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
+// Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
+json JsonArrayInsertString(json jArray, string sValue, int nIndex = -1);
+// Gets the int at jArray index position nIndex.
+int JsonArrayGetInt(json jArray, int nIndex);
+// Returns a modified copy of jArray with nValue inserted as JsonInt() at position nIndex.
+// All succeeding objects in the array will move by one.
+// By default (-1), inserts objects at the end of the array ("push").
+// nIndex = 0 inserts at the beginning of the array.
+// Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
+// Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
+json JsonArrayInsertInt(json jArray, int nValue, int nIndex = -1);
+// Gets the float at jArray index position nIndex.
+float JsonArrayGetFloat(json jArray, int nIndex);
+// Returns a modified copy of jArray with fValue inserted as JsonFloat() at position nIndex.
+// All succeeding objects in the array will move by one.
+// By default (-1), inserts objects at the end of the array ("push").
+// nIndex = 0 inserts at the beginning of the array.
+// Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
+// Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
+json JsonArrayInsertFloat(json jArray, float fValue, int nIndex = -1);
+// Insert jValue into jObject's array with the key sKey .
+json JsonObjectInsertToArrayWithKey(json jObject, string sKey, json jValue);
+// Returns the key value of sKey on the object jObect.
+// Returns jDefault if sKey does not exist on the object.
+json JsonObjectGetOrDefault(json jObject, string sKey, json jDefault);
+// Returns TRUE if jArray contains sString
+int JsonArrayContainsString(json jArray, string sString);
+// Returns a json integer point
+json JsonPointInt(int nX, int nY);
+
+json VectorToJson(vector vVector)
+{
+    json jVector = JsonArray();
+         jVector = JsonArrayInsertFloat(jVector, vVector.x);
+         jVector = JsonArrayInsertFloat(jVector, vVector.y);
+         jVector = JsonArrayInsertFloat(jVector, vVector.z);
+    return jVector;
+}
+
+vector JsonToVector(json jVector)
+{
+    return Vector(JsonArrayGetFloat(jVector, 0), JsonArrayGetFloat(jVector, 1), JsonArrayGetFloat(jVector, 2));
+}
+
+json LocationToJson(location locLocation)
+{
+    string sAreaTag = GetTag(GetAreaFromLocation(locLocation));
+    string sAreaResRef = GetResRef(GetAreaFromLocation(locLocation));
+    vector vPosition = GetPositionFromLocation(locLocation);
+    float fOrientation = GetFacingFromLocation(locLocation);
+
+    json jLocation = JsonObject();
+         jLocation = JsonObjectSetString(jLocation, "area_tag", sAreaTag);
+         jLocation = JsonObjectSetString(jLocation, "area_resref", sAreaResRef);
+         jLocation = JsonObjectSetVector(jLocation, "position", vPosition);
+         jLocation = JsonObjectSetFloat(jLocation, "orientation", fOrientation);
+
+    return jLocation;
+}
+
+location JsonToLocation(json jLocation)
+{
+    object oArea = GetObjectByTag(JsonObjectGetString(jLocation, "area_tag"));
+    string sResRef = JsonObjectGetString(jLocation, "area_resref");
+
+    if (!GetIsObjectValid(oArea) || GetResRef(oArea) != sResRef)
+        return GetStartingLocation();
+
+    vector vPosition = JsonObjectGetVector(jLocation, "position");
+    float fOrientation = JsonObjectGetFloat(jLocation, "orientation");
+
+    return Location(oArea, vPosition, fOrientation);
+}
+
+json GetLocalJsonOrDefault(object oObject, string sVarName, json jDefault)
+{
+    json jReturn = GetLocalJson(oObject, sVarName);
+    return !JsonGetType(jReturn) ? jDefault : jReturn;
+}
+
+string JsonObjectGetString(json jObject, string sKey)
+{
+    return JsonGetString(JsonObjectGet(jObject, sKey));
+}
+
+json JsonObjectSetString(json jObject, string sKey, string sValue)
+{
+    return JsonObjectSet(jObject, sKey, JsonString(sValue));
+}
+
+int JsonObjectGetInt(json jObject, string sKey)
+{
+    return JsonGetInt(JsonObjectGet(jObject, sKey));
+}
+
+json JsonObjectSetInt(json jObject, string sKey, int nValue)
+{
+    return JsonObjectSet(jObject, sKey, JsonInt(nValue));
+}
+
+float JsonObjectGetFloat(json jObject, string sKey)
+{
+    return JsonGetFloat(JsonObjectGet(jObject, sKey));
+}
+
+json JsonObjectSetFloat(json jObject, string sKey, float fValue)
+{
+    return JsonObjectSet(jObject, sKey, JsonFloat(fValue));
+}
+
+vector JsonObjectGetVector(json jObject, string sKey)
+{
+    return JsonToVector(JsonObjectGet(jObject, sKey));
+}
+
+json JsonObjectSetVector(json jObject, string sKey, vector vValue)
+{
+    return JsonObjectSet(jObject, sKey, VectorToJson(vValue));
+}
+
+location JsonObjectGetLocation(json jObject, string sKey)
+{
+    return JsonToLocation(JsonObjectGet(jObject, sKey));
+}
+
+json JsonObjectSetLocation(json jObject, string sKey, location locValue)
+{
+    return JsonObjectSet(jObject, sKey, LocationToJson(locValue));
+}
+
+string JsonArrayGetString(json jArray, int nIndex)
+{
+    return JsonGetString(JsonArrayGet(jArray, nIndex));
+}
+
+json JsonArrayInsertString(json jArray, string sValue, int nIndex = -1)
+{
+    return JsonArrayInsert(jArray, JsonString(sValue), nIndex);
+}
+
+int JsonArrayGetInt(json jArray, int nIndex)
+{
+    return JsonGetInt(JsonArrayGet(jArray, nIndex));
+}
+
+json JsonArrayInsertInt(json jArray, int nValue, int nIndex = -1)
+{
+    return JsonArrayInsert(jArray, JsonInt(nValue), nIndex);
+}
+
+float JsonArrayGetFloat(json jArray, int nIndex)
+{
+    return JsonGetFloat(JsonArrayGet(jArray, nIndex));
+}
+
+json JsonArrayInsertFloat(json jArray, float fValue, int nIndex = -1)
+{
+    return JsonArrayInsert(jArray, JsonFloat(fValue), nIndex);
+}
+
+json JsonObjectInsertToArrayWithKey(json jObject, string sKey, json jValue)
+{
+    return JsonObjectSet(jObject, sKey, JsonArrayInsert(JsonObjectGet(jObject, sKey), jValue));
+}
+
+json JsonObjectGetOrDefault(json jObject, string sKey, json jDefault)
+{
+    json jReturn = JsonObjectGet(jObject, sKey);
+    return !JsonGetType(jReturn) ? jDefault : jReturn;
+}
+
+int JsonArrayContainsString(json jArray, string sString)
+{
+    return JsonGetType(JsonFind(jArray, JsonString(sString))) == JSON_TYPE_INTEGER;
+}
+
+json JsonPointInt(int nX, int nY)
+{
+    json jPoint = JsonArray();
+         jPoint = JsonArrayInsertInt(jPoint, nX);
+         jPoint = JsonArrayInsertInt(jPoint, nY);
+    return jPoint;
+}
+

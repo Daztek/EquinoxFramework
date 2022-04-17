@@ -43,6 +43,7 @@ void NWM_SetUserData(string sKey, json jValue);
 void NWM_DeleteUserData(string sKey);
 void NWM_RegisterEvent(json jNWMEvent);
 json NWM_GetEvents(string sWindowId, string sEventType, string sElement);
+void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string sElement);
 void NWM_Destroy();
 
 // @CORE[EF_SYSTEM_INIT]
@@ -58,12 +59,17 @@ void NWM_NuiEvent()
     object oPlayer = NuiGetEventPlayer();
     int nToken = NuiGetEventWindow();
     string sWindowId = NuiGetWindowId(oPlayer, nToken);
+
+    if (sWindowId == "" || !JsonGetType(NWM_GetWindowJson(sWindowId)))
+        return;// Don't bother doing anything if it's not a registered window
+
     string sEventType = NuiGetEventType();
     string sElement = NuiGetEventElement();
 
     if (sEventType == NUI_EVENT_WATCH && sElement == NUI_WINDOW_GEOMETRY_BIND)
     {
         NWM_SetWindowGeometry(oPlayer, sWindowId, NuiGetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND));
+        return;
     }
 
     if (NWM_DEBUG_EVENTS)
@@ -76,22 +82,17 @@ void NWM_NuiEvent()
 
     NWM_SetPlayer(oPlayer);
     NWM_SetToken(nToken);
+    NWM_RunEvents(oPlayer, sWindowId, sEventType, sElement);
+}
 
-    json jEvents = NWM_GetEvents(sWindowId, sEventType, sElement);
-    int nEvent, nNumEvents = JsonGetLength(jEvents);
-    for (nEvent = 0; nEvent < nNumEvents; nEvent++)
+// @GUIEVENT[GUIEVENT_OPTIONS_OPEN]
+void NWM_CloseAllWindows()
+{
+    object oPlayer = OBJECT_SELF;
+    int nToken;
+    while ((nToken = NuiGetNthWindow(oPlayer, 0)))
     {
-        string sScriptChunk = JsonArrayGetString(jEvents, nEvent);
-        if (sScriptChunk != "")
-        {
-            string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
-
-            if (NWM_DEBUG_EVENTS)
-            {
-                if (sError != "")
-                    WriteLog(NWM_LOG_TAG, "DEBUG: [" + IntToString(nEvent) + "] Event Chunk '" + sScriptChunk + "' failed with error: " + sError);
-            }
-        }
+        NWM_CloseWindow(oPlayer, NuiGetWindowId(oPlayer, nToken));
     }
 }
 
@@ -145,7 +146,7 @@ void NWM_RegisterWindow(json jNWMWindow)
     else
     {
         object oDataObject = GetDataObject(NWM_SCRIPT_NAME);
-        json jGeometry = JsonObjectGet(jWindow, "default_geometry");
+        json jGeometry = JsonObjectGet(jWindow, NUI_DEFAULT_GEOMETRY_NAME);
         SetLocalJson(oDataObject, NWM_REGISTERED_WINDOW + sWindowId, jWindow);
         SetLocalJson(oDataObject, NWM_WINDOW_GEOMETRY + sWindowId, jGeometry);
         WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered window: " + sWindowId);
@@ -189,7 +190,14 @@ int NWM_OpenWindow(object oPlayer, string sWindowId)
 
 void NWM_CloseWindow(object oPlayer, string sWindowId)
 {
-    NuiDestroy(oPlayer, NuiFindWindow(oPlayer, sWindowId));
+    int nToken = NuiFindWindow(oPlayer, sWindowId);
+    if (nToken)
+    {
+        NWM_SetPlayer(oPlayer);
+        NWM_SetToken(nToken);
+        NWM_RunEvents(oPlayer, sWindowId, NUI_EVENT_CLOSE, NUI_WINDOW_ROOT_GROUP);
+        NuiDestroy(oPlayer, nToken);
+    }
 }
 
 json NWM_GetBind(string sBindName)
@@ -240,10 +248,7 @@ void NWM_RegisterEvent(json jNWMEvent)
 
     if (JsonGetType(NWM_GetWindowJson(sWindowId)))
     {
-        object oDataObject = GetDataObject(NWM_SCRIPT_NAME);
-        json jEvents = GetLocalJsonOrDefault(oDataObject, NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement, JsonArray());
-        SetLocalJson(oDataObject, NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement, JsonArrayInsertString(jEvents, sScriptChunk));
-
+        InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement, sScriptChunk);
         WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
     }
     else
@@ -254,11 +259,42 @@ void NWM_RegisterEvent(json jNWMEvent)
 
 json NWM_GetEvents(string sWindowId, string sEventType, string sElement)
 {
-    return GetLocalJsonOrDefault(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement, JsonArray());
+    return GetLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement);
+}
+
+void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string sElement)
+{
+    json jEvents = NWM_GetEvents(sWindowId, sEventType, sElement);
+    int nEvent, nNumEvents = JsonGetLength(jEvents);
+
+    if (NWM_DEBUG_EVENTS)
+    {
+        WriteLog(NWM_LOG_TAG, "DEBUG: [" + sWindowId + "] Running Event '" + sEventType + "' for Element '" + sElement + "' " );
+    }
+
+    for (nEvent = 0; nEvent < nNumEvents; nEvent++)
+    {
+        string sScriptChunk = JsonArrayGetString(jEvents, nEvent);
+        if (sScriptChunk != "")
+        {
+            string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+
+            if (NWM_DEBUG_EVENTS)
+            {
+                if (sError != "")
+                    WriteLog(NWM_LOG_TAG, "DEBUG: [" + IntToString(nEvent) + "] Event Chunk '" + sScriptChunk + "' failed with error: " + sError);
+            }
+        }
+    }
 }
 
 void NWM_Destroy()
 {
-    NuiDestroy(NWM_GetPlayer(), NWM_GetToken());
+    object oPlayer = NWM_GetPlayer();
+    int nToken = NWM_GetToken();
+    string sWindowId = NuiGetWindowId(oPlayer, nToken);
+
+    NWM_RunEvents(oPlayer, sWindowId, NUI_EVENT_CLOSE, NUI_WINDOW_ROOT_GROUP);
+    NuiDestroy(oPlayer, nToken);
 }
 

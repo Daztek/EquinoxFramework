@@ -53,16 +53,20 @@ struct GffTools_PlaceableData
 
 json GffTools_GeneratePlaceable(struct GffTools_PlaceableData pd);
 object GffTools_CreatePlaceable(json jPlaceable, location locLocation, string sNewTag = "");
-
-// @CORE[EF_SYSTEM_INIT]
-void GffTools_Init()
-{
-    SetLocalJson(GetDataObject(GFFTOOLS_SCRIPT_NAME), GFFTOOLS_PLACEABLE_TEMPLATE_JSON, TemplateToJson(GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, RESTYPE_UTP));
-}
+json GffTools_GetScrubbedAreaTemplate(object oArea);
 
 json GffTools_GetPlaceableTemplate()
 {
-    return GetLocalJson(GetDataObject(GFFTOOLS_SCRIPT_NAME), GFFTOOLS_PLACEABLE_TEMPLATE_JSON);
+    object oDataObject = GetDataObject(GFFTOOLS_SCRIPT_NAME);
+    json jTemplate = GetLocalJson(oDataObject, GFFTOOLS_PLACEABLE_TEMPLATE_JSON);
+
+    if (!JsonGetType(jTemplate))
+    {
+        jTemplate = TemplateToJson(GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, RESTYPE_UTP);
+        SetLocalJson(oDataObject, GFFTOOLS_PLACEABLE_TEMPLATE_JSON, jTemplate);
+    }
+
+    return jTemplate;
 }
 
 json GffTools_GeneratePlaceable(struct GffTools_PlaceableData pd)
@@ -118,5 +122,31 @@ object GffTools_CreatePlaceable(json jPlaceable, location locLocation, string sN
     }
 
     return oPlaceable;
+}
+
+json GffTools_GetScrubbedAreaTemplate(object oArea)
+{
+    json jTemplateArea = ObjectToJson(oArea);
+         // ARE stuff
+         jTemplateArea = GffRemoveList(jTemplateArea, "ARE/value/Tile_List");
+         // GIT stuff
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/Creature List");
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/Door List");
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/Encounter List");
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/Placeable List");
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/SoundList");
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/StoreList");
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/TriggerList");
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/WaypointList");
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/AreaEffectList");
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/List");
+         jTemplateArea = GffRemoveList(jTemplateArea, "GIT/value/VarTable");
+         jTemplateArea = GffRemoveString(jTemplateArea, "GIT/value/NWNX_POS");
+         jTemplateArea = GffRemoveDword(jTemplateArea, "GIT/value/AreaProperties/value/SunFogColor");
+         jTemplateArea = GffRemoveByte(jTemplateArea, "GIT/value/AreaProperties/value/SunFogAmount");
+         jTemplateArea = GffRemoveDword(jTemplateArea, "GIT/value/AreaProperties/value/MoonFogColor");
+         jTemplateArea = GffRemoveByte(jTemplateArea, "GIT/value/AreaProperties/value/MoonFogAmount");
+
+    return jTemplateArea;
 }
 

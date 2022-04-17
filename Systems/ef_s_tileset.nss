@@ -18,6 +18,7 @@ const string TS_LOADED_TILESETS_ARRAY           = "LoadedTilesets";
 const string TS_TABLE_NAME_TILES                = "tiles";
 const string TS_TABLE_NAME_GROUPS               = "groups";
 const string TS_TABLE_NAME_GROUP_TILES          = "grouptiles";
+const string TS_TABLE_NAME_SINGLE_GROUP_TILES   = "singlegrouptiles";
 
 struct TS_TileStruct
 {
@@ -57,6 +58,7 @@ int TS_GetHasTerrainOrCrosser(struct TS_TileStruct str, string sType);
 int TS_GetTerrainAndCrosserIsType(struct TS_TileStruct str, string sTerrainType, string sCrosserType);
 int TS_GetNumOfTerrainOrCrosser(struct TS_TileStruct str, string sType);
 struct TS_TileStruct TS_ReplaceTerrainOrCrosser(struct TS_TileStruct str, string sOld, string sNew);
+struct TS_TileStruct TS_ReplaceTerrain(struct TS_TileStruct str, string sOld, string sNew);
 struct TS_TileStruct TS_SetTerrain(struct TS_TileStruct str, string sTerrain);
 
 int TS_GetTilesetNumTiles(string sTileset);
@@ -66,6 +68,8 @@ string TS_GetTilesetTerrain(string sTileset, int nIndex);
 int TS_GetTilesetNumCrossers(string sTileset);
 string TS_GetTilesetCrosser(string sTileset, int nIndex);
 int TS_GetTilesetNumGroups(string sTileset);
+string TS_GetTilesetDefaultFloorTerrain(string sTileset);
+string TS_GetTilesetDefaultEdgeTerrain(string sTileset);
 int TS_GetTilesetNumDoors(string sTileset, int nTileID);
 struct TS_DoorStruct TS_GetTilesetTileDoor(string sTileset, int nTileID, int nIndex);
 int TS_GetIsTilesetGroupTile(string sTileset, int nTileID);
@@ -75,6 +79,8 @@ void TS_ProcessTilesetGroups(string sTileset);
 void TS_ProcessTileDoors(string sTileset, int nTileID);
 void TS_InsertTile(string sTileset, int nTileID, int nOrientation, struct TS_TileStruct str);
 void TS_ProcessTile(string sTileset, int nTileID);
+void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, struct TS_TileStruct str);
+void TS_ProcessSingleGroupTile(string sTileset, int nTileID);
 
 vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical);
 
@@ -82,6 +88,8 @@ vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical);
 void Tileset_Init()
 {
     TS_LoadTilesetData(TILESET_RESREF_MEDIEVAL_RURAL_2);
+    TS_LoadTilesetData(TILESET_RESREF_MINES_AND_CAVERNS);
+    TS_LoadTilesetData(TILESET_RESREF_MEDIEVAL_CITY_2);
 }
 
 object TS_GetTilesetDataObject(string sTileset)
@@ -118,7 +126,7 @@ void TS_CreateTilesetTables(string sTileset)
 {
     string sQuery; sqlquery sql;
 
-    sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) +" (" +
+    sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " (" +
              "tile_id INTEGER NOT NULL, " +
              "orientation INTEGER NOT NULL, " +
              "tl TEXT NOT NULL, " +
@@ -134,7 +142,7 @@ void TS_CreateTilesetTables(string sTileset)
              "PRIMARY KEY(tile_id, orientation));";
     SqlStep(TS_PrepareQuery(sQuery));
 
-    sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUPS) +" (" +
+    sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUPS) + " (" +
              "group_id INTEGER NOT NULL PRIMARY KEY, " +
              "name TEXT NOT NULL, " +
              "strref INTEGER NOT NULL, " +
@@ -143,11 +151,26 @@ void TS_CreateTilesetTables(string sTileset)
              "num_tiles INTEGER NOT NULL);";
     SqlStep(TS_PrepareQuery(sQuery));
 
-    sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUP_TILES) +" (" +
+    sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUP_TILES) + " (" +
              "group_id INTEGER NOT NULL, " +
              "tile_index INTEGER NOT NULL, " +
              "tile_id INTEGER NOT NULL, " +
              "PRIMARY KEY(group_id, tile_index));";
+    SqlStep(TS_PrepareQuery(sQuery));
+
+    sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (" +
+             "tile_id INTEGER NOT NULL, " +
+             "orientation INTEGER NOT NULL, " +
+             "tl TEXT NOT NULL, " +
+             "t TEXT NOT NULL, " +
+             "tr TEXT NOT NULL, " +
+             "r TEXT NOT NULL, " +
+             "br TEXT NOT NULL, " +
+             "b TEXT NOT NULL, " +
+             "bl TEXT NOT NULL, " +
+             "l TEXT NOT NULL, " +
+             "corners_and_edges TEXT NOT NULL, " +
+             "PRIMARY KEY(tile_id, orientation));";
     SqlStep(TS_PrepareQuery(sQuery));
 }
 
@@ -269,6 +292,16 @@ struct TS_TileStruct TS_ReplaceTerrainOrCrosser(struct TS_TileStruct str, string
     return str;
 }
 
+struct TS_TileStruct TS_ReplaceTerrain(struct TS_TileStruct str, string sOld, string sNew)
+{
+    if (str.sTL == sOld) str.sTL = sNew;
+    if (str.sTR == sOld) str.sTR = sNew;
+    if (str.sBR == sOld) str.sBR = sNew;
+    if (str.sBL == sOld) str.sBL = sNew;
+
+    return str;
+}
+
 struct TS_TileStruct TS_SetTerrain(struct TS_TileStruct str, string sTerrain)
 {
     str.sTL = sTerrain;
@@ -312,6 +345,16 @@ string TS_GetTilesetCrosser(string sTileset, int nIndex)
 int TS_GetTilesetNumGroups(string sTileset)
 {
     return GetLocalInt(TS_GetTilesetDataObject(sTileset), "NumGroups");
+}
+
+string TS_GetTilesetDefaultFloorTerrain(string sTileset)
+{
+    return GetLocalString(TS_GetTilesetDataObject(sTileset), "DefaultFloorTerrain");
+}
+
+string TS_GetTilesetDefaultEdgeTerrain(string sTileset)
+{
+    return GetLocalString(TS_GetTilesetDataObject(sTileset), "DefaultEdgeTerrain");
 }
 
 int TS_GetTilesetNumDoors(string sTileset, int nTileID)
@@ -369,6 +412,8 @@ void TS_LoadTilesetData(string sTileset)
     SetLocalInt(oTDO, "NumTerrain", str.nNumTerrain);
     SetLocalInt(oTDO, "NumCrossers", str.nNumCrossers);
     SetLocalInt(oTDO, "NumGroups", str.nNumGroups);
+    SetLocalString(oTDO, "DefaultFloorTerrain", GetStringUpperCase(str.sFloorTerrain));
+    SetLocalString(oTDO, "DefaultEdgeTerrain", GetStringUpperCase(str.sBorderTerrain));
 
     string sName = (str.nDisplayNameStrRef != -1 ? GetStringByStrRef(str.nDisplayNameStrRef) : str.sUnlocalizedName);
 
@@ -443,6 +488,9 @@ void TS_ProcessTilesetGroups(string sTileset)
             SqlBindInt(sql, "@tile_index", nGroupTileIndex);
             SqlBindInt(sql, "@tile_id", nGroupTileID);
             SqlStep(sql);
+
+            if (nNumGroupTiles == 1)
+                TS_ProcessSingleGroupTile(sTileset, nGroupTileID);
         }
     }
 }
@@ -477,6 +525,7 @@ void TS_ProcessTileDoors(string sTileset, int nTileID)
             SetLocalLocation(oDataObject, sTileVarName + "_LocationData", locDoorData);
 
             string sResRef = Get2DAString("doortypes", "TemplateResRef", str.nType);
+
             SetLocalString(oDataObject, sTileVarName + "_ResRef", sResRef);
         }
     }
@@ -529,11 +578,57 @@ void TS_ProcessTile(string sTileset, int nTileID)
             str.sL = "ridge";
         }
     }
+    else if (sTileset == TILESET_RESREF_MEDIEVAL_CITY_2)
+    {
+        if (TS_GetNumOfTerrainOrCrosser(str, "ROAD") > 2)
+            return;
+    }
 
     int nOrientation;
     for (nOrientation = 0; nOrientation < 4; nOrientation++)
     {
         TS_InsertTile(sTileset, nTileID, nOrientation, str);
+        str = TS_RotateTileStruct(str);
+    }
+}
+
+
+void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, struct TS_TileStruct str)
+{
+    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (tile_id, orientation, tl, t, tr, r, br, b, bl, l, corners_and_edges) " +
+                    "VALUES(@tile_id, @orientation, @tl, @t, @tr, @r, @br, @b, @bl, @l, @corners_and_edges);";
+    sqlquery sql = TS_PrepareQuery(sQuery);
+    SqlBindInt(sql, "@tile_id", nTileID);
+    SqlBindInt(sql, "@orientation", nOrientation);
+    SqlBindString(sql, "@tl", str.sTL);
+    SqlBindString(sql, "@t", str.sT);
+    SqlBindString(sql, "@tr", str.sTR);
+    SqlBindString(sql, "@r", str.sR);
+    SqlBindString(sql, "@br", str.sBR);
+    SqlBindString(sql, "@b", str.sB);
+    SqlBindString(sql, "@bl", str.sBL);
+    SqlBindString(sql, "@l", str.sL);
+    SqlBindString(sql, "@corners_and_edges", TS_GetCornersAndEdgesAsString(str));
+    SqlStep(sql);
+}
+
+void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
+{
+    struct TS_TileStruct str = TS_GetTileEdgesAndCorners(sTileset, nTileID);
+
+    if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
+    {
+        if (TS_GetNumOfTerrainOrCrosser(str, "STREET") > 2)
+            return;
+
+        if (TS_GetNumOfTerrainOrCrosser(str, "ROAD") > 2)
+            return;
+    }
+
+    int nOrientation;
+    for (nOrientation = 0; nOrientation < 4; nOrientation++)
+    {
+        TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, str);
         str = TS_RotateTileStruct(str);
     }
 }

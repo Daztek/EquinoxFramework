@@ -64,6 +64,28 @@ string GetItemIconResref(object oItem, json jItem, int nBaseItem);
 // Get the center of oArea
 vector GetAreaCenterPosition(object oArea, float fZ = 0.0f);
 
+// Get the center position of a tile by its X/Y position
+vector GetTilePosition(int nX, int nY);
+
+// Returns TRUE if the location is walkable
+int GetLocationWalkable(location loc);
+
+// Returns TRUE if oObject has nEffectType
+int GetHasEffectType(object oObject, int nEffectType);
+
+// Convert nSeconds to a string timestamp
+string SecondsToStringTimestamp(int nSeconds);
+
+// Get the tile index of the tile at vPosition in oArea.
+int GetTileIndexFromPosition(object oArea, vector vPosition);
+
+// Returns the higher of a or b
+int max(int a, int b);
+// Returns the lower of a or b
+int min(int a, int b);
+// Returns nValue bounded by nMin and nMax
+int clamp(int nValue, int nMin, int nMax);
+
 void WriteLog(string sName, string sMessage)
 {
     WriteTimestampedLogEntry("[" + sName + "] " + sMessage);
@@ -263,5 +285,83 @@ vector GetAreaCenterPosition(object oArea, float fZ = 0.0f)
     float fX = (GetAreaSize(AREA_WIDTH, oArea) * 10.0f) * 0.5f;
     float fY = (GetAreaSize(AREA_HEIGHT, oArea) * 10.0f) * 0.5f;
     return Vector(fX, fY, fZ);
+}
+
+vector GetTilePosition(int nX, int nY)
+{
+    return Vector((nX * 10.0f) + 5.0f, (nY * 10.0f) + 5.0, 0.0f);
+}
+
+int GetLocationWalkable(location loc)
+{
+    return StringToInt(Get2DAString("surfacemat", "Walk", GetSurfaceMaterial(loc)));
+}
+
+int GetHasEffectType(object oObject, int nEffectType)
+{
+    effect eEffect = GetFirstEffect(oObject);
+    while (GetIsEffectValid(eEffect))
+    {
+        if (GetEffectType(eEffect) == nEffectType)
+            return TRUE;
+        eEffect = GetNextEffect(oObject);
+    }
+    return FALSE;
+}
+
+string SecondsToStringTimestamp(int nSeconds)
+{
+    sqlquery sql;
+    if (nSeconds > 86400)
+        sql = SqlPrepareQueryObject(GetModule(), "SELECT (@seconds / 3600) || ':' || strftime('%M:%S', @seconds / 86400.0);");
+    else
+        sql = SqlPrepareQueryObject(GetModule(), "SELECT time(@seconds, 'unixepoch');");
+
+    SqlBindInt(sql, "@seconds", nSeconds);
+    SqlStep(sql);
+
+    return SqlGetString(sql, 0);
+}
+
+
+int GetTileIndexFromPosition(object oArea, vector vPosition)
+{
+    int nXStartTile = -1;
+    int nYStartTile = -1;
+    int nTileX, nTileY;
+    int nHeight = GetAreaSize(AREA_HEIGHT, oArea);
+    int nWidth = GetAreaSize(AREA_WIDTH, oArea);
+
+    for (nTileX = 0; nTileX < 32 && nXStartTile == -1; nTileX++)
+    {
+        if (vPosition.x >= nTileX * 10.0f && vPosition.x < (nTileX + 1) * 10.0f)
+            nXStartTile = nTileX;
+    }
+
+    for (nTileY = 0; nTileY < 32 && nYStartTile == -1; nTileY++)
+    {
+        if (vPosition.y >= nTileY * 10.0f && vPosition.y < (nTileY + 1) * 10.0f)
+            nYStartTile = nTileY;
+    }
+
+    if ((nXStartTile < 0 || nXStartTile >= nWidth) || (nYStartTile < 0 || nYStartTile >= nHeight))
+        return -1;
+
+    return nYStartTile * nWidth + nXStartTile;
+}
+
+int max(int a, int b)
+{
+    return a > b ? a : b;
+}
+
+int min(int a, int b)
+{
+    return a < b ? a : b;
+}
+
+int clamp(int nValue, int nMin, int nMax)
+{
+    return nValue < nMin ? nMin : nValue > nMax ? nMax : nValue;
 }
 

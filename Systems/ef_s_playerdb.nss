@@ -14,13 +14,13 @@ const string PLAYERDB_SCRIPT_NAME           = "ef_s_playerdb";
 const string PLAYERDB_DATABASE_NAME         = "EFPlayerDB";
 const string PLAYERDB_SESSION_DATA          = "PDBSessionData_";
 
-const int PLAYERDB_TYPE_ALL             = 0;
-const int PLAYERDB_TYPE_INT             = 1;
-const int PLAYERDB_TYPE_FLOAT           = 2;
-const int PLAYERDB_TYPE_STRING          = 4;
-const int PLAYERDB_TYPE_VECTOR          = 8;
-const int PLAYERDB_TYPE_LOCATION        = 16;
-const int PLAYERDB_TYPE_JSON            = 32;
+const int PLAYERDB_TYPE_ALL                 = 0;
+const int PLAYERDB_TYPE_INT                 = 1;
+const int PLAYERDB_TYPE_FLOAT               = 2;
+const int PLAYERDB_TYPE_STRING              = 4;
+const int PLAYERDB_TYPE_VECTOR              = 8;
+const int PLAYERDB_TYPE_LOCATION            = 16;
+const int PLAYERDB_TYPE_JSON                = 32;
 
 object PlayerDB_GetSessionDataObject(object oPlayer);
 int PlayerDB_GetSessionInt(object oPlayer, string sSystem, string sVarName);
@@ -63,7 +63,7 @@ void PlayerDB_Init()
         "system TEXT, " +
         "type INTEGER, " +
         "varname TEXT, " +
-        "value TEXT, " +
+        "value BLOB, " +
         "timestamp INTEGER, " +
         "PRIMARY KEY(system, type, varname));"));
 }

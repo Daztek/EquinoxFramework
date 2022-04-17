@@ -5,6 +5,8 @@
     Description: An Equinox Framework System that gives players a movement speed
                  increase when they're travelling on roads and a movement speed decrease
                  while in water.
+
+    @SKIPSYSTEM
 */
 
 //void main() {}

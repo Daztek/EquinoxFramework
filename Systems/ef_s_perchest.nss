@@ -113,7 +113,7 @@ void PC_DropItem()
 // @NWMWINDOW[PC_WINDOW_ID]
 json PC_CreateWindow()
 {
-    NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 300.0f, 600.0f));
+    NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 400.0f, 600.0f));
     NB_SetWindowTitle(NuiBind(PC_BIND_WINDOW_TITLE));
       NB_StartColumn();
         NB_StartRow();
@@ -126,8 +126,7 @@ json PC_CreateWindow()
           NB_StartElement(NuiButton(JsonString("X")));
             NB_SetId(PC_BIND_BUTTON_CLEAR);
             NB_SetEnabled(NuiBind(PC_BIND_BUTTON_CLEAR));
-            NB_SetWidth(35.0f);
-            NB_SetHeight(35.0f);
+            NB_SetDimensions(35.0f, 35.0f);
           NB_End();
         NB_End();
         NB_StartRow();
@@ -151,14 +150,12 @@ json PC_CreateWindow()
         NB_StartRow();
           NB_StartElement(NuiButtonSelect(JsonString("Deposit Mode"), NuiBind(PC_BIND_DEPOSIT_MODE)));
             NB_SetId(PC_BIND_BUTTON_DEPOSIT);
-            NB_SetWidth(150.0f);
-            NB_SetHeight(35.0f);
+            NB_SetDimensions(150.0f, 35.0f);
           NB_End();
           NB_AddSpacer();
           NB_StartElement(NuiButton(JsonString("Close")));
             NB_SetId(PC_BIND_BUTTON_CLOSE);
-            NB_SetWidth(80.0f);
-            NB_SetHeight(35.0f);
+            NB_SetDimensions(80.0f, 35.0f);
           NB_End();
         NB_End();
       NB_End();
@@ -186,7 +183,6 @@ void PC_ClickDepositModeButton()
 // @NWMEVENT[PC_WINDOW_ID:NUI_EVENT_CLICK:PC_BIND_BUTTON_CLOSE]
 void PC_ClickCloseButton()
 {
-    PC_SetDepositMode(OBJECT_SELF, FALSE);
     NWM_Destroy();
 }
 

@@ -48,11 +48,11 @@ void EFCore_Initialize()
     EFCore_InitSystemData();
     EFCore_ParseSystemsForAnnotations();
 
-    WriteLog(EFCORE_LOG_TAG, "* Executing System Init Functions");
+    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Init' Functions");
     EFCore_ExecuteFunctions(EF_SYSTEM_INIT);
-    WriteLog(EFCORE_LOG_TAG, "* Executing System Load Functions");
+    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Load' Functions");
     EFCore_ExecuteFunctions(EF_SYSTEM_LOAD);
-    WriteLog(EFCORE_LOG_TAG, "* Executing System Post Functions");
+    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Post' Functions");
     EFCore_ExecuteFunctions(EF_SYSTEM_POST);
 
     NWNX_Optimizations_FlushCachedChunks();
@@ -73,13 +73,12 @@ void EFCore_InsertSystem(json jSystem)
 
 json EFCore_GetAnnotations()
 {
-    return GetLocalJsonOrDefault(GetDataObject(EFCORE_SCRIPT_NAME), EFCORE_ANNOTATION_ARRAY, JsonArray());
+    return GetLocalJsonArray(GetDataObject(EFCORE_SCRIPT_NAME), EFCORE_ANNOTATION_ARRAY);
 }
 
 void EFCore_InsertAnnotation(json jAnnotation)
 {
-    json jAnnotations = EFCore_GetAnnotations();
-    jAnnotations = JsonArrayInsert(jAnnotations, jAnnotation);
+    json jAnnotations = JsonArrayInsert(EFCore_GetAnnotations(), jAnnotation);
     SetLocalJson(GetDataObject(EFCORE_SCRIPT_NAME), EFCORE_ANNOTATION_ARRAY, jAnnotations);
 }
 
@@ -93,6 +92,7 @@ void EFCore_InitSystemData()
         EFCore_GetSystem(JsonArrayGetString(jSystems, nSystem));
     }
 
+    nNumSystems = JsonGetLength(EFCore_GetSystems());
     WriteLog(EFCORE_LOG_TAG, "* Found " + IntToString(nNumSystems) + " Systems...");
 }
 
@@ -105,6 +105,12 @@ json EFCore_GetSystem(string sSystem)
     if (!JsonGetType(jSystem))
     {
         string sScriptData = NWNX_Util_GetNSSContents(sSystem);
+
+        if (FindSubString(sScriptData, "@SKIPSYSTEM") != -1)
+        {
+            WriteLog(EFCORE_LOG_TAG, "  > Skipping System: " + sSystem);
+            return JsonNull();
+        }
 
         jSystem = JsonObject();
         jSystem = JsonObjectSetString(jSystem, "system", sSystem);
@@ -222,6 +228,8 @@ void EFCore_ExecuteFunctionOnAnnotationData(string sSystem, string sAnnotation, 
 
         NWNX_Util_SetInstructionsExecuted(0);
     }
+
+    DeleteLocalJson(oModule, "EF_ANNOTATION_DATA");
 
     if (bPrintError)
         WriteLog(EFCORE_LOG_TAG, "(ExecuteFunctionOnAnnotationData) [" + sAnnotation + "] Function '" +sFunction + "' for '" + sSystem + "' failed with error: " + sError);

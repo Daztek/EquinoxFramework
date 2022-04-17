@@ -15,6 +15,8 @@ json LocationToJson(location locLocation);
 location JsonToLocation(json jLocation);
 // Get oObject's local json variable sVarName or jDefault if not set
 json GetLocalJsonOrDefault(object oObject, string sVarName, json jDefault);
+// Gets local json array sVarName from oObject
+json GetLocalJsonArray(object oObject, string sVarName);
 // Get sKey as string from jObject
 string JsonObjectGetString(json jObject, string sKey);
 // Set sKey to sValue as JsonString() on jObject
@@ -71,6 +73,14 @@ json JsonObjectGetOrDefault(json jObject, string sKey, json jDefault);
 int JsonArrayContainsString(json jArray, string sString);
 // Returns a json integer point
 json JsonPointInt(int nX, int nY);
+// Insert sValue to the local json array sVarName on oObject at nIndex.
+void InsertStringToLocalJsonArray(object oObject, string sVarName, string sValue, int nIndex = -1);
+// Insert nValue to the local json array sVarName on oObject at nIndex.
+void InsertIntToLocalJsonArray(object oObject, string sVarName, int nValue, int nIndex = -1);
+// Get the string at nIndex from the local json array sVarName on oObject, or "" on error
+string GetStringFromLocalJsonArray(object oObject, string sVarName, int nIndex);
+// Get the integer at nIndex from the local json array sVarName on oObject, or 0 on error
+int GetIntFromLocalJsonArray(object oObject, string sVarName, int nIndex);
 
 json VectorToJson(vector vVector)
 {
@@ -120,6 +130,11 @@ json GetLocalJsonOrDefault(object oObject, string sVarName, json jDefault)
 {
     json jReturn = GetLocalJson(oObject, sVarName);
     return !JsonGetType(jReturn) ? jDefault : jReturn;
+}
+
+json GetLocalJsonArray(object oObject, string sVarName)
+{
+    return GetLocalJsonOrDefault(oObject, sVarName, JsonArray());
 }
 
 string JsonObjectGetString(json jObject, string sKey)
@@ -224,5 +239,25 @@ json JsonPointInt(int nX, int nY)
          jPoint = JsonArrayInsertInt(jPoint, nX);
          jPoint = JsonArrayInsertInt(jPoint, nY);
     return jPoint;
+}
+
+void InsertStringToLocalJsonArray(object oObject, string sVarName, string sValue, int nIndex = -1)
+{
+    SetLocalJson(oObject, sVarName, JsonArrayInsertString(GetLocalJsonArray(oObject, sVarName), sValue, nIndex));
+}
+
+void InsertIntToLocalJsonArray(object oObject, string sVarName, int nValue, int nIndex = -1)
+{
+    SetLocalJson(oObject, sVarName, JsonArrayInsertInt(GetLocalJsonArray(oObject, sVarName), nValue, nIndex));
+}
+
+string GetStringFromLocalJsonArray(object oObject, string sVarName, int nIndex)
+{
+    return JsonArrayGetString(GetLocalJsonArray(oObject, sVarName), nIndex);
+}
+
+int GetIntFromLocalJsonArray(object oObject, string sVarName, int nIndex)
+{
+    return JsonArrayGetInt(GetLocalJsonArray(oObject, sVarName), nIndex);
 }
 

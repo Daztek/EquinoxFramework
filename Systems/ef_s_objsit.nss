@@ -20,8 +20,8 @@ const string OBJSIT_SINGLE_TAG          = "OBJSIT_SINGLE_CHAIR";
 const string OBJSIT_DOUBLE_SPAWN_TAG    = "OBJSIT_DOUBLE";
 const string OBJSIT_DOUBLE_TAG          = "OBJSIT_DOUBLE_BENCH";
 
-// @CORE[EF_SYSTEM_LOAD]
-void ObjSit_Load()
+// @CORE[EF_SYSTEM_INIT]
+void ObjSit_Init()
 {
     object oSpawnpoint;
     string sOnUsedEventName = Events_GetObjectEventName(EVENT_SCRIPT_PLACEABLE_ON_USED);

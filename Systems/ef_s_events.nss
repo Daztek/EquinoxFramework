@@ -32,6 +32,7 @@ void Events_SetObjectEventScript(object oObject, int nEvent, int bStoreOldEvent 
 void Events_AddObjectToDispatchList(string sSystem, string sEvent, object oObject);
 void Events_RemoveObjectFromDispatchList(string sSystem, string sEvent, object oObject);
 void Events_SkipEvent();
+void Events_SetEventResult(string sData);
 int Events_GetNumSubscribers(string sEvent);
 string Events_GetObjectEventName(int nEvent, int nType = EVENTS_OBJECT_EVENT_TYPE_DEFAULT);
 string Events_GetString(string sTag);
@@ -170,6 +171,11 @@ void Events_RemoveObjectFromDispatchList(string sSystem, string sEvent, object o
 void Events_SkipEvent()
 {
     NWNX_Events_SkipEvent();
+}
+
+void Events_SetEventResult(string sData)
+{
+    NWNX_Events_SetEventResult(sData);
 }
 
 int Events_GetNumSubscribers(string sEvent)

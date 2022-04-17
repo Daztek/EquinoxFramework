@@ -20,6 +20,8 @@ const string NUI_EVENT_MOUSEDOWN            = "mousedown";
 const string NUI_EVENT_MOUSEUP              = "mouseup";
 const string NUI_EVENT_MOUSESCROLL          = "mousescroll";
 
+const string NUI_DEFAULT_GEOMETRY_NAME      = "default_geometry";
+
 json NuiGetCenteredGeometryRect(object oPlayer, float fWindowWidth, float fWindowHeight);
 float NuiGetMouseScrollDelta(json jPayload);
 
@@ -37,5 +39,4 @@ float NuiGetMouseScrollDelta(json jPayload)
 {
     return JsonGetFloat(JsonObjectGet(JsonObjectGet(jPayload, "mouse_scroll"), "y"));
 }
-
 

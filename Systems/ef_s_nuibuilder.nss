@@ -76,6 +76,7 @@ void NB_SetForegroundColor(json jColor);
 void NB_SetTooltip(json jTooltip);
 void NB_SetVisible(json jVisible);
 void NB_SetWidth(float fWidth);
+void NB_SetDimensions(float fWidth, float fHeight);
 
 json NB_GetWindow();
 void NB_SetWindow(json jWindow);
@@ -310,6 +311,7 @@ void NB_StartColumn()
 {
     NB_Start(NB_TYPE_COLUMN, NuiCol(JsonArray()));
 }
+
 void NB_StartRow()
 {
     NB_Start(NB_TYPE_ROW, NuiRow(JsonArray()));
@@ -428,6 +430,12 @@ void NB_SetWidth(float fWidth)
     NB_SetData(NuiWidth(NB_GetData(), fWidth));
 }
 
+void NB_SetDimensions(float fWidth, float fHeight)
+{
+    NB_SetWidth(fWidth);
+    NB_SetHeight(fHeight);
+}
+
 json NB_GetWindow()
 {
     return GetLocalJson(GetDataObject(NB_SCRIPT_NAME), NB_WINDOW);
@@ -442,7 +450,7 @@ void NB_InitializeWindow(json jDefaultGeometry)
     NB_LogDebug("* INITIALIZE WINDOW");
     DestroyDataObject(NB_SCRIPT_NAME);
     NB_SetWindow(NuiWindow(JsonNull(), JsonString(""), NuiBind(NUI_WINDOW_GEOMETRY_BIND), JsonBool(FALSE), JsonNull(), JsonBool(TRUE), JsonBool(FALSE), JsonBool(TRUE)));
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "default_geometry",  jDefaultGeometry));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), NUI_DEFAULT_GEOMETRY_NAME,  jDefaultGeometry));
 }
 
 void NB_SetWindowVersion(int nVersion)

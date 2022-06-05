@@ -15,6 +15,10 @@ const string GFFTOOLS_SCRIPT_NAME                       = "ef_s_gfftools";
 
 const string GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF       = "plc_invisobj";
 const string GFFTOOLS_PLACEABLE_TEMPLATE_JSON           = "GffToolsPlaceableTemplate";
+
+const string GFFTOOLS_DOOR_TEMPLATE_RESREF              = "nw_door_fancy";
+const string GFFTOOLS_DOOR_TEMPLATE_JSON                = "GffToolsDoorTemplate";
+
 const string GFFTOOLS_FACING_ADJUSTMENT_VARNAME         = "GffToolsFacingAdjustment";
 const int GFFTOOLS_INVISIBLE_PLACEABLE_MODEL_ID         = 157;
 
@@ -54,6 +58,7 @@ struct GffTools_PlaceableData
 json GffTools_GeneratePlaceable(struct GffTools_PlaceableData pd);
 object GffTools_CreatePlaceable(json jPlaceable, location locLocation, string sNewTag = "");
 json GffTools_GetScrubbedAreaTemplate(object oArea);
+object GffTools_CreateDoor(int nAppearance, location locSpawn, string sTag);
 
 json GffTools_GetPlaceableTemplate()
 {
@@ -64,6 +69,21 @@ json GffTools_GetPlaceableTemplate()
     {
         jTemplate = TemplateToJson(GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, RESTYPE_UTP);
         SetLocalJson(oDataObject, GFFTOOLS_PLACEABLE_TEMPLATE_JSON, jTemplate);
+    }
+
+    return jTemplate;
+}
+
+json GffTools_GetDoorTemplate()
+{
+    object oDataObject = GetDataObject(GFFTOOLS_SCRIPT_NAME);
+    json jTemplate = GetLocalJson(oDataObject, GFFTOOLS_DOOR_TEMPLATE_JSON);
+
+    if (!JsonGetType(jTemplate))
+    {
+        jTemplate = TemplateToJson(GFFTOOLS_DOOR_TEMPLATE_RESREF, RESTYPE_UTD);
+        jTemplate = GffReplaceByte(jTemplate, "Plot", TRUE);
+        SetLocalJson(oDataObject, GFFTOOLS_DOOR_TEMPLATE_JSON, jTemplate);
     }
 
     return jTemplate;
@@ -148,5 +168,16 @@ json GffTools_GetScrubbedAreaTemplate(object oArea)
          jTemplateArea = GffRemoveByte(jTemplateArea, "GIT/value/AreaProperties/value/MoonFogAmount");
 
     return jTemplateArea;
+}
+
+object GffTools_CreateDoor(int nAppearance, location locSpawn, string sTag)
+{
+    json jDoor = GffTools_GetDoorTemplate();
+         jDoor = GffReplaceDword(jDoor, "Appearance", nAppearance);
+         jDoor = GffReplaceString(jDoor, "Tag", sTag);
+         jDoor = GffRemoveWord(jDoor, "PortraitId");
+         jDoor = GffRemoveLocString(jDoor, "Description");
+
+    return JsonToObject(jDoor, locSpawn);
 }
 

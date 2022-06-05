@@ -100,10 +100,10 @@ void PostString_ClearByID(object oPlayer, int nID)
 
 void PostString_ClearByRange(object oPlayer, int nStartID, int nEndID)
 {
-    int i;
-    for(i = nStartID; i < nEndID; i++)
+    int nID;
+    for(nID = nStartID; nID < nEndID; nID++)
     {
-        PostString_ClearByID(oPlayer, i);
+        PostString_ClearByID(oPlayer, nID);
     }
 }
 

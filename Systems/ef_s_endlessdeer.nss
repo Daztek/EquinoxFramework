@@ -24,7 +24,7 @@ int ED_GetNumSpawnTiles(string sAreaID)
 {
     string sQuery = "SELECT COUNT(*) FROM " + EP_GetTilesTable() +
                     "WHERE area_id=@area_id AND entrance_dist >= @entrance_dist AND exit_dist >= @exit_dist AND path_dist >= @path_dist AND group_tile = @group_tile;";
-    sqlquery sql = SqlPrepareQueryObject(GetModule(), sQuery);
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@area_id", sAreaID);
     SqlBindInt(sql, "@entrance_dist", ED_ENTRANCE_DISTANCE);
     SqlBindInt(sql, "@exit_dist", ED_EXIT_DISTANCE);
@@ -57,7 +57,7 @@ void ED_OnAreaPostProcessed()
     string sQuery = "SELECT tile_x, tile_y FROM " + EP_GetTilesTable() +
                     "WHERE area_id=@area_id AND entrance_dist >= @entrance_dist AND exit_dist >= @exit_dist AND path_dist >= @path_dist AND group_tile = @group_tile " +
                     "ORDER BY RANDOM() LIMIT @limit;";
-    sqlquery sql = SqlPrepareQueryObject(GetModule(), sQuery);
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@area_id", sAreaID);
     SqlBindInt(sql, "@entrance_dist", ED_ENTRANCE_DISTANCE);
     SqlBindInt(sql, "@exit_dist", ED_EXIT_DISTANCE);
@@ -68,7 +68,6 @@ void ED_OnAreaPostProcessed()
     while (SqlStep(sql))
     {
         location locTile = Location(oArea, GetTilePosition(SqlGetInt(sql, 0), SqlGetInt(sql, 1)), IntToFloat(Random(360)));
-
         DelayCommand(ED_SPAWN_DELAY * nCount++, ED_SpawnDeer(locTile));
     }
 }

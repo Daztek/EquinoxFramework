@@ -222,12 +222,12 @@ void NB_End()
         }
         case NB_TYPE_GROUP:
         {
-            if (NB_IsElementType(nTypeToAdd))
+            if (NB_IsLayoutType(nTypeToAdd) || NB_IsElementType(nTypeToAdd))
                 NB_SetData(JsonObjectSet(jData, "children", JsonArrayInsert(JsonArray(), jDataToAdd)));
             else if (nTypeToAdd == NB_TYPE_DRAWLIST)
                 NB_SetData(JsonMerge(jData, jDataToAdd));
             else
-                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_GROUP} only accepts {NB_TYPE_ELEMENT|NB_TYPE_LIST|NB_TYPE_STATIC_COMBO|NB_TYPE_STATIC_OPTIONS|NB_TYPE_DRAWLIST}.");
+                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_GROUP} only accepts {NB_TYPE_COLUMN|NB_TYPE_ROW|NB_TYPE_GROUP|NB_TYPE_ELEMENT|NB_TYPE_LIST|NB_TYPE_STATIC_COMBO|NB_TYPE_STATIC_OPTIONS|NB_TYPE_DRAWLIST}.");
             break;
         }
         case NB_TYPE_ELEMENT:

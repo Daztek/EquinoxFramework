@@ -24,10 +24,10 @@ const float EP_POSTPROCESS_DELAY                = 0.1f;
 const string EP_AREA_POST_PROCESS_FINISHED      = "EP_AREA_POST_PROCESS_FINISHED";
 
 const string EP_AREA_TILESET                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
-const int EP_MAX_ITERATIONS                     = 100;
+const int EP_MAX_ITERATIONS                     = 25;
 const string EP_AREA_DEFAULT_EDGE_TERRAIN       = "TREES";
-const int EP_AREA_MINIMUM_LENGTH                = 6;
-const int EP_AREA_RANDOM_LENGTH                 = 11;
+const int EP_AREA_MINIMUM_LENGTH                = 4;
+const int EP_AREA_RANDOM_LENGTH                 = 13;
 
 const int EP_AREA_PATH_NO_ROAD_CHANCE           = 10;
 const int EP_AREA_SAND_CHANCE                   = 30;
@@ -36,7 +36,7 @@ const int EP_AREA_MOUNTAIN_CHANCE               = 25;
 const int EP_AREA_STREAM_CHANCE                 = 30;
 const int EP_AREA_RIDGE_CHANCE                  = 25;
 const int EP_AREA_ROAD_CHANCE                   = 25;
-const int EP_AREA_GRASS2_CHANCE                 = 50;
+const int EP_AREA_GRASS2_CHANCE                 = 25;
 
 const int EP_AREA_SINGLE_GROUP_TILE_CHANCE      = 5;
 
@@ -50,6 +50,7 @@ void EP_ToggleTerrainOrCrosser(string sAreaID, object oPreviousArea, string sCro
 void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int nAreaWidth, int nAreaHeight);
 object EP_CreateDoor(object oArea, int nTileIndex);
 int EP_GetAreaNum(string sAreaID);
+int EP_GetIsEPArea(object oArea);
 object EP_CreateArea(string sAreaID);
 void EP_PostProcess(object oArea, int nCurrentHeight = 0);
 
@@ -68,7 +69,7 @@ void EP_Init()
              "group_tile INTEGER NOT NULL, " +
              "num_doors INTEGER NOT NULL, " +
              "PRIMARY KEY(area_id, tile_index));";
-    SqlStep(SqlPrepareQueryObject(GetModule(), sQuery));
+    SqlStep(SqlPrepareQueryModule(sQuery));
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
 }
@@ -92,26 +93,29 @@ void EP_OnAreaEnter()
 
     if (GetIsPC(oPlayer))
     {
-        Events_RemoveObjectFromDispatchList(EP_SCRIPT_NAME, Events_GetObjectEventName(EVENT_SCRIPT_AREA_ON_ENTER), oArea);
-        string sPreviousAreaID = EP_GetLastAreaID();
-        object oPreviousArea = GetObjectByTag(sPreviousAreaID);
-        int nExitTile = AG_GetIntDataByKey(sPreviousAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
-        int nExitEdge = AG_GetEdgeFromTile(sPreviousAreaID, nExitTile);
-        string sAreaID = EP_GetNextAreaID();
-
-        int nAreaWidth, nAreaHeight;
-        if (nExitEdge == AG_AREA_EDGE_TOP || nExitEdge == AG_AREA_EDGE_BOTTOM)
+        if (!GetLocalInt(oArea, "PLAYER_ENTERED"))
         {
-            nAreaWidth = GetAreaSize(AREA_WIDTH, oPreviousArea);
-            nAreaHeight = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH);
-        }
-        else if (nExitEdge == AG_AREA_EDGE_LEFT || nExitEdge == AG_AREA_EDGE_RIGHT)
-        {
-            nAreaWidth = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH);
-            nAreaHeight = GetAreaSize(AREA_HEIGHT, oPreviousArea);
-        }
+            string sPreviousAreaID = EP_GetLastAreaID();
+            object oPreviousArea = GetObjectByTag(sPreviousAreaID);
+            int nExitTile = AG_GetIntDataByKey(sPreviousAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
+            int nExitEdge = AG_GetEdgeFromTile(sPreviousAreaID, nExitTile);
+            string sAreaID = EP_GetNextAreaID();
 
-        EP_GenerateArea(sAreaID, oPreviousArea, nExitEdge, nAreaWidth, nAreaHeight);
+            int nAreaWidth, nAreaHeight;
+            if (nExitEdge == AG_AREA_EDGE_TOP || nExitEdge == AG_AREA_EDGE_BOTTOM)
+            {
+                nAreaWidth = GetAreaSize(AREA_WIDTH, oPreviousArea);
+                nAreaHeight = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH);
+            }
+            else if (nExitEdge == AG_AREA_EDGE_LEFT || nExitEdge == AG_AREA_EDGE_RIGHT)
+            {
+                nAreaWidth = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH);
+                nAreaHeight = GetAreaSize(AREA_HEIGHT, oPreviousArea);
+            }
+
+            EP_GenerateArea(sAreaID, oPreviousArea, nExitEdge, nAreaWidth, nAreaHeight);
+            SetLocalInt(oArea, "PLAYER_ENTERED", TRUE);
+        }
 
         ExploreAreaForPlayer(oArea, oPlayer);
         PopUpGUIPanel(oPlayer, GUI_PANEL_MINIMAP);
@@ -170,20 +174,18 @@ void EP_ToggleTerrainOrCrosser(string sAreaID, object oPreviousArea, string sCro
 void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int nAreaWidth, int nAreaHeight)
 {
     EP_SetLastGenerationData(oPreviousArea, nEdgeToCopy, nAreaWidth, nAreaHeight);
-
     AG_InitializeRandomArea(sAreaID, EP_AREA_TILESET, EP_AREA_DEFAULT_EDGE_TERRAIN, nAreaWidth, nAreaHeight);
+
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, EP_DEBUG_LOG);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, EP_MAX_ITERATIONS);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, EP_AREA_SINGLE_GROUP_TILE_CHANCE);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10 + Random(16));
     AG_SetCallbackFunction(sAreaID, EP_SCRIPT_NAME, "EP_OnAreaGenerated");
 
     AG_AddEdgeTerrain(sAreaID, "WATER");
     AG_AddEdgeTerrain(sAreaID, "MOUNTAIN");
-
-    AG_AddPathDoorCrosserCombo(sAreaID, 80, "ROAD");
-    AG_AddPathDoorCrosserCombo(sAreaID, 1161, "STREET");
-    AG_SetAreaPathDoorCrosserCombo(sAreaID, Random(100) < EP_AREA_ROAD_CHANCE ? 0 : 1);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD_CHANCE, EP_AREA_PATH_NO_ROAD_CHANCE);
+    //AG_AddEdgeTerrain(sAreaID, "GRASS");
+    //AG_AddEdgeTerrain(sAreaID, "GRASS2");
 
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "ROAD");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "WALL");
@@ -200,13 +202,16 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
         EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "GRASS2", EP_AREA_GRASS2_CHANCE);
     }
 
-    AG_CopyEdgeFromArea(sAreaID, oPreviousArea, nEdgeToCopy);
+    AG_AddPathDoorCrosserCombo(sAreaID, 80, "ROAD");
+    AG_AddPathDoorCrosserCombo(sAreaID, 1161, "STREET");
+    AG_SetAreaPathDoorCrosserCombo(sAreaID, Random(100) < EP_AREA_ROAD_CHANCE ? 0 : 1);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD_CHANCE, EP_AREA_PATH_NO_ROAD_CHANCE);
 
+    AG_CopyEdgeFromArea(sAreaID, oPreviousArea, nEdgeToCopy);
     AG_GenerateEdge(sAreaID, AG_AREA_EDGE_TOP);
+    AG_GenerateEdge(sAreaID, AG_AREA_EDGE_RIGHT);
     AG_GenerateEdge(sAreaID, AG_AREA_EDGE_BOTTOM);
     AG_GenerateEdge(sAreaID, AG_AREA_EDGE_LEFT);
-    AG_GenerateEdge(sAreaID, AG_AREA_EDGE_RIGHT);
-
     AG_PlotRoad(sAreaID);
 
     AG_GenerateArea(sAreaID);
@@ -234,13 +239,18 @@ object EP_CreateDoor(object oArea, int nTileIndex)
 
     location locSpawn = Location(oArea, vDoorPosition, strDoor.fOrientation);
 
-    return NWNX_Util_CreateDoor(strDoor.sResRef, locSpawn, sTag, strDoor.nType);
+    return GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);
 }
 
 int EP_GetAreaNum(string sAreaID)
 {
     int nPrefixLength = GetStringLength(EP_AREA_TAG_PREFIX);
     return StringToInt(GetSubString(sAreaID, nPrefixLength, GetStringLength(sAreaID) - nPrefixLength));
+}
+
+int EP_GetIsEPArea(object oArea)
+{
+    return GetStringLeft(GetTag(oArea), GetStringLength(EP_AREA_TAG_PREFIX)) == EP_AREA_TAG_PREFIX;
 }
 
 object EP_CreateArea(string sAreaID)
@@ -251,6 +261,7 @@ object EP_CreateArea(string sAreaID)
     jArea = GffReplaceInt(jArea, "ARE/value/Width", AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH));
     jArea = GffReplaceLocString(jArea, "ARE/value/Name", "The Endless Path (" +IntToString(EP_GetAreaNum(sAreaID)) + ")");
     jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicDay", Random(2) ? 128 : 136);
+    jArea = GffReplaceInt(jArea, "ARE/value/WindPower", Random(3));
     jArea = GffAddList(jArea, "ARE/value/Tile_List", AG_GetTileList(sAreaID));
 
     return JsonToObject(jArea, GetStartingLocation());
@@ -260,7 +271,9 @@ void EP_OnAreaGenerated(string sAreaID)
 {
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
     {
-        WriteLog(EP_LOG_TAG, "* Area Generation Failure: " + sAreaID + ", retrying...");
+        if (EP_DEBUG_LOG)
+            WriteLog(EP_LOG_TAG, "* Area Generation Failure: " + sAreaID + ", retrying...");
+
         object oDataObject = GetDataObject(EP_SCRIPT_NAME);
         object oArea = GetLocalObject(oDataObject, "LAST_AREA");
         int nEdge = GetLocalInt(oDataObject, "LAST_EDGE");
@@ -286,23 +299,6 @@ void EP_OnAreaGenerated(string sAreaID)
     }
 }
 
-// @PMBUTTON[Haste]
-void EP_Haste()
-{
-    object oPlayer = OBJECT_SELF;
-
-    if (!GetHasEffectType(oPlayer, EFFECT_TYPE_HASTE))
-        ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectHaste(), oPlayer);
-}
-
-int EP_GetMaxDistanceFromEntrance(string sAreaID)
-{
-    string sQuery = "SELECT MAX(entrance_dist) FROM " + EP_GetTilesTable() + "WHERE area_id=@area_id;";
-    sqlquery sql = SqlPrepareQueryObject(GetModule(), sQuery);
-    SqlBindString(sql, "@area_id", sAreaID);
-    return SqlStep(sql) ? SqlGetInt(sql, 0) : -1;
-}
-
 int EP_NearestPathDistance(string sAreaID, int nTileX, int nTileY)
 {
     json jPathNodes = AG_GetJsonDataByKey(sAreaID, AG_DATA_KEY_PATH_NODES);
@@ -315,7 +311,7 @@ int EP_NearestPathDistance(string sAreaID, int nTileX, int nTileY)
     for (nNode = 0; nNode < nNumNodes; nNode++)
     {
         json jNode = JsonArrayGet(jPathNodes, nNode);
-        int nDistanceFromPathNode = abs(nTileX - JsonArrayGetInt(jNode, 0)) + abs(nTileY - JsonArrayGetInt(jNode, 1));
+        int nDistanceFromPathNode = abs(nTileX - JsonObjectGetInt(jNode, "x")) + abs(nTileY - JsonObjectGetInt(jNode, "y"));
 
         if (nDistanceFromPathNode < nMinDistance)
             nMinDistance = nDistanceFromPathNode;
@@ -354,11 +350,11 @@ void EP_PostProcess(object oArea, int nCurrentHeight = 0)
         struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nTile);
         string sCAE = TS_GetCornersAndEdgesAsString(TS_GetTileEdgesAndCorners(EP_AREA_TILESET, strTileInfo.nID));
 
-        if (FindSubString(sCAE, "GRASS") != -1 || FindSubString(sCAE, "SAND") != -1)
+        if (FindSubString(sCAE, "GRASS") != -1)
         {
             vector vTilePosition = GetTilePosition(strTileInfo.nGridX, strTileInfo.nGridY);
 
-            if (NWNX_Area_GetPathExists(oArea, vEntrancePosition, vTilePosition, nNumTiles))
+            if (NWNX_Area_GetPathExists(oArea, vEntrancePosition, vTilePosition, (nHeight * nWidth)))
             {
                 location locTile = Location(oArea, vTilePosition, 0.0f);
                 int nDistanceFromEntrance = abs(strEntrancePosition.nX - strTileInfo.nGridX) + abs(strEntrancePosition.nY - strTileInfo.nGridY);
@@ -367,7 +363,7 @@ void EP_PostProcess(object oArea, int nCurrentHeight = 0)
                 int bIsGroupTile = TS_GetIsTilesetGroupTile(EP_AREA_TILESET, strTileInfo.nID);
                 int nNumDoors = TS_GetTilesetNumDoors(EP_AREA_TILESET, strTileInfo.nID);
 
-                sqlquery sql = SqlPrepareQueryObject(oModule, sQuery);
+                sqlquery sql = SqlPrepareQueryModule(sQuery);
                 SqlBindString(sql, "@area_id", sAreaID);
                 SqlBindInt(sql, "@tile_index", nTile);
                 SqlBindInt(sql, "@tile_x", strTileInfo.nGridX);
@@ -386,7 +382,7 @@ void EP_PostProcess(object oArea, int nCurrentHeight = 0)
     DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea, ++nCurrentHeight));
 }
 
-// @ PMBUTTON[Spawn Doors]
+// @PMBUTTON[Spawn Doors]
 void EP_SpawnDoors()
 {
     object oPlayer = OBJECT_SELF;
@@ -418,12 +414,37 @@ void EP_SpawnDoors()
             }
 
             location locSpawn = Location(oArea, vDoorPosition, strDoor.fOrientation);
-
-            if (!strDoor.nType)
-                strDoor.sResRef = "nw_door_ttr_19";
-
-            object oDoor = NWNX_Util_CreateDoor(strDoor.sResRef, locSpawn, sTag, strDoor.nType);
+            object oDoor = GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);
         }
     }
+}
+
+void PortToTile(string sType)
+{
+    object oPlayer = OBJECT_SELF;
+    object oArea = GetArea(oPlayer);
+
+    if (EP_GetIsEPArea(oArea))
+    {
+        string sAreaID = GetTag(oArea);
+        struct AG_TilePosition strPosition = AG_GetTilePosition(sAreaID, AG_GetIntDataByKey(sAreaID, sType));
+        vector vPosition = GetTilePosition(strPosition.nX, strPosition.nY);
+        location locTile = Location(oArea, vPosition, 0.0f);
+
+        ClearAllActions();
+        JumpToLocation(locTile);
+    }
+}
+
+// @CONSOLE[EPEntrance::]
+void EP_PortToEntrance()
+{
+    PortToTile(AG_DATA_KEY_ENTRANCE_TILE_INDEX);
+}
+
+// @CONSOLE[EPExit::]
+void EP_PortToExit()
+{
+    PortToTile(AG_DATA_KEY_EXIT_TILE_INDEX);
 }
 

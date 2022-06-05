@@ -60,10 +60,29 @@ json GffAddLocalVariable(json jGff, json jLocalVariable)
 
 json GffAddTile(json jTileList, int nTileID, int nOrientation, int nHeight)
 {
-    json jTile = JsonObject();
-    jTile = GffAddInt(jTile, "Tile_ID", nTileID);
-    jTile = GffAddInt(jTile, "Tile_Orientation", nOrientation);
-    jTile = GffAddInt(jTile, "Tile_Height", nHeight);
+    json jTile = GetLocalJson(GetModule(), "GFF_TILE_TEMPLATE");
+    if (!JsonGetType(jTile))
+    {
+        jTile = JsonObject();
+        jTile = GffAddInt(jTile, "Tile_ID", 0);
+        jTile = GffAddInt(jTile, "Tile_Orientation", 0);
+        jTile = GffAddInt(jTile, "Tile_Height", 0);
+
+        jTile = GffAddByte(jTile, "Tile_AnimLoop1", TRUE);
+        jTile = GffAddByte(jTile, "Tile_AnimLoop2", TRUE);
+        jTile = GffAddByte(jTile, "Tile_AnimLoop3", TRUE);
+
+        SetLocalJson(GetModule(), "GFF_TILE_TEMPLATE", jTile);
+        PrintString(JsonDump(jTile));
+    }
+
+    if (nTileID)
+        jTile = GffReplaceInt(jTile, "Tile_ID", nTileID);
+    if (nOrientation)
+        jTile = GffReplaceInt(jTile, "Tile_Orientation", nOrientation);
+    if (nHeight)
+        jTile = GffReplaceInt(jTile, "Tile_Height", nHeight);
+
     return JsonArrayInsert(jTileList, jTile);
 }
 

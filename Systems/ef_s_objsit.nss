@@ -25,7 +25,7 @@ void ObjSit_Init()
 {
     object oSpawnpoint;
     string sOnUsedEventName = Events_GetObjectEventName(EVENT_SCRIPT_PLACEABLE_ON_USED);
-    int nNth = 0;
+    int nNth;
 
     struct GffTools_PlaceableData pdSingle;
     pdSingle.nModel = 179;
@@ -41,7 +41,6 @@ void ObjSit_Init()
     while ((oSpawnpoint = GetObjectByTag(OBJSIT_SINGLE_SPAWN_TAG, nNth++)) != OBJECT_INVALID)
     {
         object oChair = GffTools_CreatePlaceable(jChair, GetLocation(oSpawnpoint));
-
         Events_AddObjectToDispatchList(OBJSIT_SCRIPT_NAME, sOnUsedEventName, oChair);
     }
     WriteLog(OBJSIT_LOG_TAG, "* Created '" + IntToString(--nNth) + "' Single Sitting Objects");
@@ -60,7 +59,6 @@ void ObjSit_Init()
     while ((oSpawnpoint = GetObjectByTag(OBJSIT_DOUBLE_SPAWN_TAG, nNth++)) != OBJECT_INVALID)
     {
         object oBench = GffTools_CreatePlaceable(jBench, GetLocation(oSpawnpoint));
-
         Events_AddObjectToDispatchList(OBJSIT_SCRIPT_NAME, sOnUsedEventName, oBench);
     }
     WriteLog(OBJSIT_LOG_TAG, "* Created '" + IntToString(--nNth) + "' Double Sitting Objects");

@@ -41,8 +41,6 @@ float Events_GetFloat(string sTag);
 object Events_GetObject(string sTag);
 vector Events_GetVector(string sTagX, string sTagY, string sTagZ);
 location Events_GetLocation(string sTagArea, string sTagX, string sTagY, string sTagZ);
-void Events_EnterTargetingMode(object oPlayer, string sTargetingMode, int nValidObjectTypes = OBJECT_TYPE_ALL, int nMouseCursorId = MOUSECURSOR_MAGIC, int nBadTargetCursor = MOUSECURSOR_NOMAGIC);
-string Events_GetCurrentTargetingMode(object oPlayer);
 void Events_SetAreaEventScripts(object oArea, int bSetHeartbeat = EVENTS_HOOK_AREA_HEARTBEAT);
 
 // @CORE[EF_SYSTEM_INIT]
@@ -225,17 +223,6 @@ vector Events_GetVector(string sTagX, string sTagY, string sTagZ)
 location Events_GetLocation(string sTagArea, string sTagX, string sTagY, string sTagZ)
 {
     return Location(Events_GetObject(sTagArea), Events_GetVector(sTagX, sTagY, sTagZ), 0.0f);
-}
-
-void Events_EnterTargetingMode(object oPlayer, string sTargetingMode, int nValidObjectTypes = OBJECT_TYPE_ALL, int nMouseCursorId = MOUSECURSOR_MAGIC, int nBadTargetCursor = MOUSECURSOR_NOMAGIC)
-{
-    SetLocalString(oPlayer, "EF_TARGETING_MODE", sTargetingMode);
-    EnterTargetingMode(oPlayer, nValidObjectTypes, nMouseCursorId, nBadTargetCursor);
-}
-
-string Events_GetCurrentTargetingMode(object oPlayer)
-{
-    return GetLocalString(oPlayer, "EF_TARGETING_MODE");
 }
 
 void Events_SetAreaEventScripts(object oArea, int bSetHeartbeat = EVENTS_HOOK_AREA_HEARTBEAT)

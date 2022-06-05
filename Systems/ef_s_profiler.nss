@@ -135,9 +135,9 @@ void Profiler_SetOverheadCompensation(int nOverhead)
 
 int Profiler_Calibrate(int nIterations)
 {
-    int i, nSum;
+    int nIteration, nSum;
 
-    for (i = 0; i < nIterations; i++)
+    for (nIteration = 0; nIteration < nIterations; nIteration++)
     {
         nSum += Profiler_Stop(Profiler_Start("Calibration", TRUE, FALSE));
     }

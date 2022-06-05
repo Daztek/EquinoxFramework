@@ -86,6 +86,13 @@ int min(int a, int b);
 // Returns nValue bounded by nMin and nMax
 int clamp(int nValue, int nMin, int nMax);
 
+// Delete oObject's local vector variable sVarName
+void DeleteLocalVector(object oObject, string sVarName);
+// Get oObject's local vector variable sVarname
+vector GetLocalVector(object oObject, string sVarName);
+// Set oObject's local vector variable sVarname to vValue
+void SetLocalVector(object oObject, string sVarName, vector vValue);
+
 void WriteLog(string sName, string sMessage)
 {
     WriteTimestampedLogEntry("[" + sName + "] " + sMessage);
@@ -363,5 +370,20 @@ int min(int a, int b)
 int clamp(int nValue, int nMin, int nMax)
 {
     return nValue < nMin ? nMin : nValue > nMax ? nMax : nValue;
+}
+
+void DeleteLocalVector(object oObject, string sVarName)
+{
+    DeleteLocalLocation(oObject, "VEC:" + sVarName);
+}
+
+vector GetLocalVector(object oObject, string sVarName)
+{
+    return GetPositionFromLocation(GetLocalLocation(oObject, "VEC:" + sVarName));
+}
+
+void SetLocalVector(object oObject, string sVarName, vector vValue)
+{
+    SetLocalLocation(oObject, "VEC:" + sVarName, Location(OBJECT_INVALID, vValue, 0.0f));
 }
 

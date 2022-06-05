@@ -22,7 +22,7 @@ const string PC_WINDOW_ID                   = "PERCHEST";
 const int PC_MAX_ITEMS                      = 25;
 const int PC_SAVE_ITEM_OBJECT_STATE         = TRUE;
 
-const string PC_BIND_WINDOW_TITLE           = "window_titlet";
+const string PC_BIND_WINDOW_TITLE           = "window_title";
 const string PC_BIND_PROGRESS               = "progress";
 const string PC_BIND_PROGRESS_TOOLTIP       = "progress_tooltip";
 const string PC_BIND_SEARCH_TEXT            = "search_text";
@@ -35,6 +35,7 @@ const string PC_BIND_NAME_LABEL             = "name_label";
 const string PC_BIND_DEPOSIT_MODE           = "deposit_mode";
 const string PC_BIND_BUTTON_DEPOSIT         = "btn_deposit";
 const string PC_BIND_BUTTON_CLOSE           = "btn_close";
+const string PC_BIND_TEMPLATE_ROW_VISIBLE   = "row_visible";
 
 int PC_GetStoredItemAmount(object oPlayer);
 void PC_UpdateItemList();
@@ -68,7 +69,7 @@ void PC_DropItem()
 
         object oItem = Events_GetObject("ITEM");
 
-        if (!GetIsObjectValid(oItem) || GetLocalInt(oItem, "PC_ITEM_DESTROYED") || GetObjectType(oItem) != OBJECT_TYPE_ITEM)
+        if (!GetIsObjectValid(oItem) || GetObjectType(oItem) != OBJECT_TYPE_ITEM || GetLocalInt(oItem, "PC_ITEM_DESTROYED"))
             return;
 
         if (GetItemPossessor(oItem) != oPlayer)
@@ -134,8 +135,11 @@ json PC_CreateWindow()
             NB_StartListTemplateCell(32.0f, FALSE);
               NB_StartGroup(TRUE, NUI_SCROLLBARS_NONE);
                 NB_SetId(PC_BIND_ICON_GROUP);
+                NB_SetMargin(0.0f);
+                NB_SetVisible(NuiBind(PC_BIND_TEMPLATE_ROW_VISIBLE));
                 NB_StartElement(NuiImage(NuiBind(PC_BIND_ICONS_ARRAY), JsonInt(NUI_ASPECT_FIT100), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_TOP)));
                   NB_SetMargin(0.0f);
+                  NB_SetVisible(NuiBind(PC_BIND_TEMPLATE_ROW_VISIBLE));
                   NB_SetTooltip(NuiBind(PC_BIND_TOOLTIPS_ARRAY));
                 NB_End();
               NB_End();
@@ -143,6 +147,7 @@ json PC_CreateWindow()
             NB_StartListTemplateCell(0.0f, TRUE);
               NB_StartElement(NuiLabel(NuiBind(PC_BIND_NAMES_ARRAY), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
                 NB_SetId(PC_BIND_NAME_LABEL);
+                NB_SetVisible(NuiBind(PC_BIND_TEMPLATE_ROW_VISIBLE));
               NB_End();
             NB_End();
           NB_End();
@@ -232,10 +237,14 @@ int PC_GetStoredItemAmount(object oPlayer)
 void PC_UpdateItemList()
 {
     object oPlayer = NWM_GetPlayer();
-    json jUUIDArray = JsonArray();
-    json jNamesArray = JsonArray();
-    json jTooltipArray = JsonArray();
-    json jIconsArray = JsonArray();
+    object oDataObject = GetDataObject(PC_SCRIPT_NAME);
+
+    json jStringArray = GetEmptyJsonStringArray(PC_MAX_ITEMS);
+    json jUUIDArray = GetEmptyJsonStringArray(PC_MAX_ITEMS);
+    json jNamesArray = GetEmptyJsonStringArray(PC_MAX_ITEMS);
+    json jTooltipArray = GetEmptyJsonStringArray(PC_MAX_ITEMS);
+    json jIconsArray = GetEmptyJsonStringArray(PC_MAX_ITEMS);
+    json jVisibleArray = GetEmptyJsonBoolArray(PC_MAX_ITEMS);
 
     int nNumItems = PC_GetStoredItemAmount(oPlayer);
     string sSearch = JsonGetString(NWM_GetBind(PC_BIND_SEARCH_TEXT));
@@ -246,6 +255,7 @@ void PC_UpdateItemList()
     if (sSearch != "")
         SqlBindString(sql, "@search", "%" + sSearch + "%");
 
+    int nIndex;
     while (SqlStep(sql))
     {
         string sUUID = SqlGetString(sql, 0);
@@ -254,10 +264,12 @@ void PC_UpdateItemList()
         int nStackSize = SqlGetInt(sql, 3);
         string sIconResRef = SqlGetString(sql, 4);
 
-        jUUIDArray = JsonArrayInsertString(jUUIDArray, sUUID);
-        jNamesArray = JsonArrayInsertString(jNamesArray, sName + (nStackSize > 1 ? " (x" + IntToString(nStackSize) + ")" : ""));
-        jTooltipArray = JsonArrayInsertString(jTooltipArray, Get2DAStrRefString("baseitems", "Name", nBaseItem));
-        jIconsArray = JsonArrayInsertString(jIconsArray, sIconResRef);
+        jUUIDArray = JsonArraySetString(jUUIDArray, nIndex, sUUID);
+        jNamesArray = JsonArraySetString(jNamesArray, nIndex, sName + (nStackSize > 1 ? " (x" + IntToString(nStackSize) + ")" : ""));
+        jTooltipArray = JsonArraySetString(jTooltipArray, nIndex, Get2DAStrRefString("baseitems", "Name", nBaseItem));
+        jIconsArray = JsonArraySetString(jIconsArray, nIndex, sIconResRef);
+        jVisibleArray = JsonArraySetBool(jVisibleArray, nIndex, TRUE);
+        nIndex++;
     }
 
     NWM_SetUserData("uuid_array", jUUIDArray);
@@ -266,6 +278,7 @@ void PC_UpdateItemList()
     NWM_SetBind(PC_BIND_TOOLTIPS_ARRAY, jTooltipArray);
     NWM_SetBind(PC_BIND_PROGRESS, JsonFloat(IntToFloat(nNumItems) / IntToFloat(PC_MAX_ITEMS)));
     NWM_SetBind(PC_BIND_PROGRESS_TOOLTIP, JsonString(IntToString(nNumItems) + " / " + IntToString(PC_MAX_ITEMS) + " Items Stored"));
+    NWM_SetBind(PC_BIND_TEMPLATE_ROW_VISIBLE, jVisibleArray);
 }
 
 void PC_WithdrawItem()
@@ -279,6 +292,9 @@ void PC_WithdrawItem()
     string sPlayerUUID = GetObjectUUID(oPlayer);
     string sItemUUID = JsonArrayGetString(NWM_GetUserData("uuid_array"), nItemIndex);
 
+    if (sItemUUID == "")
+        return;
+
     sqlquery sql = SqlPrepareQueryCampaign(PC_SCRIPT_NAME, "SELECT item_data, item_baseitem, item_name FROM " + PC_TABLE_NAME + " WHERE player_uuid = @player_uuid AND item_uuid = @item_uuid;");
     SqlBindString(sql, "@player_uuid", sPlayerUUID);
     SqlBindString(sql, "@item_uuid", sItemUUID);
@@ -287,6 +303,7 @@ void PC_WithdrawItem()
     {
         json jItem = SqlGetJson(sql, 0);
         int nBaseItem = SqlGetInt(sql, 1);
+        string sItemName = SqlGetString(sql, 2);
 
         if (GetBaseItemFitsInInventory(nBaseItem, oPlayer))
         {
@@ -296,12 +313,11 @@ void PC_WithdrawItem()
             SqlStep(sql);
 
             JsonToObject(jItem, GetLocation(oPlayer), oPlayer, PC_SAVE_ITEM_OBJECT_STATE);
-
             PC_UpdateItemList();
         }
         else
         {
-            string sItemName = SqlGetString(sql, 2);
+
             SendMessageToPC(oPlayer, "Item '" + sItemName + "' does not fit in your inventory!");
         }
     }

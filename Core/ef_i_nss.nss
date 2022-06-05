@@ -8,9 +8,9 @@
 string nssVoidMain(string sContents);
 string nssStartingConditional(string sContents);
 string nssInclude(string sIncludeFile);
-string nssIf(string sFunction, string sComparison = "", string sValue = "");
-string nssElseIf(string sFunction, string sComparison = "", string sValue = "");
-string nssWhile(string sFunction, string sComparison = "", string sValue = "");
+string nssIf(string sLeft, string sComparison = "", string sRight = "");
+string nssElseIf(string sLeft, string sComparison = "", string sRight = "");
+string nssWhile(string sLeft, string sComparison = "", string sRight = "");
 string nssBrackets(string sContents);
 string nssEscape(string sString);
 string nssSwitch(string sVariable, string sCases);
@@ -25,42 +25,43 @@ string nssCassowary(string sVarName, string sFunction = "", int bIncludeType = T
 string nssJson(string sVarName, string sFunction = "", int bIncludeType = TRUE);
 string nssFunction(string sFunction, string sArguments = "", int bAddSemicolon = TRUE);
 // Converts o to Object, s to String, etc
-// Only supports the following types: (o)bject, (s)tring, (i)nt, (f)loat, (l)ocation, (v)ector, (c)assowary, (j)son
-string nssConvertShortType(string sShortType);
+// Only supports the following types: (o)bject, (s)tring, (i)nt, (f)loat, (l)ocation, (v)ector, (j)son
+string nssConvertShortType(string sShortType, int bLowerCase = FALSE);
+string nssConvertType(string sType);
 
 string nssVoidMain(string sContents)
 {
-    return "void main() { " + sContents + " }";
+    return "void main(){" + sContents + "}";
 }
 
 string nssStartingConditional(string sContents)
 {
-    return "int StartingConditional() { return " + sContents + " }";
+    return "int StartingConditional(){return " + sContents + "}";
 }
 
 string nssInclude(string sIncludeFile)
 {
-    return sIncludeFile == "" ? sIncludeFile : "#" + "include \"" + sIncludeFile + "\" ";
+    return sIncludeFile == "" ? sIncludeFile : "#" + "include \"" + sIncludeFile + "\"";
 }
 
-string nssIf(string sFunction, string sComparison, string sValue)
+string nssIf(string sLeft, string sComparison, string sRight)
 {
-    return "if (" + sFunction + " " + sComparison + " " + sValue + ") ";
+    return "if(" + sLeft + sComparison + sRight + ")";
 }
 
-string nssElseIf(string sFunction, string sComparison, string sValue)
+string nssElseIf(string sLeft, string sComparison, string sRight)
 {
-    return "else if (" + sFunction + " " + sComparison + " " + sValue + ") ";
+    return "else if(" + sLeft + sComparison + sRight + ")";
 }
 
-string nssWhile(string sFunction, string sComparison, string sValue)
+string nssWhile(string sLeft, string sComparison, string sRight)
 {
-    return "while (" + sFunction + " " + sComparison + " " + sValue + ") ";
+    return "while " + sLeft + sComparison + sRight + ")";
 }
 
 string nssBrackets(string sContents)
 {
-    return "{ " + sContents + " } ";
+    return "{" + sContents + " }";
 }
 
 string nssEscape(string sString)
@@ -70,22 +71,22 @@ string nssEscape(string sString)
 
 string nssSwitch(string sVariable, string sCases)
 {
-    return "switch (" + sVariable + ") { " + sCases + " }";
+    return "switch(" + sVariable + "){" + sCases + "}";
 }
 
 string nssCaseStatement(int nCase, string sContents, int bBreak = TRUE)
 {
-    return "case " + IntToString(nCase) + ": { " + sContents + (bBreak ? " break;" : "") + " } ";
+    return "case " + IntToString(nCase) + ":{" + sContents + (bBreak ? "break;" : "") + "}";
 }
 
 string nssSemicolon(string sString)
 {
-    return (GetStringRight(sString, 1) == ";" || GetStringRight(sString, 2) == "; ") ? sString + " " : sString + "; ";
+    return (GetStringRight(sString, 1) == ";") ? sString : sString + ";";
 }
 
 string nssVariable(string sType, string sVarName, string sFunction)
 {
-    return sType + " " + sVarName + (sFunction == "" ? "; " : " = " + nssSemicolon(sFunction));
+    return sType + " " + sVarName + (sFunction == "" ? ";" : "=" + nssSemicolon(sFunction));
 }
 
 string nssObject(string sVarName, string sFunction = "", int bIncludeType = TRUE)
@@ -130,23 +131,38 @@ string nssJson(string sVarName, string sFunction = "", int bIncludeType = TRUE)
 
 string nssFunction(string sFunction, string sArguments, int bAddSemicolon = TRUE)
 {
-    return sFunction + "(" + sArguments + (bAddSemicolon ? ");" : ")") + " ";
+    return sFunction + "(" + sArguments + (bAddSemicolon ? ");" : ")");
 }
 
-string nssConvertShortType(string sShortType)
+string nssConvertShortType(string sShortType, int bLowerCase = FALSE)
 {
+    string sReturn;
     sShortType = GetStringLowerCase(sShortType);
 
-    if (sShortType == "o") return "Object";
-    if (sShortType == "s") return "String";
-    if (sShortType == "i") return "Int";
-    if (sShortType == "f") return "Float";
-    if (sShortType == "l") return "Location";
-    if (sShortType == "v") return "Vector";
-    if (sShortType == "c") return "Cassowary";
-    if (sShortType == "j") return "Json";
+    if (sShortType == "o")      sReturn = "Object";
+    else if (sShortType == "s") sReturn = "String";
+    else if (sShortType == "i") sReturn = "Int";
+    else if (sShortType == "f") sReturn = "Float";
+    else if (sShortType == "l") sReturn = "Location";
+    else if (sShortType == "v") sReturn = "Vector";
+    else if (sShortType == "j") sReturn = "Json";
 
-    return "";
+    return bLowerCase ? GetStringLowerCase(sReturn) : sReturn;
 }
 
+string nssConvertType(string sType)
+{
+    string sReturn;
+    sType = GetStringLowerCase(sType);
+
+    if (sType == "object")          sReturn = "o";
+    else if (sType == "string")     sReturn = "s";
+    else if (sType == "int")        sReturn = "i";
+    else if (sType == "float")      sReturn = "f";
+    else if (sType == "location")   sReturn = "l";
+    else if (sType == "vector")     sReturn = "v";
+    else if (sType == "json")       sReturn = "j";
+
+    return sReturn;
+}
 

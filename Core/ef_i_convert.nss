@@ -16,6 +16,7 @@ string AbilityToString(int nAbility);
 string DamageTypeToString(int nDamageType);
 string SpellSchoolToString(int nSpellSchool);
 string MissChanceToString(int nMissChance);
+string ObjectTypeToString(int nObjectType);
 
 int EffectIconToEffectType(int nEffectIcon)
 {
@@ -388,5 +389,23 @@ string MissChanceToString(int nMissChance)
     }
 
     return "";
+}
+
+string ObjectTypeToString(int nObjectType)
+{
+    switch (nObjectType)
+    {
+        case OBJECT_TYPE_AREA_OF_EFFECT:    return "AreaOfEffect";
+        case OBJECT_TYPE_CREATURE:          return "Creature";
+        case OBJECT_TYPE_DOOR:              return "Door";
+        case OBJECT_TYPE_ENCOUNTER:         return "Encounter";
+        case OBJECT_TYPE_ITEM:              return "Item";
+        case OBJECT_TYPE_PLACEABLE:         return "Placeable";
+        case OBJECT_TYPE_STORE:             return "Store";
+        case OBJECT_TYPE_TRIGGER:           return "Trigger";
+        case OBJECT_TYPE_WAYPOINT:          return "Waypoint";
+    }
+
+    return "Unknown";
 }
 

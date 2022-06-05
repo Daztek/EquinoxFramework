@@ -68,7 +68,7 @@ void EC_OnAreaPostProcessed()
 
     string sQuery = "SELECT tile_index, tile_id FROM " + EP_GetTilesTable() +
                     "WHERE area_id = @area_id AND group_tile = 1 AND num_doors = 1;";
-    sqlquery sql = SqlPrepareQueryObject(GetModule(), sQuery);
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@area_id", sParentAreaID);
 
     while (SqlStep(sql))
@@ -105,7 +105,7 @@ void EC_OnAreaPostProcessed()
                                  ", ID: " + JsonObjectGetString(jCave, "area_id") +
                                  ", Lighting: " + Get2DAString("environment", "LABEL", JsonObjectGetInt(jCave, "lighting_scheme")));
 
-            DelayCommand(EC_CAVE_GENERATION_DELAY * nCave, EC_GenerateCave(jCave));
+            DelayCommand(EC_CAVE_GENERATION_DELAY * (nCave + 1), EC_GenerateCave(jCave));
         }
     }
 }
@@ -253,7 +253,7 @@ object EC_CreateDoor(string sAreaID, int nTileIndex)
 
     location locSpawn = Location(oArea, vDoorPosition, strDoor.fOrientation);
 
-    return NWNX_Util_CreateDoor(strDoor.sResRef, locSpawn, sTag, strDoor.nType);
+    return GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);
 }
 
 void EC_OnCaveGenerated(string sAreaID)

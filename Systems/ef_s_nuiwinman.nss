@@ -37,6 +37,10 @@ int NWM_OpenWindow(object oPlayer, string sWindowId);
 void NWM_CloseWindow(object oPlayer, string sWindowId);
 json NWM_GetBind(string sBindName);
 void NWM_SetBind(string sBindName, json jValue);
+string NWM_GetBindString(string sBindName);
+void NWM_SetBindString(string sBindName, string sValue);
+int NWM_GetBindBool(string sBindName);
+void NWM_SetBindBool(string sBindName, int bValue);
 void NWM_SetBindWatch(string sBind, int bWatch);
 json NWM_GetUserData(string sKey);
 void NWM_SetUserData(string sKey, json jValue);
@@ -69,7 +73,6 @@ void NWM_NuiEvent()
     if (sEventType == NUI_EVENT_WATCH && sElement == NUI_WINDOW_GEOMETRY_BIND)
     {
         NWM_SetWindowGeometry(oPlayer, sWindowId, NuiGetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND));
-        return;
     }
 
     if (NWM_DEBUG_EVENTS)
@@ -208,6 +211,26 @@ json NWM_GetBind(string sBindName)
 void NWM_SetBind(string sBindName, json jValue)
 {
     NuiSetBind(NWM_GetPlayer(), NWM_GetToken(), sBindName, jValue);
+}
+
+string NWM_GetBindString(string sBindName)
+{
+    return JsonGetString(NWM_GetBind(sBindName));
+}
+
+void NWM_SetBindString(string sBindName, string sValue)
+{
+    NWM_SetBind(sBindName, JsonString(sValue));
+}
+
+int NWM_GetBindBool(string sBindName)
+{
+    return JsonGetInt(NWM_GetBind(sBindName));
+}
+
+void NWM_SetBindBool(string sBindName, int bValue)
+{
+    NWM_SetBind(sBindName, JsonBool(bValue));
 }
 
 void NWM_SetBindWatch(string sBind, int bWatch)

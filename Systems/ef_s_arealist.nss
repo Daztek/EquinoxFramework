@@ -15,6 +15,7 @@ const string AL_LOG_TAG                 = "AreaList";
 const string AL_SCRIPT_NAME             = "ef_s_arealist";
 
 const string AL_WINDOW_ID               = "AREA_LIST";
+const string AL_NUI_BIND_BUTTONS        = "buttons";
 const string AL_ELEMENT_REFRESH_BUTTON  = "btn_refresh";
 const string AL_ELEMENT_AREA_BUTTON     = "btn_area";
 
@@ -31,9 +32,9 @@ json AL_CreateWindow()
        NB_End();
       NB_End();
       NB_StartRow();
-       NB_StartList(NuiBind("buttons"), 24.0f, TRUE);
+       NB_StartList(NuiBind(AL_NUI_BIND_BUTTONS), 24.0f, TRUE);
         NB_StartListTemplateCell(340.0f, FALSE);
-         NB_StartElement(NuiButton(NuiBind("buttons")));
+         NB_StartElement(NuiButton(NuiBind(AL_NUI_BIND_BUTTONS)));
           NB_SetId(AL_ELEMENT_AREA_BUTTON);
           NB_SetDimensions(340.0f, 24.0f);
          NB_End();
@@ -55,7 +56,7 @@ void AL_RefreshAreaList()
         oArea = GetNextArea();
     }
 
-    NWM_SetBind("buttons", jAreaNames);
+    NWM_SetBind(AL_NUI_BIND_BUTTONS, jAreaNames);
     NWM_SetUserData("areas", jAreaIds);
 }
 

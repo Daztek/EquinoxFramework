@@ -14,6 +14,7 @@ const string MODINIT_SCRIPT_NAME        = "ef_s_modinit";
 // @CORE[EF_SYSTEM_INIT]
 void ModInit_Init()
 {
+    /*
     // Alignment TLK Overrides
     SetTlkOverride(111, "Select a starting Element for your character.");
     SetTlkOverride(112, "Fire");            // Lawful Good
@@ -51,12 +52,16 @@ void ModInit_Init()
     SetTlkOverride(484, "Alas, you only have one choice, go forth Adventurer.");
     SetTlkOverride(159, "DO NOT USE");
     SetTlkOverride(487, "Please select the Default Adventurer package, otherwise you won't be able to proceed.");
-
+    */
+    SetTlkOverride(66168, "Login Refused");
+    SetTlkOverride(57925, "Character is currently in use by another player.");
+    /*
     // Disable Combat Feedback
     NWNX_Feedback_SetCombatLogMessageMode(TRUE);
     NWNX_Feedback_SetCombatLogMessageHidden(NWNX_FEEDBACK_COMBATLOG_COMPLEX_DAMAGE, TRUE);
     NWNX_Feedback_SetCombatLogMessageHidden(NWNX_FEEDBACK_COMBATLOG_FEEDBACK, TRUE);
     NWNX_Feedback_SetCombatLogMessageHidden(NWNX_FEEDBACK_COMBATLOG_POSTAURSTRING, TRUE);
     NWNX_Feedback_SetCombatLogMessageHidden(NWNX_FEEDBACK_COMBATLOG_ENTERTARGETINGMODE, TRUE);
+    */
 }
 

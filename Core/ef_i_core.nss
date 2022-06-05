@@ -98,7 +98,6 @@ void EFCore_InitSystemData()
 
 json EFCore_GetSystem(string sSystem)
 {
-    object oDataObject = GetDataObject(EFCORE_SCRIPT_NAME);
     json jSystems = EFCore_GetSystems();
     json jSystem = JsonObjectGet(jSystems, sSystem);
 
@@ -116,6 +115,7 @@ json EFCore_GetSystem(string sSystem)
         jSystem = JsonObjectSetString(jSystem, "system", sSystem);
         jSystem = JsonObjectSetString(jSystem, "scriptdata", sScriptData);
 
+        // Get annotations
         string sRegex = "@ANNOTATION\\[([\\S]+)\\]";
         json jAnnotations = JsonArray();
         json jMatches = NWNX_Regex_Match(sScriptData, sRegex);
@@ -127,6 +127,34 @@ json EFCore_GetSystem(string sSystem)
             jAnnotations = JsonArrayInsert(jAnnotations, jAnnotation);
         }
         jSystem = JsonObjectSet(jSystem, "annotations", jAnnotations);
+
+        // Get functions
+        json jFunctions = JsonObject();
+        jMatches = NWNX_Regex_Match(sScriptData, "(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)(void|object|int|float|string|json|vector|location)\\s(\\w+)\\((.*)\\);");
+        nNumMatches = JsonGetLength(jMatches);
+        for(nMatch = 0; nMatch < nNumMatches; nMatch++)
+        {
+            json jMatch = JsonArrayGet(jMatches, nMatch), jFunction = JsonObject();
+            string sReturnType = nssConvertType(JsonArrayGetString(jMatch, 1));
+            string sFunctionName = JsonArrayGetString(jMatch, 2);
+            string sParameters = JsonArrayGetString(jMatch, 3);
+            string sParameterTypes;
+
+            if (sParameters != "")
+            {
+                json jParameters = NWNX_Regex_Match(sParameters, "(object|int|float|string|json|vector|location)\\s");
+                int nParameter, nNumParameters = JsonGetLength(jParameters);
+                for(nParameter = 0; nParameter < nNumParameters; nParameter++)
+                {
+                    sParameterTypes += nssConvertType(JsonArrayGetString(JsonArrayGet(jParameters, nParameter), 1));
+                }
+            }
+
+            jFunction = JsonObjectSetString(jFunction, "return_type", sReturnType);
+            jFunction = JsonObjectSetString(jFunction, "parameters", sParameterTypes);
+            jFunctions = JsonObjectSet(jFunctions, sFunctionName, jFunction);
+        }
+        jSystem = JsonObjectSet(jSystem, "functions", jFunctions);
 
         EFCore_InsertSystem(jSystem);
 
@@ -233,5 +261,283 @@ void EFCore_ExecuteFunctionOnAnnotationData(string sSystem, string sAnnotation, 
 
     if (bPrintError)
         WriteLog(EFCORE_LOG_TAG, "(ExecuteFunctionOnAnnotationData) [" + sAnnotation + "] Function '" +sFunction + "' for '" + sSystem + "' failed with error: " + sError);
+}
+
+// **** Function Stuff
+
+const string EFCORE_CURRENT_FUNCTION        = "EFCoreCurrentFunction";
+const string EFCORE_INVALID_FUNCTION        = "EFCoreInvalidFunction";
+const string EFCORE_CALLSTACK_DEPTH         = "EFCoreCallStackDepth";
+const string EFCORE_CALLSTACK_FUNCTION      = "EFCoreCallStackFunction_";
+const string EFCORE_CALLSTACK_RETURN_TYPE   = "EFCoreCallStackReturnType_";
+const string EFCORE_ARGUMENT_COUNT          = "EFCoreArgumentCount";
+const string EFCORE_ARGUMENT_PREFIX         = "EFCoreArgument_";
+const string EFCORE_RETURN_VALUE_PREFIX     = "EFCoreReturnValue_";
+const string EFCORE_FUNCTION_SCRIPT_CHUNK   = "EFCoreFunctionScriptChunk_";
+const string EFCORE_FUNCTION_PARAMETERS     = "EFCoreFunctionParameters_";
+const string EFCORE_FUNCTION_RETURN_TYPE    = "EFCoreFunctionReturnType_";
+
+int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF);
+string Function(string sSystem, string sFunction);
+
+string ObjectArg(object oValue);
+string IntArg(int nValue);
+string FloatArg(float fValue);
+string StringArg(string sValue);
+string JsonArg(json jValue);
+string VectorArg(vector vValue);
+string LocationArg(location locValue);
+string CassowaryArg(cassowary cValue);
+
+object RetObject(int nCallStackDepth);
+int RetInt(int nCallStackDepth);
+float RetFloat(int nCallStackDepth);
+string RetString(int nCallStackDepth);
+json RetJson(int nCallStackDepth);
+vector RetVector(int nCallStackDepth);
+location RetLocation(int nCallStackDepth);
+cassowary RetCassowary(int nCallStackDepth);
+
+int GetCallStackDepth()
+{
+    return GetLocalInt(GetModule(), EFCORE_CALLSTACK_DEPTH);
+}
+
+int IncrementCallStackDepth(string sFunction, string sReturnType)
+{
+    object oModule = GetModule();
+    int nCallStackDepth = GetLocalInt(oModule, EFCORE_CALLSTACK_DEPTH);
+    SetLocalInt(oModule, EFCORE_CALLSTACK_DEPTH, ++nCallStackDepth);
+    SetLocalString(oModule, EFCORE_CALLSTACK_FUNCTION + IntToString(nCallStackDepth), sFunction);
+    SetLocalString(oModule, EFCORE_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth), sReturnType);
+    return nCallStackDepth;
+}
+
+int DecrementCallStackDepth()
+{
+    object oModule = GetModule();
+    int nCallStackDepth = GetLocalInt(oModule, EFCORE_CALLSTACK_DEPTH);
+    SetLocalInt(oModule, EFCORE_CALLSTACK_DEPTH, --nCallStackDepth);
+    return nCallStackDepth;
+}
+
+string GetCallStackReturnType(int nCallStackDepth)
+{
+    return GetLocalString(GetModule(), EFCORE_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth));
+}
+
+string GetCallStackFunction(int nCallStackDepth)
+{
+    return GetLocalString(GetModule(), EFCORE_CALLSTACK_FUNCTION + IntToString(nCallStackDepth));
+}
+
+void ClearArgumentCount()
+{
+    DeleteLocalInt(GetModule(), EFCORE_ARGUMENT_COUNT);
+}
+
+int GetArgumentCount()
+{
+    object oModule = GetModule();
+    int nCount = GetLocalInt(oModule, EFCORE_ARGUMENT_COUNT);
+    SetLocalInt(oModule, EFCORE_ARGUMENT_COUNT, nCount + 1);
+    return nCount;
+}
+
+int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
+{
+    object oModule = GetModule();
+    string sFunctionSymbol = GetLocalString(oModule, EFCORE_CURRENT_FUNCTION);
+    int nCallStackDepth = 0;
+
+    if (sFunction != EFCORE_INVALID_FUNCTION)
+    {
+        string sParameters = GetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sFunctionSymbol);
+        string sReturnType = GetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sFunctionSymbol);
+
+        if (sParameters == sArgs)
+        {
+            nCallStackDepth = IncrementCallStackDepth(sFunctionSymbol, sReturnType);
+            string sError = ExecuteCachedScriptChunk(sFunction, oTarget, FALSE);
+            DecrementCallStackDepth();
+
+            if (sError != "")
+                WriteLog(EFCORE_LOG_TAG, "ERROR: (" + NWNX_Util_GetCurrentScriptName() + ") failed to execute '" + sFunctionSymbol + "' with error: " + sError);
+        }
+        else
+        {
+            WriteLog(EFCORE_LOG_TAG, "ERROR: (" + NWNX_Util_GetCurrentScriptName() + ") Parameter Mismatch: EXPECTED: '" + sFunctionSymbol + "(" + sParameters + ")' -> GOT: '"  + sFunctionSymbol + "(" + sArgs + ")'");
+        }
+    }
+    else
+    {
+        WriteLog(EFCORE_LOG_TAG, "ERROR: (" + NWNX_Util_GetCurrentScriptName() + ") Function '" + sFunctionSymbol + "' does not exist");
+    }
+
+    return nCallStackDepth;
+}
+
+string Function(string sSystem, string sFunction)
+{
+    object oModule = GetModule();
+    string sFunctionSymbol = sSystem + "::" + sFunction;
+    string sScriptChunk = GetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunctionSymbol);
+
+    if (sScriptChunk == "")
+    {
+        json jFunction = JsonObjectGet(JsonObjectGet(EFCore_GetSystem(sSystem), "functions"), sFunction);
+
+        if (!JsonGetType(jFunction))
+            sScriptChunk = EFCORE_INVALID_FUNCTION;
+        else
+        {
+            string sArguments, sParameters = JsonObjectGetString(jFunction, "parameters");
+            int nArgument, nNumArguments = GetStringLength(sParameters);
+            for (nArgument = 0; nArgument < nNumArguments; nArgument++)
+            {
+                sArguments += (!nArgument ? "" : ", ") + nssFunction("GetLocal" + nssConvertShortType(GetSubString(sParameters, nArgument, 1)), "oModule, " + nssEscape(EFCORE_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
+            }
+
+            string sReturnType = JsonObjectGetString(jFunction, "return_type");
+            string sFunctionBody = nssObject("oModule", nssFunction("GetModule"));
+                   sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "", FALSE)));
+
+            if (sReturnType != "")
+            {
+                sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType), "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
+                sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType), "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction(sFunction, sArguments, FALSE));
+            }
+            else
+                sFunctionBody += nssFunction(sFunction, sArguments);
+
+            sScriptChunk = nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sFunctionBody);
+
+            SetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sFunctionSymbol, sParameters);
+            SetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sFunctionSymbol, sReturnType);
+        }
+
+        SetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunctionSymbol, sScriptChunk);
+    }
+
+    SetLocalString(oModule, EFCORE_CURRENT_FUNCTION, sFunctionSymbol);
+    ClearArgumentCount();
+
+    return sScriptChunk;
+}
+
+string ObjectArg(object oValue)
+{
+    SetLocalObject(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(GetArgumentCount()), oValue);
+    return "o";
+}
+
+string IntArg(int nValue)
+{
+    SetLocalInt(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(GetArgumentCount()), nValue);
+    return "i";
+}
+
+string FloatArg(float fValue)
+{
+    SetLocalFloat(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(GetArgumentCount()), fValue);
+    return "f";
+}
+
+string StringArg(string sValue)
+{
+    SetLocalString(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(GetArgumentCount()), sValue);
+    return "s";
+}
+
+string JsonArg(json jValue)
+{
+    SetLocalJson(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(GetArgumentCount()), jValue);
+    return "j";
+}
+
+string VectorArg(vector vValue)
+{
+    SetLocalVector(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(GetArgumentCount()), vValue);
+    return "v";
+}
+
+string LocationArg(location locValue)
+{
+    SetLocalLocation(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(GetArgumentCount()), locValue);
+    return "l";
+}
+
+int ValidateReturnType(int nCallStackDepth, string sRequestedType)
+{
+    if (nCallStackDepth == 0)
+    {
+        WriteLog(EFCORE_LOG_TAG, "WARNING: (" + NWNX_Util_GetCurrentScriptName() + ") Tried to get return value for an invalid call stack depth");
+        return FALSE;
+    }
+
+    string sReturnType = GetCallStackReturnType(nCallStackDepth);
+    if (sReturnType != sRequestedType)
+    {
+        WriteLog(EFCORE_LOG_TAG, "WARNING: (" + NWNX_Util_GetCurrentScriptName() + ") Tried to get return type '" + sRequestedType + "' for function '" + GetCallStackFunction(nCallStackDepth) + "' with return type: " + sReturnType);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+object RetObject(int nCallStackDepth)
+{
+    if (ValidateReturnType(nCallStackDepth, "o"))
+        return GetLocalObject(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    else
+        return OBJECT_INVALID;
+}
+
+int RetInt(int nCallStackDepth)
+{
+    if (ValidateReturnType(nCallStackDepth, "i"))
+        return GetLocalInt(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    else
+        return 0;
+}
+
+float RetFloat(int nCallStackDepth)
+{
+    if (ValidateReturnType(nCallStackDepth, "f"))
+        return GetLocalFloat(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    else
+        return 0.0f;
+}
+
+string RetString(int nCallStackDepth)
+{
+    if (ValidateReturnType(nCallStackDepth, "s"))
+        return GetLocalString(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    else
+        return "";
+}
+
+json RetJson(int nCallStackDepth)
+{
+    if (ValidateReturnType(nCallStackDepth, "j"))
+        return GetLocalJson(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    else
+        return JsonNull();
+}
+
+vector RetVector(int nCallStackDepth)
+{
+    if (ValidateReturnType(nCallStackDepth, "v"))
+        return GetLocalVector(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    else
+        return Vector(0.0f, 0.0f, 0.0f);
+}
+
+location RetLocation(int nCallStackDepth)
+{
+    if (ValidateReturnType(nCallStackDepth, "l"))
+        return GetLocalLocation(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    else
+        return Location(OBJECT_INVALID, Vector(0.0f, 0.0f, 0.0f), 0.0f);
 }
 

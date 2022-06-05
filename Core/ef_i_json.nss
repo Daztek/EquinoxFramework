@@ -46,6 +46,10 @@ string JsonArrayGetString(json jArray, int nIndex);
 // Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
 // Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
 json JsonArrayInsertString(json jArray, string sValue, int nIndex = -1);
+// Returns a modified copy of jArray with position nIndex set to sValue as JsonString.
+// Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
+// Returns a json null value if nIndex is out of bounds, with JsonGetError() filled in.
+json JsonArraySetString(json jArray, int nIndex, string sValue);
 // Gets the int at jArray index position nIndex.
 int JsonArrayGetInt(json jArray, int nIndex);
 // Returns a modified copy of jArray with nValue inserted as JsonInt() at position nIndex.
@@ -64,6 +68,19 @@ float JsonArrayGetFloat(json jArray, int nIndex);
 // Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
 // Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
 json JsonArrayInsertFloat(json jArray, float fValue, int nIndex = -1);
+// Gets the bool at jArray index position nIndex.
+int JsonArrayGetBool(json jArray, int nIndex);
+// Returns a modified copy of jArray with bValue inserted as JsonBool() at position nIndex.
+// All succeeding objects in the array will move by one.
+// By default (-1), inserts objects at the end of the array ("push").
+// nIndex = 0 inserts at the beginning of the array.
+// Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
+// Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
+json JsonArrayInsertBool(json jArray, int bValue, int nIndex = -1);
+// Returns a modified copy of jArray with position nIndex set to bValue as JsonBool.
+// Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
+// Returns a json null value if nIndex is out of bounds, with JsonGetError() filled in.
+json JsonArraySetBool(json jArray, int nIndex, int bValue);
 // Insert jValue into jObject's array with the key sKey .
 json JsonObjectInsertToArrayWithKey(json jObject, string sKey, json jValue);
 // Returns the key value of sKey on the object jObect.
@@ -81,19 +98,23 @@ void InsertIntToLocalJsonArray(object oObject, string sVarName, int nValue, int 
 string GetStringFromLocalJsonArray(object oObject, string sVarName, int nIndex);
 // Get the integer at nIndex from the local json array sVarName on oObject, or 0 on error
 int GetIntFromLocalJsonArray(object oObject, string sVarName, int nIndex);
+// Returns an empty json string array of size nSize
+json GetEmptyJsonStringArray(int nSize);
+// Returns an empty json bool array of size nSize
+json GetEmptyJsonBoolArray(int nSize);
 
 json VectorToJson(vector vVector)
 {
-    json jVector = JsonArray();
-         jVector = JsonArrayInsertFloat(jVector, vVector.x);
-         jVector = JsonArrayInsertFloat(jVector, vVector.y);
-         jVector = JsonArrayInsertFloat(jVector, vVector.z);
+    json jVector = JsonObject();
+         jVector = JsonObjectSetFloat(jVector, "x", vVector.x);
+         jVector = JsonObjectSetFloat(jVector, "y", vVector.y);
+         jVector = JsonObjectSetFloat(jVector, "z", vVector.z);
     return jVector;
 }
 
 vector JsonToVector(json jVector)
 {
-    return Vector(JsonArrayGetFloat(jVector, 0), JsonArrayGetFloat(jVector, 1), JsonArrayGetFloat(jVector, 2));
+    return Vector(JsonObjectGetFloat(jVector, "x"), JsonObjectGetFloat(jVector, "y"), JsonObjectGetFloat(jVector, "z"));
 }
 
 json LocationToJson(location locLocation)
@@ -197,6 +218,11 @@ json JsonArrayInsertString(json jArray, string sValue, int nIndex = -1)
     return JsonArrayInsert(jArray, JsonString(sValue), nIndex);
 }
 
+json JsonArraySetString(json jArray, int nIndex, string sValue)
+{
+    return JsonArraySet(jArray, nIndex, JsonString(sValue));
+}
+
 int JsonArrayGetInt(json jArray, int nIndex)
 {
     return JsonGetInt(JsonArrayGet(jArray, nIndex));
@@ -217,6 +243,21 @@ json JsonArrayInsertFloat(json jArray, float fValue, int nIndex = -1)
     return JsonArrayInsert(jArray, JsonFloat(fValue), nIndex);
 }
 
+int JsonArrayGetBool(json jArray, int nIndex)
+{
+    return JsonGetInt(JsonArrayGet(jArray, nIndex));
+}
+
+json JsonArrayInsertBool(json jArray, int bValue, int nIndex = -1)
+{
+    return JsonArrayInsert(jArray, JsonBool(bValue), nIndex);
+}
+
+json JsonArraySetBool(json jArray, int nIndex, int bValue)
+{
+    return JsonArraySet(jArray, nIndex, JsonBool(bValue));
+}
+
 json JsonObjectInsertToArrayWithKey(json jObject, string sKey, json jValue)
 {
     return JsonObjectSet(jObject, sKey, JsonArrayInsert(JsonObjectGet(jObject, sKey), jValue));
@@ -235,9 +276,9 @@ int JsonArrayContainsString(json jArray, string sString)
 
 json JsonPointInt(int nX, int nY)
 {
-    json jPoint = JsonArray();
-         jPoint = JsonArrayInsertInt(jPoint, nX);
-         jPoint = JsonArrayInsertInt(jPoint, nY);
+    json jPoint = JsonObject();
+         jPoint = JsonObjectSetInt(jPoint, "x", nX);
+         jPoint = JsonObjectSetInt(jPoint, "y", nY);
     return jPoint;
 }
 
@@ -259,5 +300,43 @@ string GetStringFromLocalJsonArray(object oObject, string sVarName, int nIndex)
 int GetIntFromLocalJsonArray(object oObject, string sVarName, int nIndex)
 {
     return JsonArrayGetInt(GetLocalJsonArray(oObject, sVarName), nIndex);
+}
+
+json GetEmptyJsonStringArray(int nSize)
+{
+    json jArray = GetLocalJson(GetModule(), "JSON_EMPTY_STRING_ARRAY_" + IntToString(nSize));
+
+    if (!JsonGetType(jArray))
+    {
+        jArray = JsonArray();
+        int nCount;
+        for (nCount = 0; nCount < nSize; nCount++)
+        {
+            jArray = JsonArrayInsertString(jArray, "");
+        }
+
+        SetLocalJson(GetModule(), "JSON_EMPTY_STRING_ARRAY_" + IntToString(nSize), jArray);
+    }
+
+    return jArray;
+}
+
+json GetEmptyJsonBoolArray(int nSize)
+{
+    json jArray = GetLocalJson(GetModule(), "JSON_EMPTY_BOOL_ARRAY_" + IntToString(nSize));
+
+    if (!JsonGetType(jArray))
+    {
+        jArray = JsonArray();
+        int nCount;
+        for (nCount = 0; nCount < nSize; nCount++)
+        {
+            jArray = JsonArrayInsertBool(jArray, FALSE);
+        }
+
+        SetLocalJson(GetModule(), "JSON_EMPTY_BOOL_ARRAY_" + IntToString(nSize), jArray);
+    }
+
+    return jArray;
 }
 

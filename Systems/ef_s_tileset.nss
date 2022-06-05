@@ -8,6 +8,7 @@
 //void main() {}
 
 #include "ef_i_core"
+#include "ef_s_profiler"
 #include "nwnx_tileset"
 
 const string TS_LOG_TAG                         = "Tileset";
@@ -89,7 +90,7 @@ void Tileset_Init()
 {
     TS_LoadTilesetData(TILESET_RESREF_MEDIEVAL_RURAL_2);
     TS_LoadTilesetData(TILESET_RESREF_MINES_AND_CAVERNS);
-    TS_LoadTilesetData(TILESET_RESREF_MEDIEVAL_CITY_2);
+    //TS_LoadTilesetData("");
 }
 
 object TS_GetTilesetDataObject(string sTileset)
@@ -642,6 +643,7 @@ vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical)
         {
             vReal.x = 10.0f - vCanonical.y;
             vReal.y = vCanonical.x;
+            vReal.z = vCanonical.z;
             break;
         }
 
@@ -649,6 +651,7 @@ vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical)
         {
             vReal.x = 10.0f - vCanonical.x;
             vReal.y = 10.0f - vCanonical.y;
+            vReal.z = vCanonical.z;
             break;
         }
 
@@ -656,6 +659,7 @@ vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical)
         {
             vReal.x = vCanonical.y;
             vReal.y = 10.0f - vCanonical.x;
+            vReal.z = vCanonical.z;
             break;
         }
 

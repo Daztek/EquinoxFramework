@@ -66,6 +66,7 @@ void PlayerDB_Init()
         "value BLOB, " +
         "timestamp INTEGER, " +
         "PRIMARY KEY(system, type, varname));"));
+    ExportSingleCharacter(OBJECT_SELF);
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_CLIENT_EXIT:A]

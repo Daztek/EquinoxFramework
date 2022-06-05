@@ -1,6 +1,8 @@
 /*
     Script: ef_s_combat
     Author: Daz
+
+    @SKIPSYSTEM
 */
 
 //void main() {}

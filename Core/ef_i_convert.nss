@@ -17,6 +17,8 @@ string DamageTypeToString(int nDamageType);
 string SpellSchoolToString(int nSpellSchool);
 string MissChanceToString(int nMissChance);
 string ObjectTypeToString(int nObjectType);
+int MetaMagicConstantTo2DARow(int nMetaMagic);
+int SpellcastingAbilityToConstant(string sSpellcastingAbility);
 
 int EffectIconToEffectType(int nEffectIcon)
 {
@@ -407,5 +409,44 @@ string ObjectTypeToString(int nObjectType)
     }
 
     return "Unknown";
+}
+
+int MetaMagicConstantTo2DARow(int nMetaMagic)
+{
+    switch (nMetaMagic)
+    {
+        case METAMAGIC_QUICKEN:
+            return 1;
+        case METAMAGIC_EMPOWER:
+            return 2;
+        case METAMAGIC_EXTEND:
+            return 3;
+        case METAMAGIC_MAXIMIZE:
+            return 4;
+        case METAMAGIC_SILENT:
+            return 5;
+        case METAMAGIC_STILL:
+            return 6;
+    }
+
+    return 0;
+}
+
+int SpellcastingAbilityToConstant(string sSpellcastingAbility)
+{
+    if (sSpellcastingAbility == "STR")
+        return ABILITY_STRENGTH;
+    if (sSpellcastingAbility == "DEX")
+        return ABILITY_DEXTERITY;
+    if (sSpellcastingAbility == "CON")
+        return ABILITY_CONSTITUTION;
+    if (sSpellcastingAbility == "INT")
+        return ABILITY_INTELLIGENCE;
+    if (sSpellcastingAbility == "WIS")
+        return ABILITY_WISDOM;
+    if (sSpellcastingAbility == "CHA")
+        return ABILITY_CHARISMA;
+
+    return -1;// :|
 }
 

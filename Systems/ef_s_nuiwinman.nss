@@ -20,7 +20,7 @@ const int NWM_DEBUG_EVENTS          = FALSE;
 const string NWM_REGISTERED_WINDOW  = "RegisteredWindow_";
 const string NWM_WINDOW_GEOMETRY    = "WindowGeometry_";
 const string NWM_EVENT_FUNCTION     = "EventFunction_";
-const string NWM_SIGNAL_EVENTS      = "SignalEvents_";
+const string NWM_EVENT_PREFIX       = "EventPrefix_";
 const string NWM_CURRENT_TOKEN      = "CurrentToken";
 const string NWM_CURRENT_PLAYER     = "CurrentPlayer";
 
@@ -41,12 +41,15 @@ string NWM_GetBindString(string sBindName);
 void NWM_SetBindString(string sBindName, string sValue);
 int NWM_GetBindBool(string sBindName);
 void NWM_SetBindBool(string sBindName, int bValue);
+int NWM_GetBindInt(string sBindName);
+void NWM_SetBindInt(string sBindName, int nValue);
 void NWM_SetBindWatch(string sBind, int bWatch);
 json NWM_GetUserData(string sKey);
 void NWM_SetUserData(string sKey, json jValue);
 void NWM_DeleteUserData(string sKey);
 void NWM_RegisterEvent(json jNWMEvent);
 json NWM_GetEvents(string sWindowId, string sEventType, string sElement);
+json NWM_GetPrefixArray(string sWindowId);
 void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string sElement);
 void NWM_Destroy();
 
@@ -233,6 +236,16 @@ void NWM_SetBindBool(string sBindName, int bValue)
     NWM_SetBind(sBindName, JsonBool(bValue));
 }
 
+int NWM_GetBindInt(string sBindName)
+{
+    return JsonGetInt(NWM_GetBind(sBindName));
+}
+
+void NWM_SetBindInt(string sBindName, int nValue)
+{
+    NWM_SetBind(sBindName, JsonInt(nValue));
+}
+
 void NWM_SetBindWatch(string sBind, int bWatch)
 {
     NuiSetBindWatch(NWM_GetPlayer(), NWM_GetToken(), sBind, bWatch);
@@ -268,11 +281,16 @@ void NWM_RegisterEvent(json jNWMEvent)
            sElement = GetConstantStringValue(sElement, sSystem, sElement);
     string sFunction = JsonArrayGetString(jNWMEvent, 5);
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+    int bPrefix = GetStringRight(sElement, 1) == "_"; // Bit of a hack, assume it's a prefix if the last character of an element is an underscore
 
     if (JsonGetType(NWM_GetWindowJson(sWindowId)))
     {
+        if (bPrefix)
+            InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_PREFIX + sWindowId, sElement);
+
         InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement, sScriptChunk);
         WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
+
     }
     else
     {
@@ -285,8 +303,25 @@ json NWM_GetEvents(string sWindowId, string sEventType, string sElement)
     return GetLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement);
 }
 
+json NWM_GetPrefixArray(string sWindowId)
+{
+    return GetLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_PREFIX + sWindowId);
+}
+
 void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string sElement)
 {
+    json jPrefixes = NWM_GetPrefixArray(sWindowId);
+    int nPrefix, nNumPrefixes = JsonGetLength(jPrefixes);
+    for (nPrefix = 0; nPrefix < nNumPrefixes; nPrefix++)
+    {
+        string sPrefix = JsonArrayGetString(jPrefixes, nPrefix);
+        if (GetStringLeft(sElement, GetStringLength(sPrefix)) == sPrefix)
+        {
+            sElement = sPrefix;
+            break;
+        }
+    }
+
     json jEvents = NWM_GetEvents(sWindowId, sEventType, sElement);
     int nEvent, nNumEvents = JsonGetLength(jEvents);
 

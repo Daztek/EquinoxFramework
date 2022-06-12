@@ -1488,9 +1488,7 @@ void AG_CreateRandomEntrance(string sAreaID, int nEntranceTileID)
 
 json AG_GetTileList(string sAreaID)
 {
-    //struct ProfilerData pd = Profiler_Start("AG_GetTileList");
-    //json jTileList = JsonArray();
-    string sTiles = "[";
+    string sTiles;
     int nTile, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
     for (nTile = 0; nTile < nNumTiles; nTile++)
     {
@@ -1498,18 +1496,12 @@ json AG_GetTileList(string sAreaID)
         int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
         int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
 
-        sTiles += (!nTile ? "" : ",") + "{\"Tile_AnimLoop1\":{\"type\":\"byte\",\"value\":1},\"Tile_AnimLoop2\":{\"type\":\"byte\",\"value\":1},\"" +
-                                        "Tile_AnimLoop3\":{\"type\":\"byte\",\"value\":1},\"Tile_Height\":{\"type\":\"int\",\"value\":" + IntToString(nHeight) +
-                                        "},\"Tile_ID\":{\"type\":\"int\",\"value\":" + IntToString(nTileID) +
-                                        " },\"Tile_Orientation\":{\"type\":\"int\",\"value\":" + IntToString(nOrientation) + "}}";
-
-        //jTileList = GffAddTile(jTileList, nTileID, nOrientation, nHeight);
+        sTiles += "{\"Tile_AnimLoop1\":{\"type\":\"byte\",\"value\":1},\"Tile_AnimLoop2\":{\"type\":\"byte\",\"value\":1},\"" +
+                  "Tile_AnimLoop3\":{\"type\":\"byte\",\"value\":1},\"Tile_Height\":{\"type\":\"int\",\"value\":" + IntToString(nHeight) +
+                  "},\"Tile_ID\":{\"type\":\"int\",\"value\":" + IntToString(nTileID) +
+                  " },\"Tile_Orientation\":{\"type\":\"int\",\"value\":" + IntToString(nOrientation) + "}},";
     }
 
-    sTiles += "]";
-    //Profiler_Stop(pd);
-
-    //return jTileList;
-    return JsonParse(sTiles);
+    return StringJsonArrayElementsToJsonArray(sTiles);
 }
 

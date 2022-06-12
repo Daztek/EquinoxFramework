@@ -248,6 +248,8 @@ void IntArray_Insert(object oObject, string sArrayName, int nValue);
 void IntArray_Set(object oObject, string sArrayName, int nIndex, int nValue);
 // Get the size of sArrayName
 int IntArray_Size(object oObject, string sArrayName);
+// Set the size of sArrayName to sSize
+void IntArray_SetSize(object oObject, string sArrayName, int nSize);
 // Get the int at nIndex of sArrayName
 int IntArray_At(object oObject, string sArrayName, int nIndex);
 // Delete sArrayName
@@ -278,6 +280,11 @@ void IntArray_Set(object oObject, string sArrayName, int nIndex, int nValue)
 int IntArray_Size(object oObject, string sArrayName)
 {
     return GetLocalInt(oObject, "IA!NUM!" + sArrayName);
+}
+
+void IntArray_SetSize(object oObject, string sArrayName, int nSize)
+{
+    SetLocalInt(oObject, "IA!NUM!" + sArrayName, nSize);
 }
 
 int IntArray_At(object oObject, string sArrayName, int nIndex)

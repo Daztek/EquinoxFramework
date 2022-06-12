@@ -9,6 +9,7 @@
 #include "ef_i_nui"
 #include "ef_i_sqlite"
 #include "ef_i_util"
+#include "ef_i_convert"
 #include "nwnx_regex"
 
 //void main() {}

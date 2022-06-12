@@ -27,6 +27,10 @@ void SqlCommitTransactionCampaign(string sDatabase);
 void SqlBeginTransactionObject(object oObject);
 // Commit a transaction on an object database
 void SqlCommitTransactionObject(object oObject);
+// Begin a transaction on the module database
+void SqlBeginTransactionModule();
+// Commit a transaction on the module database
+void SqlCommitTransactionModule();
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -97,5 +101,14 @@ void SqlBeginTransactionObject(object oObject)
 void SqlCommitTransactionObject(object oObject)
 {
     SqlStep(SqlPrepareQueryObject(oObject, "COMMIT;"));
+}
+void SqlBeginTransactionModule()
+{
+    SqlStep(SqlPrepareQueryObject(GetModule(), "BEGIN TRANSACTION;"));
+}
+
+void SqlCommitTransactionModule()
+{
+    SqlStep(SqlPrepareQueryObject(GetModule(), "COMMIT;"));
 }
 

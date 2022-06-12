@@ -59,6 +59,10 @@ int JsonArrayGetInt(json jArray, int nIndex);
 // Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
 // Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
 json JsonArrayInsertInt(json jArray, int nValue, int nIndex = -1);
+// Returns a modified copy of jArray with position nIndex set to bValue as JsonInt.
+// Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
+// Returns a json null value if nIndex is out of bounds, with JsonGetError() filled in.
+json JsonArraySetInt(json jArray, int nIndex, int nValue);
 // Gets the float at jArray index position nIndex.
 float JsonArrayGetFloat(json jArray, int nIndex);
 // Returns a modified copy of jArray with fValue inserted as JsonFloat() at position nIndex.
@@ -102,6 +106,16 @@ int GetIntFromLocalJsonArray(object oObject, string sVarName, int nIndex);
 json GetEmptyJsonStringArray(int nSize);
 // Returns an empty json bool array of size nSize
 json GetEmptyJsonBoolArray(int nSize);
+// Returns an empty json int array of size nSize
+json GetEmptyJsonIntArray(int nSize);
+// Convert a boolean value to a json bool array element
+string StringJsonArrayElementBool(int bValue);
+// Convert an integer value to a json integer array element
+string StringJsonArrayElementInt(int nValue);
+// Convert a string value to a json string array element
+string StringJsonArrayElementString(string sValue);
+// Convert a string of stringified json elements to a json array
+json StringJsonArrayElementsToJsonArray(string sValues);
 
 json VectorToJson(vector vVector)
 {
@@ -233,6 +247,11 @@ json JsonArrayInsertInt(json jArray, int nValue, int nIndex = -1)
     return JsonArrayInsert(jArray, JsonInt(nValue), nIndex);
 }
 
+json JsonArraySetInt(json jArray, int nIndex, int nValue)
+{
+    return JsonArraySet(jArray, nIndex, JsonInt(nValue));
+}
+
 float JsonArrayGetFloat(json jArray, int nIndex)
 {
     return JsonGetFloat(JsonArrayGet(jArray, nIndex));
@@ -338,5 +357,44 @@ json GetEmptyJsonBoolArray(int nSize)
     }
 
     return jArray;
+}
+
+json GetEmptyJsonIntArray(int nSize)
+{
+    json jArray = GetLocalJson(GetModule(), "JSON_EMPTY_INT_ARRAY_" + IntToString(nSize));
+
+    if (!JsonGetType(jArray))
+    {
+        jArray = JsonArray();
+        int nCount;
+        for (nCount = 0; nCount < nSize; nCount++)
+        {
+            jArray = JsonArrayInsertInt(jArray, 0);
+        }
+
+        SetLocalJson(GetModule(), "JSON_EMPTY_INT_ARRAY_" + IntToString(nSize), jArray);
+    }
+
+    return jArray;
+}
+
+string StringJsonArrayElementBool(int bValue)
+{
+    return (bValue ? "true" : "false") + ",";
+}
+
+string StringJsonArrayElementInt(int nValue)
+{
+    return IntToString(nValue) + ",";
+}
+
+string StringJsonArrayElementString(string sValue)
+{
+    return "\"" + sValue + "\",";
+}
+
+json StringJsonArrayElementsToJsonArray(string sValues)
+{
+    return JsonParse("[" + (GetStringRight(sValues, 1) == "," ? GetStringLeft(sValues, GetStringLength(sValues) - 1) : sValues) + "]");
 }
 

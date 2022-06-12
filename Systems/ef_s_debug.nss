@@ -49,9 +49,15 @@ void Debug_OnResourceModified()
 }
 
 // @CONSOLE[DumpLocals:isk_search:Dump local variables of an object]
-string Debug_DumpLocals()
+string Debug_DumpLocals(int bModule = 0, int bArea = 0)
 {
     object oTarget = OBJECT_SELF;
+
+    if (bModule)
+        oTarget = GetModule();
+    else if (bArea)
+        oTarget = GetArea(oTarget);
+
     string sMessage = "* Name: " + GetName(oTarget);
            sMessage += "\n* Tag: " + GetTag(oTarget);
            sMessage += "\n* UUID: " + NWNX_Object_PeekUUID(oTarget);
@@ -137,5 +143,16 @@ void Debug_GiveXP(int nAmount)
 {
     if (nAmount > 0)
         GiveXPToCreature(OBJECT_SELF, nAmount);
+}
+
+// @CONSOLE[SetCurrentHitPoints:ir_heal:Set the current hitpoints of a target]
+void Debug_SetCurrentHitPoints(int nHitPoints)
+{
+    object oPlayer = OBJECT_SELF;
+
+    if (nHitPoints <= 0)
+        nHitPoints = GetMaxHitPoints(oPlayer);
+
+    SetCurrentHitPoints(oPlayer, nHitPoints);
 }
 

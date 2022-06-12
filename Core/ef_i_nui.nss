@@ -22,8 +22,13 @@ const string NUI_EVENT_MOUSESCROLL          = "mousescroll";
 
 const string NUI_DEFAULT_GEOMETRY_NAME      = "default_geometry";
 
+const float NUI_TITLEBAR_HEIGHT             = 33.0f;
+
 json NuiGetCenteredGeometryRect(object oPlayer, float fWindowWidth, float fWindowHeight);
 float NuiGetMouseScrollDelta(json jPayload);
+int NuiGetMouseButton(json jPayload);
+void NuiSetClickthroughProtection(object oPlayer = OBJECT_SELF, float fSeconds = 0.5f);
+int NuiGetClickthroughProtection(object oPlayer = OBJECT_SELF);
 
 json NuiGetCenteredGeometryRect(object oPlayer, float fWindowWidth, float fWindowHeight)
 {
@@ -37,6 +42,22 @@ json NuiGetCenteredGeometryRect(object oPlayer, float fWindowWidth, float fWindo
 
 float NuiGetMouseScrollDelta(json jPayload)
 {
-    return JsonGetFloat(JsonObjectGet(JsonObjectGet(jPayload, "mouse_scroll"), "y"));
+    return JsonObjectGetFloat(JsonObjectGet(jPayload, "mouse_scroll"), "y");
+}
+
+int NuiGetMouseButton(json jPayload)
+{
+    return JsonObjectGetInt(jPayload, "mouse_btn");
+}
+
+void NuiSetClickthroughProtection(object oPlayer = OBJECT_SELF, float fSeconds = 0.5f)
+{
+    SetLocalInt(oPlayer, "CLICKTHROUGH_PROTECTION", NuiGetClickthroughProtection(oPlayer) + 1);
+    DelayCommand(fSeconds, SetLocalInt(oPlayer, "CLICKTHROUGH_PROTECTION", NuiGetClickthroughProtection(oPlayer) - 1));
+}
+
+int NuiGetClickthroughProtection(object oPlayer = OBJECT_SELF)
+{
+    return GetLocalInt(oPlayer, "CLICKTHROUGH_PROTECTION");
 }
 

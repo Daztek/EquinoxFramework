@@ -131,7 +131,7 @@ json PC_CreateWindow()
           NB_End();
         NB_End();
         NB_StartRow();
-          NB_StartList(NuiBind(PC_BIND_ICONS_ARRAY), 32.0f);
+          NB_StartList(JsonInt(PC_MAX_ITEMS), 32.0f);
             NB_StartListTemplateCell(32.0f, FALSE);
               NB_StartGroup(TRUE, NUI_SCROLLBARS_NONE);
                 NB_SetId(PC_BIND_ICON_GROUP);
@@ -222,7 +222,6 @@ void PC_OpenPersistentChest()
         NWM_SetBindWatch(PC_BIND_SEARCH_TEXT, TRUE);
         NWM_SetBind(PC_BIND_WINDOW_TITLE, JsonString(GetName(oPlayer) + "'s Persistent Chest"));
         NWM_SetBind(PC_BIND_SEARCH_TEXT, JsonString(""));
-        PC_UpdateItemList();
     }
 }
 
@@ -239,12 +238,11 @@ void PC_UpdateItemList()
     object oPlayer = NWM_GetPlayer();
     object oDataObject = GetDataObject(PC_SCRIPT_NAME);
 
-    json jStringArray = GetEmptyJsonStringArray(PC_MAX_ITEMS);
-    json jUUIDArray = GetEmptyJsonStringArray(PC_MAX_ITEMS);
-    json jNamesArray = GetEmptyJsonStringArray(PC_MAX_ITEMS);
-    json jTooltipArray = GetEmptyJsonStringArray(PC_MAX_ITEMS);
-    json jIconsArray = GetEmptyJsonStringArray(PC_MAX_ITEMS);
-    json jVisibleArray = GetEmptyJsonBoolArray(PC_MAX_ITEMS);
+    string sUUIDArray;
+    string sNamesArray;
+    string sTooltipArray;
+    string sIconArray;
+    string sVisibleArray;
 
     int nNumItems = PC_GetStoredItemAmount(oPlayer);
     string sSearch = JsonGetString(NWM_GetBind(PC_BIND_SEARCH_TEXT));
@@ -255,7 +253,6 @@ void PC_UpdateItemList()
     if (sSearch != "")
         SqlBindString(sql, "@search", "%" + sSearch + "%");
 
-    int nIndex;
     while (SqlStep(sql))
     {
         string sUUID = SqlGetString(sql, 0);
@@ -264,21 +261,20 @@ void PC_UpdateItemList()
         int nStackSize = SqlGetInt(sql, 3);
         string sIconResRef = SqlGetString(sql, 4);
 
-        jUUIDArray = JsonArraySetString(jUUIDArray, nIndex, sUUID);
-        jNamesArray = JsonArraySetString(jNamesArray, nIndex, sName + (nStackSize > 1 ? " (x" + IntToString(nStackSize) + ")" : ""));
-        jTooltipArray = JsonArraySetString(jTooltipArray, nIndex, Get2DAStrRefString("baseitems", "Name", nBaseItem));
-        jIconsArray = JsonArraySetString(jIconsArray, nIndex, sIconResRef);
-        jVisibleArray = JsonArraySetBool(jVisibleArray, nIndex, TRUE);
-        nIndex++;
+        sUUIDArray += StringJsonArrayElementString(sUUID);
+        sNamesArray += StringJsonArrayElementString(sName + (nStackSize > 1 ? " (x" + IntToString(nStackSize) + ")" : ""));
+        sTooltipArray += StringJsonArrayElementString(Get2DAStrRefString("baseitems", "Name", nBaseItem));
+        sIconArray += StringJsonArrayElementString(sIconResRef);
+        sVisibleArray += StringJsonArrayElementBool(TRUE);
     }
 
-    NWM_SetUserData("uuid_array", jUUIDArray);
-    NWM_SetBind(PC_BIND_ICONS_ARRAY, jIconsArray);
-    NWM_SetBind(PC_BIND_NAMES_ARRAY, jNamesArray);
-    NWM_SetBind(PC_BIND_TOOLTIPS_ARRAY, jTooltipArray);
+    NWM_SetUserData("uuid_array", StringJsonArrayElementsToJsonArray(sUUIDArray));
+    NWM_SetBind(PC_BIND_ICONS_ARRAY, StringJsonArrayElementsToJsonArray(sIconArray));
+    NWM_SetBind(PC_BIND_NAMES_ARRAY, StringJsonArrayElementsToJsonArray(sNamesArray));
+    NWM_SetBind(PC_BIND_TOOLTIPS_ARRAY, StringJsonArrayElementsToJsonArray(sTooltipArray));
     NWM_SetBind(PC_BIND_PROGRESS, JsonFloat(IntToFloat(nNumItems) / IntToFloat(PC_MAX_ITEMS)));
     NWM_SetBind(PC_BIND_PROGRESS_TOOLTIP, JsonString(IntToString(nNumItems) + " / " + IntToString(PC_MAX_ITEMS) + " Items Stored"));
-    NWM_SetBind(PC_BIND_TEMPLATE_ROW_VISIBLE, jVisibleArray);
+    NWM_SetBind(PC_BIND_TEMPLATE_ROW_VISIBLE, StringJsonArrayElementsToJsonArray(sVisibleArray));
 }
 
 void PC_WithdrawItem()

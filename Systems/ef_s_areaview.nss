@@ -33,7 +33,7 @@ const string AV_DISPLAY_PLACEABLE               = "DisplayPlaceable";
 const string AV_DISPLAY_PLACEABLE_TAG           = "AV_AREA_DISPLAY";
 
 const string AV_AREA_ID                         = "AVRandomArea";
-const string AV_AREA_TILESET                    = "wsf10";
+const string AV_AREA_TILESET                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
 const int AV_AREA_WIDTH                         = 9;
 const int AV_AREA_HEIGHT                        = 9;
 const string AV_AREA_EDGE_TERRAIN               = "TREES";
@@ -91,7 +91,7 @@ json AV_CreateWindow()
 // @NWMEVENT[AV_WINDOW_ID:NUI_EVENT_CLICK:AV_BIND_GENERATE_BUTTON]
 void AV_ClickGenerateButton()
 {
-    int nWidth = Random(AV_AREA_WIDTH) + 8;
+    int nWidth = 8;//Random(AV_AREA_WIDTH) + 8;
     int nHeight = Random(AV_AREA_HEIGHT) + 8;
 
     CassowarySuggestValue(AV_GetXSolver(), "LENGTH", IntToFloat(nWidth));
@@ -104,56 +104,20 @@ void AV_ClickGenerateButton()
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10);
     AG_SetCallbackFunction(AV_AREA_ID, AV_SCRIPT_NAME, "AV_OnAreaGenerated");
 
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "FOREST_FALL");
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "FOREST_SUMMER");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "FOREST_WINTER");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "WATER_FALL");
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "WATER_SUMMER");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "WATER_WINTER");
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "STONETOP_SUMMER");
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "MEADOW_SUMMER");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "SANDY_PATCH");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "SANDY_PIT");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "SAND");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "WATER_NO_WALK");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "WATER_SUMMER_PIT");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "PIT");
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "DLA_CASTLEHIGH");
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "DLA_CASTLELOW");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "DLA_CLIFFS");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "STONE0");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "STONE1");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "STONE2");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "STONE3");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "WATER");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "TREES");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "CLIFF");
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "COBBLECITY");
-
-
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "TRAIL_SUMMER");
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "STREAM_SUMMER");
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "CLIFFSIDE_SUMMER");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "WALL_COBBLE");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "COBBLE_TRAIL");
+    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "ROAD");
+    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "WALL");
     AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "BRIDGE");
-    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "STREAM-DEEP");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "WATER_BRIDGE");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "SMALLWALL");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "FENCE");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "CITY_CROSSER");
-    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "DOCK");
+    AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "STREET");
 
+    AG_AddEdgeTerrain(AV_AREA_ID, "WATER");
+    AG_AddEdgeTerrain(AV_AREA_ID, "MOUNTAIN");
 
-    //AG_AddEdgeTerrain(AV_AREA_ID, "WATER");
-    //AG_AddEdgeTerrain(AV_AREA_ID, "TREES");
+    AG_SetStringDataByKey(AV_AREA_ID, AG_DATA_KEY_FLOOR_TERRAIN, "GRASS");
+    AG_AddPathDoorCrosserCombo(AV_AREA_ID, 80, "ROAD");
+    AG_AddPathDoorCrosserCombo(AV_AREA_ID, 1161, "STREET");
+    AG_SetAreaPathDoorCrosserCombo(AV_AREA_ID, Random(AG_GetNumPathDoorCrosserCombos(AV_AREA_ID)));
 
-    //AG_SetStringDataByKey(AV_AREA_ID, AG_DATA_KEY_FLOOR_TERRAIN, "GRASS");
-    //AG_AddPathDoorCrosserCombo(AV_AREA_ID, 181, "ROAD");
-    //AG_AddPathDoorCrosserCombo(AV_AREA_ID, 1161, "STREET");
-    //AG_SetAreaPathDoorCrosserCombo(AV_AREA_ID, Random(AG_GetNumPathDoorCrosserCombos(AV_AREA_ID)));
-
-    //AG_CopyEdgeFromArea(AV_AREA_ID, GetObjectByTag("AR_MEDCITY"), AG_AREA_EDGE_TOP);
+    AG_CopyEdgeFromArea(AV_AREA_ID, GetAreaFromLocation(GetStartingLocation()), AG_AREA_EDGE_TOP);
     AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_TOP);
     AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_BOTTOM);
     AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_LEFT);
@@ -161,7 +125,7 @@ void AV_ClickGenerateButton()
 
     //AG_CreateRandomEntrance(AV_AREA_ID, 198);
 
-   // AG_PlotRoad(AV_AREA_ID);
+    AG_PlotRoad(AV_AREA_ID);
 
     //AV_OnAreaGenerated(AV_AREA_ID);
     AG_GenerateArea(AV_AREA_ID);

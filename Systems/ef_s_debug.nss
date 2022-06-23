@@ -12,14 +12,7 @@
 
 const string DEBUG_LOG_TAG              = "Debug";
 const string DEBUG_SCRIPT_NAME          = "ef_s_debug";
-
 const string DEBUG_DEBUG_SCRIPT_NAME    = "ef_debug";
-
-// @CORE[EF_SYSTEM_LOAD]
-void Debug_Load()
-{
-
-}
 
 // @EVENT[NWNX_ON_RESOURCE_MODIFIED]
 void Debug_OnResourceModified()
@@ -120,18 +113,19 @@ string Debug_DumpLocals(int bModule = 0, int bArea = 0)
 // @CONSOLE[Haste:ief_haste:Give Haste]
 void Debug_Haste(float fDuration = 0.0f)
 {
-    object oPlayer = OBJECT_SELF;
+    object oTarget = OBJECT_SELF;
 
-    if (!GetHasEffectType(oPlayer, EFFECT_TYPE_HASTE))
+    if (!GetHasEffectType(oTarget, EFFECT_TYPE_HASTE))
     {
+        effect eHaste = EffectHaste();
         if (fDuration == 0.0f)
-            ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectHaste(), oPlayer);
+            ApplyEffectToObject(DURATION_TYPE_PERMANENT, eHaste, oTarget);
         else
-            ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectHaste(), oPlayer, fDuration);
+            ApplyEffectToObject(DURATION_TYPE_TEMPORARY, eHaste, oTarget, fDuration);
     }
 }
 
-// @CONSOLE[StartingLocation:ir_flee:Move to the module starting location]
+// @CONSOLE[StartingLocation:dm_jump:Move to the module starting location]
 void Debug_MoveToStartingLocation()
 {
     ClearAllActions();
@@ -148,11 +142,46 @@ void Debug_GiveXP(int nAmount)
 // @CONSOLE[SetCurrentHitPoints:ir_heal:Set the current hitpoints of a target]
 void Debug_SetCurrentHitPoints(int nHitPoints)
 {
-    object oPlayer = OBJECT_SELF;
+    object oTarget = OBJECT_SELF;
 
     if (nHitPoints <= 0)
-        nHitPoints = GetMaxHitPoints(oPlayer);
+        nHitPoints = GetMaxHitPoints(oTarget);
 
-    SetCurrentHitPoints(oPlayer, nHitPoints);
+    SetCurrentHitPoints(oTarget, nHitPoints);
 }
 
+// @CONSOLE[TogglePlot:dm_god:Toggle the plot state of a target]
+string Debug_TogglePlot()
+{
+    object oTarget = OBJECT_SELF;
+    int bPlot = GetPlotFlag(oTarget);
+    SetPlotFlag(oTarget, !bPlot);
+
+    return "Set Plot Flag to: " + IntToString(!bPlot);
+}
+
+// @CONSOLE[ToggleImmortal:dm_immortal:Toggle the immortal state of a target]
+string Debug_ToggleImmortal()
+{
+    object oTarget = OBJECT_SELF;
+    int bImmortal = GetImmortal(oTarget);
+    SetImmortal(oTarget, !bImmortal);
+
+    return "Set Immortal Flag to: " + IntToString(!bImmortal);
+}
+
+// @CONSOLE[ToggleCommandable:dm_ai:Toggle the commandable state of a target]
+string Debug_ToggleCommandable()
+{
+    object oTarget = OBJECT_SELF;
+    int bCommandable = GetCommandable(oTarget);
+    SetCommandable(!bCommandable, oTarget);
+
+    return "Set Commandable Flag to: " + IntToString(!bCommandable);
+}
+
+// @CONSOLE[ForceRest:dm_rest:Forcibly rest a target]
+void Debug_ForceRest()
+{
+    ForceRest(OBJECT_SELF);
+}

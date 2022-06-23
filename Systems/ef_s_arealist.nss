@@ -24,40 +24,40 @@ json AL_CreateWindow()
 {
     NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 400.0f, 500.0f));
     NB_SetWindowTitle(JsonString("Area List"));
-     NB_StartColumn();
-      NB_StartRow();
-       NB_StartElement(NuiButton(JsonString("Refresh")));
-        NB_SetId(AL_ELEMENT_REFRESH_BUTTON);
-        NB_SetDimensions(380.0f, 30.0f);
-       NB_End();
-      NB_End();
-      NB_StartRow();
-       NB_StartList(NuiBind(AL_NUI_BIND_BUTTONS), 24.0f, TRUE);
-        NB_StartListTemplateCell(340.0f, FALSE);
-         NB_StartElement(NuiButton(NuiBind(AL_NUI_BIND_BUTTONS)));
-          NB_SetId(AL_ELEMENT_AREA_BUTTON);
-          NB_SetDimensions(340.0f, 24.0f);
-         NB_End();
+        NB_StartColumn();
+            NB_StartRow();
+                NB_StartElement(NuiButton(JsonString("Refresh")));
+                    NB_SetId(AL_ELEMENT_REFRESH_BUTTON);
+                    NB_SetDimensions(380.0f, 30.0f);
+                NB_End();
+            NB_End();
+            NB_StartRow();
+                NB_StartList(NuiBind(AL_NUI_BIND_BUTTONS), 24.0f, TRUE);
+                    NB_StartListTemplateCell(340.0f, FALSE);
+                        NB_StartElement(NuiButton(NuiBind(AL_NUI_BIND_BUTTONS)));
+                            NB_SetId(AL_ELEMENT_AREA_BUTTON);
+                            NB_SetDimensions(340.0f, 24.0f);
+                        NB_End();
+                    NB_End();
+                NB_End();
+            NB_End();
         NB_End();
-       NB_End();
-      NB_End();
-     NB_End();
     return NB_FinalizeWindow();
 }
 
 void AL_RefreshAreaList()
 {
-    json jAreaNames = JsonArray(), jAreaIds = JsonArray();
+    string sAreaNames, sAreaIds;
     object oArea = GetFirstArea();
     while (GetIsObjectValid(oArea))
     {
-        jAreaNames = JsonArrayInsertString(jAreaNames, GetName(oArea) + " (" + GetTag(oArea) + ")");
-        jAreaIds = JsonArrayInsertString(jAreaIds, ObjectToString(oArea));
+        sAreaNames += StringJsonArrayElementString(GetName(oArea) + " (" + GetTag(oArea) + ")");
+        sAreaIds += StringJsonArrayElementString(ObjectToString(oArea));
         oArea = GetNextArea();
     }
 
-    NWM_SetBind(AL_NUI_BIND_BUTTONS, jAreaNames);
-    NWM_SetUserData("areas", jAreaIds);
+    NWM_SetBind(AL_NUI_BIND_BUTTONS, StringJsonArrayElementsToJsonArray(sAreaNames));
+    NWM_SetUserData("areas", StringJsonArrayElementsToJsonArray(sAreaIds));
 }
 
 // @NWMEVENT[AL_WINDOW_ID:NUI_EVENT_CLICK:AL_ELEMENT_REFRESH_BUTTON]
@@ -74,7 +74,7 @@ void AL_ClickAreaButton()
     if (GetIsObjectValid(oArea))
     {
         ClearAllActions();
-        JumpToLocation(Location(oArea, GetAreaCenterPosition(oArea), GetFacing(oPlayer)));
+        ActionJumpToLocation(Location(oArea, GetAreaCenterPosition(oArea), GetFacing(oPlayer)));
     }
 }
 

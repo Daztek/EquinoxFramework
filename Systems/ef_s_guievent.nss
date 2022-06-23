@@ -32,7 +32,12 @@ void GuiEvent_OnPlayerGuiEvent()
     {
         string sScriptChunk = JsonArrayGetString(jFunctions, nFunction);
         if (sScriptChunk != "")
-            ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+        {
+            string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+
+            if (sError != "")
+                WriteLog(GUIEVENT_LOG_TAG, "ERROR: ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+        }
     }
 }
 

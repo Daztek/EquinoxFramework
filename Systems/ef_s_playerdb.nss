@@ -58,7 +58,8 @@ string PlayerDB_GetLastUpdated_UTC(object oPlayer, string sSystem, string sVarNa
 // @EVENT[NWNX_ON_ELC_VALIDATE_CHARACTER_BEFORE]
 void PlayerDB_Init()
 {
-    SqlStep(SqlPrepareQueryObject(OBJECT_SELF,
+    object oPlayer = OBJECT_SELF;
+    SqlStep(SqlPrepareQueryObject(oPlayer,
         "CREATE TABLE IF NOT EXISTS " + PLAYERDB_DATABASE_NAME + " (" +
         "system TEXT, " +
         "type INTEGER, " +
@@ -66,7 +67,7 @@ void PlayerDB_Init()
         "value BLOB, " +
         "timestamp INTEGER, " +
         "PRIMARY KEY(system, type, varname));"));
-    ExportSingleCharacter(OBJECT_SELF);
+    ExportSingleCharacter(oPlayer);
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_CLIENT_EXIT:A]

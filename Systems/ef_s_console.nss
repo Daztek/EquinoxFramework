@@ -317,6 +317,7 @@ void Console_SetTarget(object oTarget)
         string sObjectType = ObjectTypeToString(GetObjectType(oTarget));
         NWM_SetBindString(CONSOLE_BIND_LABEL_TARGET, GetName(oTarget) + " (" + sObjectType + ")");
         NWM_SetUserData("target", JsonString(ObjectToString(oTarget)));
+        Console_SetOutput("");
     }
 }
 
@@ -342,6 +343,9 @@ void Console_ClickClearButton()
 // @NWMEVENT[CONSOLE_WINDOW_ID:NUI_EVENT_MOUSEUP:CONSOLE_BIND_LIST_COMMAND_NAME]
 void Console_MouseUpListCommandName()
 {
+    if (NuiGetClickthroughProtection())
+        return;
+        
     string sCommand = JsonArrayGetString(NWM_GetUserData("commands"), NuiGetEventArrayIndex());
     if (sCommand != "" && JsonGetString(NWM_GetUserData("selected_command")) != sCommand)
         Console_SelectCommand(sCommand);
@@ -409,6 +413,7 @@ void Console_ClickExecuteButton()
 void Console_WatchSystemComboSelected()
 {
     Console_UpdateCommandList(NWM_GetBindString(CONSOLE_BIND_INPUT_COMMAND));
+    NuiSetClickthroughProtection();
 }
 
 // @TARGETMODE[CONSOLE_TARGET_MODE_ID]

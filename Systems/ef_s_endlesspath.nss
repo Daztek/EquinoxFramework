@@ -325,6 +325,8 @@ int EP_NearestPathDistance(string sAreaID, int nTileX, int nTileY)
 
 void EP_PostProcess(object oArea, int nCurrentHeight = 0)
 {
+    // TODO: Check height/width difference for batching
+    
     string sAreaID = GetTag(oArea);
     int nHeight = GetAreaSize(AREA_HEIGHT, oArea);
     int nWidth = GetAreaSize(AREA_WIDTH, oArea);
@@ -344,6 +346,8 @@ void EP_PostProcess(object oArea, int nCurrentHeight = 0)
     string sQuery = "INSERT INTO " + EP_GetTilesTable() + "(area_id, tile_index, tile_x, tile_y, tile_id, entrance_dist, exit_dist, path_dist, group_tile, num_doors) " +
                     "VALUES(@area_id, @tile_index, @tile_x, @tile_y, @tile_id, @entrance_dist, @exit_dist, @path_dist, @group_tile, @num_doors);";
 
+    SqlBeginTransactionModule();
+    
     int nTile, nNumTiles = (nCurrentHeight + 1) * nWidth;
     for (nTile = nCurrentHeight * nWidth; nTile < nNumTiles; nTile++)
     {
@@ -378,6 +382,8 @@ void EP_PostProcess(object oArea, int nCurrentHeight = 0)
             }
         }
     }
+
+    SqlCommitTransactionModule();
 
     DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea, ++nCurrentHeight));
 }

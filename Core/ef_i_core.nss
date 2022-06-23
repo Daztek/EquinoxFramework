@@ -10,12 +10,15 @@
 #include "ef_i_sqlite"
 #include "ef_i_util"
 #include "ef_i_convert"
+#include "nwnx_admin"
 #include "nwnx_regex"
 
 //void main() {}
 
 const string EFCORE_LOG_TAG                             = "Equinox";
 const string EFCORE_SCRIPT_NAME                         = "ef_i_core";
+
+const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
 
 const string EFCORE_SYSTEM_SCRIPT_PREFIX                = "ef_s_";
 const string EFCORE_SYSTEM_OBJECT                       = "Systems";
@@ -35,6 +38,7 @@ json EFCore_GetSystem(string sSystem);
 json EFCore_GetAnnotationData(string sKey = "");
 void EFCore_InsertAnnotationData(string sKey, json jData);
 void EFCore_ParseSystemsForAnnotations();
+int EFCore_ValidateSystems();
 void EFCore_ExecuteFunctions(int nCoreFunctionType);
 void EFCore_ExecuteFunctionOnAnnotationData(string sSystem, string sAnnotationData, string sFunction);
 
@@ -44,9 +48,17 @@ void EFCore_Initialize()
 
     NWNX_Util_SetInstructionLimit(NWNX_Util_GetInstructionLimit() * 64);
 
-    EFCore_InsertAnnotation(JsonString("@(CORE)\\[(EF_SYSTEM_[A-Z]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\("));
-
     EFCore_InitSystemData();
+
+    if (!EFCore_ValidateSystems())
+    {
+        if (EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE)
+            NWNX_Administration_ShutdownServer();
+
+        return;
+    }
+
+    EFCore_InsertAnnotation(JsonString("@(CORE)\\[(EF_SYSTEM_[A-Z]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\("));
     EFCore_ParseSystemsForAnnotations();
 
     WriteLog(EFCORE_LOG_TAG, "* Executing System 'Init' Functions");
@@ -211,6 +223,35 @@ void EFCore_ParseSystemsForAnnotations()
 
         NWNX_Util_SetInstructionsExecuted(0);
     }
+}
+
+int EFCore_ValidateSystems()
+{
+    object oModule = GetModule();
+    json jSystems = JsonObjectKeys(EFCore_GetSystems());
+    int nSystem, nNumSystems = JsonGetLength(jSystems);
+    int bValidated = TRUE;
+
+    WriteLog(EFCORE_LOG_TAG, "* Validating Systems...");
+
+    for (nSystem = 0; nSystem < nNumSystems; nSystem++)
+    {
+        string sSystemName = JsonArrayGetString(jSystems, nSystem);
+        json jSystem = EFCore_GetSystem(sSystemName);
+        string sScriptData = JsonObjectGetString(jSystem, "scriptdata");
+
+        string sError = ExecuteCachedScriptChunk(sScriptData + " " + nssVoidMain(""),  oModule, FALSE);
+
+        if (sError != "")
+        {
+            bValidated = FALSE;
+            WriteLog(EFCORE_LOG_TAG, "  > System '" + sSystemName + "' failed to validate with error: " + sError);
+        }
+    }
+
+    NWNX_Util_SetInstructionsExecuted(0);    
+
+    return bValidated;
 }
 
 void EFCore_ExecuteFunctions(int nCoreFunctionType)

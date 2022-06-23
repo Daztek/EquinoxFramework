@@ -39,7 +39,12 @@ void TargetMode_OnPlayerTarget()
         {
             string sScriptChunk = JsonArrayGetString(jFunctions, nFunction);
             if (sScriptChunk != "")
-                ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+            {
+                string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+
+                if (sError != "")
+                    WriteLog(TARGETMODE_LOG_TAG, "ERROR: ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+            }
         }
     }
 }

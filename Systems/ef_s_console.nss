@@ -111,7 +111,7 @@ json Console_CreateWindow()
                 NB_End();
             NB_End();
             NB_StartRow();
-                NB_StartList(NuiBind(CONSOLE_BIND_LIST_COMMAND_NAME), 16.0f);
+                NB_StartList(JsonInt(CONSOLE_MAX_COMMANDS), 16.0f);
                     NB_SetWidth(300.0f);
                     NB_StartListTemplateCell(16.0f, FALSE);
                         NB_StartGroup(FALSE, NUI_SCROLLBARS_NONE);
@@ -147,7 +147,7 @@ json Console_CreateWindow()
                         NB_End();
                     NB_End();
                     NB_StartRow();
-                        NB_StartList(NuiBind(CONSOLE_BIND_LIST_ARG_NAME), 25.0f);
+                        NB_StartList(JsonInt(CONSOLE_MAX_PARAMETERS), 25.0f);
                             NB_SetDimensions(472.0f, 150.0f);
                             NB_StartListTemplateCell(2.0f, FALSE);
                                 NB_AddSpacer();
@@ -202,10 +202,10 @@ json Console_CreateWindow()
 
 void Console_UpdateCommandList(string sCommand)
 {
-    json jVisibleArray = GetEmptyJsonBoolArray(CONSOLE_MAX_COMMANDS);
-    json jCommandArray = GetEmptyJsonStringArray(CONSOLE_MAX_COMMANDS);
-    json jIconArray = GetEmptyJsonStringArray(CONSOLE_MAX_COMMANDS);
-    json jTooltipArray = GetEmptyJsonStringArray(CONSOLE_MAX_COMMANDS);
+    string sVisibleList;
+    string sCommandArray;
+    string sIconArray;
+    string sTooltipArray;
 
     string sSystem = JsonArrayGetString(NWM_GetUserData("systems"), JsonGetInt(NWM_GetBind(CONSOLE_BIND_COMBO_SYSTEM_SELECTED)));
 
@@ -216,20 +216,20 @@ void Console_UpdateCommandList(string sCommand)
     SqlBindString(sql, "@command", "%" + sCommand + "%");
     SqlBindString(sql, "@system", "%" + sSystem + "%");
 
-    int nIndex;
     while (SqlStep(sql))
     {
-        jVisibleArray = JsonArraySetBool(jVisibleArray, nIndex, TRUE);
-        jCommandArray = JsonArraySetString(jCommandArray, nIndex, SqlGetString(sql, 0));
-        jIconArray = JsonArraySetString(jIconArray, nIndex, SqlGetString(sql, 1));
-        jTooltipArray = JsonArraySetString(jTooltipArray, nIndex, SqlGetString(sql, 2));
-        nIndex++;
+        sVisibleList += StringJsonArrayElementBool(TRUE);
+        sCommandArray += StringJsonArrayElementString(SqlGetString(sql, 0));
+        sIconArray += StringJsonArrayElementString(SqlGetString(sql, 1));
+        sTooltipArray += StringJsonArrayElementString(SqlGetString(sql, 2));
     }
 
-    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_ROW_VISIBLE, jVisibleArray);
+    json jCommandArray = StringJsonArrayElementsToJsonArray(sCommandArray);
+
+    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_ROW_VISIBLE, StringJsonArrayElementsToJsonArray(sVisibleList));
     NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_NAME, jCommandArray);
-    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_ICON, jIconArray);
-    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_TOOLTIP, jTooltipArray);
+    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_ICON, StringJsonArrayElementsToJsonArray(sIconArray));
+    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_TOOLTIP, StringJsonArrayElementsToJsonArray(sTooltipArray));
 
     NWM_SetUserData("commands", jCommandArray);
 }
@@ -273,10 +273,10 @@ void Console_SelectCommand(string sCommand)
         string sIcon = SqlGetString(sql, 0);
         json jParameters = SqlGetJson(sql, 1);
         string sScriptChunk = SqlGetString(sql, 2);
-        json jArrayArgVisible = GetEmptyJsonBoolArray(CONSOLE_MAX_PARAMETERS);
-        json jArrayArgName = GetEmptyJsonStringArray(CONSOLE_MAX_PARAMETERS);
-        json jArrayArgValue = GetEmptyJsonStringArray(CONSOLE_MAX_PARAMETERS);
-        json jArrayArgTooltip = GetEmptyJsonStringArray(CONSOLE_MAX_PARAMETERS);
+        string sArrayArgVisible;
+        string sArrayArgName;
+        string sArrayArgValue;
+        string sArrayArgTooltip;
 
         int nParameter, nNumParameters = JsonGetLength(jParameters);
         for (nParameter = 0; nParameter < nNumParameters; nParameter++)
@@ -286,10 +286,10 @@ void Console_SelectCommand(string sCommand)
             string sName = JsonObjectGetString(jParameter, "name");
             string sDefault = JsonObjectGetString(jParameter, "default");
 
-            jArrayArgVisible = JsonArraySetBool(jArrayArgVisible, nParameter, TRUE);
-            jArrayArgName = JsonArraySetString(jArrayArgName, nParameter, sName);
-            jArrayArgValue = JsonArraySetString(jArrayArgValue, nParameter, sDefault);
-            jArrayArgTooltip = JsonArraySetString(jArrayArgTooltip, nParameter, nssConvertShortType(sType));
+            sArrayArgVisible += StringJsonArrayElementBool(TRUE);
+            sArrayArgName += StringJsonArrayElementString(JsonObjectGetString(jParameter, "name"));
+            sArrayArgValue += StringJsonArrayElementString(JsonObjectGetString(jParameter, "default"));
+            sArrayArgTooltip += StringJsonArrayElementString(nssConvertShortType(JsonObjectGetString(jParameter, "type")));
         }
 
         NWM_SetUserData("selected_command", JsonString(sCommand));
@@ -298,10 +298,10 @@ void Console_SelectCommand(string sCommand)
 
         NWM_SetBindString(CONSOLE_BIND_SELECTED_COMMAND_ICON, sIcon);
         NWM_SetBindString(CONSOLE_BIND_SELECTED_COMMAND_NAME, sCommand);
-        NWM_SetBind(CONSOLE_BIND_LIST_ARG_ROW_VISIBLE, jArrayArgVisible);
-        NWM_SetBind(CONSOLE_BIND_LIST_ARG_NAME, jArrayArgName);
-        NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, jArrayArgValue);
-        NWM_SetBind(CONSOLE_BIND_LIST_ARG_TYPE_TOOLTIP, jArrayArgTooltip);
+        NWM_SetBind(CONSOLE_BIND_LIST_ARG_ROW_VISIBLE, StringJsonArrayElementsToJsonArray(sArrayArgVisible));
+        NWM_SetBind(CONSOLE_BIND_LIST_ARG_NAME, StringJsonArrayElementsToJsonArray(sArrayArgName));
+        NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, StringJsonArrayElementsToJsonArray(sArrayArgValue));
+        NWM_SetBind(CONSOLE_BIND_LIST_ARG_TYPE_TOOLTIP, StringJsonArrayElementsToJsonArray(sArrayArgTooltip));
 
         NWM_SetBindBool(CONSOLE_BIND_BUTTON_CLEAR_ARGS_ENABLED, TRUE);
         NWM_SetBindBool(CONSOLE_BIND_BUTTON_EXECUTE_ENABLED, TRUE);
@@ -354,7 +354,7 @@ void Console_MouseUpListCommandName()
 // @NWMEVENT[CONSOLE_WINDOW_ID:NUI_EVENT_CLICK:CONSOLE_BIND_BUTTON_SELECT_TARGET]
 void Console_ClickTargetButton()
 {
-    TargetMode_Enter(OBJECT_SELF, CONSOLE_TARGET_MODE_ID, OBJECT_TYPE_CREATURE | OBJECT_TYPE_ITEM | OBJECT_TYPE_PLACEABLE);
+    TargetMode_Enter(OBJECT_SELF, CONSOLE_TARGET_MODE_ID, OBJECT_TYPE_CREATURE | OBJECT_TYPE_ITEM | OBJECT_TYPE_PLACEABLE | OBJECT_TYPE_DOOR);
     NWM_SetBindBool(CONSOLE_BIND_WINDOW_COLLAPSED, TRUE);
 }
 

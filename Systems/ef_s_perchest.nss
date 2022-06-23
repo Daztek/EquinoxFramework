@@ -194,14 +194,14 @@ void PC_ClickCloseButton()
 // @NWMEVENT[PC_WINDOW_ID:NUI_EVENT_CLICK:PC_BIND_BUTTON_CLEAR]
 void PC_ClickClearButton()
 {
-    NWM_SetBind(PC_BIND_SEARCH_TEXT, JsonString(""));
+    NWM_SetBindString(PC_BIND_SEARCH_TEXT, "");
 }
 
 // @NWMEVENT[PC_WINDOW_ID:NUI_EVENT_WATCH:PC_BIND_SEARCH_TEXT]
 void PC_WatchSearch()
 {
     json jSearch = NWM_GetBind(PC_BIND_SEARCH_TEXT);
-    NWM_SetBind(PC_BIND_BUTTON_CLEAR, JsonBool(GetStringLength(JsonGetString(jSearch))));
+    NWM_SetBindBool(PC_BIND_BUTTON_CLEAR, GetStringLength(JsonGetString(jSearch)));
     PC_UpdateItemList();
 }
 
@@ -220,8 +220,8 @@ void PC_OpenPersistentChest()
     else if (NWM_OpenWindow(oPlayer, PC_WINDOW_ID))
     {
         NWM_SetBindWatch(PC_BIND_SEARCH_TEXT, TRUE);
-        NWM_SetBind(PC_BIND_WINDOW_TITLE, JsonString(GetName(oPlayer) + "'s Persistent Chest"));
-        NWM_SetBind(PC_BIND_SEARCH_TEXT, JsonString(""));
+        NWM_SetBindString(PC_BIND_WINDOW_TITLE, GetName(oPlayer) + "'s Persistent Chest");
+        NWM_SetBindString(PC_BIND_SEARCH_TEXT, "");
     }
 }
 

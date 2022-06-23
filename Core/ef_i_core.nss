@@ -46,12 +46,15 @@ void EFCore_Initialize()
 {
     WriteLog(EFCORE_LOG_TAG, "* Starting Equinox Framework...");
 
+    NWNX_Administration_SetPlayerPassword(GetRandomUUID());
     NWNX_Util_SetInstructionLimit(NWNX_Util_GetInstructionLimit() * 64);
 
     EFCore_InitSystemData();
 
     if (!EFCore_ValidateSystems())
     {
+        WriteLog(EFCORE_LOG_TAG, "* ERROR: System Validation Failure!");
+        
         if (EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE)
             NWNX_Administration_ShutdownServer();
 
@@ -68,6 +71,7 @@ void EFCore_Initialize()
     WriteLog(EFCORE_LOG_TAG, "* Executing System 'Post' Functions");
     EFCore_ExecuteFunctions(EF_SYSTEM_POST);
 
+    NWNX_Administration_SetPlayerPassword("");
     NWNX_Optimizations_FlushCachedChunks();
     NWNX_Util_SetInstructionLimit(-1);
 }
@@ -271,7 +275,7 @@ void EFCore_ExecuteFunctions(int nCoreFunctionType)
             string sError = ExecuteCachedScriptChunk(sScriptChunk, oModule, FALSE);
 
             if (sError != "")
-                WriteLog(EFCORE_LOG_TAG, "  > Function '" +sFunction + "' for '" + sSystem + "' failed with error: " + sError);
+                WriteLog(EFCORE_LOG_TAG, "  > Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
 
             NWNX_Util_SetInstructionsExecuted(0);
         }

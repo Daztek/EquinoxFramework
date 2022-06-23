@@ -388,7 +388,7 @@ void EP_PostProcess(object oArea, int nCurrentHeight = 0)
     DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea, ++nCurrentHeight));
 }
 
-// @PMBUTTON[Spawn Doors]
+// @CONSOLE[EPSpawnDoors::]
 void EP_SpawnDoors()
 {
     object oPlayer = OBJECT_SELF;

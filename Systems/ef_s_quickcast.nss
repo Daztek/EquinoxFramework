@@ -3,7 +3,7 @@
     Author: Daz
 
     Notes:
-        Does not work with domain spells or spontaneous spells or sub spells.
+        Does not work with domain spells or spontaneous spells.
 */
 
 //void main() {}
@@ -42,6 +42,7 @@ const string QC_BIND_SLOT_USES_VISIBLE              = "slot_uses_visible_";
 const string QC_BIND_SLOT_GREYED_OUT                = "slot_greyedout_";
 const string QC_BIND_SLOT_MM_VISIBLE                = "slot_mm_visible_";
 const string QC_BIND_SLOT_MM_ICON                   = "slot_mm_icon_";
+const string QC_BIND_BUTTON_PAGE                    = "btn_page_";
 const string QC_BIND_BUTTON_PAGE_ONE                = "btn_page_1";
 const string QC_BIND_BUTTON_PAGE_TWO                = "btn_page_2";
 const string QC_BIND_BUTTON_PAGE_THREE              = "btn_page_3";
@@ -78,12 +79,14 @@ const int QC_PLAYER_TARGET_TYPE_NEAREST_HOSTILE     = 2;
 
 string QC_GetSpellDataTable();
 string QC_GetClassSpellTableTable();
+string QC_GetChildSpellsTable();
 string QC_GetPlayerKnownSpellsTable(object oPlayer, int bEscape = TRUE);
 string QC_GetPlayerMemorizedSpellsTable(object oPlayer, int bEscape = TRUE);
 string QC_GetPlayerQuickCastTable();
 
 void QC_InitializeSpellData();
 void QC_InitializePlayerQuickCastTable(object oPlayer);
+int QC_GetMasterSpell(int nSpellId);
 int QC_GetSpellLevel(string sSpellTable, int nSpellId);
 void QC_InsertQuickCastSlot(object oPlayer, int nPageId, int nSlotId, int nMultiClass, int nSpellId, int nMetaMagic, string sTooltip);
 void QC_DeleteQuickCastSlot(object oPlayer, int nPageId, int nSlotId);
@@ -297,7 +300,6 @@ void QC_SlotMouseUp()
                                 NWNX_Creature_AddCastSpellActions(oPlayer, oNearestHostile, GetPosition(oNearestHostile), nSpellId, nMultiClass, nMetaMagic);
                             else
                                 NWNX_Player_PlaySound(oPlayer, "gui_failspell");
-
                             break;
                         }
 
@@ -332,22 +334,14 @@ void QC_SlotMouseUp()
     }
 }
 
-// @NWMEVENT[QC_MAIN_WINDOW_ID:NUI_EVENT_CLICK:QC_BIND_BUTTON_PAGE_ONE]
-void QC_ButtonClickPageOne()
+// @NWMEVENT[QC_MAIN_WINDOW_ID:NUI_EVENT_CLICK:QC_BIND_BUTTON_PAGE]
+void QC_ButtonClickPage()
 {
-    QC_SetPage(OBJECT_SELF, 0);
-}
-
-// @NWMEVENT[QC_MAIN_WINDOW_ID:NUI_EVENT_CLICK:QC_BIND_BUTTON_PAGE_TWO]
-void QC_ButtonClickPageTwo()
-{
-    QC_SetPage(OBJECT_SELF, 1);
-}
-
-// @NWMEVENT[QC_MAIN_WINDOW_ID:NUI_EVENT_CLICK:QC_BIND_BUTTON_PAGE_THREE]
-void QC_ButtonClickPageThree()
-{
-    QC_SetPage(OBJECT_SELF, 2);
+    object oPlayer = OBJECT_SELF;
+    string sElement = NuiGetEventElement();
+    int nPageId = StringToInt(GetStringRight(sElement, GetStringLength(sElement) - GetStringLength(QC_BIND_BUTTON_PAGE))) - 1;
+    if (nPageId >= 0)
+        QC_SetPage(oPlayer, nPageId);
 }
 
 // @NWMEVENT[QC_MAIN_WINDOW_ID:NUI_EVENT_CLICK:QC_BIND_BUTTON_TARGET]
@@ -571,7 +565,7 @@ void QC_DecrementSpellCount()
         }
         else
         {
-            int nSpellLevel = QC_GetSpellLevel(Get2DAString("classes", "SpellTableColumn", nClassType), nSpellId) + QC_GetMetaMagicLevelAdjustment(nMetaMagic);
+            int nSpellLevel = QC_GetSpellLevel(Get2DAString("classes", "SpellTableColumn", nClassType), QC_GetMasterSpell(nSpellId)) + QC_GetMetaMagicLevelAdjustment(nMetaMagic);                
             string sQuery = "SELECT slotid FROM " + QC_GetPlayerQuickCastTable() + " " +
                             "WHERE pageid = @pageid AND multiclass = @multiclass AND spelllevel = @spelllevel;";
             sql = SqlPrepareQueryObject(oPlayer, sQuery);
@@ -660,6 +654,11 @@ string QC_GetClassSpellTableTable()
     return QC_SCRIPT_NAME + "_classspelltables";
 }
 
+string QC_GetChildSpellsTable()
+{
+    return QC_SCRIPT_NAME + "_childspells";
+}
+
 string QC_GetPlayerKnownSpellsTable(object oPlayer, int bEscape = TRUE)
 {
     return (bEscape ? "'" : "") + QC_SCRIPT_NAME + "_playerknownspells_" + GetObjectUUID(oPlayer) + (bEscape ? "'" : "");
@@ -698,6 +697,7 @@ void QC_InitializeSpellData()
              "icon TEXT NOT NULL, " +
              "metamagic INTEGER NOT NULL, " +
              "targettype INTEGER NOT NULL, " +
+             "master INTEGER NOT NULL, " +
              "hostile INTEGER NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
@@ -708,18 +708,26 @@ void QC_InitializeSpellData()
              "PRIMARY KEY(spelltable, spellid));";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
+    sQuery = "CREATE TABLE IF NOT EXISTS " + QC_GetChildSpellsTable() + "(" +
+             "masterid INTEGER NOT NULL, " +
+             "childid INTEGER NOT NULL, " +
+             "PRIMARY KEY(masterid, childid));";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+
     SqlBeginTransactionModule();
 
-    string sInsertSpellDataQuery = "INSERT INTO " + QC_GetSpellDataTable() + "(spellid, name, icon, metamagic, targettype, hostile) VALUES(@spellid, @name, @icon, @metamagic, @targettype, @hostile);";
+    string sInsertSpellDataQuery = "INSERT INTO " + QC_GetSpellDataTable() + "(spellid, name, icon, metamagic, targettype, master, hostile) VALUES(@spellid, @name, @icon, @metamagic, @targettype, @master, @hostile);";
     string sInsertSpellTableQuery = "INSERT INTO " + QC_GetClassSpellTableTable() + "(spelltable, spellid, spelllevel) VALUES(@spelltable, @spellid, @spelllevel);";
+    string sInsertChildSpellQuery = "INSERT INTO " + QC_GetChildSpellsTable() + "(masterid, childid) VALUES(@masterid, @childid);";
 
     int nSpell, nNumSpells = Get2DARowCount(QC_SPELLS_2DA_NAME);
     for (nSpell = 0; nSpell < nNumSpells; nSpell++)
     {
         string sName = Get2DAStrRefString(QC_SPELLS_2DA_NAME, "Name", nSpell);
         string sIcon = Get2DAString(QC_SPELLS_2DA_NAME, "IconResRef", nSpell);
-        int nMetaMagic = StringToInt(Get2DAString(QC_SPELLS_2DA_NAME, "MetaMagic", nSpell));
+        int nMetaMagic = HexStringToInt(Get2DAString(QC_SPELLS_2DA_NAME, "MetaMagic", nSpell));
         int nTargetType = HexStringToInt(Get2DAString(QC_SPELLS_2DA_NAME, "TargetType", nSpell));
+        int nMasterSpellId = StringToInt(Get2DAString(QC_SPELLS_2DA_NAME, "Master", nSpell)); 
         int bHostile = StringToInt(Get2DAString(QC_SPELLS_2DA_NAME, "HostileSetting", nSpell));
 
         // Remove the item target flag, because I'm not dealing with that 8)
@@ -731,6 +739,7 @@ void QC_InitializeSpellData()
         SqlBindString(sql, "@icon", sIcon);
         SqlBindInt(sql, "@metamagic", nMetaMagic);
         SqlBindInt(sql, "@targettype", nTargetType);
+        SqlBindInt(sql, "@master", nMasterSpellId);
         SqlBindInt(sql, "@hostile", bHostile);
         SqlStep(sql);
 
@@ -749,6 +758,26 @@ void QC_InitializeSpellData()
                 SqlBindInt(sql, "@spellid", nSpell);
                 SqlBindInt(sql, "@spelllevel", nSpellLevel);
                 SqlStep(sql);
+            }
+        }
+
+        // NOTE:
+        // SpellId 771 (Dragon_Breath_Prismatic) has Aid as its SubRadSpell1 for whatever reason...
+        // Gonna skip the subradial spell checking for it
+        if (nSpell == 771) continue;
+        // Ugh
+
+        int nRadialSlot;
+        for (nRadialSlot = 1; nRadialSlot <= 5; nRadialSlot++)
+        {
+            string sChildSpellId = Get2DAString("spells", "SubRadSpell" + IntToString(nRadialSlot), nSpell);
+
+            if (sChildSpellId != "")
+            {
+                sqlquery sql = SqlPrepareQueryModule(sInsertChildSpellQuery);
+                SqlBindInt(sql, "@masterid", nSpell);
+                SqlBindInt(sql, "@childid", StringToInt(sChildSpellId));
+                SqlStep(sql);               
             }
         }
     }
@@ -782,6 +811,14 @@ void QC_InitializePlayerQuickCastTable(object oPlayer)
     SqlStep(SqlPrepareQueryObject(oPlayer, sQuery));
 }
 
+int QC_GetMasterSpell(int nSpellId)
+{
+    string sQuery = "SELECT masterid FROM " + QC_GetChildSpellsTable() + " WHERE childid = @childid;";
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
+    SqlBindInt(sql, "@childid", nSpellId);
+    return SqlStep(sql) ? SqlGetInt(sql, 0) : nSpellId;
+}
+
 int QC_GetSpellLevel(string sSpellTable, int nSpellId)
 {
     string sQuery = "SELECT spelllevel FROM " + QC_GetClassSpellTableTable() + " WHERE spelltable = @spelltable AND spellid = @spellid;";
@@ -802,7 +839,7 @@ void QC_InsertQuickCastSlot(object oPlayer, int nPageId, int nSlotId, int nMulti
     SqlBindInt(sql, "@multiclass", nMultiClass);
     SqlBindInt(sql, "@spellid", nSpellId);
     SqlBindInt(sql, "@metamagic", nMetaMagic);
-    SqlBindInt(sql, "@spelllevel", QC_GetSpellLevel(Get2DAString("classes", "SpellTableColumn", GetClassByPosition(nMultiClass + 1, oPlayer)), nSpellId) + QC_GetMetaMagicLevelAdjustment(nMetaMagic));
+    SqlBindInt(sql, "@spelllevel", QC_GetSpellLevel(Get2DAString("classes", "SpellTableColumn", GetClassByPosition(nMultiClass + 1, oPlayer)), QC_GetMasterSpell(nSpellId)) + QC_GetMetaMagicLevelAdjustment(nMetaMagic));
     SqlBindString(sql, "@tooltip", sTooltip);
     SqlStep(sql);
 }
@@ -895,13 +932,14 @@ void QC_PreparePlayerKnownSpells(object oPlayer)
 
     string sTableName = QC_GetPlayerKnownSpellsTable(oPlayer);
     string sQuery = "CREATE TABLE IF NOT EXISTS " + sTableName + " (" +
-             "multiclass INTEGER NOT NULL, " +
-             "spellid INTEGER NOT NULL, " +
-             "spelllevel INTEGER NOT NULL, " +
-             "PRIMARY KEY(multiclass, spellid, spelllevel));";
+                    "multiclass INTEGER NOT NULL, " +
+                    "spellid INTEGER NOT NULL, " +
+                    "spelllevel INTEGER NOT NULL, " +
+                    "PRIMARY KEY(multiclass, spellid, spelllevel));";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
-    sQuery = "INSERT INTO " + sTableName + "(multiclass, spellid, spelllevel) VALUES(@multiclass, @spellid, @spelllevel);";
+    string sInsertQuery = "INSERT INTO " + sTableName + "(multiclass, spellid, spelllevel) VALUES(@multiclass, @spellid, @spelllevel);";
+    string sSelectChildSpellsQuery = "SELECT childid FROM " + QC_GetChildSpellsTable() + " WHERE masterid = @masterid;";
 
     SqlBeginTransactionModule();
 
@@ -922,13 +960,32 @@ void QC_PreparePlayerKnownSpells(object oPlayer)
             for (nSpellIndex = 0; nSpellIndex < nNumKnownSpells; nSpellIndex++)
             {
                 int nSpellId = NWNX_Creature_GetKnownSpell(oPlayer, nClassType, nSpellLevel, nSpellIndex);
+                
+                int bIsMasterSpell = FALSE;
+                sqlquery sqlGetChildSpells = SqlPrepareQueryModule(sSelectChildSpellsQuery);
+                SqlBindInt(sqlGetChildSpells, "@masterid", nSpellId);
 
-                sqlquery sql = SqlPrepareQueryModule(sQuery);
-                SqlBindInt(sql, "@multiclass", nMultiClass);
-                SqlBindInt(sql, "@spellid", nSpellId);
-                SqlBindInt(sql, "@spelllevel", nSpellLevel);
+                while (SqlStep(sqlGetChildSpells))
+                {
+                    bIsMasterSpell = TRUE;
 
-                SqlStep(sql);
+                    int nChildSpellId = SqlGetInt(sqlGetChildSpells, 0);
+
+                    sqlquery sql = SqlPrepareQueryModule(sInsertQuery);
+                    SqlBindInt(sql, "@multiclass", nMultiClass);
+                    SqlBindInt(sql, "@spellid", nChildSpellId);
+                    SqlBindInt(sql, "@spelllevel", nSpellLevel);
+                    SqlStep(sql);
+                }                
+
+                if (!bIsMasterSpell)
+                {
+                    sqlquery sql = SqlPrepareQueryModule(sInsertQuery);
+                    SqlBindInt(sql, "@multiclass", nMultiClass);
+                    SqlBindInt(sql, "@spellid", nSpellId);
+                    SqlBindInt(sql, "@spelllevel", nSpellLevel);
+                    SqlStep(sql);
+                }
             }
         }
     }
@@ -948,11 +1005,11 @@ void QC_PreparePlayerMemorizedSpells(object oPlayer)
 
     string sTableName = QC_GetPlayerMemorizedSpellsTable(oPlayer);
     string sQuery = "CREATE TABLE IF NOT EXISTS " + sTableName + " (" +
-             "multiclass INTEGER NOT NULL, " +
-             "spellid INTEGER NOT NULL, " +
-             "metamagic INTEGER NOT NULL, "+
-             "spelllevel INTEGER NOT NULL, " +
-             "PRIMARY KEY(multiclass, spellid, spelllevel, metamagic));";
+                    "multiclass INTEGER NOT NULL, " +
+                    "spellid INTEGER NOT NULL, " +
+                    "metamagic INTEGER NOT NULL, "+
+                    "spelllevel INTEGER NOT NULL, " +
+                    "PRIMARY KEY(multiclass, spellid, spelllevel, metamagic));";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     sQuery = "REPLACE INTO " + sTableName + "(multiclass, spellid, metamagic, spelllevel) VALUES(@multiclass, @spellid, @metamagic, @spelllevel);";
@@ -1080,18 +1137,56 @@ void QC_UpdateSpellList()
     else
         sql = QC_GetClassSpellList(oPlayer, nMultiClass, nMetaMagic, sSearch);
 
+    string sChildSpellTable = QC_GetChildSpellsTable();
+    string sSpellDataTable = QC_GetSpellDataTable();
+    string sSelectChildSpellsQuery = "SELECT " + sSpellDataTable + ".spellid, " + sSpellDataTable + ".icon, " + sSpellDataTable + ".name FROM " +
+                                     sSpellDataTable + " INNER JOIN " + sChildSpellTable + " ON " + sChildSpellTable + ".childid = " + sSpellDataTable + ".spellid " +
+                                     "WHERE " + sChildSpellTable + ".masterid = @masterid;";
+    
     while (SqlStep(sql))
     {
-        int nSpellId = SqlGetInt(sql, 0);
-        sVisibleArray += StringJsonArrayElementBool(TRUE);
-        sSpellIdArray += StringJsonArrayElementInt(nSpellId);
-        sIconArray += StringJsonArrayElementString(SqlGetString(sql, 1));
-        sNameArray += StringJsonArrayElementString(SqlGetString(sql, 2));
-
         if (bMemorizesSpells)
-            sColorArray += (QC_GetHasMemorizedSpell(oPlayer, nMultiClass, nSpellId, nMetaMagic) ? sColorGreen : sColorWhite) + ",";
+        {
+            int nMasterSpellId = SqlGetInt(sql, 0);
+            string sMasterIcon = SqlGetString(sql, 1);
+            string sMasterName = SqlGetString(sql, 2);
+
+            int bIsMasterSpell = FALSE;
+            sqlquery sqlGetChildSpells = SqlPrepareQueryModule(sSelectChildSpellsQuery);
+            SqlBindInt(sqlGetChildSpells, "@masterid", nMasterSpellId);
+
+            while (SqlStep(sqlGetChildSpells))
+            {
+                bIsMasterSpell = TRUE;
+                int nChildSpellId = SqlGetInt(sqlGetChildSpells, 0);
+                string sChildIcon = SqlGetString(sqlGetChildSpells, 1);
+                string sChildName = SqlGetString(sqlGetChildSpells, 2);                
+                
+                sVisibleArray += StringJsonArrayElementBool(TRUE);
+                sSpellIdArray += StringJsonArrayElementInt(nChildSpellId);
+                sIconArray += StringJsonArrayElementString(sChildIcon);
+                sNameArray += StringJsonArrayElementString(sChildName);
+                sColorArray += (QC_GetHasMemorizedSpell(oPlayer, nMultiClass, QC_GetMasterSpell(nChildSpellId), nMetaMagic) ? sColorGreen : sColorWhite) + ",";
+            }
+            
+            if (!bIsMasterSpell)
+            {
+                sVisibleArray += StringJsonArrayElementBool(TRUE);
+                sSpellIdArray += StringJsonArrayElementInt(nMasterSpellId);
+                sIconArray += StringJsonArrayElementString(sMasterIcon);
+                sNameArray += StringJsonArrayElementString(sMasterName);
+                sColorArray += (QC_GetHasMemorizedSpell(oPlayer, nMultiClass, nMasterSpellId, nMetaMagic) ? sColorGreen : sColorWhite) + ",";
+            }
+        }
         else
-            sColorArray += sColorWhite + ",";
+        {
+            sVisibleArray += StringJsonArrayElementBool(TRUE);
+            sSpellIdArray += StringJsonArrayElementInt(SqlGetInt(sql, 0));
+            sIconArray += StringJsonArrayElementString(SqlGetString(sql, 1));
+            sNameArray += StringJsonArrayElementString(SqlGetString(sql, 2));
+            sColorArray += sColorWhite + ",";           
+        }
+
     }
 
     NWM_SetBind(QC_BIND_LIST_ROW_VISIBLE, StringJsonArrayElementsToJsonArray(sVisibleArray));
@@ -1147,7 +1242,7 @@ void QC_SetSpellUsesState(object oPlayer, int nSlotId, int nSpellId, int nMultiC
 {
     int nUses;
     if (StringToInt(Get2DAString("classes", "MemorizesSpells", GetClassByPosition(nMultiClass + 1, oPlayer))))
-        nUses = NWNX_Creature_GetMemorizedSpellReadyCount(oPlayer, nSpellId, nMultiClass, nMetaMagic);
+        nUses = NWNX_Creature_GetMemorizedSpellReadyCount(oPlayer, QC_GetMasterSpell(nSpellId), nMultiClass, nMetaMagic);
     else
         nUses = NWNX_Creature_GetSpellUsesLeft(oPlayer, nSpellId, nMultiClass, 0, nMetaMagic);
 
@@ -1229,26 +1324,9 @@ int QC_GetPlayerPageId(object oPlayer)
 void QC_SetPage(object oPlayer, int nPageId)
 {
     QC_SetPlayerPageId(oPlayer, nPageId);
-
-    switch (nPageId)
-    {
-        case 0:
-            NWM_SetBindBool(QC_BIND_BUTTON_PAGE_ONE_ENABLED, FALSE);
-            NWM_SetBindBool(QC_BIND_BUTTON_PAGE_TWO_ENABLED, TRUE);
-            NWM_SetBindBool(QC_BIND_BUTTON_PAGE_THREE_ENABLED, TRUE);
-            break;
-        case 1:
-            NWM_SetBindBool(QC_BIND_BUTTON_PAGE_ONE_ENABLED, TRUE);
-            NWM_SetBindBool(QC_BIND_BUTTON_PAGE_TWO_ENABLED, FALSE);
-            NWM_SetBindBool(QC_BIND_BUTTON_PAGE_THREE_ENABLED, TRUE);
-            break;
-        case 2:
-            NWM_SetBindBool(QC_BIND_BUTTON_PAGE_ONE_ENABLED, TRUE);
-            NWM_SetBindBool(QC_BIND_BUTTON_PAGE_TWO_ENABLED, TRUE);
-            NWM_SetBindBool(QC_BIND_BUTTON_PAGE_THREE_ENABLED, FALSE);
-            break;
-    }
-
+    NWM_SetBindBool(QC_BIND_BUTTON_PAGE_ONE_ENABLED, nPageId != 0);
+    NWM_SetBindBool(QC_BIND_BUTTON_PAGE_TWO_ENABLED, nPageId != 1);
+    NWM_SetBindBool(QC_BIND_BUTTON_PAGE_THREE_ENABLED, nPageId != 2);
     QC_LoadQuickCastSlots(oPlayer, nPageId);
 }
 
@@ -1270,7 +1348,7 @@ void QC_RefreshAllSpellUses(object oPlayer)
 int QC_GetHasMemorizedSpell(object oPlayer, int nMulticlass, int nSpellId, int nMetaMagic)
 {
     string sQuery = "SELECT * FROM " + QC_GetPlayerMemorizedSpellsTable(oPlayer) + " WHERE " +
-             "multiclass = @multiclass AND spellid = @spellid AND metamagic = @metamagic;";
+                    "multiclass = @multiclass AND spellid = @spellid AND metamagic = @metamagic;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@multiclass", nMulticlass);
     SqlBindInt(sql, "@spellid", nSpellId);

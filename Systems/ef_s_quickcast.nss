@@ -49,10 +49,10 @@ const string QC_BIND_BUTTON_PAGE_THREE              = "btn_page_3";
 const string QC_BIND_BUTTON_PAGE_ONE_ENABLED        = "btn_page_1_enabled";
 const string QC_BIND_BUTTON_PAGE_TWO_ENABLED        = "btn_page_2_enabled";
 const string QC_BIND_BUTTON_PAGE_THREE_ENABLED      = "btn_page_3_enabled";
+const string QC_BIND_BUTTON_EDIT_SLOTS              = "btn_edit_slots";
 const string QC_BIND_BUTTON_TARGET                  = "btn_target";
 
 const string QC_SETSLOT_WINDOW_ID                   = "QUICKCASTSETSLOT";
-const string QC_BIND_WINDOW_TITLE                   = "window_title";
 const string QC_BIND_CLASS_COMBO_ENTRIES            = "class_entries";
 const string QC_BIND_CLASS_COMBO_SELECTED           = "class_selected";
 const string QC_BIND_METAMAGIC_COMBO_ENTRIES        = "metamagic_entries";
@@ -63,7 +63,7 @@ const string QC_BIND_LIST_ROW_VISIBLE               = "list_visible";
 const string QC_BIND_LIST_SPELL_ICON                = "list_icon";
 const string QC_BIND_LIST_SPELL_NAME                = "list_name";
 const string QC_BIND_LIST_SPELL_COLOR               = "list_color";
-const string QC_BIND_BUTTON_CLEAR_SLOT              = "btn_clear_slot";
+const string QC_BIND_BUTTON_COPY_MEMORIZED          = "btn_copy_memorized";
 
 const string QC_SELECTTARGET_WINDOW_ID              = "QUICKCASTSELECTTARGET";
 const string QC_BIND_TARGETTYPE_COMBO_ENTRIES       = "targettype_entries";
@@ -76,6 +76,9 @@ const string QC_CUSTOM_TARGET_TARGET_MODE           = "QCCustomTargetTargetMode"
 const int QC_PLAYER_TARGET_TYPE_MANUAL              = 0;
 const int QC_PLAYER_TARGET_TYPE_CUSTOM              = 1;
 const int QC_PLAYER_TARGET_TYPE_NEAREST_HOSTILE     = 2;
+
+const int QC_DRAGMODE_MOVE_SLOT                     = 1;
+const int QC_DRAGMODE_SET_SLOT                      = 2;
 
 string QC_GetSpellDataTable();
 string QC_GetClassSpellTableTable();
@@ -91,7 +94,6 @@ int QC_GetSpellLevel(string sSpellTable, int nSpellId);
 void QC_InsertQuickCastSlot(object oPlayer, int nPageId, int nSlotId, int nMultiClass, int nSpellId, int nMetaMagic, string sTooltip);
 void QC_DeleteQuickCastSlot(object oPlayer, int nPageId, int nSlotId);
 void QC_LoadQuickCastSlots(object oPlayer, int nPageId);
-void QC_SetCurrentSlot(int nSlotId);
 void QC_InitializeMetaMagicCombo(object oPlayer);
 void QC_InitializeClassCombo(object oPlayer);
 void QC_PreparePlayerKnownSpells(object oPlayer);
@@ -124,6 +126,10 @@ void QC_InitializeTargetTypeCombo();
 void QC_SetPlayerTargetType(int nTargetType);
 int QC_GetPlayerTargetType();
 int QC_GetSpellHasTargetType(int nSpellId, int nTargetType);
+void QC_SetDragModeData(int nDragMode, json jData);
+int QC_GetDragModeType();
+json QC_GetDragModeData();
+void QC_ClearDragMode();
 
 // @CORE[EF_SYSTEM_INIT]
 void QC_Init()
@@ -162,6 +168,11 @@ json QC_CreateMainWindow()
                     NB_SetDimensions((QC_SLOT_SIZE + 4.0f), (QC_SLOT_SIZE + 4.0f));
                 NB_End();
                 NB_AddSpacer();
+                NB_StartElement(NuiButton(JsonString("E")));
+                    NB_SetId(QC_BIND_BUTTON_EDIT_SLOTS);
+                    NB_SetTooltip(JsonString("Edit Slots"));
+                    NB_SetDimensions((QC_SLOT_SIZE + 4.0f), (QC_SLOT_SIZE + 4.0f));
+                NB_End();                
                 NB_StartElement(NuiButton(JsonString("T")));
                     NB_SetId(QC_BIND_BUTTON_TARGET);
                     NB_SetTooltip(JsonString("Select Target"));
@@ -224,6 +235,19 @@ void QC_MainWindowClose()
         NWM_CloseWindow(oPlayer, QC_SELECTTARGET_WINDOW_ID);
 }
 
+// @NWMEVENT[QC_MAIN_WINDOW_ID:NUI_EVENT_MOUSEDOWN:QC_BIND_SLOT_ICON]
+void QC_SlotMouseDown()
+{
+    object oPlayer = OBJECT_SELF;
+
+    if (NWM_GetIsWindowOpen(oPlayer, QC_SETSLOT_WINDOW_ID))
+    {
+        string sElement = NuiGetEventElement();
+        int nSlotId = StringToInt(GetStringRight(sElement, GetStringLength(sElement) - GetStringLength(QC_BIND_SLOT_ICON)));
+        QC_SetDragModeData(QC_DRAGMODE_MOVE_SLOT, JsonInt(nSlotId));
+    }    
+}
+
 // @NWMEVENT[QC_MAIN_WINDOW_ID:NUI_EVENT_MOUSEUP:QC_BIND_SLOT_ICON]
 void QC_SlotMouseUp()
 {
@@ -235,100 +259,132 @@ void QC_SlotMouseUp()
 
     if (nMouseButton == NUI_MOUSE_BUTTON_MIDDLE)
     {
-        if (NWM_GetIsWindowOpen(oPlayer, QC_SETSLOT_WINDOW_ID, TRUE))
-            QC_SetCurrentSlot(nSlotId);
-        else if (NWM_OpenWindow(oPlayer, QC_SETSLOT_WINDOW_ID))
-        {
-            QC_PreparePlayerKnownSpells(oPlayer);
-            QC_PreparePlayerMemorizedSpells(oPlayer);
 
-            QC_InitializeClassCombo(oPlayer);
-            QC_InitializeMetaMagicCombo(oPlayer);
-
-            QC_SetCurrentSlot(nSlotId);
-            QC_UpdateSpellList();
-
-            NWM_SetBindWatch(QC_BIND_SPELL_SEARCH_INPUT, TRUE);
-            NWM_SetBindWatch(QC_BIND_CLASS_COMBO_SELECTED, TRUE);
-            NWM_SetBindWatch(QC_BIND_METAMAGIC_COMBO_SELECTED, TRUE);
-        }
     }
     else
     {
-        if (NWM_GetBindBool(QC_BIND_SLOT_GREYED_OUT + IntToString(nSlotId)) || GetIsDead(oPlayer))
+        if (NWM_GetIsWindowOpen(oPlayer, QC_SETSLOT_WINDOW_ID))
         {
-            NWNX_Player_PlaySound(oPlayer, "gui_failspell");
-            return;
-        }
-
-        string sQuery = "SELECT spellid, multiclass, metamagic FROM " + QC_GetPlayerQuickCastTable() + " WHERE pageid = @pageid AND slotid = @slotid;";
-        sqlquery sql = SqlPrepareQueryObject(oPlayer, sQuery);
-        SqlBindInt(sql, "@pageid", QC_GetPlayerPageId(oPlayer));
-        SqlBindInt(sql, "@slotid", nSlotId);
-
-        if (SqlStep(sql))
-        {
-            int nSpellId = SqlGetInt(sql, 0);
-            int nMultiClass = SqlGetInt(sql, 1);
-            int nMetaMagic = SqlGetInt(sql, 2);
-            int nSpellTargetType = QC_GetSpellTargetType(nSpellId);
-
             if (nMouseButton == NUI_MOUSE_BUTTON_LEFT)
             {
-                if (nSpellTargetType == 0x01)
-                    NWNX_Creature_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
-                else
+                int nDragModeType = QC_GetDragModeType();
+                json jDragModeData = QC_GetDragModeData();
+
+                if (nDragModeType == QC_DRAGMODE_MOVE_SLOT)
                 {
-                    int nPlayerTargetType = QC_GetPlayerTargetType();
+                    int nPreviousSlot = JsonGetInt(jDragModeData);
 
-                    switch (QC_GetPlayerTargetType())
+                    if (nPreviousSlot != nSlotId)
                     {
-                        case QC_PLAYER_TARGET_TYPE_CUSTOM:
+                        int nPageId = QC_GetPlayerPageId(oPlayer);
+                        string sQuery = "SELECT spellid, multiclass, metamagic FROM " + QC_GetPlayerQuickCastTable() + " WHERE pageid = @pageid AND slotid = @slotid;";    
+                        sqlquery sql = SqlPrepareQueryObject(oPlayer, sQuery);
+                        SqlBindInt(sql, "@pageid", nPageId);
+                        SqlBindInt(sql, "@slotid", nPreviousSlot);
+
+                        if (SqlStep(sql))
                         {
-                            object oTarget = QC_GetCustomTargetObject();
-                            if (QC_IsValidCustomTarget(oTarget, nSpellTargetType))
-                                NWNX_Creature_AddCastSpellActions(oPlayer, oTarget, QC_GetCustomTargetPosition(), nSpellId, nMultiClass, nMetaMagic);
-                            else
-                                NWNX_Player_PlaySound(oPlayer, "gui_failspell");
-                            break;
-                        }
-
-                        case QC_PLAYER_TARGET_TYPE_NEAREST_HOSTILE:
-                        {
-                            object oNearestHostile = GetNearestCreature(CREATURE_TYPE_IS_ALIVE, TRUE, oPlayer, 1, CREATURE_TYPE_PERCEPTION, PERCEPTION_SEEN_AND_HEARD, CREATURE_TYPE_REPUTATION, REPUTATION_TYPE_ENEMY);
-                            if (QC_IsValidCustomTarget(oNearestHostile, nSpellTargetType))
-                                NWNX_Creature_AddCastSpellActions(oPlayer, oNearestHostile, GetPosition(oNearestHostile), nSpellId, nMultiClass, nMetaMagic);
-                            else
-                                NWNX_Player_PlaySound(oPlayer, "gui_failspell");
-                            break;
-                        }
-
-                        default:
-                        {
-                            int nValidObjectTypes;
-                            if (nSpellTargetType & 0x02) nValidObjectTypes |= OBJECT_TYPE_CREATURE;
-                            if (nSpellTargetType & 0x04) nValidObjectTypes |= OBJECT_TYPE_TILE;
-                            if (nSpellTargetType & 0x10) nValidObjectTypes |= OBJECT_TYPE_DOOR;
-                            if (nSpellTargetType & 0x20) nValidObjectTypes |= OBJECT_TYPE_PLACEABLE;
-                            if (nSpellTargetType & 0x40) nValidObjectTypes |= OBJECT_TYPE_TRIGGER;
-
-                            NWM_SetUserData("spellid", JsonInt(nSpellId));
-                            NWM_SetUserData("multiclass", JsonInt(nMultiClass));
-                            NWM_SetUserData("metamagic", JsonInt(nMetaMagic));
-                            NWM_SetUserData("targettype", JsonInt(nSpellTargetType));
-
-                            TargetMode_Enter(oPlayer, QC_CAST_TARGET_MODE, nValidObjectTypes);
-                            break;
+                            QC_SetSlot(oPlayer, nSlotId, SqlGetInt(sql, 0), SqlGetInt(sql, 1), SqlGetInt(sql, 2));
+                            QC_DeleteQuickCastSlot(oPlayer, nPageId, nPreviousSlot);
+                            QC_BlankSlot(oPlayer, nPreviousSlot);
                         }
                     }
+
+                    QC_ClearDragMode();                    
+                }
+                else if (nDragModeType == QC_DRAGMODE_SET_SLOT)
+                {
+                    int nSpellId = JsonObjectGetInt(jDragModeData, "spellid");
+                    int nMultiClass = JsonObjectGetInt(jDragModeData, "multiclass");
+                    int nMetaMagic = JsonObjectGetInt(jDragModeData, "metamagic");    
+                    
+                    QC_SetSlot(oPlayer, nSlotId, nSpellId, nMultiClass, nMetaMagic);
+                    QC_ClearDragMode();                                           
                 }
             }
             else if (nMouseButton == NUI_MOUSE_BUTTON_RIGHT)
+            {                
+                QC_DeleteQuickCastSlot(oPlayer, QC_GetPlayerPageId(oPlayer), nSlotId);
+                QC_BlankSlot(oPlayer, nSlotId);               
+            }    
+        }
+        else
+        {        
+            if (NWM_GetBindBool(QC_BIND_SLOT_GREYED_OUT + IntToString(nSlotId)) || GetIsDead(oPlayer))
             {
-                if (nSpellTargetType & 0x01)
-                    NWNX_Creature_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
-                else
-                    NWNX_Player_PlaySound(oPlayer, "gui_failspell");
+                NWNX_Player_PlaySound(oPlayer, "gui_failspell");
+                return;
+            }
+
+            string sQuery = "SELECT spellid, multiclass, metamagic FROM " + QC_GetPlayerQuickCastTable() + " WHERE pageid = @pageid AND slotid = @slotid;";
+            sqlquery sql = SqlPrepareQueryObject(oPlayer, sQuery);
+            SqlBindInt(sql, "@pageid", QC_GetPlayerPageId(oPlayer));
+            SqlBindInt(sql, "@slotid", nSlotId);
+
+            if (SqlStep(sql))
+            {
+                int nSpellId = SqlGetInt(sql, 0);
+                int nMultiClass = SqlGetInt(sql, 1);
+                int nMetaMagic = SqlGetInt(sql, 2);
+                int nSpellTargetType = QC_GetSpellTargetType(nSpellId);
+
+                if (nMouseButton == NUI_MOUSE_BUTTON_LEFT)
+                {
+                    if (nSpellTargetType == 0x01)
+                        NWNX_Creature_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
+                    else
+                    {
+                        int nPlayerTargetType = QC_GetPlayerTargetType();
+
+                        switch (QC_GetPlayerTargetType())
+                        {
+                            case QC_PLAYER_TARGET_TYPE_CUSTOM:
+                            {
+                                object oTarget = QC_GetCustomTargetObject();
+                                if (QC_IsValidCustomTarget(oTarget, nSpellTargetType))
+                                    NWNX_Creature_AddCastSpellActions(oPlayer, oTarget, QC_GetCustomTargetPosition(), nSpellId, nMultiClass, nMetaMagic);
+                                else
+                                    NWNX_Player_PlaySound(oPlayer, "gui_failspell");
+                                break;
+                            }
+
+                            case QC_PLAYER_TARGET_TYPE_NEAREST_HOSTILE:
+                            {
+                                object oNearestHostile = GetNearestCreature(CREATURE_TYPE_IS_ALIVE, TRUE, oPlayer, 1, CREATURE_TYPE_PERCEPTION, PERCEPTION_SEEN_AND_HEARD, CREATURE_TYPE_REPUTATION, REPUTATION_TYPE_ENEMY);
+                                if (QC_IsValidCustomTarget(oNearestHostile, nSpellTargetType))
+                                    NWNX_Creature_AddCastSpellActions(oPlayer, oNearestHostile, GetPosition(oNearestHostile), nSpellId, nMultiClass, nMetaMagic);
+                                else
+                                    NWNX_Player_PlaySound(oPlayer, "gui_failspell");
+                                break;
+                            }
+
+                            default:
+                            {
+                                int nValidObjectTypes;
+                                if (nSpellTargetType & 0x02) nValidObjectTypes |= OBJECT_TYPE_CREATURE;
+                                if (nSpellTargetType & 0x04) nValidObjectTypes |= OBJECT_TYPE_TILE;
+                                if (nSpellTargetType & 0x10) nValidObjectTypes |= OBJECT_TYPE_DOOR;
+                                if (nSpellTargetType & 0x20) nValidObjectTypes |= OBJECT_TYPE_PLACEABLE;
+                                if (nSpellTargetType & 0x40) nValidObjectTypes |= OBJECT_TYPE_TRIGGER;
+
+                                NWM_SetUserData("spellid", JsonInt(nSpellId));
+                                NWM_SetUserData("multiclass", JsonInt(nMultiClass));
+                                NWM_SetUserData("metamagic", JsonInt(nMetaMagic));
+                                NWM_SetUserData("targettype", JsonInt(nSpellTargetType));
+
+                                TargetMode_Enter(oPlayer, QC_CAST_TARGET_MODE, nValidObjectTypes);
+                                break;
+                            }
+                        }
+                    }
+                }
+                else if (nMouseButton == NUI_MOUSE_BUTTON_RIGHT)
+                {
+                    if (nSpellTargetType & 0x01)
+                        NWNX_Creature_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
+                    else
+                        NWNX_Player_PlaySound(oPlayer, "gui_failspell");
+                }
             }
         }
     }
@@ -342,6 +398,29 @@ void QC_ButtonClickPage()
     int nPageId = StringToInt(GetStringRight(sElement, GetStringLength(sElement) - GetStringLength(QC_BIND_BUTTON_PAGE))) - 1;
     if (nPageId >= 0)
         QC_SetPage(oPlayer, nPageId);
+}
+
+// @NWMEVENT[QC_MAIN_WINDOW_ID:NUI_EVENT_CLICK:QC_BIND_BUTTON_EDIT_SLOTS]
+void QC_ButtonClickEditSlots()
+{
+    object oPlayer = OBJECT_SELF;
+
+    if (NWM_GetIsWindowOpen(oPlayer, QC_SETSLOT_WINDOW_ID))
+        NWM_CloseWindow(oPlayer, QC_SETSLOT_WINDOW_ID);
+    else if (NWM_OpenWindow(oPlayer, QC_SETSLOT_WINDOW_ID))
+    {
+        QC_PreparePlayerKnownSpells(oPlayer);
+        QC_PreparePlayerMemorizedSpells(oPlayer);
+
+        QC_InitializeClassCombo(oPlayer);
+        QC_InitializeMetaMagicCombo(oPlayer);
+
+        QC_UpdateSpellList();
+
+        NWM_SetBindWatch(QC_BIND_SPELL_SEARCH_INPUT, TRUE);
+        NWM_SetBindWatch(QC_BIND_CLASS_COMBO_SELECTED, TRUE);
+        NWM_SetBindWatch(QC_BIND_METAMAGIC_COMBO_SELECTED, TRUE);
+    }
 }
 
 // @NWMEVENT[QC_MAIN_WINDOW_ID:NUI_EVENT_CLICK:QC_BIND_BUTTON_TARGET]
@@ -365,7 +444,7 @@ void QC_ButtonClickSelectTargetWindow()
 json QC_CreateSetSlotWindow()
 {
     NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 500.0f, 400.0f));
-    NB_SetWindowTitle(NuiBind(QC_BIND_WINDOW_TITLE));
+    NB_SetWindowTitle(JsonString("QuickCast: Edit Slots"));
         NB_StartColumn();
             NB_StartRow();
                 NB_StartElement(NuiCombo(NuiBind(QC_BIND_CLASS_COMBO_ENTRIES), NuiBind(QC_BIND_CLASS_COMBO_SELECTED)));
@@ -392,6 +471,7 @@ json QC_CreateSetSlotWindow()
                             NB_StartElement(NuiImage(NuiBind(QC_BIND_LIST_SPELL_ICON), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
                                 NB_SetVisible(NuiBind(QC_BIND_LIST_ROW_VISIBLE));
                                 NB_SetDimensions(16.0f, 16.0f);
+                                NB_SetId(QC_BIND_LIST_SPELL_NAME);
                             NB_End();
                         NB_End();
                     NB_End();
@@ -405,11 +485,11 @@ json QC_CreateSetSlotWindow()
                 NB_End();
             NB_End();
             NB_StartRow();
-                NB_StartElement(NuiButton(JsonString("Clear Slot")));
-                    NB_SetId(QC_BIND_BUTTON_CLEAR_SLOT);
-                    NB_SetDimensions(125.0f, 32.0f);
-                NB_End();
                 NB_AddSpacer();
+                NB_StartElement(NuiButton(JsonString("Copy Memorized")));
+                    NB_SetId(QC_BIND_BUTTON_COPY_MEMORIZED);
+                    NB_SetDimensions(150.0f, 32.0f);
+                NB_End();
             NB_End();
         NB_End();
     return NB_FinalizeWindow();
@@ -419,14 +499,12 @@ json QC_CreateSetSlotWindow()
 void QC_WatchClassCombo()
 {
     QC_UpdateSpellList();
-    NuiSetClickthroughProtection();
 }
 
 // @NWMEVENT[QC_SETSLOT_WINDOW_ID:NUI_EVENT_WATCH:QC_BIND_METAMAGIC_COMBO_SELECTED]
 void QC_WatchMetaMagicCombo()
 {
     QC_UpdateSpellList();
-    NuiSetClickthroughProtection();
 }
 
 // @NWMEVENT[QC_SETSLOT_WINDOW_ID:NUI_EVENT_WATCH:QC_BIND_SPELL_SEARCH_INPUT]
@@ -442,37 +520,79 @@ void QC_ClickClearSearchButton()
     NWM_SetBindString(QC_BIND_SPELL_SEARCH_INPUT, "");
 }
 
-// @NWMEVENT[QC_SETSLOT_WINDOW_ID:NUI_EVENT_MOUSEUP:QC_BIND_LIST_SPELL_NAME]
+// @NWMEVENT[QC_SETSLOT_WINDOW_ID:NUI_EVENT_MOUSEDOWN:QC_BIND_LIST_SPELL_NAME]
 void QC_MouseUpSpellList()
 {
-    if (NuiGetClickthroughProtection())
-        return;
-
     object oPlayer = OBJECT_SELF;
     int nIndex = NuiGetEventArrayIndex();
 
     if (nIndex != -1)
     {
-        int nSlotId = JsonGetInt(NWM_GetUserData("slotid"));
         int nSpellId = JsonArrayGetInt(NWM_GetUserData("spellids"), nIndex);
         int nMultiClass = NWM_GetBindInt(QC_BIND_CLASS_COMBO_SELECTED);
         int nMetaMagic = NWM_GetBindInt(QC_BIND_METAMAGIC_COMBO_SELECTED);
 
         if (NWM_GetIsWindowOpen(oPlayer, QC_MAIN_WINDOW_ID, TRUE))
-            QC_SetSlot(oPlayer, nSlotId, nSpellId, nMultiClass, nMetaMagic);
+        {
+            json jData = JsonObject();
+                 jData = JsonObjectSetInt(jData, "spellid", nSpellId);
+                 jData = JsonObjectSetInt(jData, "multiclass", nMultiClass);
+                 jData = JsonObjectSetInt(jData, "metamagic", nMetaMagic);
+            
+            QC_SetDragModeData(QC_DRAGMODE_SET_SLOT, jData);
+        }
     }
 }
 
-// @NWMEVENT[QC_SETSLOT_WINDOW_ID:NUI_EVENT_CLICK:QC_BIND_BUTTON_CLEAR_SLOT]
-void QC_ClickClearSlotButton()
+// @NWMEVENT[QC_SETSLOT_WINDOW_ID:NUI_EVENT_CLICK:QC_BIND_BUTTON_COPY_MEMORIZED]
+void QC_ClickCopyMemorizedButton()
 {
     object oPlayer = OBJECT_SELF;
-    int nSlotId = JsonGetInt(NWM_GetUserData("slotid"));
+    int nMultiClass = NWM_GetBindInt(QC_BIND_CLASS_COMBO_SELECTED);
+    int nClassType = GetClassByPosition(nMultiClass + 1, oPlayer);
+    int bMemorizesSpells = StringToInt(Get2DAString("classes", "MemorizesSpells", nClassType));
+
+    if (!bMemorizesSpells)
+        return;
 
     if (NWM_GetIsWindowOpen(oPlayer, QC_MAIN_WINDOW_ID, TRUE))
     {
-        QC_DeleteQuickCastSlot(oPlayer, QC_GetPlayerPageId(oPlayer), nSlotId);
-        QC_BlankSlot(oPlayer, nSlotId);
+        int nPageId = QC_GetPlayerPageId(oPlayer);
+        string sQuery = "DELETE FROM " + QC_GetPlayerQuickCastTable() + " WHERE pageid = @pageid;";
+        sqlquery sql = SqlPrepareQueryObject(oPlayer, sQuery);
+        SqlBindInt(sql, "@pageid", nPageId);
+        SqlStep(sql);
+        QC_LoadQuickCastSlots(oPlayer, nPageId);       
+
+        sQuery = "SELECT spellid, metamagic FROM " + QC_GetPlayerMemorizedSpellsTable(oPlayer) + " WHERE multiclass = @multiclass;";
+        sql = SqlPrepareQueryModule(sQuery);
+        SqlBindInt(sql, "@multiclass", nMultiClass);
+
+        int nSlotId = 0;
+        while (SqlStep(sql))
+        {
+            int nSpellId = SqlGetInt(sql, 0);
+            int nMetaMagic = SqlGetInt(sql, 1);
+
+            int bIsMasterSpell = FALSE;
+            string sGetChildSpellsQuery = "SELECT childid FROM " + QC_GetChildSpellsTable() + " WHERE masterid = @masterid;";
+            sqlquery sqlGetChildSpells = SqlPrepareQueryModule(sGetChildSpellsQuery);
+            SqlBindInt(sqlGetChildSpells, "@masterid", QC_GetMasterSpell(nSpellId));
+
+            while (SqlStep(sqlGetChildSpells))
+            {
+                bIsMasterSpell = TRUE;
+                int nChildSpellId = SqlGetInt(sqlGetChildSpells, 0);
+                QC_SetSlot(oPlayer, nSlotId, nChildSpellId, nMultiClass, nMetaMagic);
+                nSlotId++;
+            }
+            
+            if (!bIsMasterSpell)
+            {
+                QC_SetSlot(oPlayer, nSlotId, nSpellId, nMultiClass, nMetaMagic);
+                nSlotId++;
+            }
+        }
     }
 }
 
@@ -551,17 +671,34 @@ void QC_DecrementSpellCount()
         int nMetaMagic = Events_GetInt("METAMAGIC");
         int nClassType = GetClassByPosition(nMultiClass + 1, oPlayer);
         int bMemorizesSpells = StringToInt(Get2DAString("classes", "MemorizesSpells", nClassType));
+        int bGetSpellId = FALSE;
 
         sqlquery sql;
         if (bMemorizesSpells)
         {
-            string sQuery = "SELECT slotid FROM " + QC_GetPlayerQuickCastTable() + " " +
-                            "WHERE pageid = @pageid AND multiclass = @multiclass AND spellid = @spellid AND metamagic = @metamagic;";
-            sql = SqlPrepareQueryObject(oPlayer, sQuery);
-            SqlBindInt(sql, "@pageid", QC_GetPlayerPageId(oPlayer));
-            SqlBindInt(sql, "@multiclass", nMultiClass);
-            SqlBindInt(sql, "@spellid", nSpellId);
-            SqlBindInt(sql, "@metamagic", nMetaMagic);
+            int nMasterSpellId = QC_GetMasterSpell(nSpellId);
+
+            if (nSpellId == nMasterSpellId)
+            {
+                string sQuery = "SELECT slotid FROM " + QC_GetPlayerQuickCastTable() + " " +
+                                "WHERE pageid = @pageid AND multiclass = @multiclass AND spellid = @spellid AND metamagic = @metamagic;";
+                sql = SqlPrepareQueryObject(oPlayer, sQuery);
+                SqlBindInt(sql, "@pageid", QC_GetPlayerPageId(oPlayer));
+                SqlBindInt(sql, "@multiclass", nMultiClass);
+                SqlBindInt(sql, "@spellid", nSpellId);
+                SqlBindInt(sql, "@metamagic", nMetaMagic);
+            }
+            else
+            {
+                bGetSpellId = TRUE;
+                string sQuery = "SELECT slotid, spellid FROM " + QC_GetPlayerQuickCastTable() + " " +
+                                "WHERE pageid = @pageid AND multiclass = @multiclass AND masterid = @masterid AND metamagic = @metamagic;";
+                sql = SqlPrepareQueryObject(oPlayer, sQuery);
+                SqlBindInt(sql, "@pageid", QC_GetPlayerPageId(oPlayer));
+                SqlBindInt(sql, "@multiclass", nMultiClass);
+                SqlBindInt(sql, "@masterid", QC_GetMasterSpell(nSpellId));
+                SqlBindInt(sql, "@metamagic", nMetaMagic);
+            }
         }
         else
         {
@@ -576,7 +713,7 @@ void QC_DecrementSpellCount()
 
         while (SqlStep(sql))
         {
-            QC_SetSpellUsesState(oPlayer, SqlGetInt(sql, 0), nSpellId, nMultiClass, nMetaMagic);
+            QC_SetSpellUsesState(oPlayer, SqlGetInt(sql, 0), bGetSpellId ? SqlGetInt(sql, 1) : nSpellId, nMultiClass, nMetaMagic);
         }
     }
 }
@@ -804,6 +941,7 @@ void QC_InitializePlayerQuickCastTable(object oPlayer)
                     "slotid INTEGER NOT NULL, " +
                     "multiclass INTEGER NOT NULL, " +
                     "spellid INTEGER NOT NULL, " +
+                    "masterid INTEGER NOT NULL, " +
                     "metamagic INTEGER NOT NULL, " +
                     "spelllevel INTEGER NOT NULL, " + // Note: adjusted for any MetaMagic
                     "tooltip TEXT NOT NULL, " +
@@ -831,13 +969,14 @@ int QC_GetSpellLevel(string sSpellTable, int nSpellId)
 
 void QC_InsertQuickCastSlot(object oPlayer, int nPageId, int nSlotId, int nMultiClass, int nSpellId, int nMetaMagic, string sTooltip)
 {
-    string sQuery = "REPLACE INTO " + QC_GetPlayerQuickCastTable() + "(pageid, slotid, multiclass, spellid, metamagic, spelllevel, tooltip) " +
-                    "VALUES(@pageid, @slotid, @multiclass, @spellid, @metamagic, @spelllevel, @tooltip);";
+    string sQuery = "REPLACE INTO " + QC_GetPlayerQuickCastTable() + "(pageid, slotid, multiclass, spellid, masterid, metamagic, spelllevel, tooltip) " +
+                    "VALUES(@pageid, @slotid, @multiclass, @spellid, @masterid, @metamagic, @spelllevel, @tooltip);";
     sqlquery sql = SqlPrepareQueryObject(oPlayer, sQuery);
     SqlBindInt(sql, "@pageid", nPageId);
     SqlBindInt(sql, "@slotid", nSlotId);
     SqlBindInt(sql, "@multiclass", nMultiClass);
     SqlBindInt(sql, "@spellid", nSpellId);
+    SqlBindInt(sql, "@masterid", QC_GetMasterSpell(nSpellId));
     SqlBindInt(sql, "@metamagic", nMetaMagic);
     SqlBindInt(sql, "@spelllevel", QC_GetSpellLevel(Get2DAString("classes", "SpellTableColumn", GetClassByPosition(nMultiClass + 1, oPlayer)), QC_GetMasterSpell(nSpellId)) + QC_GetMetaMagicLevelAdjustment(nMetaMagic));
     SqlBindString(sql, "@tooltip", sTooltip);
@@ -882,12 +1021,6 @@ void QC_LoadQuickCastSlots(object oPlayer, int nPageId)
     }
 }
 
-void QC_SetCurrentSlot(int nSlotId)
-{
-    NWM_SetBindString(QC_BIND_WINDOW_TITLE, "QuickCast: Editing Slot " + IntToString(nSlotId + 1));
-    NWM_SetUserData("slotid", JsonInt(nSlotId));
-}
-
 void QC_InitializeMetaMagicCombo(object oPlayer)
 {
     json jMetaMagic = JsonArray();
@@ -926,7 +1059,7 @@ void QC_InitializeClassCombo(object oPlayer)
 }
 
 void QC_PreparePlayerKnownSpells(object oPlayer)
-{
+{  
     if (SqlGetTableExistsObject(GetModule(), QC_GetPlayerKnownSpellsTable(oPlayer, FALSE)))
         return;
 
@@ -1443,4 +1576,26 @@ int QC_GetSpellHasTargetType(int nSpellId, int nTargetType)
     SqlBindInt(sql, "@targettype", nTargetType);
     SqlBindInt(sql, "@spellid", nSpellId);
     return SqlStep(sql) ? SqlGetInt(sql, 0) : FALSE;
+}
+
+void QC_SetDragModeData(int nDragMode, json jData)
+{
+    NWM_SetUserData("dragmode_type", JsonInt(nDragMode));
+    NWM_SetUserData("dragmode_data", jData);
+}
+
+int QC_GetDragModeType()
+{
+    return JsonGetInt(NWM_GetUserData("dragmode_type"));
+}
+
+json QC_GetDragModeData()
+{
+    return NWM_GetUserData("dragmode_data");
+}
+
+void QC_ClearDragMode()
+{
+    NWM_DeleteUserData("dragmode_type");
+    NWM_DeleteUserData("dragmode_data");
 }

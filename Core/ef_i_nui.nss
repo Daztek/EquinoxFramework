@@ -29,6 +29,7 @@ float NuiGetMouseScrollDelta(json jPayload);
 int NuiGetMouseButton(json jPayload);
 void NuiSetClickthroughProtection(object oPlayer = OBJECT_SELF, float fSeconds = 0.5f);
 int NuiGetClickthroughProtection(object oPlayer = OBJECT_SELF);
+int NuiGetIdFromElement(string sElement, string sPrefix);
 
 json NuiGetCenteredGeometryRect(object oPlayer, float fWindowWidth, float fWindowHeight)
 {
@@ -61,3 +62,7 @@ int NuiGetClickthroughProtection(object oPlayer = OBJECT_SELF)
     return GetLocalInt(oPlayer, "CLICKTHROUGH_PROTECTION");
 }
 
+int NuiGetIdFromElement(string sElement, string sPrefix)
+{
+    return StringToInt(GetStringRight(sElement, GetStringLength(sElement) - GetStringLength(sPrefix)));
+}

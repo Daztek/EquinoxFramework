@@ -624,6 +624,9 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
 
         if (TS_GetNumOfTerrainOrCrosser(str, "ROAD") > 2)
             return;
+
+        if (nTileID == 1383)// Forest - Elf Tower
+            return;            
     }
 
     int nOrientation;

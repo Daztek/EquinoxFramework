@@ -74,6 +74,8 @@ void NB_SetMargin(float fMargin);
 void NB_SetPadding(float fPadding);
 void NB_SetForegroundColor(json jColor);
 void NB_SetTooltip(json jTooltip);
+void NB_SetDisabledTooltip(json jDisabledTooltip);
+void NB_SetEncouraged(json jEncouraged);
 void NB_SetVisible(json jVisible);
 void NB_SetWidth(float fWidth);
 void NB_SetDimensions(float fWidth, float fHeight);
@@ -418,6 +420,16 @@ void NB_SetForegroundColor(json jColor)
 void NB_SetTooltip(json jTooltip)
 {
     NB_SetData(NuiTooltip(NB_GetData(), jTooltip));
+}
+
+void NB_SetDisabledTooltip(json jDisabledTooltip)
+{
+    NB_SetData(NuiDisabledTooltip(NB_GetData(), jDisabledTooltip));
+}
+
+void NB_SetEncouraged(json jEncouraged)
+{
+    NB_SetData(NuiEncouraged(NB_GetData(), jEncouraged));    
 }
 
 void NB_SetVisible(json jVisible)

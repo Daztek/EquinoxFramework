@@ -22,6 +22,8 @@ void EC_OnAreaPostProcessed()
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@area_id", sAreaID);
 
+    // TODO: TileID 1215 - Camp Full
+
     while (SqlStep(sql))
     {
         int nTileID = SqlGetInt(sql, 0);

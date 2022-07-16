@@ -454,3 +454,15 @@ void EP_PortToExit()
     PortToTile(AG_DATA_KEY_EXIT_TILE_INDEX);
 }
 
+// @CONSOLE[EPTileInfo::]
+string EP_TileInfo()
+{
+    object oTarget = OBJECT_SELF;
+    object oArea = GetArea(oTarget);
+    vector vPosition = GetPosition(oTarget);
+    struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfo(oArea, vPosition.x, vPosition.y);
+    return "Tileset: " + GetTilesetResRef(oArea) + ", TileID: " + IntToString(str.nID) + "\n" +
+            "GridX: " + IntToString(str.nGridX) + ", GridY: " + IntToString(str.nGridY) + "\n" +
+            "Height: " + IntToString(str.nHeight) + "\n" + 
+            "Orientation: " + IntToString(str.nOrientation);
+}

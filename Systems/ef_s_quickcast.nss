@@ -27,7 +27,8 @@ const string QC_SPELLS_2DA_NAME                     = "spells";
 const int QC_NUM_SPELL_LEVELS                       = 10;
 const string QC_SPELL_TABLE_ARRAY                   = "SpellTableArray";
 const string QC_LOAD_QUICKSLOTS_ARRAY               = "LoadQuickCastSlotsArray";
-const string QC_BLANK_SLOT_TEXTURE                  = "gui_inv_1x1_ol";
+const string QC_BLANK_SLOT_TEXTURE                  = "gui_transprnt";
+const string QC_OUTLINE_SLOT_TEXTURE                = "gui_inv_1x1_ol";
 
 const int QC_NUM_ROWS                               = 6;
 const int QC_NUM_SLOTS_PER_ROW                      = 8;
@@ -59,7 +60,6 @@ const string QC_BIND_METAMAGIC_COMBO_ENTRIES        = "metamagic_entries";
 const string QC_BIND_METAMAGIC_COMBO_SELECTED       = "metamagic_selected";
 const string QC_BIND_SPELL_SEARCH_INPUT             = "spell_search_input";
 const string QC_BIND_BUTTON_CLEAR_SPELL_SEARCH      = "btn_clear_spell";
-const string QC_BIND_LIST_ROW_VISIBLE               = "list_visible";
 const string QC_BIND_LIST_SPELL_ICON                = "list_icon";
 const string QC_BIND_LIST_SPELL_NAME                = "list_name";
 const string QC_BIND_LIST_SPELL_COLOR               = "list_color";
@@ -207,6 +207,7 @@ json QC_CreateMainWindow()
                                 NB_AddDrawListItem(NuiDrawListText(jUsesBindVisible, NuiColor(0, 255, 0), NuiRect(2.0f, -2.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), jUsesBindText));
                                 NB_AddDrawListItem(NuiDrawListImage(NuiBind(QC_BIND_SLOT_GREYED_OUT + sSlot), JsonString("gui_transprnt"), NuiRect(0.0f, 0.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
                                 NB_AddDrawListItem(NuiDrawListImage(NuiBind(QC_BIND_SLOT_MM_VISIBLE + sSlot), NuiBind(QC_BIND_SLOT_MM_ICON + sSlot), NuiRect(QC_SLOT_SIZE - 8.0f, QC_SLOT_SIZE - 8.0f, 8.0f, 8.0f), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                                NB_AddDrawListItem(NuiDrawListImage(JsonBool(TRUE), JsonString(QC_OUTLINE_SLOT_TEXTURE), NuiRect(0.0f, 0.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_HOVER));
                             NB_End();
                         NB_End();
                     }
@@ -239,16 +240,98 @@ void QC_MainWindowClose()
 void QC_SlotMouseDown()
 {
     object oPlayer = OBJECT_SELF;
+    int nSlotId = NuiGetIdFromElement(NuiGetEventElement(), QC_BIND_SLOT_ICON);
+    int nMouseButton = NuiGetMouseButton(NuiGetEventPayload());    
 
     if (NWM_GetIsWindowOpen(oPlayer, QC_SETSLOT_WINDOW_ID))
     {    
-        if (NuiGetMouseButton(NuiGetEventPayload()) == NUI_MOUSE_BUTTON_LEFT)
-        {
-            int nSlotId = NuiGetIdFromElement(NuiGetEventElement(), QC_BIND_SLOT_ICON);
+        if (nMouseButton == NUI_MOUSE_BUTTON_LEFT)
+        {            
             QC_SetDragModeData(QC_DRAGMODE_MOVE_SLOT, JsonInt(nSlotId));        
             NWNX_Player_PlaySound(oPlayer, "it_pickup");
         }
-    }    
+    }
+    else
+    {
+        if (NWM_GetBindBool(QC_BIND_SLOT_GREYED_OUT + IntToString(nSlotId)) || GetIsDead(oPlayer) || !GetCommandable(oPlayer))
+        {
+            NWNX_Player_PlaySound(oPlayer, "gui_failspell");
+            return;
+        }
+
+        string sQuery = "SELECT spellid, multiclass, metamagic FROM " + QC_GetPlayerQuickCastTable() + " WHERE pageid = @pageid AND slotid = @slotid;";
+        sqlquery sql = SqlPrepareQueryObject(oPlayer, sQuery);
+        SqlBindInt(sql, "@pageid", QC_GetPlayerPageId(oPlayer));
+        SqlBindInt(sql, "@slotid", nSlotId);
+
+        if (SqlStep(sql))
+        {
+            int nSpellId = SqlGetInt(sql, 0);
+            int nMultiClass = SqlGetInt(sql, 1);
+            int nMetaMagic = SqlGetInt(sql, 2);
+            int nSpellTargetType = QC_GetSpellTargetType(nSpellId);
+
+            if (nMouseButton == NUI_MOUSE_BUTTON_LEFT)
+            {
+                if (nSpellTargetType == 0x01)
+                    NWNX_Creature_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
+                else
+                {
+                    int nPlayerTargetType = QC_GetPlayerTargetType();
+
+                    switch (QC_GetPlayerTargetType())
+                    {
+                        case QC_PLAYER_TARGET_TYPE_CUSTOM:
+                        {
+                            object oTarget = QC_GetCustomTargetObject();
+                            if (QC_IsValidCustomTarget(oTarget, nSpellTargetType))
+                                NWNX_Creature_AddCastSpellActions(oPlayer, oTarget, QC_GetCustomTargetPosition(), nSpellId, nMultiClass, nMetaMagic);
+                            else
+                                NWNX_Player_PlaySound(oPlayer, "gui_failspell");
+                            break;
+                        }
+
+                        case QC_PLAYER_TARGET_TYPE_NEAREST_HOSTILE:
+                        {
+                            object oNearestHostile = GetNearestCreature(CREATURE_TYPE_IS_ALIVE, TRUE, oPlayer, 1, 
+                                                                        CREATURE_TYPE_PERCEPTION, PERCEPTION_SEEN_AND_HEARD, 
+                                                                        CREATURE_TYPE_REPUTATION, REPUTATION_TYPE_ENEMY);
+                            if (QC_IsValidCustomTarget(oNearestHostile, nSpellTargetType))
+                                NWNX_Creature_AddCastSpellActions(oPlayer, oNearestHostile, GetPosition(oNearestHostile), nSpellId, nMultiClass, nMetaMagic);
+                            else
+                                NWNX_Player_PlaySound(oPlayer, "gui_failspell");
+                            break;
+                        }
+
+                        default:
+                        {
+                            int nValidObjectTypes;
+                            if (nSpellTargetType & 0x02) nValidObjectTypes |= OBJECT_TYPE_CREATURE;
+                            if (nSpellTargetType & 0x04) nValidObjectTypes |= OBJECT_TYPE_TILE;
+                            if (nSpellTargetType & 0x10) nValidObjectTypes |= OBJECT_TYPE_DOOR;
+                            if (nSpellTargetType & 0x20) nValidObjectTypes |= OBJECT_TYPE_PLACEABLE;
+                            if (nSpellTargetType & 0x40) nValidObjectTypes |= OBJECT_TYPE_TRIGGER;
+
+                            NWM_SetUserData("spellid", JsonInt(nSpellId));
+                            NWM_SetUserData("multiclass", JsonInt(nMultiClass));
+                            NWM_SetUserData("metamagic", JsonInt(nMetaMagic));
+                            NWM_SetUserData("targettype", JsonInt(nSpellTargetType));
+
+                            TargetMode_Enter(oPlayer, QC_CAST_TARGET_MODE, nValidObjectTypes);
+                            break;
+                        }
+                    }
+                }
+            }
+            else if (nMouseButton == NUI_MOUSE_BUTTON_RIGHT)
+            {
+                if (nSpellTargetType & 0x01)
+                    NWNX_Creature_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
+                else
+                    NWNX_Player_PlaySound(oPlayer, "gui_failspell");
+            }
+        }
+    }   
 }
 
 // @NWMEVENT[QC_MAIN_WINDOW_ID:NUI_EVENT_MOUSEUP:QC_BIND_SLOT_ICON]
@@ -259,7 +342,7 @@ void QC_SlotMouseUp()
     int nMouseButton = NuiGetMouseButton(NuiGetEventPayload());
 
     if (NWM_GetIsWindowOpen(oPlayer, QC_SETSLOT_WINDOW_ID))
-    {// Edit window is open, do dragmode stuff
+    {
         switch (nMouseButton)
         {
             case NUI_MOUSE_BUTTON_LEFT:
@@ -330,85 +413,6 @@ void QC_SlotMouseUp()
                 QC_BlankSlot(oPlayer, nSlotId);
                 NWNX_Player_PlaySound(oPlayer, "gui_spell_erase");
                 break;
-            }
-        }
-    }
-    else
-    {// Deal with casting
-        if (NWM_GetBindBool(QC_BIND_SLOT_GREYED_OUT + IntToString(nSlotId)) || GetIsDead(oPlayer) || !GetCommandable(oPlayer))
-        {
-            NWNX_Player_PlaySound(oPlayer, "gui_failspell");
-            return;
-        }
-
-        string sQuery = "SELECT spellid, multiclass, metamagic FROM " + QC_GetPlayerQuickCastTable() + " WHERE pageid = @pageid AND slotid = @slotid;";
-        sqlquery sql = SqlPrepareQueryObject(oPlayer, sQuery);
-        SqlBindInt(sql, "@pageid", QC_GetPlayerPageId(oPlayer));
-        SqlBindInt(sql, "@slotid", nSlotId);
-
-        if (SqlStep(sql))
-        {
-            int nSpellId = SqlGetInt(sql, 0);
-            int nMultiClass = SqlGetInt(sql, 1);
-            int nMetaMagic = SqlGetInt(sql, 2);
-            int nSpellTargetType = QC_GetSpellTargetType(nSpellId);
-
-            if (nMouseButton == NUI_MOUSE_BUTTON_LEFT)
-            {
-                if (nSpellTargetType == 0x01)
-                    NWNX_Creature_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
-                else
-                {
-                    int nPlayerTargetType = QC_GetPlayerTargetType();
-
-                    switch (QC_GetPlayerTargetType())
-                    {
-                        case QC_PLAYER_TARGET_TYPE_CUSTOM:
-                        {
-                            object oTarget = QC_GetCustomTargetObject();
-                            if (QC_IsValidCustomTarget(oTarget, nSpellTargetType))
-                                NWNX_Creature_AddCastSpellActions(oPlayer, oTarget, QC_GetCustomTargetPosition(), nSpellId, nMultiClass, nMetaMagic);
-                            else
-                                NWNX_Player_PlaySound(oPlayer, "gui_failspell");
-                            break;
-                        }
-
-                        case QC_PLAYER_TARGET_TYPE_NEAREST_HOSTILE:
-                        {
-                            object oNearestHostile = GetNearestCreature(CREATURE_TYPE_IS_ALIVE, TRUE, oPlayer, 1, CREATURE_TYPE_PERCEPTION, PERCEPTION_SEEN_AND_HEARD, CREATURE_TYPE_REPUTATION, REPUTATION_TYPE_ENEMY);
-                            if (QC_IsValidCustomTarget(oNearestHostile, nSpellTargetType))
-                                NWNX_Creature_AddCastSpellActions(oPlayer, oNearestHostile, GetPosition(oNearestHostile), nSpellId, nMultiClass, nMetaMagic);
-                            else
-                                NWNX_Player_PlaySound(oPlayer, "gui_failspell");
-                            break;
-                        }
-
-                        default:
-                        {
-                            int nValidObjectTypes;
-                            if (nSpellTargetType & 0x02) nValidObjectTypes |= OBJECT_TYPE_CREATURE;
-                            if (nSpellTargetType & 0x04) nValidObjectTypes |= OBJECT_TYPE_TILE;
-                            if (nSpellTargetType & 0x10) nValidObjectTypes |= OBJECT_TYPE_DOOR;
-                            if (nSpellTargetType & 0x20) nValidObjectTypes |= OBJECT_TYPE_PLACEABLE;
-                            if (nSpellTargetType & 0x40) nValidObjectTypes |= OBJECT_TYPE_TRIGGER;
-
-                            NWM_SetUserData("spellid", JsonInt(nSpellId));
-                            NWM_SetUserData("multiclass", JsonInt(nMultiClass));
-                            NWM_SetUserData("metamagic", JsonInt(nMetaMagic));
-                            NWM_SetUserData("targettype", JsonInt(nSpellTargetType));
-
-                            TargetMode_Enter(oPlayer, QC_CAST_TARGET_MODE, nValidObjectTypes);
-                            break;
-                        }
-                    }
-                }
-            }
-            else if (nMouseButton == NUI_MOUSE_BUTTON_RIGHT)
-            {
-                if (nSpellTargetType & 0x01)
-                    NWNX_Creature_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
-                else
-                    NWNX_Player_PlaySound(oPlayer, "gui_failspell");
             }
         }
     }
@@ -486,23 +490,24 @@ json QC_CreateSetSlotWindow()
                 NB_End();
             NB_End();
             NB_StartRow();
-                NB_StartList(JsonInt(QC_MAX_NUM_SPELLS_IN_LIST), 16.0f);
+                NB_StartList(NuiBind(QC_BIND_LIST_SPELL_ICON), 16.0f);
                     NB_StartListTemplateCell(16.0f, FALSE);
                         NB_StartGroup(FALSE, NUI_SCROLLBARS_NONE);
-                            NB_SetVisible(NuiBind(QC_BIND_LIST_ROW_VISIBLE));
                             NB_SetMargin(0.0f);
                             NB_StartElement(NuiImage(NuiBind(QC_BIND_LIST_SPELL_ICON), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                                NB_SetVisible(NuiBind(QC_BIND_LIST_ROW_VISIBLE));
                                 NB_SetDimensions(16.0f, 16.0f);
                                 NB_SetId(QC_BIND_LIST_SPELL_NAME);
+                                NB_SetForegroundColor(NuiBind(QC_BIND_LIST_SPELL_COLOR));
                             NB_End();
                         NB_End();
                     NB_End();
-                    NB_StartListTemplateCell(200.0f, TRUE);
-                        NB_StartElement(NuiLabel(NuiBind(QC_BIND_LIST_SPELL_NAME), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
-                            NB_SetVisible(NuiBind(QC_BIND_LIST_ROW_VISIBLE));
-                            NB_SetForegroundColor(NuiBind(QC_BIND_LIST_SPELL_COLOR));
+                    NB_StartListTemplateCell(300.0f, TRUE);
+                        NB_StartElement(NuiSpacer());
                             NB_SetId(QC_BIND_LIST_SPELL_NAME);
+                            NB_StartDrawList(JsonBool(FALSE));
+                                NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiBind(QC_BIND_LIST_SPELL_COLOR), NuiRect(0.0f, 0.0f, 300.0f, 16.0f), NuiBind(QC_BIND_LIST_SPELL_NAME), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_OFF));
+                                NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiColor(50, 150, 250), NuiRect(0.0f, 0.0f, 300.0f, 16.0f), NuiBind(QC_BIND_LIST_SPELL_NAME), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_HOVER));                                
+                            NB_End();
                         NB_End();
                     NB_End();
                 NB_End();
@@ -544,7 +549,7 @@ void QC_ClickClearSearchButton()
 }
 
 // @NWMEVENT[QC_SETSLOT_WINDOW_ID:NUI_EVENT_MOUSEDOWN:QC_BIND_LIST_SPELL_NAME]
-void QC_MouseUpSpellList()
+void QC_MouseDownSpellList()
 {
     object oPlayer = OBJECT_SELF;
     int nIndex = NuiGetEventArrayIndex();
@@ -695,7 +700,6 @@ void QC_DecrementSpellCount()
         int nMetaMagic = Events_GetInt("METAMAGIC");
         int nClassType = GetClassByPosition(nMultiClass + 1, oPlayer);
         int bMemorizesSpells = StringToInt(Get2DAString("classes", "MemorizesSpells", nClassType));
-        int bGetSpellId = FALSE;
 
         sqlquery sql;
         if (bMemorizesSpells)
@@ -714,8 +718,7 @@ void QC_DecrementSpellCount()
             }
             else
             {
-                bGetSpellId = TRUE;
-                string sQuery = "SELECT slotid, spellid FROM " + QC_GetPlayerQuickCastTable() + " " +
+                string sQuery = "SELECT slotid FROM " + QC_GetPlayerQuickCastTable() + " " +
                                 "WHERE pageid = @pageid AND multiclass = @multiclass AND masterid = @masterid AND metamagic = @metamagic;";
                 sql = SqlPrepareQueryObject(oPlayer, sQuery);
                 SqlBindInt(sql, "@pageid", QC_GetPlayerPageId(oPlayer));
@@ -737,7 +740,7 @@ void QC_DecrementSpellCount()
 
         while (SqlStep(sql))
         {
-            QC_SetSpellUsesState(oPlayer, SqlGetInt(sql, 0), bGetSpellId ? SqlGetInt(sql, 1) : nSpellId, nMultiClass, nMetaMagic);
+            QC_SetSpellUsesState(oPlayer, SqlGetInt(sql, 0), nSpellId, nMultiClass, nMetaMagic);
         }
     }
 }
@@ -853,13 +856,13 @@ void QC_InitializeSpellData()
     int nSpellTableArraySize = StringArray_Size(oDataObject, QC_SPELL_TABLE_ARRAY);
 
     string sQuery = "CREATE TABLE IF NOT EXISTS " + QC_GetSpellDataTable() + "(" +
-             "spellid INTEGER NOT NULL PRIMARY KEY, " +
-             "name TEXT NOT NULL COLLATE NOCASE, " +
-             "icon TEXT NOT NULL, " +
-             "metamagic INTEGER NOT NULL, " +
-             "targettype INTEGER NOT NULL, " +
-             "master INTEGER NOT NULL, " +
-             "hostile INTEGER NOT NULL);";
+                    "spellid INTEGER NOT NULL PRIMARY KEY, " +
+                    "name TEXT NOT NULL COLLATE NOCASE, " +
+                    "icon TEXT NOT NULL, " +
+                    "metamagic INTEGER NOT NULL, " +
+                    "targettype INTEGER NOT NULL, " +
+                    "master INTEGER NOT NULL, " +
+                    "hostile INTEGER NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     sQuery = "CREATE TABLE IF NOT EXISTS " + QC_GetClassSpellTableTable() + "(" +
@@ -1048,7 +1051,7 @@ void QC_LoadQuickCastSlots(object oPlayer, int nPageId)
 void QC_InitializeMetaMagicCombo(object oPlayer)
 {
     json jMetaMagic = JsonArray();
-         jMetaMagic = JsonArrayInsert(jMetaMagic, NuiComboEntry("None", METAMAGIC_NONE));
+         jMetaMagic = JsonArrayInsert(jMetaMagic, NuiComboEntry("Metamagic", METAMAGIC_NONE));
 
     if (GetHasFeat(FEAT_EMPOWER_SPELL, oPlayer))
         jMetaMagic = JsonArrayInsert(jMetaMagic, NuiComboEntry("Empower", METAMAGIC_EMPOWER));
@@ -1279,14 +1282,10 @@ void QC_UpdateSpellList()
     int bMemorizesSpells = StringToInt(Get2DAString("classes", "MemorizesSpells", nClassType));
 
     // This is an optimization, we build the arrays using strings and do a JsonParse() at the end. JsonArrayInsert/Set get costly fast.
-    string sVisibleArray;
-    string sSpellIdArray;
-    string sIconArray;
-    string sNameArray;
-    string sColorArray;
+    string sSpellIdArray, sIconArray, sNameArray, sColorArray;
 
     string sColorWhite = JsonDump(NuiColor(255, 255, 255));
-    string sColorGreen = JsonDump(NuiColor(0, 255, 0));
+    string sColorGreen = JsonDump(NuiColor(0, 200, 100));
 
     sqlquery sql;
     if (bSpellbookRestricted)
@@ -1319,7 +1318,6 @@ void QC_UpdateSpellList()
                 string sChildIcon = SqlGetString(sqlGetChildSpells, 1);
                 string sChildName = SqlGetString(sqlGetChildSpells, 2);                
                 
-                sVisibleArray += StringJsonArrayElementBool(TRUE);
                 sSpellIdArray += StringJsonArrayElementInt(nChildSpellId);
                 sIconArray += StringJsonArrayElementString(sChildIcon);
                 sNameArray += StringJsonArrayElementString(sChildName);
@@ -1328,7 +1326,6 @@ void QC_UpdateSpellList()
             
             if (!bIsMasterSpell)
             {
-                sVisibleArray += StringJsonArrayElementBool(TRUE);
                 sSpellIdArray += StringJsonArrayElementInt(nMasterSpellId);
                 sIconArray += StringJsonArrayElementString(sMasterIcon);
                 sNameArray += StringJsonArrayElementString(sMasterName);
@@ -1337,16 +1334,13 @@ void QC_UpdateSpellList()
         }
         else
         {
-            sVisibleArray += StringJsonArrayElementBool(TRUE);
             sSpellIdArray += StringJsonArrayElementInt(SqlGetInt(sql, 0));
             sIconArray += StringJsonArrayElementString(SqlGetString(sql, 1));
             sNameArray += StringJsonArrayElementString(SqlGetString(sql, 2));
             sColorArray += sColorWhite + ",";           
         }
-
     }
 
-    NWM_SetBind(QC_BIND_LIST_ROW_VISIBLE, StringJsonArrayElementsToJsonArray(sVisibleArray));
     NWM_SetBind(QC_BIND_LIST_SPELL_ICON, StringJsonArrayElementsToJsonArray(sIconArray));
     NWM_SetBind(QC_BIND_LIST_SPELL_NAME, StringJsonArrayElementsToJsonArray(sNameArray));
     NWM_SetBind(QC_BIND_LIST_SPELL_COLOR, StringJsonArrayElementsToJsonArray(sColorArray));
@@ -1534,10 +1528,12 @@ void QC_SetCustomTarget(object oTarget, vector vPosition)
 
     if (GetIsObjectValid(oTarget))
     {
+        int nVisualEffect = VFX_FNF_GAS_EXPLOSION_MIND;
+        
         if (GetArea(oPlayer) == oTarget)
-            NWNX_Player_ShowVisualEffect(oPlayer, VFX_FNF_GAS_EXPLOSION_MIND, vPosition);
+            NWNX_Player_ShowVisualEffect(oPlayer, nVisualEffect, vPosition);
         else
-            NWNX_Player_ApplyInstantVisualEffectToObject(oPlayer, oTarget, VFX_FNF_GAS_EXPLOSION_MIND);
+            NWNX_Player_ApplyInstantVisualEffectToObject(oPlayer, oTarget, nVisualEffect);
     }
 }
 

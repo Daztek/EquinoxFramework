@@ -17,8 +17,6 @@
 const string CONSOLE_LOG_TAG                        = "Console";
 const string CONSOLE_SCRIPT_NAME                    = "ef_s_console";
 
-const int CONSOLE_MAX_COMMANDS                      = 100;
-const int CONSOLE_MAX_PARAMETERS                    = 10;
 const string CONSOLE_TARGET_MODE_ID                 = "ConsoleTargetMode";
 const string CONSOLE_ARG_PREFIX                     = "ConsoleArg_";
 const string CONSOLE_DEFAULT_ICON                   = "ir_use";
@@ -33,10 +31,8 @@ const string CONSOLE_BIND_LABEL_TARGET              = "lbl_target";
 const string CONSOLE_BIND_LIST_COMMAND_NAME         = "list_command";
 const string CONSOLE_BIND_LIST_COMMAND_ICON         = "list_icon";
 const string CONSOLE_BIND_LIST_COMMAND_TOOLTIP      = "list_tooltip";
-const string CONSOLE_BIND_LIST_COMMAND_ROW_VISIBLE  = "list_visible";
 const string CONSOLE_BIND_SELECTED_COMMAND_ICON     = "sel_icon";
 const string CONSOLE_BIND_SELECTED_COMMAND_NAME     = "sel_name";
-const string CONSOLE_BIND_LIST_ARG_ROW_VISIBLE      = "list_arg_visible";
 const string CONSOLE_BIND_LIST_ARG_NAME             = "list_arg_name";
 const string CONSOLE_BIND_LIST_ARG_VALUE            = "list_arg_value";
 const string CONSOLE_BIND_LIST_ARG_TYPE_TOOLTIP     = "list_arg_type";
@@ -111,23 +107,24 @@ json Console_CreateWindow()
                 NB_End();
             NB_End();
             NB_StartRow();
-                NB_StartList(JsonInt(CONSOLE_MAX_COMMANDS), 16.0f);
+                NB_StartList(NuiBind(CONSOLE_BIND_LIST_COMMAND_ICON), 16.0f);
                     NB_SetWidth(300.0f);
                     NB_StartListTemplateCell(16.0f, FALSE);
                         NB_StartGroup(FALSE, NUI_SCROLLBARS_NONE);
-                            NB_SetVisible(NuiBind(CONSOLE_BIND_LIST_COMMAND_ROW_VISIBLE));
                             NB_SetMargin(0.0f);
                             NB_StartElement(NuiImage(NuiBind(CONSOLE_BIND_LIST_COMMAND_ICON), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                                NB_SetVisible(NuiBind(CONSOLE_BIND_LIST_COMMAND_ROW_VISIBLE));
                                 NB_SetDimensions(16.0f, 16.0f);
                             NB_End();
                         NB_End();
                     NB_End();
                     NB_StartListTemplateCell(200.0f, TRUE);
-                        NB_StartElement(NuiLabel(NuiBind(CONSOLE_BIND_LIST_COMMAND_NAME), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
-                            NB_SetVisible(NuiBind(CONSOLE_BIND_LIST_COMMAND_ROW_VISIBLE));
+                        NB_StartElement(NuiSpacer());
                             NB_SetTooltip(NuiBind(CONSOLE_BIND_LIST_COMMAND_TOOLTIP));
                             NB_SetId(CONSOLE_BIND_LIST_COMMAND_NAME);
+                            NB_StartDrawList(JsonBool(TRUE));
+                                NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiColor(255, 255, 255), NuiRect(0.0f, 0.0f, 200.0f, 16.0f), NuiBind(CONSOLE_BIND_LIST_COMMAND_NAME), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_OFF));
+                                NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiColor(50, 150, 250), NuiRect(0.0f, 0.0f, 200.0f, 16.0f), NuiBind(CONSOLE_BIND_LIST_COMMAND_NAME), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_HOVER));                                
+                            NB_End();                            
                         NB_End();
                     NB_End();
                 NB_End();
@@ -147,17 +144,15 @@ json Console_CreateWindow()
                         NB_End();
                     NB_End();
                     NB_StartRow();
-                        NB_StartList(JsonInt(CONSOLE_MAX_PARAMETERS), 25.0f);
+                        NB_StartList(NuiBind(CONSOLE_BIND_LIST_ARG_TYPE_TOOLTIP), 25.0f);
                             NB_SetDimensions(472.0f, 150.0f);
                             NB_StartListTemplateCell(2.0f, FALSE);
                                 NB_AddSpacer();
                             NB_End();
                             NB_StartListTemplateCell(200.0f, FALSE);
                                 NB_StartGroup(TRUE, NUI_SCROLLBARS_NONE);
-                                    NB_SetVisible(NuiBind(CONSOLE_BIND_LIST_ARG_ROW_VISIBLE));
                                     NB_SetTooltip(NuiBind(CONSOLE_BIND_LIST_ARG_TYPE_TOOLTIP));
                                     NB_StartElement(NuiLabel(NuiBind(CONSOLE_BIND_LIST_ARG_NAME), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                                        NB_SetVisible(NuiBind(CONSOLE_BIND_LIST_ARG_ROW_VISIBLE));
                                     NB_End();
                                 NB_End();
                             NB_End();
@@ -166,7 +161,6 @@ json Console_CreateWindow()
                             NB_End();
                             NB_StartListTemplateCell(220.0f, TRUE);
                                 NB_StartElement(NuiTextEdit(JsonString(""), NuiBind(CONSOLE_BIND_LIST_ARG_VALUE), 128, FALSE));
-                                    NB_SetVisible(NuiBind(CONSOLE_BIND_LIST_ARG_ROW_VISIBLE));
                                 NB_End();
                             NB_End();
                             NB_StartListTemplateCell(2.0f, FALSE);
@@ -202,7 +196,6 @@ json Console_CreateWindow()
 
 void Console_UpdateCommandList(string sCommand)
 {
-    string sVisibleList;
     string sCommandArray;
     string sIconArray;
     string sTooltipArray;
@@ -211,14 +204,13 @@ void Console_UpdateCommandList(string sCommand)
 
     string sQuery = "SELECT command, icon, description FROM " + CONSOLE_SCRIPT_NAME + " WHERE " +
                     "command LIKE @command AND system LIKE @system " +
-                    "ORDER BY command ASC LIMIT " + IntToString(CONSOLE_MAX_COMMANDS) + ";";
+                    "ORDER BY command ASC;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@command", "%" + sCommand + "%");
     SqlBindString(sql, "@system", "%" + sSystem + "%");
 
     while (SqlStep(sql))
     {
-        sVisibleList += StringJsonArrayElementBool(TRUE);
         sCommandArray += StringJsonArrayElementString(SqlGetString(sql, 0));
         sIconArray += StringJsonArrayElementString(SqlGetString(sql, 1));
         sTooltipArray += StringJsonArrayElementString(SqlGetString(sql, 2));
@@ -226,7 +218,6 @@ void Console_UpdateCommandList(string sCommand)
 
     json jCommandArray = StringJsonArrayElementsToJsonArray(sCommandArray);
 
-    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_ROW_VISIBLE, StringJsonArrayElementsToJsonArray(sVisibleList));
     NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_NAME, jCommandArray);
     NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_ICON, StringJsonArrayElementsToJsonArray(sIconArray));
     NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_TOOLTIP, StringJsonArrayElementsToJsonArray(sTooltipArray));
@@ -273,7 +264,6 @@ void Console_SelectCommand(string sCommand)
         string sIcon = SqlGetString(sql, 0);
         json jParameters = SqlGetJson(sql, 1);
         string sScriptChunk = SqlGetString(sql, 2);
-        string sArrayArgVisible;
         string sArrayArgName;
         string sArrayArgValue;
         string sArrayArgTooltip;
@@ -286,7 +276,6 @@ void Console_SelectCommand(string sCommand)
             string sName = JsonObjectGetString(jParameter, "name");
             string sDefault = JsonObjectGetString(jParameter, "default");
 
-            sArrayArgVisible += StringJsonArrayElementBool(TRUE);
             sArrayArgName += StringJsonArrayElementString(JsonObjectGetString(jParameter, "name"));
             sArrayArgValue += StringJsonArrayElementString(JsonObjectGetString(jParameter, "default"));
             sArrayArgTooltip += StringJsonArrayElementString(nssConvertShortType(JsonObjectGetString(jParameter, "type")));
@@ -298,7 +287,6 @@ void Console_SelectCommand(string sCommand)
 
         NWM_SetBindString(CONSOLE_BIND_SELECTED_COMMAND_ICON, sIcon);
         NWM_SetBindString(CONSOLE_BIND_SELECTED_COMMAND_NAME, sCommand);
-        NWM_SetBind(CONSOLE_BIND_LIST_ARG_ROW_VISIBLE, StringJsonArrayElementsToJsonArray(sArrayArgVisible));
         NWM_SetBind(CONSOLE_BIND_LIST_ARG_NAME, StringJsonArrayElementsToJsonArray(sArrayArgName));
         NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, StringJsonArrayElementsToJsonArray(sArrayArgValue));
         NWM_SetBind(CONSOLE_BIND_LIST_ARG_TYPE_TOOLTIP, StringJsonArrayElementsToJsonArray(sArrayArgTooltip));
@@ -371,7 +359,16 @@ void Console_TargetIconMouseUp()
 // @NWMEVENT[CONSOLE_WINDOW_ID:NUI_EVENT_CLICK:CONSOLE_BIND_BUTTON_CLEAR_ARGS]
 void Console_ClickClearArgsButton()
 {
-    NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, GetEmptyJsonStringArray(CONSOLE_MAX_PARAMETERS));
+    json jValues = NWM_GetBind(CONSOLE_BIND_LIST_ARG_VALUE);
+    int nArgument, nNumArguments = JsonGetLength(jValues);
+    string sArgumentValueArray;
+
+    for (nArgument = 0; nArgument < nNumArguments; nArgument++)
+    {
+        sArgumentValueArray += StringJsonArrayElementString("");   
+    }
+    
+    NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, StringJsonArrayElementsToJsonArray(sArgumentValueArray));
 }
 
 // @NWMEVENT[CONSOLE_WINDOW_ID:NUI_EVENT_CLICK:CONSOLE_BIND_BUTTON_EXECUTE]
@@ -523,4 +520,3 @@ void Console_RegisterCommand(json jCommand)
 
     WriteLog(CONSOLE_LOG_TAG, "* System '" + sSystem + "' registered command '" + sCommand + "' with '" + IntToString(nNumArguments) + "' parameters");
 }
-

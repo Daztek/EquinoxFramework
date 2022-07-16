@@ -35,7 +35,6 @@ const string PC_BIND_NAME_LABEL             = "name_label";
 const string PC_BIND_DEPOSIT_MODE           = "deposit_mode";
 const string PC_BIND_BUTTON_DEPOSIT         = "btn_deposit";
 const string PC_BIND_BUTTON_CLOSE           = "btn_close";
-const string PC_BIND_TEMPLATE_ROW_VISIBLE   = "row_visible";
 
 int PC_GetStoredItemAmount(object oPlayer);
 void PC_UpdateItemList();
@@ -131,15 +130,13 @@ json PC_CreateWindow()
           NB_End();
         NB_End();
         NB_StartRow();
-          NB_StartList(JsonInt(PC_MAX_ITEMS), 32.0f);
+          NB_StartList(NuiBind(PC_BIND_ICONS_ARRAY), 32.0f);
             NB_StartListTemplateCell(32.0f, FALSE);
               NB_StartGroup(TRUE, NUI_SCROLLBARS_NONE);
                 NB_SetId(PC_BIND_ICON_GROUP);
                 NB_SetMargin(0.0f);
-                NB_SetVisible(NuiBind(PC_BIND_TEMPLATE_ROW_VISIBLE));
                 NB_StartElement(NuiImage(NuiBind(PC_BIND_ICONS_ARRAY), JsonInt(NUI_ASPECT_FIT100), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_TOP)));
                   NB_SetMargin(0.0f);
-                  NB_SetVisible(NuiBind(PC_BIND_TEMPLATE_ROW_VISIBLE));
                   NB_SetTooltip(NuiBind(PC_BIND_TOOLTIPS_ARRAY));
                 NB_End();
               NB_End();
@@ -147,7 +144,6 @@ json PC_CreateWindow()
             NB_StartListTemplateCell(0.0f, TRUE);
               NB_StartElement(NuiLabel(NuiBind(PC_BIND_NAMES_ARRAY), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
                 NB_SetId(PC_BIND_NAME_LABEL);
-                NB_SetVisible(NuiBind(PC_BIND_TEMPLATE_ROW_VISIBLE));
               NB_End();
             NB_End();
           NB_End();
@@ -242,7 +238,6 @@ void PC_UpdateItemList()
     string sNamesArray;
     string sTooltipArray;
     string sIconArray;
-    string sVisibleArray;
 
     int nNumItems = PC_GetStoredItemAmount(oPlayer);
     string sSearch = JsonGetString(NWM_GetBind(PC_BIND_SEARCH_TEXT));
@@ -265,7 +260,6 @@ void PC_UpdateItemList()
         sNamesArray += StringJsonArrayElementString(sName + (nStackSize > 1 ? " (x" + IntToString(nStackSize) + ")" : ""));
         sTooltipArray += StringJsonArrayElementString(Get2DAStrRefString("baseitems", "Name", nBaseItem));
         sIconArray += StringJsonArrayElementString(sIconResRef);
-        sVisibleArray += StringJsonArrayElementBool(TRUE);
     }
 
     NWM_SetUserData("uuid_array", StringJsonArrayElementsToJsonArray(sUUIDArray));
@@ -274,7 +268,6 @@ void PC_UpdateItemList()
     NWM_SetBind(PC_BIND_TOOLTIPS_ARRAY, StringJsonArrayElementsToJsonArray(sTooltipArray));
     NWM_SetBind(PC_BIND_PROGRESS, JsonFloat(IntToFloat(nNumItems) / IntToFloat(PC_MAX_ITEMS)));
     NWM_SetBind(PC_BIND_PROGRESS_TOOLTIP, JsonString(IntToString(nNumItems) + " / " + IntToString(PC_MAX_ITEMS) + " Items Stored"));
-    NWM_SetBind(PC_BIND_TEMPLATE_ROW_VISIBLE, StringJsonArrayElementsToJsonArray(sVisibleArray));
 }
 
 void PC_WithdrawItem()

@@ -73,7 +73,6 @@ json GffAddTile(json jTileList, int nTileID, int nOrientation, int nHeight)
         jTile = GffAddByte(jTile, "Tile_AnimLoop3", TRUE);
 
         SetLocalJson(GetModule(), "GFF_TILE_TEMPLATE", jTile);
-        PrintString(JsonDump(jTile));
     }
 
     if (nTileID)

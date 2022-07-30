@@ -42,7 +42,7 @@ const string QC_BIND_SLOT_USES                      = "slot_uses_";
 const string QC_BIND_SLOT_USES_VISIBLE              = "slot_uses_visible_";
 const string QC_BIND_SLOT_GREYED_OUT                = "slot_greyedout_";
 const string QC_BIND_SLOT_MM_VISIBLE                = "slot_mm_visible_";
-const string QC_BIND_SLOT_MM_ICON                   = "slot_mm_icon_";
+const string QC_BIND_SLOT_MM_REGION                 = "slot_mm_region_";
 const string QC_BIND_BUTTON_PAGE                    = "btn_page_";
 const string QC_BIND_BUTTON_PAGE_ONE                = "btn_page_1";
 const string QC_BIND_BUTTON_PAGE_TWO                = "btn_page_2";
@@ -105,8 +105,8 @@ int QC_GetMetaMagicLevelAdjustment(int nMetaMagic);
 sqlquery QC_GetKnownSpellsList(object oPlayer, int nMultiClass, int nMetaMagic, string sSearch);
 sqlquery QC_GetClassSpellList(object oPlayer, int nMultiClass, int nMetaMagic, string sSearch);
 void QC_UpdateSpellList();
-string QC_GetMetamagicTooltip(int nMetaMagic);
-string QC_GetMetamagicIcon(int nMetaMagic);
+string QC_GetMetaMagicTooltip(int nMetaMagic);
+json QC_GetMetaMagicRect(int nMetaMagic);
 void QC_SetSpellUsesState(object oPlayer, int nSlotId, int nSpellId, int nMultiClass, int nMetaMagic);
 void QC_SetSlot(object oPlayer, int nSlotId, int nSpellId, int nMultiClass, int nMetaMagic);
 void QC_UpdateSlot(object oPlayer, int nSlotId, int nSpellId, int nMultiClass, int nMetaMagic, string sTooltip);
@@ -195,7 +195,7 @@ json QC_CreateMainWindow()
                             NB_SetDimensions(QC_SLOT_SIZE, QC_SLOT_SIZE);
                             NB_SetId(QC_BIND_SLOT_ICON + sSlot);
                             NB_SetTooltip(NuiBind(QC_BIND_SLOT_TOOLTIP + sSlot));
-                            NB_StartDrawList(JsonBool(TRUE));
+                            NB_StartDrawList(JsonBool(FALSE));
                                 json jUsesBindVisible = NuiBind(QC_BIND_SLOT_USES_VISIBLE + sSlot);
                                 json jUsesBindText = NuiBind(QC_BIND_SLOT_USES + sSlot);
                                 NB_AddDrawListItem(NuiDrawListText(jUsesBindVisible, NuiColor(0, 0, 0), NuiRect(0.0f, -2.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), jUsesBindText));
@@ -205,9 +205,24 @@ json QC_CreateMainWindow()
                                 NB_AddDrawListItem(NuiDrawListText(jUsesBindVisible, NuiColor(0, 0, 0), NuiRect(2.0f, -1.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), jUsesBindText));
                                 NB_AddDrawListItem(NuiDrawListText(jUsesBindVisible, NuiColor(0, 0, 0), NuiRect(2.0f, -0.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), jUsesBindText));
                                 NB_AddDrawListItem(NuiDrawListText(jUsesBindVisible, NuiColor(0, 255, 0), NuiRect(2.0f, -2.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), jUsesBindText));
-                                NB_AddDrawListItem(NuiDrawListImage(NuiBind(QC_BIND_SLOT_GREYED_OUT + sSlot), JsonString("gui_transprnt"), NuiRect(0.0f, 0.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                                NB_AddDrawListItem(NuiDrawListImage(NuiBind(QC_BIND_SLOT_MM_VISIBLE + sSlot), NuiBind(QC_BIND_SLOT_MM_ICON + sSlot), NuiRect(QC_SLOT_SIZE - 8.0f, QC_SLOT_SIZE - 8.0f, 8.0f, 8.0f), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                                NB_AddDrawListItem(NuiDrawListImage(JsonBool(TRUE), JsonString(QC_OUTLINE_SLOT_TEXTURE), NuiRect(0.0f, 0.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_HOVER));
+                                NB_AddDrawListItem(
+                                    NuiDrawListImage(
+                                        NuiBind(QC_BIND_SLOT_GREYED_OUT + sSlot), JsonString("gui_transprnt"), 
+                                        NuiRect(0.0f, 0.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), 
+                                        JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                                NB_AddDrawListItem(
+                                    NuiDrawListImageRegion(
+                                        NuiDrawListImage(
+                                            NuiBind(QC_BIND_SLOT_MM_VISIBLE + sSlot), JsonString("gui_icon_metamag"), 
+                                            NuiRect(QC_SLOT_SIZE - 8.0f, QC_SLOT_SIZE - 8.0f, 8.0f, 8.0f), 
+                                            JsonInt(NUI_ASPECT_STRETCH),  JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)), 
+                                        NuiBind(QC_BIND_SLOT_MM_REGION + sSlot)));
+                                NB_AddDrawListItem(
+                                    NuiDrawListImage(
+                                        JsonBool(TRUE), JsonString(QC_OUTLINE_SLOT_TEXTURE), 
+                                        NuiRect(0.0f, 0.0f, QC_SLOT_SIZE, QC_SLOT_SIZE), 
+                                        JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE), 
+                                        NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_HOVER));
                             NB_End();
                         NB_End();
                     }
@@ -317,6 +332,7 @@ void QC_SlotMouseDown()
                             NWM_SetUserData("metamagic", JsonInt(nMetaMagic));
                             NWM_SetUserData("targettype", JsonInt(nSpellTargetType));
 
+                            TargetMode_SetSpellData(oPlayer, nSpellId);                            
                             TargetMode_Enter(oPlayer, QC_CAST_TARGET_MODE, nValidObjectTypes);
                             break;
                         }
@@ -1347,7 +1363,7 @@ void QC_UpdateSpellList()
     NWM_SetUserData("spellids", StringJsonArrayElementsToJsonArray(sSpellIdArray));
 }
 
-string QC_GetMetamagicTooltip(int nMetaMagic)
+string QC_GetMetaMagicTooltip(int nMetaMagic)
 {
     switch (nMetaMagic)
     {
@@ -1368,25 +1384,25 @@ string QC_GetMetamagicTooltip(int nMetaMagic)
     return "";
 }
 
-string QC_GetMetamagicIcon(int nMetaMagic)
-{
+json QC_GetMetaMagicRect(int nMetaMagic)
+{    
     switch (nMetaMagic)
     {
-        case METAMAGIC_QUICKEN:
-            return "qc_mm_qui";
         case METAMAGIC_EMPOWER:
-            return "qc_mm_emp";
+            return NuiRect(1.0f, 0.0f, 8.0f, 8.0f);
         case METAMAGIC_EXTEND:
-            return "qc_mm_ext";
+            return NuiRect(11.0f, 0.0f, 8.0f, 8.0f);
         case METAMAGIC_MAXIMIZE:
-            return "qc_mm_max";
+            return NuiRect(21.0f, 0.0f, 8.0f, 8.0f);
+        case METAMAGIC_QUICKEN:
+            return NuiRect(31.0f, 0.0f, 8.0f, 8.0f);            
         case METAMAGIC_SILENT:
-            return "qc_mm_sil";
+            return NuiRect(41.0f, 0.0f, 8.0f, 8.0f);
         case METAMAGIC_STILL:
-            return "qc_mm_sti";
+            return NuiRect(51.0f, 0.0f, 8.0f, 8.0f);
     }
 
-    return "";
+    return NuiRect(0.0f, 0.0f, 0.0f, 0.0f);   
 }
 
 void QC_SetSpellUsesState(object oPlayer, int nSlotId, int nSpellId, int nMultiClass, int nMetaMagic)
@@ -1414,7 +1430,7 @@ void QC_SetSpellUsesState(object oPlayer, int nSlotId, int nSpellId, int nMultiC
 
 void QC_SetSlot(object oPlayer, int nSlotId, int nSpellId, int nMultiClass, int nMetaMagic)
 {
-    string sMetaMagic = QC_GetMetamagicTooltip(nMetaMagic);
+    string sMetaMagic = QC_GetMetaMagicTooltip(nMetaMagic);
     string sSpellName = Get2DAStrRefString(QC_SPELLS_2DA_NAME, "Name", nSpellId);
     string sClassName = Get2DAStrRefString("classes", "Name", GetClassByPosition(nMultiClass + 1, OBJECT_SELF));
     string sTooltip = sMetaMagic + sSpellName + " (" + sClassName + ")";
@@ -1430,10 +1446,10 @@ void QC_UpdateSlot(object oPlayer, int nSlotId, int nSpellId, int nMultiClass, i
     if (nMetaMagic == METAMAGIC_NONE)
         NWM_SetBindBool(QC_BIND_SLOT_MM_VISIBLE + sSlotId, FALSE);
     else
-    {
+    {    
         NWM_SetBindBool(QC_BIND_SLOT_MM_VISIBLE + sSlotId, TRUE);
-        NWM_SetBindString(QC_BIND_SLOT_MM_ICON + sSlotId, QC_GetMetamagicIcon(nMetaMagic));
-    }
+        NWM_SetBind(QC_BIND_SLOT_MM_REGION + sSlotId, QC_GetMetaMagicRect(nMetaMagic));
+    }   
 
     NWM_SetBindString(QC_BIND_SLOT_ICON + sSlotId, Get2DAString(QC_SPELLS_2DA_NAME, "IconResRef", nSpellId));
     NWM_SetBindString(QC_BIND_SLOT_TOOLTIP + sSlotId, sTooltip);

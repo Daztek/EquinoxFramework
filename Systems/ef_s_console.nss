@@ -28,7 +28,7 @@ const string CONSOLE_BIND_BUTTON_SELECT_TARGET      = "btn_target";
 const string CONSOLE_BIND_INPUT_COMMAND             = "in_command";
 const string CONSOLE_BIND_BUTTON_CLEAR_COMMAND      = "btn_clear";
 const string CONSOLE_BIND_LABEL_TARGET              = "lbl_target";
-const string CONSOLE_BIND_LIST_COMMAND_NAME         = "list_command";
+const string CONSOLE_BIND_LIST_COMMAND_NAME         = "list_name";
 const string CONSOLE_BIND_LIST_COMMAND_ICON         = "list_icon";
 const string CONSOLE_BIND_LIST_COMMAND_TOOLTIP      = "list_tooltip";
 const string CONSOLE_BIND_SELECTED_COMMAND_ICON     = "sel_icon";
@@ -49,8 +49,9 @@ void Console_Init()
 {
     string sQuery;
     sQuery = "CREATE TABLE IF NOT EXISTS " + CONSOLE_SCRIPT_NAME + " (" +
+             "id INTEGER PRIMARY KEY, " +
              "system TEXT NOT NULL, " +
-             "command TEXT NOT NULL COLLATE NOCASE, " +
+             "name TEXT NOT NULL COLLATE NOCASE, " +
              "icon TEXT NOT NULL, " +
              "description TEXT NOT NULL, " +
              "parameters TEXT NOT NULL, " +
@@ -194,35 +195,35 @@ json Console_CreateWindow()
     return NB_FinalizeWindow();
 }
 
-void Console_UpdateCommandList(string sCommand)
+void Console_UpdateCommandList(string sSearch)
 {
-    string sCommandArray;
+    string sIdArray;
+    string sNameArray;
     string sIconArray;
     string sTooltipArray;
 
     string sSystem = JsonArrayGetString(NWM_GetUserData("systems"), JsonGetInt(NWM_GetBind(CONSOLE_BIND_COMBO_SYSTEM_SELECTED)));
 
-    string sQuery = "SELECT command, icon, description FROM " + CONSOLE_SCRIPT_NAME + " WHERE " +
-                    "command LIKE @command AND system LIKE @system " +
-                    "ORDER BY command ASC;";
+    string sQuery = "SELECT id, name, icon, description FROM " + CONSOLE_SCRIPT_NAME + " WHERE " +
+                    "name LIKE @search AND system LIKE @system " +
+                    "ORDER BY name ASC;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
-    SqlBindString(sql, "@command", "%" + sCommand + "%");
+    SqlBindString(sql, "@search", "%" + sSearch + "%");
     SqlBindString(sql, "@system", "%" + sSystem + "%");
 
     while (SqlStep(sql))
     {
-        sCommandArray += StringJsonArrayElementString(SqlGetString(sql, 0));
-        sIconArray += StringJsonArrayElementString(SqlGetString(sql, 1));
-        sTooltipArray += StringJsonArrayElementString(SqlGetString(sql, 2));
+        sIdArray += StringJsonArrayElementInt(SqlGetInt(sql, 0));
+        sNameArray += StringJsonArrayElementString(SqlGetString(sql, 1));
+        sIconArray += StringJsonArrayElementString(SqlGetString(sql, 2));
+        sTooltipArray += StringJsonArrayElementString(SqlGetString(sql, 3));
     }
 
-    json jCommandArray = StringJsonArrayElementsToJsonArray(sCommandArray);
-
-    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_NAME, jCommandArray);
+    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_NAME, StringJsonArrayElementsToJsonArray(sNameArray));
     NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_ICON, StringJsonArrayElementsToJsonArray(sIconArray));
     NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_TOOLTIP, StringJsonArrayElementsToJsonArray(sTooltipArray));
 
-    NWM_SetUserData("commands", jCommandArray);
+    NWM_SetUserData("commands", StringJsonArrayElementsToJsonArray(sIdArray));
 }
 
 void Console_UpdateSystemCombo()
@@ -252,18 +253,19 @@ void Console_SetOutput(string sOutput)
     NWM_SetBindString(CONSOLE_BIND_OUTPUT_TEXT, sOutput);
 }
 
-void Console_SelectCommand(string sCommand)
+void Console_SelectCommand(int nCommand)
 {
-    string sQuery = "SELECT icon, parameters, script_chunk FROM " + CONSOLE_SCRIPT_NAME + " WHERE " +
-                    "command = @command;";
+    string sQuery = "SELECT name, icon, parameters, script_chunk FROM " + CONSOLE_SCRIPT_NAME + " WHERE " +
+                    "id = @id;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
-    SqlBindString(sql, "@command", sCommand);
+    SqlBindInt(sql, "@id", nCommand);
 
     if (SqlStep(sql))
     {
-        string sIcon = SqlGetString(sql, 0);
-        json jParameters = SqlGetJson(sql, 1);
-        string sScriptChunk = SqlGetString(sql, 2);
+        string sName = SqlGetString(sql, 0);
+        string sIcon = SqlGetString(sql, 1);
+        json jParameters = SqlGetJson(sql, 2);
+        string sScriptChunk = SqlGetString(sql, 3);
         string sArrayArgName;
         string sArrayArgValue;
         string sArrayArgTooltip;
@@ -281,12 +283,12 @@ void Console_SelectCommand(string sCommand)
             sArrayArgTooltip += StringJsonArrayElementString(nssConvertShortType(JsonObjectGetString(jParameter, "type")));
         }
 
-        NWM_SetUserData("selected_command", JsonString(sCommand));
+        NWM_SetUserData("selected_command", JsonInt(nCommand));
         NWM_SetUserData("selected_parameters", jParameters);
         NWM_SetUserData("selected_scriptchunk", JsonString(sScriptChunk));
 
         NWM_SetBindString(CONSOLE_BIND_SELECTED_COMMAND_ICON, sIcon);
-        NWM_SetBindString(CONSOLE_BIND_SELECTED_COMMAND_NAME, sCommand);
+        NWM_SetBindString(CONSOLE_BIND_SELECTED_COMMAND_NAME, sName);
         NWM_SetBind(CONSOLE_BIND_LIST_ARG_NAME, StringJsonArrayElementsToJsonArray(sArrayArgName));
         NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, StringJsonArrayElementsToJsonArray(sArrayArgValue));
         NWM_SetBind(CONSOLE_BIND_LIST_ARG_TYPE_TOOLTIP, StringJsonArrayElementsToJsonArray(sArrayArgTooltip));
@@ -334,9 +336,9 @@ void Console_MouseUpListCommandName()
     if (NuiGetClickthroughProtection())
         return;
         
-    string sCommand = JsonArrayGetString(NWM_GetUserData("commands"), NuiGetEventArrayIndex());
-    if (sCommand != "" && JsonGetString(NWM_GetUserData("selected_command")) != sCommand)
-        Console_SelectCommand(sCommand);
+    int nCommand = JsonArrayGetInt(NWM_GetUserData("commands"), NuiGetEventArrayIndex());
+    if (nCommand != 0 && JsonGetInt(NWM_GetUserData("selected_command")) != nCommand)
+        Console_SelectCommand(nCommand);
 }
 
 // @NWMEVENT[CONSOLE_WINDOW_ID:NUI_EVENT_CLICK:CONSOLE_BIND_BUTTON_SELECT_TARGET]
@@ -380,7 +382,6 @@ void Console_ClickExecuteButton()
     if (GetIsObjectValid(oTarget))
     {
         object oDataObject = GetDataObject(CONSOLE_SCRIPT_NAME);
-        string sCommand = JsonGetString(NWM_GetUserData("selected_command"));
         json jParameters = NWM_GetUserData("selected_parameters");
         string sScriptChunk = JsonGetString(NWM_GetUserData("selected_scriptchunk"));
         json jValues = NWM_GetBind(CONSOLE_BIND_LIST_ARG_VALUE);
@@ -448,22 +449,12 @@ void Console_ToggleWindow()
 void Console_RegisterCommand(json jCommand)
 {
     string sSystem = JsonArrayGetString(jCommand, 0);
-    string sCommand = JsonArrayGetString(jCommand, 2);
+    string sName = JsonArrayGetString(jCommand, 2);
     string sIcon = JsonArrayGetString(jCommand, 3);
     string sDescription = JsonArrayGetString(jCommand, 4);
     string sReturnType = JsonArrayGetString(jCommand, 5);
     string sFunction = JsonArrayGetString(jCommand, 6);
     string sParameters = JsonArrayGetString(jCommand, 7), sParameterTypes;
-
-    string sQuery = "SELECT function FROM " + CONSOLE_SCRIPT_NAME + " WHERE " + "command = @command;";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
-    SqlBindString(sql, "@command", sCommand);
-
-    if (SqlStep(sql))
-    {
-        WriteLog(CONSOLE_LOG_TAG, "* ERROR: System '" + sSystem + "' tried to register command '" + sCommand + "' but command already exists!");
-        return;
-    }
 
     json jParameters = JsonArray();
     if (sParameters != "")
@@ -474,7 +465,7 @@ void Console_RegisterCommand(json jCommand)
         {
             json jMatch = JsonArrayGet(jMatches, nMatch), jParameter = JsonObject();
             string sType = nssConvertType(JsonArrayGetString(jMatch, 1));
-            string sName = JsonArrayGetString(jMatch, 2);
+            string sVarName = JsonArrayGetString(jMatch, 2);
             string sDefault = JsonArrayGetString(jMatch, 3);
 
             sParameterTypes += sType;
@@ -483,7 +474,7 @@ void Console_RegisterCommand(json jCommand)
                 sDefault = GetSubString(sDefault, 1, GetStringLength(sDefault) - 2);
 
             jParameter = JsonObjectSetString(jParameter, "type", sType);
-            jParameter = JsonObjectSetString(jParameter, "name", sName);
+            jParameter = JsonObjectSetString(jParameter, "name", sVarName);
             jParameter = JsonObjectSetString(jParameter, "default", sDefault);
 
             jParameters = JsonArrayInsert(jParameters, jParameter);
@@ -506,11 +497,11 @@ void Console_RegisterCommand(json jCommand)
 
     string sScriptChunk = (sSystem == CONSOLE_SCRIPT_NAME ? "" : nssInclude(CONSOLE_SCRIPT_NAME)) + nssInclude(sSystem) + nssVoidMain(sFunctionBody);
 
-    sQuery = "INSERT INTO " + CONSOLE_SCRIPT_NAME + "(system, command, icon, description, parameters, function, script_chunk) " +
-                    "VALUES(@system, @command, @icon, @description, @parameters, @function, @script_chunk);";
-    sql = SqlPrepareQueryModule(sQuery);
+    string sQuery = "INSERT INTO " + CONSOLE_SCRIPT_NAME + "(system, name, icon, description, parameters, function, script_chunk) " +
+                    "VALUES(@system, @name, @icon, @description, @parameters, @function, @script_chunk);";
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@system", sSystem);
-    SqlBindString(sql, "@command", sCommand);
+    SqlBindString(sql, "@name", sName);
     SqlBindString(sql, "@icon", sIcon == "" ? CONSOLE_DEFAULT_ICON : sIcon);
     SqlBindString(sql, "@description", sDescription);
     SqlBindJson(sql, "@parameters", jParameters);
@@ -518,5 +509,5 @@ void Console_RegisterCommand(json jCommand)
     SqlBindString(sql, "@script_chunk", sScriptChunk);
     SqlStep(sql);
 
-    WriteLog(CONSOLE_LOG_TAG, "* System '" + sSystem + "' registered command '" + sCommand + "' with '" + IntToString(nNumArguments) + "' parameters");
+    WriteLog(CONSOLE_LOG_TAG, "* System '" + sSystem + "' registered command '" + sName + "' with '" + IntToString(nNumArguments) + "' parameters");
 }

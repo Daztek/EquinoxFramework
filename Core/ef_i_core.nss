@@ -18,6 +18,7 @@
 const string EFCORE_LOG_TAG                             = "Equinox";
 const string EFCORE_SCRIPT_NAME                         = "ef_i_core";
 
+const int EFCORE_VALIDATE_SYSTEMS                       = TRUE;
 const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
 
 const string EFCORE_SYSTEM_SCRIPT_PREFIX                = "ef_s_";
@@ -51,7 +52,7 @@ void EFCore_Initialize()
 
     EFCore_InitSystemData();
 
-    if (!EFCore_ValidateSystems())
+    if (EFCORE_VALIDATE_SYSTEMS && !EFCore_ValidateSystems())
     {
         WriteLog(EFCORE_LOG_TAG, "* ERROR: System Validation Failure!");
         

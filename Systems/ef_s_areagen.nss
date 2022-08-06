@@ -739,7 +739,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
 
     sQuery += " ORDER BY RANDOM() LIMIT 1;";
 
-    sqlquery sql = TS_PrepareQuery(sQuery);
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
 
     if (strQuery.sTL != "") SqlBindString(sql, "@tl", strQuery.sTL);
     if (strQuery.sT != "")  SqlBindString(sql, "@t", strQuery.sT);
@@ -1193,7 +1193,7 @@ struct AG_Tile AG_GetRandomRoadTile(string sAreaID, struct TS_TileStruct strQuer
                     AG_SqlConstructCAEClause(strQuery);
     sQuery += " ORDER BY RANDOM() LIMIT 1;";
 
-    sqlquery sql = TS_PrepareQuery(sQuery);
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
 
     if (strQuery.sTL != "") SqlBindString(sql, "@tl", strQuery.sTL);
     if (strQuery.sT != "")  SqlBindString(sql, "@t", strQuery.sT);

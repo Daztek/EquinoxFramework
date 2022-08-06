@@ -43,7 +43,6 @@ struct TS_DoorStruct
 
 object TS_GetTilesetDataObject(string sTileset);
 string TS_GetTableName(string sTileset, string sType);
-sqlquery TS_PrepareQuery(string sQuery);
 void TS_CreateTilesetTables(string sTileset);
 json TS_GetLoadedTilesets();
 void TS_SetTilesetLoaded(string sTileset);
@@ -90,7 +89,6 @@ void Tileset_Init()
 {
     TS_LoadTilesetData(TILESET_RESREF_MEDIEVAL_RURAL_2);
     TS_LoadTilesetData(TILESET_RESREF_MINES_AND_CAVERNS);
-    //TS_LoadTilesetData("");
 }
 
 object TS_GetTilesetDataObject(string sTileset)
@@ -118,11 +116,6 @@ int TS_GetTilesetLoaded(string sTileset)
     return JsonArrayContainsString(TS_GetLoadedTilesets(), sTileset);
 }
 
-sqlquery TS_PrepareQuery(string sQuery)
-{
-    return SqlPrepareQueryObject(GetModule(), sQuery);
-}
-
 void TS_CreateTilesetTables(string sTileset)
 {
     string sQuery; sqlquery sql;
@@ -141,7 +134,7 @@ void TS_CreateTilesetTables(string sTileset)
              "corners_and_edges TEXT NOT NULL, " +
              "is_group_tile INTEGER NOT NULL, " +
              "PRIMARY KEY(tile_id, orientation));";
-    SqlStep(TS_PrepareQuery(sQuery));
+    SqlStep(SqlPrepareQueryModule(sQuery));
 
     sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUPS) + " (" +
              "group_id INTEGER NOT NULL PRIMARY KEY, " +
@@ -150,14 +143,14 @@ void TS_CreateTilesetTables(string sTileset)
              "rows INTEGER NOT NULL, " +
              "columns INTEGER NOT NULL, " +
              "num_tiles INTEGER NOT NULL);";
-    SqlStep(TS_PrepareQuery(sQuery));
+    SqlStep(SqlPrepareQueryModule(sQuery));
 
     sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUP_TILES) + " (" +
              "group_id INTEGER NOT NULL, " +
              "tile_index INTEGER NOT NULL, " +
              "tile_id INTEGER NOT NULL, " +
              "PRIMARY KEY(group_id, tile_index));";
-    SqlStep(TS_PrepareQuery(sQuery));
+    SqlStep(SqlPrepareQueryModule(sQuery));
 
     sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (" +
              "tile_id INTEGER NOT NULL, " +
@@ -172,7 +165,7 @@ void TS_CreateTilesetTables(string sTileset)
              "l TEXT NOT NULL, " +
              "corners_and_edges TEXT NOT NULL, " +
              "PRIMARY KEY(tile_id, orientation));";
-    SqlStep(TS_PrepareQuery(sQuery));
+    SqlStep(SqlPrepareQueryModule(sQuery));
 }
 
 // TILE STRUCT FUNCTIONS
@@ -390,7 +383,7 @@ struct TS_DoorStruct TS_GetTilesetTileDoor(string sTileset, int nTileID, int nIn
 int TS_GetIsTilesetGroupTile(string sTileset, int nTileID)
 {
     string sQuery = "SELECT * FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUP_TILES) + " WHERE tile_id = @tile_id;";
-    sqlquery sql = TS_PrepareQuery(sQuery);
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@tile_id", nTileID);
     return SqlStep(sql);
 }
@@ -403,7 +396,7 @@ void TS_LoadTilesetData(string sTileset)
 
     object oTDO = TS_GetTilesetDataObject(sTileset);
 
-    SqlBeginTransactionObject(GetModule());
+    SqlBeginTransactionModule();
 
     TS_CreateTilesetTables(sTileset);
 
@@ -443,7 +436,7 @@ void TS_LoadTilesetData(string sTileset)
         TS_ProcessTile(sTileset, nTileID);
     }
 
-    SqlCommitTransactionObject(GetModule());
+    SqlCommitTransactionModule();
 
     TS_SetTilesetLoaded(sTileset);
 
@@ -468,7 +461,7 @@ void TS_ProcessTilesetGroups(string sTileset)
 
         string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUPS) + " (group_id, name, strref, rows, columns, num_tiles) " +
                         "VALUES(@group_id, @name, @strref, @rows, @columns, @num_tiles);";
-        sqlquery sql = TS_PrepareQuery(sQuery);
+        sqlquery sql = SqlPrepareQueryModule(sQuery);
         SqlBindInt(sql, "@group_id", nGroupNum);
         SqlBindString(sql, "@name", strGroupData.sName);
         SqlBindInt(sql, "@strref", strGroupData.nStrRef);
@@ -484,7 +477,7 @@ void TS_ProcessTilesetGroups(string sTileset)
 
             sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUP_TILES) + " (group_id, tile_index, tile_id) " +
                      "VALUES(@group_id, @tile_index, @tile_id);";
-            sql = TS_PrepareQuery(sQuery);
+            sql = SqlPrepareQueryModule(sQuery);
             SqlBindInt(sql, "@group_id", nGroupNum);
             SqlBindInt(sql, "@tile_index", nGroupTileIndex);
             SqlBindInt(sql, "@tile_id", nGroupTileID);
@@ -536,7 +529,7 @@ void TS_InsertTile(string sTileset, int nTileID, int nOrientation, struct TS_Til
 {
     string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " (tile_id, orientation, tl, t, tr, r, br, b, bl, l, corners_and_edges, is_group_tile) " +
                     "VALUES(@tile_id, @orientation, @tl, @t, @tr, @r, @br, @b, @bl, @l, @corners_and_edges, @is_group_tile);";
-    sqlquery sql = TS_PrepareQuery(sQuery);
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@tile_id", nTileID);
     SqlBindInt(sql, "@orientation", nOrientation);
     SqlBindString(sql, "@tl", str.sTL);
@@ -598,7 +591,7 @@ void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, st
 {
     string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (tile_id, orientation, tl, t, tr, r, br, b, bl, l, corners_and_edges) " +
                     "VALUES(@tile_id, @orientation, @tl, @t, @tr, @r, @br, @b, @bl, @l, @corners_and_edges);";
-    sqlquery sql = TS_PrepareQuery(sQuery);
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@tile_id", nTileID);
     SqlBindInt(sql, "@orientation", nOrientation);
     SqlBindString(sql, "@tl", str.sTL);

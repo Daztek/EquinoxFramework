@@ -168,3 +168,18 @@ void DMConCom_ForceRest()
 {
     ForceRest(OBJECT_SELF);
 }
+
+// @CONSOLE[ToggleCutsceneInvisibility::Toggle the cutscene invisibility on a target]
+string DMConCom_ToggleCutsceneInvisibility()
+{
+    object oTarget = OBJECT_SELF;
+    string sTag = DMCONCOM_SCRIPT_NAME + "_CUTSCENE_INVISIBILITY";
+    int bCutsceneInvisibility = GetHasEffectWithTag(oTarget, sTag);
+
+    if (bCutsceneInvisibility)
+        RemoveEffectsWithTag(oTarget, sTag);
+    else    
+        ApplyEffectToObject(DURATION_TYPE_PERMANENT, TagEffect(EffectVisualEffect(VFX_DUR_CUTSCENE_INVISIBILITY), sTag), oTarget);    
+
+    return "Set Cutscene Invisibility to: " + IntToString(!bCutsceneInvisibility);
+}

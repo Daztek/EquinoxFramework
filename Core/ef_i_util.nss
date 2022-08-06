@@ -73,6 +73,9 @@ int GetLocationWalkable(location loc);
 // Returns TRUE if oObject has nEffectType
 int GetHasEffectType(object oObject, int nEffectType);
 
+// Returns TRUE if oObject has an effect with sTag
+int GetHasEffectWithTag(object oObject, string sTag);
+
 // Convert nSeconds to a string timestamp
 string SecondsToStringTimestamp(int nSeconds);
 
@@ -319,6 +322,18 @@ int GetHasEffectType(object oObject, int nEffectType)
     return FALSE;
 }
 
+int GetHasEffectWithTag(object oObject, string sTag)
+{
+    effect eEffect = GetFirstEffect(oObject);
+    while (GetIsEffectValid(eEffect))
+    {
+        if (GetEffectTag(eEffect) == sTag)
+            return TRUE;
+        eEffect = GetNextEffect(oObject);
+    }
+    return FALSE;
+}
+
 string SecondsToStringTimestamp(int nSeconds)
 {
     sqlquery sql;
@@ -377,17 +392,17 @@ int clamp(int nValue, int nMin, int nMax)
 
 void DeleteLocalVector(object oObject, string sVarName)
 {
-    DeleteLocalLocation(oObject, "VEC:" + sVarName);
+    DeleteLocalLocation(oObject, "VECTOR_" + sVarName);
 }
 
 vector GetLocalVector(object oObject, string sVarName)
 {
-    return GetPositionFromLocation(GetLocalLocation(oObject, "VEC:" + sVarName));
+    return GetPositionFromLocation(GetLocalLocation(oObject, "VECTOR_" + sVarName));
 }
 
 void SetLocalVector(object oObject, string sVarName, vector vValue)
 {
-    SetLocalLocation(oObject, "VEC:" + sVarName, Location(OBJECT_INVALID, vValue, 0.0f));
+    SetLocalLocation(oObject, "VECTOR_" + sVarName, Location(OBJECT_INVALID, vValue, 0.0f));
 }
 
 int HexStringToInt(string sString)

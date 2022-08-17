@@ -3,8 +3,6 @@
     Author: Daz
 */
 
-//void main() {}
-
 #include "ef_i_core"
 #include "ef_s_areagen"
 #include "ef_s_endlesspath"
@@ -76,8 +74,19 @@ void ED_OnAreaPostProcessed()
     }
 }
 
+// @EVENT[EVENT_SCRIPT_MODULE_ON_MODULE_LOAD]
+void ED_ModuleLoad()
+{
+    object oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_deer", GetStartingLocation());
+    
+    AIMan_SetBehavior(oCreature, ED_AIBEHAVIOR_NAME);
+}
+
+
 // @AIMANEVENT[ED_AIBEHAVIOR_NAME:EVENT_SCRIPT_CREATURE_ON_SPAWN_IN]
 void ED_AIBehavior_OnSpawn()
 {
+    PrintString("ED_AIBehavior_OnSpawn");
+    
     ActionRandomWalk();
 }

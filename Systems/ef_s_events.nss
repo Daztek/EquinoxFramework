@@ -9,8 +9,6 @@
 #include "ef_i_core"
 #include "nwnx_events"
 
-//void main() {}
-
 const string EVENTS_SCRIPT_NAME                         = "ef_s_events";
 const string EVENTS_LOG_TAG                             = "Events";
 
@@ -42,6 +40,7 @@ object Events_GetObject(string sTag);
 vector Events_GetVector(string sTagX, string sTagY, string sTagZ);
 location Events_GetLocation(string sTagArea, string sTagX, string sTagY, string sTagZ);
 void Events_SetAreaEventScripts(object oArea, int bSetHeartbeat = EVENTS_HOOK_AREA_HEARTBEAT);
+void Events_ClearCreatureEventScripts(object oCreature);
 
 // @CORE[EF_SYSTEM_INIT]
 void Events_Init()
@@ -236,3 +235,11 @@ void Events_SetAreaEventScripts(object oArea, int bSetHeartbeat = EVENTS_HOOK_AR
     }
 }
 
+void Events_ClearCreatureEventScripts(object oCreature)
+{
+    int nEvent;
+    for(nEvent = EVENT_SCRIPT_CREATURE_ON_HEARTBEAT; nEvent <= EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR; nEvent++)
+    {
+        SetEventScript(oCreature, nEvent, "");
+    }    
+}

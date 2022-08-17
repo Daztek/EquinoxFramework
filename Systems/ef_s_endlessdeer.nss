@@ -8,6 +8,7 @@
 #include "ef_i_core"
 #include "ef_s_areagen"
 #include "ef_s_endlesspath"
+#include "ef_s_aiman"
 
 const string ED_LOG_TAG                 = "EndlessDeer";
 const string ED_SCRIPT_NAME             = "ef_s_endlessdeer";
@@ -19,6 +20,8 @@ const int ED_PATH_DISTANCE_NO_ROAD      = 0;
 const int ED_GROUP_TILE                 = FALSE;
 
 const float ED_SPAWN_DELAY              = 0.05f;
+
+const string ED_AIBEHAVIOR_NAME         = "EndlessDeerAI";
 
 int ED_GetNumSpawnTiles(string sAreaID)
 {
@@ -37,7 +40,8 @@ int ED_GetNumSpawnTiles(string sAreaID)
 void ED_SpawnDeer(location locSpawn)
 {
     object oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_deer", locSpawn);
-    AssignCommand(oCreature, ActionRandomWalk());
+    
+    AIMan_SetBehavior(oCreature, ED_AIBEHAVIOR_NAME);
 }
 
 // @EVENT[EP_AREA_POST_PROCESS_FINISHED]
@@ -72,3 +76,8 @@ void ED_OnAreaPostProcessed()
     }
 }
 
+// @AIMANEVENT[ED_AIBEHAVIOR_NAME:EVENT_SCRIPT_CREATURE_ON_SPAWN_IN]
+void ED_AIBehavior_OnSpawn()
+{
+    ActionRandomWalk();
+}

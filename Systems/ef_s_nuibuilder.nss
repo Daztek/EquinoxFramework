@@ -452,6 +452,7 @@ json NB_GetWindow()
 {
     return GetLocalJson(GetDataObject(NB_SCRIPT_NAME), NB_WINDOW);
 }
+
 void NB_SetWindow(json jWindow)
 {
     SetLocalJson(GetDataObject(NB_SCRIPT_NAME), NB_WINDOW, jWindow);

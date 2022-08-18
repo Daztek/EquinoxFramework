@@ -21,6 +21,7 @@ void AIMan_SetBehavior(object oCreature, string sBehavior);
 void AIMan_UnsetBehavior(object oCreature);
 int AIMan_GetTimeOut(string sTimeoutFlag, object oCreature = OBJECT_SELF);
 void AIMan_SetTimeOut(string sTimeoutFlag, float fSeconds, object oCreature = OBJECT_SELF);
+void AIMan_ApplyCutsceneGhost(object oCreature = OBJECT_SELF);
 
 // @CORE[EF_SYSTEM_INIT]
 void AIMan_Init()
@@ -43,9 +44,11 @@ string AIMan_GetBehavior(object oCreature)
 void AIMan_SetBehavior(object oCreature, string sBehavior)
 {
     if (sBehavior == "")
-        return;
+        return;         
     
     //struct ProfilerData pd = Profiler_Start("AIMan_SetBehavior: " + sBehavior);
+
+    AIMan_UnsetBehavior(oCreature); 
 
     SetLocalString(oCreature, AIMAN_BEHAVIOR_NAME, sBehavior);
     Events_ClearCreatureEventScripts(oCreature);
@@ -136,6 +139,11 @@ void AIMan_SetTimeOut(string sTimeoutFlag, float fSeconds, object oCreature = OB
 {
     SetLocalInt(oCreature, sTimeoutFlag, AIMan_GetTimeOut(sTimeoutFlag, oCreature) + 1);
     DelayCommand(fSeconds, SetLocalInt(oCreature, sTimeoutFlag, AIMan_GetTimeOut(sTimeoutFlag, oCreature) - 1));
+}
+
+void AIMan_ApplyCutsceneGhost(object oCreature = OBJECT_SELF)
+{
+    ApplyEffectToObject(DURATION_TYPE_PERMANENT, ExtraordinaryEffect(EffectCutsceneGhost()), oCreature);
 }
 
 string AIMan_GetBehaviorEventName(string sBehavior, int nEventType)

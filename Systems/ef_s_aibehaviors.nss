@@ -25,15 +25,16 @@ void AIB_Init()
 
 void AIB_EnableWanderFleeBehavior(object oCreature)
 {
-    AIMan_UnsetBehavior(oCreature);
     AIMan_SetBehavior(oCreature, AIB_BEHAVIOR_WANDERFLEE);
 }
 
 // @AIMANEVENT[AIB_BEHAVIOR_WANDERFLEE:EVENT_SCRIPT_CREATURE_ON_SPAWN_IN]
 void AIB_WanderFlee_OnSpawn()
 {
-    PerAOE_Apply(OBJECT_SELF, PERAOE_SIZE_5, AIB_BEHAVIOR_WANDERFLEE, AIB_SCRIPT_NAME, "AIB_WanderFlee_OnEnterAoE");
-    
+    PerAOE_Apply(OBJECT_SELF, 7.5f, AIB_BEHAVIOR_WANDERFLEE, AIB_SCRIPT_NAME, "AIB_WanderFlee_OnEnterAoE");
+
+    AIMan_ApplyCutsceneGhost();
+
     ActionRandomWalk();
 }
 

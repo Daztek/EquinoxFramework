@@ -86,7 +86,7 @@ string Events_GetSystemEventScriptChunk(string sSystem, string sEvent)
 
 void Events_SubscribeEventChunk(string sSystem, string sEvent, string sScriptChunk, int bWrapIntoMain = FALSE, int bDispatchListMode = FALSE)
 {
-    WriteLog(EVENTS_LOG_TAG, "* System '" + sSystem + "' subscribed to event '" + sEvent + "'" + (bDispatchListMode ? ", DL=TRUE" : ""));
+    WriteLog(EVENTS_LOG_TAG, "* System '" + sSystem + "' subscribed to event '" + sEvent + "'" + (bDispatchListMode ? " with dispatch list" : ""));
 
     NWNX_Events_SubscribeEventScriptChunk(sEvent, sScriptChunk, bWrapIntoMain);
     if (bDispatchListMode)

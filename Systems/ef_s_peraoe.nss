@@ -4,6 +4,7 @@
 */
 
 #include "ef_i_core"
+#include "nwnx_object"
 
 const string PERAOE_LOG_TAG                         = "PersistentAoE";
 const string PERAOE_SCRIPT_NAME                     = "ef_s_peraoe";
@@ -12,11 +13,8 @@ const string PERAOE_SCRIPT_ON_ENTER                 = "ef_s_peraoe_oen";
 const string PERAOE_SCRIPT_ON_EXIT                  = "ef_s_peraoe_oex";
 const string PERAOE_SCRIPT_ON_HEARTBEAT             = "ef_s_peraoe_ohb";
 
-// TODO: Add Custom Sizes
-const int PERAOE_SIZE_5                             = 37;
-const int PERAOE_SIZE_10                            = 44;
 
-void PerAOE_Apply(object oTarget, int nSize, string sEffecTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "");
+void PerAOE_Apply(object oTarget, float fRadius, string sEffecTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "");
 
 void PerAOE_AddScript(string sScript)
 {
@@ -49,7 +47,7 @@ string PerAOE_SetScriptChunk(object oTarget, string sScript, string sSystem, str
     return sScript;
 }
 
-void PerAOE_Apply(object oTarget, int nSize, string sEffecTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "")
+void PerAOE_Apply(object oTarget, float fRadius, string sEffecTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "")
 {
     RemoveEffectsWithTag(oTarget, sEffecTag);
 
@@ -59,10 +57,14 @@ void PerAOE_Apply(object oTarget, int nSize, string sEffecTag, string sSystem, s
     sOnEnterFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_ENTER, sSystem, sOnEnterFunction);
     sOnExitFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_EXIT, sSystem, sOnExitFunction);
     sOnHeartbeatFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_HEARTBEAT, sSystem, sOnHeartbeatFunction);    
-    
-    effect eAoE = EffectAreaOfEffect(nSize, sOnEnterFunction, sOnHeartbeatFunction, sOnExitFunction);
+
+    effect eAoE = EffectAreaOfEffect(37, sOnEnterFunction, sOnHeartbeatFunction, sOnExitFunction);
            eAoE = TagEffect(eAoE, sEffecTag);
            eAoE = ExtraordinaryEffect(eAoE);
 
     ApplyEffectToObject(DURATION_TYPE_PERMANENT, eAoE, oTarget);
+
+    object oAoE = NWNX_Util_GetLastCreatedObject(NWNX_OBJECT_TYPE_INTERNAL_AREAOFEFFECT);
+    if (GetIsObjectValid(oAoE))
+        NWNX_Object_SetAoEObjectRadius(oAoE, fRadius);
 }

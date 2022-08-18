@@ -13,7 +13,6 @@ const string PERAOE_SCRIPT_ON_ENTER                 = "ef_s_peraoe_oen";
 const string PERAOE_SCRIPT_ON_EXIT                  = "ef_s_peraoe_oex";
 const string PERAOE_SCRIPT_ON_HEARTBEAT             = "ef_s_peraoe_ohb";
 
-
 void PerAOE_Apply(object oTarget, float fRadius, string sEffecTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "");
 
 void PerAOE_AddScript(string sScript)

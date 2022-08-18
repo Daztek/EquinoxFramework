@@ -19,7 +19,8 @@ const int ED_GROUP_TILE                 = FALSE;
 
 const float ED_SPAWN_DELAY              = 0.05f;
 
-const string ED_AIBEHAVIOR_NAME         = "EndlessDeerAI";
+const int ED_AREA_SPAWN_STAG_CHANCE     = 25;
+const string ED_AREA_SPAWNED_STAG       = "EDSpawnedStag";
 
 int ED_GetNumSpawnTiles(string sAreaID)
 {
@@ -35,11 +36,19 @@ int ED_GetNumSpawnTiles(string sAreaID)
     return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
 }
 
-void ED_SpawnDeer(location locSpawn)
+void ED_SpawnDeer(object oArea, location locSpawn)
 {
-    object oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_deer", locSpawn);
-    
-    AIB_EnableWanderFleeBehavior(oCreature);
+    if (!GetLocalInt(oArea, ED_AREA_SPAWNED_STAG) && (Random(100) < ED_AREA_SPAWN_STAG_CHANCE))
+    {
+        object oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_deerstag", locSpawn);  
+        AIB_EnableChargeFleeBehavior(oCreature);
+        SetLocalInt(oArea, ED_AREA_SPAWNED_STAG, TRUE);
+    }
+    else
+    {
+        object oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_deer", locSpawn);    
+        AIB_EnableWanderFleeBehavior(oCreature);
+    }
 }
 
 // @EVENT[EP_AREA_POST_PROCESS_FINISHED]
@@ -70,7 +79,7 @@ void ED_OnAreaPostProcessed()
     while (SqlStep(sql))
     {
         location locTile = Location(oArea, GetTilePosition(SqlGetInt(sql, 0), SqlGetInt(sql, 1)), IntToFloat(Random(360)));
-        DelayCommand(ED_SPAWN_DELAY * nCount++, ED_SpawnDeer(locTile));
+        DelayCommand(ED_SPAWN_DELAY * nCount++, ED_SpawnDeer(oArea, locTile));
     }
 }
 

@@ -6,8 +6,7 @@
 #include "ef_i_core"
 #include "ef_s_areagen"
 #include "ef_s_endlesspath"
-#include "ef_s_aiman"
-#include "ef_s_peraoe"
+#include "ef_s_aibehaviors"
 
 const string ED_LOG_TAG                 = "EndlessDeer";
 const string ED_SCRIPT_NAME             = "ef_s_endlessdeer";
@@ -40,7 +39,7 @@ void ED_SpawnDeer(location locSpawn)
 {
     object oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_deer", locSpawn);
     
-    AIMan_SetBehavior(oCreature, ED_AIBEHAVIOR_NAME);
+    AIB_EnableWanderFleeBehavior(oCreature);
 }
 
 // @EVENT[EP_AREA_POST_PROCESS_FINISHED]
@@ -75,39 +74,3 @@ void ED_OnAreaPostProcessed()
     }
 }
 
-// @EVENT[EVENT_SCRIPT_MODULE_ON_MODULE_LOAD]
-void ED_ModuleLoad()
-{
-    object oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_deer", GetStartingLocation());
-    
-    AIMan_SetBehavior(oCreature, ED_AIBEHAVIOR_NAME);
-}
-
-
-// @AIMANEVENT[ED_AIBEHAVIOR_NAME:EVENT_SCRIPT_CREATURE_ON_SPAWN_IN]
-void ED_AIBehavior_OnSpawn()
-{
-    PerAOE_Apply(OBJECT_SELF, PERAOE_SIZE_5, ED_SCRIPT_NAME, "ED_AIBehavior_OnAoEEnter");
-    
-    ActionRandomWalk();
-}
-
-void ED_AIBehavior_OnAoEEnter()
-{
-    object oSelf = GetAreaOfEffectCreator();
-    object oPlayer = GetEnteringObject();
-
-    if (!GetIsPC(oPlayer))
-        return; 
-
-    if (!AIMan_GetTimeOut("EDFleeTimeOut", oSelf))
-    {
-        AIMan_SetTimeOut("EDFleeTimeOut", 2.5f, oSelf);
-
-        PlayVoiceChat(VOICE_CHAT_GATTACK1 + Random(3), oSelf);
-
-        AssignCommand(oSelf, ClearAllActions());
-        AssignCommand(oSelf, ActionMoveAwayFromObject(oPlayer, TRUE, 10.0f + IntToFloat(Random(5))));    
-        AssignCommand(oSelf, ActionRandomWalk());
-    }
-}

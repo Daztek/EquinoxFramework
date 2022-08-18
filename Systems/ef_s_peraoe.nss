@@ -12,10 +12,11 @@ const string PERAOE_SCRIPT_ON_ENTER                 = "ef_s_peraoe_oen";
 const string PERAOE_SCRIPT_ON_EXIT                  = "ef_s_peraoe_oex";
 const string PERAOE_SCRIPT_ON_HEARTBEAT             = "ef_s_peraoe_ohb";
 
+// TODO: Add Custom Sizes
 const int PERAOE_SIZE_5                             = 37;
 const int PERAOE_SIZE_10                            = 44;
 
-void PerAOE_Apply(object oTarget, int nSize, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "");
+void PerAOE_Apply(object oTarget, int nSize, string sEffecTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "");
 
 void PerAOE_AddScript(string sScript)
 {
@@ -48,9 +49,9 @@ string PerAOE_SetScriptChunk(object oTarget, string sScript, string sSystem, str
     return sScript;
 }
 
-void PerAOE_Apply(object oTarget, int nSize, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "")
+void PerAOE_Apply(object oTarget, int nSize, string sEffecTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "")
 {
-    RemoveEffectsWithTag(oTarget, PERAOE_SCRIPT_NAME);
+    RemoveEffectsWithTag(oTarget, sEffecTag);
 
     if (sOnEnterFunction == "" && sOnExitFunction == "" && sOnHeartbeatFunction == "")
         return;
@@ -60,7 +61,7 @@ void PerAOE_Apply(object oTarget, int nSize, string sSystem, string sOnEnterFunc
     sOnHeartbeatFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_HEARTBEAT, sSystem, sOnHeartbeatFunction);    
     
     effect eAoE = EffectAreaOfEffect(nSize, sOnEnterFunction, sOnHeartbeatFunction, sOnExitFunction);
-           eAoE = TagEffect(eAoE, PERAOE_SCRIPT_NAME);
+           eAoE = TagEffect(eAoE, sEffecTag);
            eAoE = ExtraordinaryEffect(eAoE);
 
     ApplyEffectToObject(DURATION_TYPE_PERMANENT, eAoE, oTarget);

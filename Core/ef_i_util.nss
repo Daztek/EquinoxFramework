@@ -408,9 +408,8 @@ void SetLocalVector(object oObject, string sVarName, vector vValue)
 int HexStringToInt(string sString)
 {
     sString = GetStringLowerCase(sString);
-    int nResult = 0;
-    int nLength = GetStringLength(sString);
-    int i;
+    int nResult, nLength = GetStringLength(sString), i;
+
     for (i = nLength - 1; i >= 0; i--)
     {
         int n = FindSubString("0123456789abcdef", GetSubString(sString, i, 1));
@@ -420,4 +419,3 @@ int HexStringToInt(string sString)
     }
     return nResult;
 }
-

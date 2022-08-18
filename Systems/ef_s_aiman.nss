@@ -19,6 +19,8 @@ const string AIMAN_BEHAVIOR_NAME                = "AIManBehavior";
 string AIMan_GetBehavior(object oCreature);
 void AIMan_SetBehavior(object oCreature, string sBehavior);
 void AIMan_UnsetBehavior(object oCreature);
+int AIMan_GetTimeOut(string sTimeoutFlag, object oCreature = OBJECT_SELF);
+void AIMan_SetTimeOut(string sTimeoutFlag, float fSeconds, object oCreature = OBJECT_SELF);
 
 // @CORE[EF_SYSTEM_INIT]
 void AIMan_Init()
@@ -43,7 +45,7 @@ void AIMan_SetBehavior(object oCreature, string sBehavior)
     if (sBehavior == "")
         return;
     
-    struct ProfilerData pd = Profiler_Start("AIMan_SetBehavior: " + sBehavior);
+    //struct ProfilerData pd = Profiler_Start("AIMan_SetBehavior: " + sBehavior);
 
     SetLocalString(oCreature, AIMAN_BEHAVIOR_NAME, sBehavior);
     Events_ClearCreatureEventScripts(oCreature);
@@ -78,7 +80,7 @@ void AIMan_SetBehavior(object oCreature, string sBehavior)
         Events_AddObjectToDispatchList(AIMAN_SCRIPT_NAME, Events_GetObjectEventName(EVENT_SCRIPT_CREATURE_ON_DEATH), oCreature);       
     }   
 
-    Profiler_Stop(pd);
+    //Profiler_Stop(pd);
 }
 
 void AIMan_UnsetBehavior(object oCreature)
@@ -88,7 +90,7 @@ void AIMan_UnsetBehavior(object oCreature)
     if (sBehavior == "")
         return;
 
-    struct ProfilerData pd = Profiler_Start("AIMan_UnsetBehavior: " + sBehavior);        
+    //struct ProfilerData pd = Profiler_Start("AIMan_UnsetBehavior: " + sBehavior);        
         
     DeleteLocalString(oCreature, AIMAN_BEHAVIOR_NAME);
 
@@ -122,7 +124,18 @@ void AIMan_UnsetBehavior(object oCreature)
         NWNX_Events_RemoveObjectFromDispatchList(AIMAN_SCRIPT_NAME, Events_GetObjectEventName(EVENT_SCRIPT_CREATURE_ON_DEATH), oCreature);       
     }  
 
-    Profiler_Stop(pd);    
+    //Profiler_Stop(pd);    
+}
+
+int AIMan_GetTimeOut(string sTimeoutFlag, object oCreature = OBJECT_SELF)
+{
+    return GetLocalInt(oCreature, sTimeoutFlag);
+}
+
+void AIMan_SetTimeOut(string sTimeoutFlag, float fSeconds, object oCreature = OBJECT_SELF)
+{
+    SetLocalInt(oCreature, sTimeoutFlag, AIMan_GetTimeOut(sTimeoutFlag, oCreature) + 1);
+    DelayCommand(fSeconds, SetLocalInt(oCreature, sTimeoutFlag, AIMan_GetTimeOut(sTimeoutFlag, oCreature) - 1));
 }
 
 string AIMan_GetBehaviorEventName(string sBehavior, int nEventType)
@@ -162,24 +175,30 @@ void AIMan_RegisterAIBehaviorEvent(json jAIEventData)
     }
 }
 
-int AIMan_GetBehaviorHasEvent(string sBehavior, int nEventType)
+string AIMan_GetBehaviorHasEvent(string sBehavior, int nEventType)
 {
-    sqlquery sql = SqlPrepareQueryModule("SELECT * FROM " + AIMAN_SCRIPT_NAME + " WHERE behavior = @behavior AND eventtype = @eventtype;");
+    sqlquery sql = SqlPrepareQueryModule("SELECT eventname FROM " + AIMAN_SCRIPT_NAME + " WHERE behavior = @behavior AND eventtype = @eventtype LIMIT 1;");
     SqlBindString(sql, "@behavior", sBehavior);
     SqlBindInt(sql, "@eventtype", nEventType);
 
-    return SqlStep(sql);
+    return SqlStep(sql) ? SqlGetString(sql, 0) : ""; 
 }
 
 void AIMan_SignalAIEvent(int nEventType)
 {
+    //struct ProfilerData pd = Profiler_Start("AIMan_SignalAIEvent");
+
     object oCreature = OBJECT_SELF;
     string sBehavior = AIMan_GetBehavior(oCreature);
 
-    if (sBehavior != "" && AIMan_GetBehaviorHasEvent(sBehavior, nEventType))
+    if (sBehavior != "")
     {
-        Events_SignalEvent(AIMan_GetBehaviorEventName(sBehavior, nEventType), oCreature);      
+        string sEvent = AIMan_GetBehaviorHasEvent(sBehavior, nEventType);
+        if (sEvent != "")
+            Events_SignalEvent(sEvent, oCreature);      
     }
+
+    //Profiler_Stop(pd);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_HEARTBEAT]

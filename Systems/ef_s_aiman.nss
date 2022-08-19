@@ -12,6 +12,7 @@
 
 const string AIMAN_LOG_TAG                      = "AIManager";
 const string AIMAN_SCRIPT_NAME                  = "ef_s_aiman";
+const int AIMAN_DEBUG_EVENTS                    = FALSE;
 
 const string AIMAN_EVENT_NAME_PREFIX            = "AIMANEVENT_";
 const string AIMAN_BEHAVIOR_NAME                = "AIManBehavior";
@@ -29,7 +30,6 @@ void AIMan_Init()
     string sQuery = "CREATE TABLE IF NOT EXISTS " + AIMAN_SCRIPT_NAME + "(" +
                     "behavior TEXT NOT NULL, " +
                     "eventtype INTEGER NOT NULL, " +
-                    "eventname TEXT NOT NULL, " +
                     "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
@@ -49,23 +49,17 @@ void AIMan_SetBehavior(object oCreature, string sBehavior)
     //struct ProfilerData pd = Profiler_Start("AIMan_SetBehavior: " + sBehavior);
 
     AIMan_UnsetBehavior(oCreature); 
-
     SetLocalString(oCreature, AIMAN_BEHAVIOR_NAME, sBehavior);
     Events_ClearCreatureEventScripts(oCreature);
 
-    string sQuery = "SELECT eventtype, eventname, scriptchunk FROM " + AIMAN_SCRIPT_NAME + " WHERE behavior = @behavior ORDER BY eventtype;";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
+    int nLastEventType = 0, bHandleOnDeath = TRUE;
+    sqlquery sql = SqlPrepareQueryModule("SELECT eventtype FROM " + AIMAN_SCRIPT_NAME + " WHERE behavior = @behavior ORDER BY eventtype;");
     SqlBindString(sql, "@behavior", sBehavior);
 
-    int nLastEventType = 0, bHandleOnDeath = TRUE;
     while (SqlStep(sql))
     {
         int nEventType = SqlGetInt(sql, 0);
-        string sEvent = SqlGetString(sql, 1);
-        string sScriptChunk = SqlGetString(sql, 2);
         
-        NWNX_Events_AddObjectToDispatchList(sEvent, sScriptChunk, oCreature);
-
         if (nEventType == EVENT_SCRIPT_CREATURE_ON_DEATH)
             bHandleOnDeath = FALSE;   
         
@@ -97,18 +91,13 @@ void AIMan_UnsetBehavior(object oCreature)
         
     DeleteLocalString(oCreature, AIMAN_BEHAVIOR_NAME);
 
-    string sQuery = "SELECT eventtype, eventname, scriptchunk FROM " + AIMAN_SCRIPT_NAME + " WHERE behavior = @behavior ORDER BY eventtype;";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
+    int nLastEventType = 0, bHandleOnDeath = TRUE;
+    sqlquery sql = SqlPrepareQueryModule("SELECT eventtype FROM " + AIMAN_SCRIPT_NAME + " WHERE behavior = @behavior ORDER BY eventtype;");
     SqlBindString(sql, "@behavior", sBehavior);
 
-    int nLastEventType = 0, bHandleOnDeath = TRUE;
     while (SqlStep(sql))
     {
         int nEventType = SqlGetInt(sql, 0);
-        string sEvent = SqlGetString(sql, 1);
-        string sScriptChunk = SqlGetString(sql, 2);
-
-        NWNX_Events_RemoveObjectFromDispatchList(sEvent, sScriptChunk, oCreature);
 
         if (nEventType == EVENT_SCRIPT_CREATURE_ON_DEATH)
             bHandleOnDeath = FALSE;   
@@ -164,46 +153,43 @@ void AIMan_RegisterAIBehaviorEvent(json jAIEventData)
         WriteLog(AIMAN_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);        
     else
     {
-        object oDataObject = GetDataObject(AIMAN_SCRIPT_NAME);
-        string sEvent = AIMan_GetBehaviorEventName(sBehavior, nEventType);
-        string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
-
-        string sQuery = "INSERT INTO " + AIMAN_SCRIPT_NAME + "(behavior, eventtype, eventname, scriptchunk) VALUES(@behavior, @eventtype, @eventname, @scriptchunk);";
-        sqlquery sql = SqlPrepareQueryModule(sQuery);
+        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + AIMAN_SCRIPT_NAME + "(behavior, eventtype, scriptchunk) VALUES(@behavior, @eventtype, @scriptchunk);");
         SqlBindString(sql, "@behavior", sBehavior);
         SqlBindInt(sql, "@eventtype", nEventType);
-        SqlBindString(sql, "@eventname", sEvent);
-        SqlBindString(sql, "@scriptchunk", sScriptChunk);
+        SqlBindString(sql, "@scriptchunk", nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction)));
         SqlStep(sql);
-
-        NWNX_Events_SubscribeEventScriptChunk(sEvent, sScriptChunk, FALSE);
-        NWNX_Events_ToggleDispatchListMode(sEvent, sScriptChunk, TRUE);
 
         WriteLog(AIMAN_LOG_TAG, "* System '" + sSystem + "' registered '" + sFunction + "' for behavior '" + sBehavior + "' and event '" + sEventType + "'");
     }
 }
 
-string AIMan_GetBehaviorHasEvent(string sBehavior, int nEventType)
+void AIMan_HandleAIEvent(int nEventType)
 {
-    sqlquery sql = SqlPrepareQueryModule("SELECT eventname FROM " + AIMAN_SCRIPT_NAME + " WHERE behavior = @behavior AND eventtype = @eventtype LIMIT 1;");
-    SqlBindString(sql, "@behavior", sBehavior);
-    SqlBindInt(sql, "@eventtype", nEventType);
-
-    return SqlStep(sql) ? SqlGetString(sql, 0) : ""; 
-}
-
-void AIMan_SignalAIEvent(int nEventType)
-{
-    //struct ProfilerData pd = Profiler_Start("AIMan_SignalAIEvent");
+    //struct ProfilerData pd = Profiler_Start("AIMan_HandleAIEvent");
 
     object oCreature = OBJECT_SELF;
     string sBehavior = AIMan_GetBehavior(oCreature);
 
     if (sBehavior != "")
     {
-        string sEvent = AIMan_GetBehaviorHasEvent(sBehavior, nEventType);
-        if (sEvent != "")
-            Events_SignalEvent(sEvent, oCreature);      
+        sqlquery sql = SqlPrepareQueryModule("SELECT scriptchunk FROM " + AIMAN_SCRIPT_NAME + " WHERE behavior = @behavior AND eventtype = @eventtype;");
+        SqlBindString(sql, "@behavior", sBehavior);
+        SqlBindInt(sql, "@eventtype", nEventType);
+
+        while (SqlStep(sql))
+        {
+            string sScriptchunk = SqlGetString(sql, 0);
+
+            if (sScriptchunk != "")
+            {
+                string sError = ExecuteCachedScriptChunk(sScriptchunk, oCreature, FALSE);
+
+                if (AIMAN_DEBUG_EVENTS && sError != "")
+                {
+                    WriteLog(AIMAN_LOG_TAG, "DEBUG: '" + GetName(oCreature) + "' failed event '" + IntToString(nEventType) + "' for behavior '" + sBehavior + "' with error: " + sError);
+                }
+            }
+        }
     }
 
     //Profiler_Stop(pd);
@@ -212,67 +198,67 @@ void AIMan_SignalAIEvent(int nEventType)
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_HEARTBEAT]
 void AIMan_OnHeartBeat()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_HEARTBEAT);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_HEARTBEAT);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_NOTICE]
 void AIMan_OnPerception()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_NOTICE);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_NOTICE);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_SPELLCASTAT]
 void AIMan_OnSpellCastAt()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_SPELLCASTAT);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_SPELLCASTAT);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_MELEE_ATTACKED]
 void AIMan_OnPhysicalAttacked()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_MELEE_ATTACKED);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_MELEE_ATTACKED);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_DAMAGED]
 void AIMan_OnDamaged()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_DAMAGED);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DAMAGED);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_DISTURBED]
 void AIMan_OnDisturbed()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_DISTURBED);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DISTURBED);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_END_COMBATROUND]
 void AIMan_OnCombatRoundEnd()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_END_COMBATROUND);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_END_COMBATROUND);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_DIALOGUE]
 void AIMan_OnConversation()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_DIALOGUE);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DIALOGUE);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_SPAWN_IN]
 void AIMan_OnSpawn()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_SPAWN_IN);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_SPAWN_IN);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_RESTED]
 void AIMan_OnRested()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_RESTED);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_RESTED);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_DEATH]
 void AIMan_OnDeath()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_DEATH);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DEATH);
 
     AIMan_UnsetBehavior(OBJECT_SELF);
 }
@@ -280,11 +266,11 @@ void AIMan_OnDeath()
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_USER_DEFINED_EVENT]
 void AIMan_OnUserDefined()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_USER_DEFINED_EVENT);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_USER_DEFINED_EVENT);
 }
 
 // @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR]
 void AIMan_OnBlocked()
 {
-    AIMan_SignalAIEvent(EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR);
+    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR);
 }

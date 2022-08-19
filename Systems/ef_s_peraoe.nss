@@ -9,11 +9,13 @@
 const string PERAOE_LOG_TAG                         = "PersistentAoE";
 const string PERAOE_SCRIPT_NAME                     = "ef_s_peraoe";
 
+const int AOE_MOB_CUSTOM                            = 37;
+
 const string PERAOE_SCRIPT_ON_ENTER                 = "ef_s_peraoe_oen";
 const string PERAOE_SCRIPT_ON_EXIT                  = "ef_s_peraoe_oex";
 const string PERAOE_SCRIPT_ON_HEARTBEAT             = "ef_s_peraoe_ohb";
 
-void PerAOE_Apply(object oTarget, float fRadius, string sEffecTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "");
+void PerAOE_Apply(object oTarget, float fRadius, string sEffectTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "");
 
 void PerAOE_AddScript(string sScript)
 {
@@ -41,14 +43,14 @@ string PerAOE_SetScriptChunk(object oTarget, string sScript, string sSystem, str
         return "";
     }
     
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
-    SetLocalString(oTarget, sScript, sScriptChunk);
+    SetLocalString(oTarget, sScript, nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction)));
+
     return sScript;
 }
 
-void PerAOE_Apply(object oTarget, float fRadius, string sEffecTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "")
+void PerAOE_Apply(object oTarget, float fRadius, string sEffectTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "")
 {
-    RemoveEffectsWithTag(oTarget, sEffecTag);
+    RemoveEffectsWithTag(oTarget, sEffectTag);
 
     if (sOnEnterFunction == "" && sOnExitFunction == "" && sOnHeartbeatFunction == "")
         return;
@@ -57,8 +59,8 @@ void PerAOE_Apply(object oTarget, float fRadius, string sEffecTag, string sSyste
     sOnExitFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_EXIT, sSystem, sOnExitFunction);
     sOnHeartbeatFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_HEARTBEAT, sSystem, sOnHeartbeatFunction);    
 
-    effect eAoE = EffectAreaOfEffect(37, sOnEnterFunction, sOnHeartbeatFunction, sOnExitFunction);
-           eAoE = TagEffect(eAoE, sEffecTag);
+    effect eAoE = EffectAreaOfEffect(AOE_MOB_CUSTOM, sOnEnterFunction, sOnHeartbeatFunction, sOnExitFunction);
+           eAoE = TagEffect(eAoE, sEffectTag);
            eAoE = ExtraordinaryEffect(eAoE);
 
     ApplyEffectToObject(DURATION_TYPE_PERMANENT, eAoE, oTarget);

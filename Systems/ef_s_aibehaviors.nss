@@ -83,7 +83,7 @@ void AIB_ChargeFlee_OnSpawn()
 
 void AIB_ChargeFlee_Knockdown(object oPlayer)
 {
-    ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectKnockdown(), oPlayer, 6.0f);
+    ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectKnockdown(), oPlayer, 3.0f);
     ApplyEffectToObject(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_COM_CHUNK_RED_SMALL), oPlayer);
     ApplyEffectToObject(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_COM_CHUNK_BONE_MEDIUM), oPlayer);
 }

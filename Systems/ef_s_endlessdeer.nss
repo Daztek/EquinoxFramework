@@ -19,7 +19,7 @@ const int ED_GROUP_TILE                 = FALSE;
 
 const float ED_SPAWN_DELAY              = 0.05f;
 
-const int ED_AREA_SPAWN_STAG_CHANCE     = 25;
+const int ED_AREA_SPAWN_STAG_CHANCE     = 10;
 const string ED_AREA_SPAWNED_STAG       = "EDSpawnedStag";
 
 int ED_GetNumSpawnTiles(string sAreaID)

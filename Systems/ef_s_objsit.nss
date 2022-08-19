@@ -5,8 +5,6 @@
     Description:
 */
 
-//void main() {}
-
 #include "ef_i_core"
 #include "ef_s_events"
 #include "ef_s_gfftools"

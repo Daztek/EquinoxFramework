@@ -6,8 +6,6 @@
     @ANNOTATION[@(TARGETMODE)\[([\w]+)\][\n|\r]+[a-z]+\s([\w]+)\(]
 */
 
-//void main() {}
-
 #include "ef_i_core"
 
 const string TARGETMODE_LOG_TAG                 = "TargetMode";
@@ -43,7 +41,7 @@ void _SetEnterTargetingModeData(object oPlayer, int nShape, float fSizeX, float 
 // @CORE[EF_SYSTEM_INIT]
 void GuiEvent_Init()
 {
-    EFCore_ExecuteFunctionOnAnnotationData(TARGETMODE_SCRIPT_NAME, "TARGETMODE", "TargetMode_RegisterFunction({DATA});");
+    EFCore_ExecuteFunctionOnAnnotationData(TARGETMODE_SCRIPT_NAME, "TARGETMODE", "TargetMode_RegisterFunction");
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_TARGET]

@@ -16,12 +16,6 @@ const string AIB_BEHAVIOR_CHARGEFLEE            = "AIBChargeFlee";
 void AIB_EnableWanderFleeBehavior(object oCreature);
 void AIB_EnableChargeFleeBehavior(object oCreature);
 
-// @CORE[EF_SYSTEM_INIT]
-void AIB_Init()
-{
-
-}
-
 // ***
 // WanderFlee behavior
 
@@ -41,11 +35,10 @@ void AIB_WanderFlee_OnSpawn()
 void AIB_WanderFlee_OnEnterAoE()
 {
     object oPlayer = GetEnteringObject();
-
-    if (!GetIsPC(oPlayer))
-        return; 
-
     object oSelf = GetAreaOfEffectCreator();
+
+    if (!GetIsPC(oPlayer) && GetObjectSeen(oPlayer, oSelf))
+        return;
 
     if (!AIMan_GetTimeOut("AIBWanderFleeTimeOut", oSelf))
     {
@@ -91,11 +84,10 @@ void AIB_ChargeFlee_Knockdown(object oPlayer)
 void AIB_ChargeFlee_OnEnterAoE()
 {
     object oPlayer = GetEnteringObject();
-
-    if (!GetIsPC(oPlayer))
-        return; 
-
     object oSelf = GetAreaOfEffectCreator();
+
+    if (!GetIsPC(oPlayer) && GetObjectSeen(oPlayer, oSelf))
+        return;
 
     if (!AIMan_GetTimeOut("AIBChargeFleeTimeOut", oSelf))
     {

@@ -6,8 +6,6 @@
     @ANNOTATION[@(REST)\[(REST_EVENTTYPE_REST_STARTED|REST_EVENTTYPE_REST_FINISHED|REST_EVENTTYPE_REST_CANCELLED)\][\n|\r]+[a-z]+\s([\w]+)\(]
 */
 
-//void main() {}
-
 #include "ef_i_core"
 
 const string REST_LOG_TAG                   = "Rest";
@@ -17,7 +15,7 @@ const string REST_FUNCTIONS_ARRAY_PREFIX    = "FunctionsArray_";
 // @CORE[EF_SYSTEM_INIT]
 void GuiEvent_Init()
 {
-    EFCore_ExecuteFunctionOnAnnotationData(REST_SCRIPT_NAME, "REST", "Rest_RegisterFunction({DATA});");
+    EFCore_ExecuteFunctionOnAnnotationData(REST_SCRIPT_NAME, "REST", "Rest_RegisterFunction");
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_REST]

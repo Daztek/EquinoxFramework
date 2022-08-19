@@ -5,8 +5,6 @@
     Description: A simple NUI Window Builder Library
 */
 
-//void main() {}
-
 #include "ef_i_core"
 
 const string NB_LOG_TAG                 = "NuiBuilder";

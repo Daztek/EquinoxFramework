@@ -5,8 +5,6 @@
     Description: An Equinox Framework System that automatically closes doors.
 */
 
-//void main() {}
-
 #include "ef_i_core"
 #include "ef_s_events"
 #include "nwnx_object"

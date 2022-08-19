@@ -3,8 +3,6 @@
     Author: Daz
 */
 
-//void main() {}
-
 #include "ef_i_core"
 #include "ef_s_areagen"
 #include "ef_s_endlesspath"

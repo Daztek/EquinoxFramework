@@ -33,7 +33,7 @@ void AIMan_Init()
                     "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
-    EFCore_ExecuteFunctionOnAnnotationData(AIMAN_SCRIPT_NAME, "AIMANEVENT", "AIMan_RegisterAIBehaviorEvent({DATA});");
+    EFCore_ExecuteFunctionOnAnnotationData(AIMAN_SCRIPT_NAME, "AIMANEVENT", "AIMan_RegisterAIBehaviorEvent");
 }
 
 string AIMan_GetBehavior(object oCreature)

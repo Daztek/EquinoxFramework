@@ -5,8 +5,6 @@
     Currently optimized for TILESET_RESREF_MEDIEVAL_RURAL_2
 */
 
-//void main() {}
-
 #include "ef_i_core"
 #include "ef_s_tileset"
 #include "ef_s_profiler"

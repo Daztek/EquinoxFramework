@@ -5,8 +5,6 @@
     Description: An Equinox Framework System to store player data temporarily or persistently.
 */
 
-//void main() {}
-
 #include "ef_i_core"
 
 const string PLAYERDB_LOG_TAG               = "PlayerDB";

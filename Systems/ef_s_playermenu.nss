@@ -6,8 +6,6 @@
     @ANNOTATION[@(PMBUTTON)\[([\w\s]+)(?:\:?([\w\s]*))\][\n|\r]+[a-z]+\s([\w]+)\(]
 */
 
-//void main() {}
-
 #include "ef_i_core"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
@@ -25,7 +23,7 @@ const string PM_FUNCTION_ARRAY      = "FunctionArray";
 // @CORE[EF_SYSTEM_INIT]
 void PM_Init()
 {
-    EFCore_ExecuteFunctionOnAnnotationData(PM_SCRIPT_NAME, "PMBUTTON", "PM_RegisterButton({DATA});");
+    EFCore_ExecuteFunctionOnAnnotationData(PM_SCRIPT_NAME, "PMBUTTON", "PM_RegisterButton");
 }
 
 // @NWMWINDOW[PM_WINDOW_ID]

@@ -9,8 +9,6 @@
     @ANNOTATION[@(NWMEVENT)\[([\w]+):{1}([\w]+):{1}([\w]+)\][\n|\r]+[a-z]+\s([\w]+)\(]
 */
 
-//void main() {}
-
 #include "ef_i_core"
 
 const string NWM_LOG_TAG            = "NuiWindowManager";
@@ -56,8 +54,8 @@ void NWM_Destroy();
 // @CORE[EF_SYSTEM_INIT]
 void NWM_Init()
 {
-    EFCore_ExecuteFunctionOnAnnotationData(NWM_SCRIPT_NAME, "NWMWINDOW", "NWM_RegisterWindow({DATA});");
-    EFCore_ExecuteFunctionOnAnnotationData(NWM_SCRIPT_NAME, "NWMEVENT", "NWM_RegisterEvent({DATA});");
+    EFCore_ExecuteFunctionOnAnnotationData(NWM_SCRIPT_NAME, "NWMWINDOW", "NWM_RegisterWindow");
+    EFCore_ExecuteFunctionOnAnnotationData(NWM_SCRIPT_NAME, "NWMEVENT", "NWM_RegisterEvent");
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_NUI_EVENT]

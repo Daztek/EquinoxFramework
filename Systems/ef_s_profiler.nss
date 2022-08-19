@@ -7,8 +7,6 @@
 
 #include "ef_i_core"
 
-//void main() {}
-
 const string PROFILER_LOG_TAG                           = "Profiler";
 const string PROFILER_SCRIPT_NAME                       = "ef_s_profiler";
 

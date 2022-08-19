@@ -66,7 +66,7 @@ void Events_Init()
         oArea = GetNextArea();
     }
 
-    EFCore_ExecuteFunctionOnAnnotationData(EVENTS_SCRIPT_NAME, "EVENT", "Events_SubscribeAnnotations({DATA});");
+    EFCore_ExecuteFunctionOnAnnotationData(EVENTS_SCRIPT_NAME, "EVENT", "Events_SubscribeAnnotations");
 }
 
 string Events_GetObjectEventScript()

@@ -6,8 +6,6 @@
                  their .bic file when they log out and sets restores them when they log back in.
 */
 
-//void main() {}
-
 #include "ef_i_core"
 #include "ef_s_playerdb"
 #include "nwnx_player"

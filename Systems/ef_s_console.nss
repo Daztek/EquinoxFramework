@@ -6,8 +6,6 @@
     @ANNOTATION[@(CONSOLE)\[([\w]+)\:([\w]*)\:([\w\s]*)\][\n|\r]+(void|string+)\s([\w]+)\((.*)\)]
 */
 
-//void main() {}
-
 #include "ef_i_core"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
@@ -59,7 +57,7 @@ void Console_Init()
              "script_chunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
-    EFCore_ExecuteFunctionOnAnnotationData(CONSOLE_SCRIPT_NAME, "CONSOLE", "Console_RegisterCommand({DATA});");
+    EFCore_ExecuteFunctionOnAnnotationData(CONSOLE_SCRIPT_NAME, "CONSOLE", "Console_RegisterCommand");
 }
 
 // @NWMWINDOW[CONSOLE_WINDOW_ID]

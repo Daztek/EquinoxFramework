@@ -3,8 +3,6 @@
     Author: Daz
 */
 
-//void main() {}
-
 #include "ef_i_core"
 #include "nwnx_feedback"
 

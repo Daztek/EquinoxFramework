@@ -291,7 +291,7 @@ void EFCore_ExecuteFunctionOnAnnotationData(string sSystem, string sAnnotation, 
     string sError;
     int bPrintError = FALSE;
 
-    sFunction = NWNX_Regex_Replace(sFunction, "\\{DATA\\}", nssFunction("GetLocalJson", "GetModule(), " + nssEscape("EF_ANNOTATION_DATA"), FALSE));
+    sFunction = nssFunction(sFunction, nssFunction("GetLocalJson", "GetModule(), " + nssEscape("EF_ANNOTATION_DATA"), FALSE));
 
     for (nData = 0; nData < nNumData; nData++)
     {

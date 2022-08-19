@@ -5,8 +5,6 @@
     Description: An Equinox Framework System that provides various PostString functionality
 */
 
-//void main() {}
-
 #include "ef_i_core"
 
 const string POSTSTRING_LOG_TAG         = "PostString";

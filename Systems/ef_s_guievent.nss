@@ -6,8 +6,6 @@
     @ANNOTATION[@(GUIEVENT)\[([\w]+)\][\n|\r]+[a-z]+\s([\w]+)\(]
 */
 
-//void main() {}
-
 #include "ef_i_core"
 
 const string GUIEVENT_LOG_TAG           = "GuiEvent";
@@ -17,7 +15,7 @@ const string GUIEVENT_ARRAY_PREFIX      = "GuiEventFunctions_";
 // @CORE[EF_SYSTEM_INIT]
 void GuiEvent_Init()
 {
-    EFCore_ExecuteFunctionOnAnnotationData(GUIEVENT_SCRIPT_NAME, "GUIEVENT", "GuiEvent_RegisterFunction({DATA});");
+    EFCore_ExecuteFunctionOnAnnotationData(GUIEVENT_SCRIPT_NAME, "GUIEVENT", "GuiEvent_RegisterFunction");
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_GUIEVENT]

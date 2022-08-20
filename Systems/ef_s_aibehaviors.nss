@@ -37,7 +37,7 @@ void AIB_WanderFlee_OnEnterAoE()
     object oPlayer = GetEnteringObject();
     object oSelf = GetAreaOfEffectCreator();
 
-    if (!GetIsPC(oPlayer) && GetObjectSeen(oPlayer, oSelf))
+    if (!GetIsPC(oPlayer))
         return;
 
     if (!AIMan_GetTimeOut("AIBWanderFleeTimeOut", oSelf))
@@ -86,7 +86,7 @@ void AIB_ChargeFlee_OnEnterAoE()
     object oPlayer = GetEnteringObject();
     object oSelf = GetAreaOfEffectCreator();
 
-    if (!GetIsPC(oPlayer) && GetObjectSeen(oPlayer, oSelf))
+    if (!GetIsPC(oPlayer))
         return;
 
     if (!AIMan_GetTimeOut("AIBChargeFleeTimeOut", oSelf))

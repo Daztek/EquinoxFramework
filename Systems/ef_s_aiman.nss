@@ -14,7 +14,6 @@ const string AIMAN_LOG_TAG                      = "AIManager";
 const string AIMAN_SCRIPT_NAME                  = "ef_s_aiman";
 const int AIMAN_DEBUG_EVENTS                    = FALSE;
 
-const string AIMAN_EVENT_NAME_PREFIX            = "AIMANEVENT_";
 const string AIMAN_BEHAVIOR_NAME                = "AIManBehavior";
 
 string AIMan_GetBehavior(object oCreature);
@@ -133,11 +132,6 @@ void AIMan_SetTimeOut(string sTimeoutFlag, float fSeconds, object oCreature = OB
 void AIMan_ApplyCutsceneGhost(object oCreature = OBJECT_SELF)
 {
     ApplyEffectToObject(DURATION_TYPE_PERMANENT, ExtraordinaryEffect(EffectCutsceneGhost()), oCreature);
-}
-
-string AIMan_GetBehaviorEventName(string sBehavior, int nEventType)
-{
-   return AIMAN_EVENT_NAME_PREFIX + sBehavior + "_" + IntToString(nEventType);
 }
 
 void AIMan_RegisterAIBehaviorEvent(json jAIEventData)

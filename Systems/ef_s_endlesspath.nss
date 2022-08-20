@@ -286,6 +286,9 @@ void EP_OnAreaGenerated(string sAreaID)
         Events_SetAreaEventScripts(oArea);
         Events_AddObjectToDispatchList(EP_SCRIPT_NAME, Events_GetObjectEventName(EVENT_SCRIPT_AREA_ON_ENTER), oArea);
 
+        // Don't persist player locations in EP areas
+        Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oArea));
+
         object oPreviousDoor = GetObjectByTag(EP_GetLastDoorID());
         object oEntranceDoor = EP_CreateDoor(oArea, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX));
         object oExitDoor = EP_CreateDoor(oArea, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX));

@@ -49,7 +49,7 @@ void AIMan_SetBehavior(object oCreature, string sBehavior)
 
     AIMan_UnsetBehavior(oCreature); 
     SetLocalString(oCreature, AIMAN_BEHAVIOR_NAME, sBehavior);
-    EM_ClearCreatureEventScripts(oCreature);
+    EM_ClearObjectEventScripts(oCreature);
 
     int nLastEventType = 0, bHandleOnDeath = TRUE;
     sqlquery sql = SqlPrepareQueryModule("SELECT eventtype FROM " + AIMAN_SCRIPT_NAME + " WHERE behavior = @behavior ORDER BY eventtype;");

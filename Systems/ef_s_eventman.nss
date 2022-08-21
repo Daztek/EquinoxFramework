@@ -15,7 +15,6 @@
 const string EM_SCRIPT_NAME                     = "ef_s_eventman";
 const string EM_LOG_TAG                         = "EventManager";
 const int EM_LOG_DEBUG                          = FALSE;
-
 const int EM_HOOK_AREA_HEARTBEAT                = FALSE;
 
 string EM_GetObjectEventScript();
@@ -24,9 +23,8 @@ void EM_ObjectDispatchListInsert(object oObject, int nObjectDispatchListId);
 void EM_ObjectDispatchListRemove(object oObject, int nObjectDispatchListId);
 void EM_SetObjectEventScript(object oObject, int nEvent, int bStoreOldEvent = TRUE);
 void EM_SetAreaEventScripts(object oArea, int bSetHeartbeat = EM_HOOK_AREA_HEARTBEAT);
-void EM_ClearCreatureEventScripts(object oCreature);
+void EM_ClearObjectEventScripts(object oObject);
 
-string EM_GetNWNXEventScriptChunk(string sSystem, string sEvent);
 void EM_SubscribeNWNXEvent(string sSystem, string sEvent, string sScriptChunk, int bDispatchListMode = FALSE, int bWrapIntoMain = FALSE);
 void EM_NWNXDispatchListInsert(object oObject, string sSystem, string sEvent);
 void EM_NWNXDispatchListRemove(object oObject, string sSystem, string sEvent);
@@ -210,13 +208,64 @@ void EM_SetAreaEventScripts(object oArea, int bSetHeartbeat = EM_HOOK_AREA_HEART
     }
 }
 
-void EM_ClearCreatureEventScripts(object oCreature)
+void EM_ClearObjectEventScripts(object oObject)
 {
-    int nEvent;
-    for(nEvent = EVENT_SCRIPT_CREATURE_ON_HEARTBEAT; nEvent <= EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR; nEvent++)
+    int nStart, nEnd;
+    
+    switch (GetObjectType(oObject))
     {
-        SetEventScript(oCreature, nEvent, "");
-    }    
+        case OBJECT_TYPE_CREATURE: 
+            nStart = EVENT_SCRIPT_CREATURE_ON_HEARTBEAT;
+            nEnd = EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR;
+        break;                             
+        case OBJECT_TYPE_TRIGGER: 
+            nStart = EVENT_SCRIPT_TRIGGER_ON_HEARTBEAT;
+            nEnd = EVENT_SCRIPT_TRIGGER_ON_CLICKED;
+        break; 
+        case OBJECT_TYPE_DOOR: 
+            nStart = EVENT_SCRIPT_DOOR_ON_OPEN;
+            nEnd = EVENT_SCRIPT_DOOR_ON_FAIL_TO_OPEN;
+        break;
+        case OBJECT_TYPE_AREA_OF_EFFECT: 
+            nStart = EVENT_SCRIPT_AREAOFEFFECT_ON_HEARTBEAT;
+            nEnd = EVENT_SCRIPT_AREAOFEFFECT_ON_OBJECT_EXIT;
+        break;
+        case OBJECT_TYPE_PLACEABLE: 
+            nStart = EVENT_SCRIPT_PLACEABLE_ON_CLOSED;
+            nEnd = EVENT_SCRIPT_PLACEABLE_ON_LEFT_CLICK;
+        break;
+        case OBJECT_TYPE_STORE: 
+            nStart = EVENT_SCRIPT_STORE_ON_OPEN;
+            nEnd = EVENT_SCRIPT_STORE_ON_CLOSE;
+        break;
+        case OBJECT_TYPE_ENCOUNTER: 
+            nStart = EVENT_SCRIPT_ENCOUNTER_ON_OBJECT_ENTER;
+            nEnd = EVENT_SCRIPT_ENCOUNTER_ON_USER_DEFINED_EVENT;
+        break;
+        default:
+        {
+            if (oObject == GetModule())
+            {
+                nStart = EVENT_SCRIPT_MODULE_ON_HEARTBEAT;
+                nEnd = EVENT_SCRIPT_MODULE_ON_NUI_EVENT;
+            }
+            else if (oObject == GetArea(oObject))
+            {
+                nStart = EVENT_SCRIPT_AREA_ON_HEARTBEAT;
+                nEnd = EVENT_SCRIPT_AREA_ON_EXIT;            
+            }
+            break;
+        }                                                                        
+    }
+    
+    if (nStart && nEnd)
+    {
+        int nEvent;
+        for(nEvent = nStart; nEvent <= nEnd; nEvent++)
+        {
+            SetEventScript(oObject, nEvent, "");
+        }
+    } 
 }
 
 // *** NWNX Events
@@ -224,6 +273,11 @@ void EM_ClearCreatureEventScripts(object oCreature)
 void EM_SetNWNXEventScriptChunk(string sSystem, string sEvent, string sScriptChunk)
 {
     SetLocalString(GetDataObject(EM_SCRIPT_NAME), sSystem + sEvent, sScriptChunk);
+}
+
+string EM_GetNWNXEventScriptChunk(string sSystem, string sEvent)
+{
+    return GetLocalString(GetDataObject(EM_SCRIPT_NAME), sSystem + sEvent);
 }
 
 void EM_SubscribeNWNXAnnotations(json jNWNXEvent)
@@ -236,11 +290,6 @@ void EM_SubscribeNWNXAnnotations(json jNWNXEvent)
 
     EM_SetNWNXEventScriptChunk(sSystem, sEvent, sScriptChunk);
     EM_SubscribeNWNXEvent(sSystem, sEvent, sScriptChunk, bDispatchListMode, FALSE);
-}
-
-string EM_GetNWNXEventScriptChunk(string sSystem, string sEvent)
-{
-    return GetLocalString(GetDataObject(EM_SCRIPT_NAME), sSystem + sEvent);
 }
 
 void EM_SubscribeNWNXEvent(string sSystem, string sEvent, string sScriptChunk, int bDispatchListMode = FALSE, int bWrapIntoMain = FALSE)

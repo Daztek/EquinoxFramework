@@ -11,6 +11,7 @@ const string PLAYERDB_LOG_TAG               = "PlayerDB";
 const string PLAYERDB_SCRIPT_NAME           = "ef_s_playerdb";
 const string PLAYERDB_DATABASE_NAME         = "EFPlayerDB";
 const string PLAYERDB_SESSION_DATA          = "PDBSessionData_";
+const int PLAYERDB_ONCLIENTEXIT_PRIORITY    = 100;
 
 const int PLAYERDB_TYPE_ALL                 = 0;
 const int PLAYERDB_TYPE_INT                 = 1;
@@ -53,7 +54,7 @@ int PlayerDB_IsSet(object oPlayer, string sSystem, string sVarName, int nType);
 int PlayerDB_GetLastUpdated_UnixEpoch(object oPlayer, string sSystem, string sVarName, int nType);
 string PlayerDB_GetLastUpdated_UTC(object oPlayer, string sSystem, string sVarName, int nType);
 
-// @EVENT[NWNX_ON_ELC_VALIDATE_CHARACTER_BEFORE]
+// @NWNX[NWNX_ON_ELC_VALIDATE_CHARACTER_BEFORE]
 void PlayerDB_Init()
 {
     object oPlayer = OBJECT_SELF;
@@ -68,7 +69,7 @@ void PlayerDB_Init()
     ExportSingleCharacter(oPlayer);
 }
 
-// @EVENT[EVENT_SCRIPT_MODULE_ON_CLIENT_EXIT:A]
+// @EVENT[EVENT_SCRIPT_MODULE_ON_CLIENT_EXIT:PLAYERDB_ONCLIENTEXIT_PRIORITY]
 void PlayerDB_DestroySessionDataObject()
 {
     DestroyDataObject(PLAYERDB_SESSION_DATA + GetObjectUUID(GetExitingObject()));

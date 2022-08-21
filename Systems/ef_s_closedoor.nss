@@ -6,32 +6,33 @@
 */
 
 #include "ef_i_core"
-#include "ef_s_events"
+#include "ef_s_eventman"
 #include "nwnx_object"
 
-const string CLOSEDOOR_LOG_TAG      = "CloseDoor";
-const string CLOSEDOOR_SCRIPT_NAME  = "ef_s_closedoor";
+const string CLOSEDOOR_LOG_TAG          = "CloseDoor";
+const string CLOSEDOOR_SCRIPT_NAME      = "ef_s_closedoor";
+const int CLOSEDOOR_EVENT_PRIORITY      = 10;
 
-const float CLOSEDOOR_CLOSE_DELAY   = 7.5f;
+const float CLOSEDOOR_CLOSE_DELAY       = 7.5f;
 
 // @CORE[EF_SYSTEM_LOAD]
 void CloseDoor_Load()
 {
     object oDoor;
     int nNth = 0;
-    string sDoorOnOpenEvent = Events_GetObjectEventName(EVENT_SCRIPT_DOOR_ON_OPEN, EVENTS_OBJECT_EVENT_TYPE_AFTER);
+    int nObjectDispatchListId = EM_GetObjectDispatchListId(CLOSEDOOR_SCRIPT_NAME, EVENT_SCRIPT_DOOR_ON_OPEN, CLOSEDOOR_EVENT_PRIORITY);
 
     while ((oDoor = NWNX_Util_GetLastCreatedObject(10, ++nNth)) != OBJECT_INVALID)
     {
         if (NWNX_Object_GetDoorHasVisibleModel(oDoor))
         {
-            Events_SetObjectEventScript(oDoor, EVENT_SCRIPT_DOOR_ON_OPEN);
-            Events_AddObjectToDispatchList(CLOSEDOOR_SCRIPT_NAME, sDoorOnOpenEvent, oDoor);
+            EM_SetObjectEventScript(oDoor, EVENT_SCRIPT_DOOR_ON_OPEN);
+            EM_ObjectDispatchListInsert(oDoor, nObjectDispatchListId);
         }
     }
 }
 
-// @EVENT[DL:EVENT_SCRIPT_DOOR_ON_OPEN:A]
+// @EVENT[DL:EVENT_SCRIPT_DOOR_ON_OPEN:CLOSEDOOR_EVENT_PRIORITY]
 void CloseDoor_OnOpen()
 {
     ClearAllActions();

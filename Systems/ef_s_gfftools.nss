@@ -6,7 +6,7 @@
 */
 
 #include "ef_i_core"
-#include "ef_s_events"
+#include "ef_s_eventman"
 
 const string GFFTOOLS_LOG_TAG                           = "GffTools";
 const string GFFTOOLS_SCRIPT_NAME                       = "ef_s_gfftools";
@@ -104,7 +104,7 @@ json GffTools_GeneratePlaceable(struct GffTools_PlaceableData pd)
     if (pd.fFacingAdjustment != 0.0f)
         jGff = GffAddLocalVariable(jGff, GffLocalVarFloat(GFFTOOLS_FACING_ADJUSTMENT_VARNAME, pd.fFacingAdjustment));
 
-    string sObjectEventScript = Events_GetObjectEventScript();
+    string sObjectEventScript = EM_GetObjectEventScript();
     if (pd.scriptOnClick)           jGff = GffAddResRef(jGff, "OnClick", sObjectEventScript);
     if (pd.scriptOnClose)           jGff = GffAddResRef(jGff, "OnClosed", sObjectEventScript);
     if (pd.scriptOnDamaged)         jGff = GffAddResRef(jGff, "OnDamaged", sObjectEventScript);

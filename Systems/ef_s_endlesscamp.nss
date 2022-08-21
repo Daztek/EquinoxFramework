@@ -9,7 +9,7 @@
 const string EC_LOG_TAG         = "EndlessCamp";
 const string EC_SCRIPT_NAME     = "ef_s_endlesscamp";
 
-// @EVENT[EP_AREA_POST_PROCESS_FINISHED]
+// @NWNX[EP_AREA_POST_PROCESS_FINISHED]
 void EC_OnAreaPostProcessed()
 {
     object oArea = OBJECT_SELF;

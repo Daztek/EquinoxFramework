@@ -54,7 +54,7 @@ json PM_CreateWindow()
     return NB_FinalizeWindow();
 }
 
-// @EVENT[NWNX_ON_INPUT_TOGGLE_PAUSE_BEFORE]
+// @NWNX[NWNX_ON_INPUT_TOGGLE_PAUSE_BEFORE]
 void PM_OnTogglePauseEvent()
 {
     object oPlayer = OBJECT_SELF;

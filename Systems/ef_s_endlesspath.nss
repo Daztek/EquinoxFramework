@@ -5,7 +5,7 @@
 
 #include "ef_i_core"
 #include "ef_s_areagen"
-#include "ef_s_events"
+#include "ef_s_eventman"
 #include "ef_s_profiler"
 #include "ef_s_gfftools"
 #include "nwnx_object"
@@ -283,8 +283,8 @@ void EP_OnAreaGenerated(string sAreaID)
     else
     {
         object oArea = EP_CreateArea(sAreaID);
-        Events_SetAreaEventScripts(oArea);
-        Events_AddObjectToDispatchList(EP_SCRIPT_NAME, Events_GetObjectEventName(EVENT_SCRIPT_AREA_ON_ENTER), oArea);
+        EM_SetAreaEventScripts(oArea);
+        EM_ObjectDispatchListInsert(oArea, EM_GetObjectDispatchListId(EP_SCRIPT_NAME, EVENT_SCRIPT_AREA_ON_ENTER));
 
         // Don't persist player locations in EP areas
         Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oArea));
@@ -334,7 +334,7 @@ void EP_PostProcess(object oArea, int nCurrentHeight = 0)
 
     if (nCurrentHeight == nHeight)
     {
-        Events_SignalEvent(EP_AREA_POST_PROCESS_FINISHED, oArea);
+        EM_SignalNWNXEvent(EP_AREA_POST_PROCESS_FINISHED, oArea);
         return;
     }
 

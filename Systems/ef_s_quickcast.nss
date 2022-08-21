@@ -11,7 +11,7 @@
 #include "ef_s_nuiwinman"
 #include "ef_s_profiler"
 #include "ef_s_targetmode"
-#include "ef_s_events"
+#include "ef_s_eventman"
 #include "ef_s_playerdb"
 
 #include "nwnx_player"
@@ -703,15 +703,15 @@ void QC_ShowWindow()
         SendMessageToPC(oPlayer, "You must be able to cast spells to use the QuickCast Menu.");
 }
 
-// @EVENT[NWNX_ON_DECREMENT_SPELL_COUNT_AFTER]
+// @NWNX[NWNX_ON_DECREMENT_SPELL_COUNT_AFTER]
 void QC_DecrementSpellCount()
 {
     object oPlayer = OBJECT_SELF;
     if (GetIsPC(oPlayer) && NWM_GetIsWindowOpen(oPlayer, QC_MAIN_WINDOW_ID, TRUE))
     {
-        int nSpellId = Events_GetInt("SPELL_ID");
-        int nMultiClass = Events_GetInt("CLASS");
-        int nMetaMagic = Events_GetInt("METAMAGIC");
+        int nSpellId = EM_GetNWNXInt("SPELL_ID");
+        int nMultiClass = EM_GetNWNXInt("CLASS");
+        int nMetaMagic = EM_GetNWNXInt("METAMAGIC");
         int nClassType = GetClassByPosition(nMultiClass + 1, oPlayer);
         int bMemorizesSpells = StringToInt(Get2DAString("classes", "MemorizesSpells", nClassType));
 

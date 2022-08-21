@@ -10,7 +10,7 @@
 */
 
 #include "ef_i_core"
-#include "ef_s_events"
+#include "ef_s_eventman"
 
 const string TRAVEL_SCRIPT_NAME                 = "ef_s_travel";
 const string TRAVEL_LOG_TAG                     = "Travel";
@@ -29,12 +29,12 @@ void Travel_ApplyEffect(object oPlayer, int nMaterial, effect eEffect)
     }
 }
 
-// @EVENT[NWNX_ON_MATERIALCHANGE_AFTER]
+// @NWNX[NWNX_ON_MATERIALCHANGE_AFTER]
 void Travel_OnMaterialChange()
 {
     object oPlayer = OBJECT_SELF;
     if (!GetIsPC(oPlayer) || GetIsDM(oPlayer)) return;
-    int nMaterial = Events_GetInt("MATERIAL_TYPE");
+    int nMaterial = EM_GetNWNXInt("MATERIAL_TYPE");
     effect eEffect;
 
     switch (nMaterial)

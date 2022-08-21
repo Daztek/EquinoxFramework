@@ -102,12 +102,6 @@ void InsertIntToLocalJsonArray(object oObject, string sVarName, int nValue, int 
 string GetStringFromLocalJsonArray(object oObject, string sVarName, int nIndex);
 // Get the integer at nIndex from the local json array sVarName on oObject, or 0 on error
 int GetIntFromLocalJsonArray(object oObject, string sVarName, int nIndex);
-// Returns an empty json string array of size nSize
-json GetEmptyJsonStringArray(int nSize);
-// Returns an empty json bool array of size nSize
-json GetEmptyJsonBoolArray(int nSize);
-// Returns an empty json int array of size nSize
-json GetEmptyJsonIntArray(int nSize);
 // Convert a boolean value to a json bool array element
 string StringJsonArrayElementBool(int bValue);
 // Convert an integer value to a json integer array element
@@ -319,63 +313,6 @@ string GetStringFromLocalJsonArray(object oObject, string sVarName, int nIndex)
 int GetIntFromLocalJsonArray(object oObject, string sVarName, int nIndex)
 {
     return JsonArrayGetInt(GetLocalJsonArray(oObject, sVarName), nIndex);
-}
-
-json GetEmptyJsonStringArray(int nSize)
-{
-    json jArray = GetLocalJson(GetModule(), "JSON_EMPTY_STRING_ARRAY_" + IntToString(nSize));
-
-    if (!JsonGetType(jArray))
-    {
-        jArray = JsonArray();
-        int nCount;
-        for (nCount = 0; nCount < nSize; nCount++)
-        {
-            jArray = JsonArrayInsertString(jArray, "");
-        }
-
-        SetLocalJson(GetModule(), "JSON_EMPTY_STRING_ARRAY_" + IntToString(nSize), jArray);
-    }
-
-    return jArray;
-}
-
-json GetEmptyJsonBoolArray(int nSize)
-{
-    json jArray = GetLocalJson(GetModule(), "JSON_EMPTY_BOOL_ARRAY_" + IntToString(nSize));
-
-    if (!JsonGetType(jArray))
-    {
-        jArray = JsonArray();
-        int nCount;
-        for (nCount = 0; nCount < nSize; nCount++)
-        {
-            jArray = JsonArrayInsertBool(jArray, FALSE);
-        }
-
-        SetLocalJson(GetModule(), "JSON_EMPTY_BOOL_ARRAY_" + IntToString(nSize), jArray);
-    }
-
-    return jArray;
-}
-
-json GetEmptyJsonIntArray(int nSize)
-{
-    json jArray = GetLocalJson(GetModule(), "JSON_EMPTY_INT_ARRAY_" + IntToString(nSize));
-
-    if (!JsonGetType(jArray))
-    {
-        jArray = JsonArray();
-        int nCount;
-        for (nCount = 0; nCount < nSize; nCount++)
-        {
-            jArray = JsonArrayInsertInt(jArray, 0);
-        }
-
-        SetLocalJson(GetModule(), "JSON_EMPTY_INT_ARRAY_" + IntToString(nSize), jArray);
-    }
-
-    return jArray;
 }
 
 string StringJsonArrayElementBool(int bValue)

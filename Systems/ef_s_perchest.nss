@@ -8,7 +8,7 @@
 #include "ef_i_core"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
-#include "ef_s_events"
+#include "ef_s_eventman"
 #include "nwnx_player"
 
 const string PC_LOG_TAG                     = "PersistentChest";
@@ -55,7 +55,7 @@ void PC_Init()
     SqlStep(sql);
 }
 
-// @EVENT[DL:NWNX_ON_INPUT_DROP_ITEM_BEFORE]
+// @NWNX[DL:NWNX_ON_INPUT_DROP_ITEM_BEFORE]
 void PC_DropItem()
 {
     object oPlayer = OBJECT_SELF;
@@ -64,7 +64,7 @@ void PC_DropItem()
         if (!JsonGetInt(NWM_GetBind(PC_BIND_DEPOSIT_MODE)))
             return;
 
-        object oItem = Events_GetObject("ITEM");
+        object oItem = EM_GetNWNXObject("ITEM");
 
         if (!GetIsObjectValid(oItem) || GetObjectType(oItem) != OBJECT_TYPE_ITEM || GetLocalInt(oItem, "PC_ITEM_DESTROYED"))
             return;
@@ -78,7 +78,7 @@ void PC_DropItem()
         int nStoredItems = PC_GetStoredItemAmount(oPlayer);
         if (nStoredItems >= PC_MAX_ITEMS)
         {
-            Events_SkipEvent();
+            EM_SkipNWNXEvent();
             SendMessageToPC(oPlayer, "Your persistent chest is full, withdraw an item first.");
             return;
         }
@@ -104,7 +104,7 @@ void PC_DropItem()
 
         SetLocalInt(oItem, "PC_ITEM_DESTROYED", TRUE);
         DestroyObject(oItem);
-        Events_SkipEvent();
+        EM_SkipNWNXEvent();
     }
 }
 
@@ -314,13 +314,13 @@ void PC_SetDepositMode(object oPlayer, int bEnabled)
 {
     if (bEnabled)
     {
-        Events_AddObjectToDispatchList(PC_SCRIPT_NAME, "NWNX_ON_INPUT_DROP_ITEM_BEFORE", oPlayer);
+        EM_NWNXDispatchListInsert(oPlayer, PC_SCRIPT_NAME, "NWNX_ON_INPUT_DROP_ITEM_BEFORE");
         NWNX_Player_SetTlkOverride(oPlayer, 553, "Add to Persistent Chest");
         NWNX_Player_SetTlkOverride(oPlayer, 10469, "Deposited Item: <CUSTOM0>");
     }
     else
     {
-        Events_RemoveObjectFromDispatchList(PC_SCRIPT_NAME, "NWNX_ON_INPUT_DROP_ITEM_BEFORE", oPlayer);
+        EM_NWNXDispatchListRemove(oPlayer, PC_SCRIPT_NAME, "NWNX_ON_INPUT_DROP_ITEM_BEFORE");
         NWNX_Player_SetTlkOverride(oPlayer, 553, "");
         NWNX_Player_SetTlkOverride(oPlayer, 10469, "");
     }

@@ -56,7 +56,7 @@ void EC_Init()
     DestroyArea(oTemplateArea);
 }
 
-// @EVENT[EP_AREA_POST_PROCESS_FINISHED]
+// @NWNX[EP_AREA_POST_PROCESS_FINISHED]
 void EC_OnAreaPostProcessed()
 {
     object oArea = OBJECT_SELF;

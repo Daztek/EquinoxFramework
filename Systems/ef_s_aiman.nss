@@ -7,7 +7,7 @@
 */
 
 #include "ef_i_core"
-#include "ef_s_events"
+#include "ef_s_eventman"
 #include "ef_s_profiler"
 
 const string AIMAN_LOG_TAG                      = "AIManager";
@@ -49,7 +49,7 @@ void AIMan_SetBehavior(object oCreature, string sBehavior)
 
     AIMan_UnsetBehavior(oCreature); 
     SetLocalString(oCreature, AIMAN_BEHAVIOR_NAME, sBehavior);
-    Events_ClearCreatureEventScripts(oCreature);
+    EM_ClearCreatureEventScripts(oCreature);
 
     int nLastEventType = 0, bHandleOnDeath = TRUE;
     sqlquery sql = SqlPrepareQueryModule("SELECT eventtype FROM " + AIMAN_SCRIPT_NAME + " WHERE behavior = @behavior ORDER BY eventtype;");
@@ -65,15 +65,15 @@ void AIMan_SetBehavior(object oCreature, string sBehavior)
         if (nLastEventType != nEventType)
         {
             nLastEventType = nEventType;
-            Events_SetObjectEventScript(oCreature, nEventType, FALSE);            
-            Events_AddObjectToDispatchList(AIMAN_SCRIPT_NAME, Events_GetObjectEventName(nEventType), oCreature);
+            EM_SetObjectEventScript(oCreature, nEventType, FALSE);            
+            EM_ObjectDispatchListInsert(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, nEventType));
         } 
     }
 
     if (bHandleOnDeath)
     {
-        Events_SetObjectEventScript(oCreature, EVENT_SCRIPT_CREATURE_ON_DEATH, FALSE);
-        Events_AddObjectToDispatchList(AIMAN_SCRIPT_NAME, Events_GetObjectEventName(EVENT_SCRIPT_CREATURE_ON_DEATH), oCreature);       
+        EM_SetObjectEventScript(oCreature, EVENT_SCRIPT_CREATURE_ON_DEATH, FALSE);
+        EM_ObjectDispatchListInsert(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, EVENT_SCRIPT_CREATURE_ON_DEATH));       
     }   
 
     //Profiler_Stop(pd);
@@ -105,14 +105,14 @@ void AIMan_UnsetBehavior(object oCreature)
         {
             nLastEventType = nEventType;
             SetEventScript(oCreature, nEventType, "");
-            NWNX_Events_RemoveObjectFromDispatchList(AIMAN_SCRIPT_NAME, Events_GetObjectEventName(nEventType), oCreature);
+            EM_ObjectDispatchListRemove(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, nEventType));
         } 
     }
 
     if (bHandleOnDeath)
     {
         SetEventScript(oCreature, EVENT_SCRIPT_CREATURE_ON_DEATH, "");
-        NWNX_Events_RemoveObjectFromDispatchList(AIMAN_SCRIPT_NAME, Events_GetObjectEventName(EVENT_SCRIPT_CREATURE_ON_DEATH), oCreature);       
+        EM_ObjectDispatchListRemove(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, EVENT_SCRIPT_CREATURE_ON_DEATH));       
     }  
 
     //Profiler_Stop(pd);    

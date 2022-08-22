@@ -16,12 +16,14 @@ const string EM_SCRIPT_NAME                     = "ef_s_eventman";
 const string EM_LOG_TAG                         = "EventManager";
 const int EM_LOG_DEBUG                          = FALSE;
 const int EM_HOOK_AREA_HEARTBEAT                = FALSE;
+const string EM_OLD_EVENT_SCRIPT_PREFIX         = "EMOldEventScript_";
 
 string EM_GetObjectEventScript();
 int EM_GetObjectDispatchListId(string sSystem, int nEventType, int nPriority = 0);
 void EM_ObjectDispatchListInsert(object oObject, int nObjectDispatchListId);
 void EM_ObjectDispatchListRemove(object oObject, int nObjectDispatchListId);
 void EM_SetObjectEventScript(object oObject, int nEvent, int bStoreOldEvent = TRUE);
+void EM_SetModuleEventScripts();
 void EM_SetAreaEventScripts(object oArea, int bSetHeartbeat = EM_HOOK_AREA_HEARTBEAT);
 void EM_ClearObjectEventScripts(object oObject);
 
@@ -58,17 +60,11 @@ void EM_Init()
     // :(
     AddScript(EM_SCRIPT_NAME, EM_SCRIPT_NAME, nssFunction("EM_SignalObjectEvent"));
 
-    EFCore_ExecuteFunctionOnAnnotationData(EM_SCRIPT_NAME, "EVENT", "EM_InsertObjectEventAnnotations");
-    EFCore_ExecuteFunctionOnAnnotationData(EM_SCRIPT_NAME, "NWNX", "EM_SubscribeNWNXAnnotations");
+    EFCore_ParseAnnotationData(EM_SCRIPT_NAME, "EVENT", "EM_InsertObjectEventAnnotations");
+    EFCore_ParseAnnotationData(EM_SCRIPT_NAME, "NWNX", "EM_SubscribeNWNXAnnotations");
 
-    WriteLog(EM_LOG_TAG, "* Hooking Module Event Scripts");
-    int nEvent;
-    for(nEvent = EVENT_SCRIPT_MODULE_ON_HEARTBEAT; nEvent <= EVENT_SCRIPT_MODULE_ON_NUI_EVENT; nEvent++)
-    {
-        EM_SetObjectEventScript(GetModule(), nEvent);
-    }
+    EM_SetModuleEventScripts();
 
-    WriteLog(EM_LOG_TAG, "* Hooking Area Event Scripts" + (EM_HOOK_AREA_HEARTBEAT ? "" : ", skipping Heartbeat Event"));
     object oArea = GetFirstArea();
     while (oArea != OBJECT_INVALID)
     {
@@ -81,15 +77,14 @@ void EM_Init()
 
 void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
 {
-    int nEventType = GetCurrentlyRunningEvent(FALSE);
+    int nEventType = GetCurrentlyRunningEvent(FALSE);    
     string sObjectId = ObjectToString(oTarget);
 
-    string sScript = GetLocalString(oTarget, EM_SCRIPT_NAME + "_OldEventScript!" + IntToString(nEventType));
+    string sScript = GetLocalString(oTarget, EM_OLD_EVENT_SCRIPT_PREFIX + IntToString(nEventType));
     if (sScript != "")
         ExecuteScript(sScript, oTarget);
 
-    string sQuery = "SELECT " + EM_SCRIPT_NAME + "_events.system, " + EM_SCRIPT_NAME + "_events.priority, " + EM_SCRIPT_NAME + "_events.scriptchunk " +  
-                    "FROM " + EM_SCRIPT_NAME + "_events " + 
+    string sQuery = "SELECT " + EM_SCRIPT_NAME + "_events.scriptchunk FROM " + EM_SCRIPT_NAME + "_events " + 
                     "WHERE " + EM_SCRIPT_NAME + "_events.eventtype = @eventtype AND (" + EM_SCRIPT_NAME + "_events.dispatchlist = 0 OR " +
                     "(SELECT " + EM_SCRIPT_NAME + "_dispatchlist.id FROM " + EM_SCRIPT_NAME + "_dispatchlist WHERE " + 
                     EM_SCRIPT_NAME + "_dispatchlist.id = " + EM_SCRIPT_NAME + "_events.rowid AND " + EM_SCRIPT_NAME + "_dispatchlist.objectid = @objectid LIMIT 1)) " + 
@@ -100,13 +95,7 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
 
     while (SqlStep(sql))
     {
-        string sSystem = SqlGetString(sql, 0);
-        int nPriority = SqlGetInt(sql, 1);
-        string sScriptChunk = SqlGetString(sql, 2);
-
-        if (EM_LOG_DEBUG)
-            WriteLog(EM_LOG_TAG, "DEBUG: Running scriptchunk '" + sScriptChunk + "' with priority '" + IntToString(nPriority) + "' for event: " + IntToString(nEventType));
-
+        string sScriptChunk = SqlGetString(sql, 0);
         string sError = ExecuteCachedScriptChunk(sScriptChunk, oTarget, FALSE);
 
         if (EM_LOG_DEBUG && sError != "")
@@ -194,7 +183,20 @@ void EM_SetObjectEventScript(object oObject, int nEvent, int bStoreOldEvent = TR
     if (!bSet)
         WriteLog(EM_SCRIPT_NAME, "WARNING: EM_SetObjectEventScript failed: " + GetName(oObject) + "(" + sEvent + ")");
     else if (bStoreOldEvent && sOldScript != "" && sOldScript != sNewScript)
-        SetLocalString(oObject, EM_SCRIPT_NAME + "_OldEventScript!" + sEvent, sOldScript);
+        SetLocalString(oObject, EM_OLD_EVENT_SCRIPT_PREFIX + sEvent, sOldScript);
+}
+
+void EM_SetModuleEventScripts()
+{
+    string sQuery = "SELECT DISTINCT eventtype FROM " + EM_SCRIPT_NAME + "_events WHERE eventtype >= @start AND eventtype <= @end;";
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
+    SqlBindInt(sql, "@start", EVENT_SCRIPT_MODULE_ON_HEARTBEAT);
+    SqlBindInt(sql, "@end", EVENT_SCRIPT_MODULE_ON_NUI_EVENT);
+
+    while (SqlStep(sql))
+    {
+        EM_SetObjectEventScript(GetModule(), SqlGetInt(sql, 0));
+    }
 }
 
 void EM_SetAreaEventScripts(object oArea, int bSetHeartbeat = EM_HOOK_AREA_HEARTBEAT)
@@ -244,15 +246,15 @@ void EM_ClearObjectEventScripts(object oObject)
         break;
         default:
         {
-            if (oObject == GetModule())
-            {
-                nStart = EVENT_SCRIPT_MODULE_ON_HEARTBEAT;
-                nEnd = EVENT_SCRIPT_MODULE_ON_NUI_EVENT;
-            }
-            else if (oObject == GetArea(oObject))
+            if (oObject == GetArea(oObject))
             {
                 nStart = EVENT_SCRIPT_AREA_ON_HEARTBEAT;
                 nEnd = EVENT_SCRIPT_AREA_ON_EXIT;            
+            }            
+            else if (oObject == GetModule())
+            {
+                nStart = EVENT_SCRIPT_MODULE_ON_HEARTBEAT;
+                nEnd = EVENT_SCRIPT_MODULE_ON_NUI_EVENT;
             }
             break;
         }                                                                        
@@ -289,7 +291,7 @@ void EM_SubscribeNWNXAnnotations(json jNWNXEvent)
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
     EM_SetNWNXEventScriptChunk(sSystem, sEvent, sScriptChunk);
-    EM_SubscribeNWNXEvent(sSystem, sEvent, sScriptChunk, bDispatchListMode, FALSE);
+    EM_SubscribeNWNXEvent(sSystem, sEvent, sScriptChunk, bDispatchListMode);
 }
 
 void EM_SubscribeNWNXEvent(string sSystem, string sEvent, string sScriptChunk, int bDispatchListMode = FALSE, int bWrapIntoMain = FALSE)

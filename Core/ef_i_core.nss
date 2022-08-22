@@ -41,7 +41,7 @@ void EFCore_InsertAnnotationData(string sKey, json jData);
 void EFCore_ParseSystemsForAnnotations();
 int EFCore_ValidateSystems();
 void EFCore_ExecuteFunctions(int nCoreFunctionType);
-void EFCore_ExecuteFunctionOnAnnotationData(string sSystem, string sAnnotationData, string sFunction);
+void EFCore_ParseAnnotationData(string sSystem, string sAnnotationData, string sFunction);
 
 void EFCore_Initialize()
 {
@@ -283,7 +283,7 @@ void EFCore_ExecuteFunctions(int nCoreFunctionType)
     }
 }
 
-void EFCore_ExecuteFunctionOnAnnotationData(string sSystem, string sAnnotation, string sFunction)
+void EFCore_ParseAnnotationData(string sSystem, string sAnnotation, string sFunction)
 {
     object oModule = GetModule();
     json jAnnotationData = EFCore_GetAnnotationData(sAnnotation);
@@ -307,7 +307,7 @@ void EFCore_ExecuteFunctionOnAnnotationData(string sSystem, string sAnnotation, 
     DeleteLocalJson(oModule, "EF_ANNOTATION_DATA");
 
     if (bPrintError)
-        WriteLog(EFCORE_LOG_TAG, "(ExecuteFunctionOnAnnotationData) [" + sAnnotation + "] Function '" +sFunction + "' for '" + sSystem + "' failed with error: " + sError);
+        WriteLog(EFCORE_LOG_TAG, "(EFCore_ParseAnnotationData) [" + sAnnotation + "] Function '" +sFunction + "' for '" + sSystem + "' failed with error: " + sError);
 }
 
 // **** Function Stuff

@@ -57,7 +57,7 @@ void Console_Init()
              "script_chunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
-    EFCore_ExecuteFunctionOnAnnotationData(CONSOLE_SCRIPT_NAME, "CONSOLE", "Console_RegisterCommand");
+    EFCore_ParseAnnotationData(CONSOLE_SCRIPT_NAME, "CONSOLE", "Console_RegisterCommand");
 }
 
 // @NWMWINDOW[CONSOLE_WINDOW_ID]

@@ -15,7 +15,7 @@ const string GUIEVENT_ARRAY_PREFIX      = "GuiEventFunctions_";
 // @CORE[EF_SYSTEM_INIT]
 void GuiEvent_Init()
 {
-    EFCore_ExecuteFunctionOnAnnotationData(GUIEVENT_SCRIPT_NAME, "GUIEVENT", "GuiEvent_RegisterFunction");
+    EFCore_ParseAnnotationData(GUIEVENT_SCRIPT_NAME, "GUIEVENT", "GuiEvent_RegisterFunction");
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_GUIEVENT]

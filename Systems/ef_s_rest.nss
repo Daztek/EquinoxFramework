@@ -15,7 +15,7 @@ const string REST_FUNCTIONS_ARRAY_PREFIX    = "FunctionsArray_";
 // @CORE[EF_SYSTEM_INIT]
 void GuiEvent_Init()
 {
-    EFCore_ExecuteFunctionOnAnnotationData(REST_SCRIPT_NAME, "REST", "Rest_RegisterFunction");
+    EFCore_ParseAnnotationData(REST_SCRIPT_NAME, "REST", "Rest_RegisterFunction");
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_REST]

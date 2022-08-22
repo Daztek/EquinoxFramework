@@ -23,7 +23,7 @@ const string PM_FUNCTION_ARRAY      = "FunctionArray";
 // @CORE[EF_SYSTEM_INIT]
 void PM_Init()
 {
-    EFCore_ExecuteFunctionOnAnnotationData(PM_SCRIPT_NAME, "PMBUTTON", "PM_RegisterButton");
+    EFCore_ParseAnnotationData(PM_SCRIPT_NAME, "PMBUTTON", "PM_RegisterButton");
 }
 
 // @NWMWINDOW[PM_WINDOW_ID]

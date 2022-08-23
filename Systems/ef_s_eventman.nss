@@ -78,20 +78,18 @@ void EM_Init()
 void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
 {
     int nEventType = GetCurrentlyRunningEvent(FALSE);    
-    string sObjectId = ObjectToString(oTarget);
-
     string sScript = GetLocalString(oTarget, EM_OLD_EVENT_SCRIPT_PREFIX + IntToString(nEventType));
     if (sScript != "")
         ExecuteScript(sScript, oTarget);
 
     string sQuery = "SELECT " + EM_SCRIPT_NAME + "_events.scriptchunk FROM " + EM_SCRIPT_NAME + "_events " + 
                     "WHERE " + EM_SCRIPT_NAME + "_events.eventtype = @eventtype AND (" + EM_SCRIPT_NAME + "_events.dispatchlist = 0 OR " +
-                    "(SELECT " + EM_SCRIPT_NAME + "_dispatchlist.id FROM " + EM_SCRIPT_NAME + "_dispatchlist WHERE " + 
-                    EM_SCRIPT_NAME + "_dispatchlist.id = " + EM_SCRIPT_NAME + "_events.rowid AND " + EM_SCRIPT_NAME + "_dispatchlist.objectid = @objectid LIMIT 1)) " + 
+                    "EXISTS(SELECT " + EM_SCRIPT_NAME + "_dispatchlist.id FROM " + EM_SCRIPT_NAME + "_dispatchlist WHERE " + 
+                    EM_SCRIPT_NAME + "_dispatchlist.id = " + EM_SCRIPT_NAME + "_events.rowid AND " + EM_SCRIPT_NAME + "_dispatchlist.objectid = @objectid)) " + 
                     "ORDER BY " + EM_SCRIPT_NAME + "_events.priority;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@eventtype", nEventType);
-    SqlBindString(sql, "@objectid", sObjectId);
+    SqlBindString(sql, "@objectid", ObjectToString(oTarget));
 
     while (SqlStep(sql))
     {
@@ -107,29 +105,36 @@ void EM_InsertObjectEventAnnotations(json jObjectEvent)
 {
     string sSystem = JsonArrayGetString(jObjectEvent, 0);
     int bDispatchListMode = JsonArrayGetString(jObjectEvent, 2) == "DL";
-    int nEventType = GetConstantIntValue(JsonArrayGetString(jObjectEvent, 3), "", -1);
+    string sEventType = JsonArrayGetString(jObjectEvent, 3);
+    int nEventType = GetConstantIntValue(sEventType, "", -1);
     int nPriority = GetConstantIntValue(JsonArrayGetString(jObjectEvent, 4), sSystem, StringToInt(JsonArrayGetString(jObjectEvent, 4)));
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(JsonArrayGetString(jObjectEvent, 5)));
+    string sFunction = JsonArrayGetString(jObjectEvent, 5);
+    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
-    string sQuery = "INSERT OR REPLACE INTO " + EM_SCRIPT_NAME + "_events(system, eventtype, scriptchunk, priority, dispatchlist) " + 
-                    "VALUES(@system, @eventtype, @scriptchunk, @priority, @dispatchlist);";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
-    SqlBindString(sql, "@system", sSystem);
-    SqlBindInt(sql, "@eventtype", nEventType);
-    SqlBindString(sql, "@scriptchunk", sScriptChunk);
-    SqlBindInt(sql, "@priority", nPriority);
-    SqlBindInt(sql, "@dispatchlist", bDispatchListMode);
-    SqlStep(sql);
-
-    if (EM_LOG_DEBUG)
+    if (nEventType == -1)
+        WriteLog(EM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid object event: " + sEventType);
+    else
     {
-        string sError = SqlGetError(sql);
-        if (sError != "")
-            WriteLog(EM_LOG_TAG, "DEBUG: Failed to insert event: " + sError);    
-    }
+        string sQuery = "INSERT INTO " + EM_SCRIPT_NAME + "_events(system, eventtype, scriptchunk, priority, dispatchlist) " + 
+                        "VALUES(@system, @eventtype, @scriptchunk, @priority, @dispatchlist);";
+        sqlquery sql = SqlPrepareQueryModule(sQuery);
+        SqlBindString(sql, "@system", sSystem);
+        SqlBindInt(sql, "@eventtype", nEventType);
+        SqlBindString(sql, "@scriptchunk", sScriptChunk);
+        SqlBindInt(sql, "@priority", nPriority);
+        SqlBindInt(sql, "@dispatchlist", bDispatchListMode);
+        SqlStep(sql);
 
-    WriteLog(EM_LOG_TAG, "* System '" + sSystem + "' subscribed to object event '" + IntToString(nEventType) + 
-                         "' with priority '" + IntToString(nPriority) + "', DL=" + IntToString(bDispatchListMode));
+        if (EM_LOG_DEBUG)
+        {
+            string sError = SqlGetError(sql);
+            if (sError != "")
+                WriteLog(EM_LOG_TAG, "DEBUG: Failed to insert event: " + sError);    
+        }
+
+        WriteLog(EM_LOG_TAG, "* System '" + sSystem + "' subscribed to object event '" + IntToString(nEventType) + 
+                            "' with priority '" + IntToString(nPriority) + "', DL=" + IntToString(bDispatchListMode));
+    }
 }
 
 string EM_GetObjectEventScript()

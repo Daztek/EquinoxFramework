@@ -22,7 +22,7 @@ const string VAULTMAN_BIND_LIST_RACES               = "races";
 const string VAULTMAN_BIND_LIST_CLASSES             = "classes";
 const string VAULTMAN_BIND_INFO_LABEL               = "info_label";
 const string VAULTMAN_BIND_BUTTON_SWITCH            = "btn_switch";
-const string VAULTMAN_BIND_BUTTON_DELETE            = "btn_delete";
+const string VAULTMAN_BIND_BUTTON_LOG               = "btn_log";
 const string VAULTMAN_BIND_BUTTON_CLOSE             = "btn_close";
 
 void VaultMan_UpdateCharacterList();
@@ -32,44 +32,44 @@ json VaultMan_CreateWindow()
 {
     NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 400.0f, 500.0f));
     NB_SetWindowTitle(JsonString("Character Vault Manager"));
-     NB_StartColumn();
-      NB_StartRow();
-       NB_StartList(NuiBind(VAULTMAN_BIND_LIST_PORTRAITS), 50.0f);
-        NB_StartListTemplateCell(32.0f, FALSE);
-         NB_StartGroup(FALSE, NUI_SCROLLBARS_NONE);
-          NB_StartElement(NuiImage(NuiBind(VAULTMAN_BIND_LIST_PORTRAITS), JsonInt(NUI_ASPECT_EXACTSCALED), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_TOP)));
-           NB_SetId(VAULTMAN_BIND_LIST_PORTRAITS);
-          NB_End();
-         NB_End();
+        NB_StartColumn();
+            NB_StartRow();
+                NB_StartList(NuiBind(VAULTMAN_BIND_LIST_PORTRAITS), 50.0f);
+                    NB_StartListTemplateCell(32.0f, FALSE);
+                        NB_StartGroup(FALSE, NUI_SCROLLBARS_NONE);
+                            NB_StartElement(NuiImage(NuiBind(VAULTMAN_BIND_LIST_PORTRAITS), JsonInt(NUI_ASPECT_EXACTSCALED), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_TOP)));
+                                NB_SetId(VAULTMAN_BIND_LIST_PORTRAITS);
+                            NB_End();
+                        NB_End();
+                    NB_End();
+                    NB_StartListTemplateCell(0.0f, TRUE);
+                        NB_StartElement(NuiLabel(NuiBind(VAULTMAN_BIND_LIST_NAMES), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_TOP)));
+                            NB_SetId(VAULTMAN_BIND_INFO_LABEL);
+                            NB_SetForegroundColor(NuiBind(VAULTMAN_BIND_LIST_COLORS));
+                            NB_StartDrawList(JsonBool(TRUE));
+                                NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiBind(VAULTMAN_BIND_LIST_COLORS), NuiRect(0.0f, 16.67f, 300.0f, 33.33f), NuiBind(VAULTMAN_BIND_LIST_RACES)));
+                                NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiBind(VAULTMAN_BIND_LIST_COLORS), NuiRect(0.0f, 33.33f, 300.0f, 16.67f), NuiBind(VAULTMAN_BIND_LIST_CLASSES)));
+                            NB_End();
+                        NB_End();
+                    NB_End();
+                NB_End();
+            NB_End();
+            NB_StartRow();
+                NB_StartElement(NuiButton(JsonString("Switch")));
+                    NB_SetId(VAULTMAN_BIND_BUTTON_SWITCH);
+                    NB_SetDimensions(100.0f, 35.0f);
+                NB_End();
+                NB_StartElement(NuiButton(JsonString("Log")));
+                    NB_SetId(VAULTMAN_BIND_BUTTON_LOG);
+                    NB_SetDimensions(100.0f, 35.0f);
+                NB_End();
+                NB_AddSpacer();
+                NB_StartElement(NuiButton(JsonString("Close")));
+                    NB_SetId(VAULTMAN_BIND_BUTTON_CLOSE);
+                    NB_SetDimensions(100.0f, 35.0f);
+                NB_End();
+            NB_End();
         NB_End();
-        NB_StartListTemplateCell(0.0f, TRUE);
-         NB_StartElement(NuiLabel(NuiBind(VAULTMAN_BIND_LIST_NAMES), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_TOP)));
-          NB_SetId(VAULTMAN_BIND_INFO_LABEL);
-          NB_SetForegroundColor(NuiBind(VAULTMAN_BIND_LIST_COLORS));
-          NB_StartDrawList(JsonBool(TRUE));
-           NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiBind(VAULTMAN_BIND_LIST_COLORS), NuiRect(0.0f, 16.67f, 300.0f, 33.33f), NuiBind(VAULTMAN_BIND_LIST_RACES)));
-           NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiBind(VAULTMAN_BIND_LIST_COLORS), NuiRect(0.0f, 33.33f, 300.0f, 16.67f), NuiBind(VAULTMAN_BIND_LIST_CLASSES)));
-          NB_End();
-         NB_End();
-        NB_End();
-       NB_End();
-      NB_End();
-      NB_StartRow();
-       NB_StartElement(NuiButton(JsonString("Switch")));
-        NB_SetId(VAULTMAN_BIND_BUTTON_SWITCH);
-        NB_SetDimensions(100.0f, 35.0f);
-       NB_End();
-       NB_StartElement(NuiButton(JsonString("Delete")));
-        NB_SetId(VAULTMAN_BIND_BUTTON_DELETE);
-        NB_SetDimensions(100.0f, 35.0f);
-       NB_End();
-       NB_AddSpacer();
-       NB_StartElement(NuiButton(JsonString("Close")));
-        NB_SetId(VAULTMAN_BIND_BUTTON_CLOSE);
-        NB_SetDimensions(100.0f, 35.0f);
-       NB_End();
-      NB_End();
-     NB_End();
     return NB_FinalizeWindow();
 }
 
@@ -94,10 +94,44 @@ void VaultMan_ClickSwitchButton()
     }
 }
 
-// @NWMEVENT[VAULTMAN_NUI_WINDOW_NAME:NUI_EVENT_CLICK:VAULTMAN_BIND_BUTTON_DELETE]
-void VaultMan_ClickDeleteButton()
+string VaultMan_EventToString(int nEvent)
 {
-    SendMessageToPC(OBJECT_SELF, "NYI");
+    switch (nEvent)
+    {
+        case NWNX_VAULT_EVENT_TYPE_CREATED:
+            return "Created";
+        case NWNX_VAULT_EVENT_TYPE_LOGIN:
+            return "Login";
+        case NWNX_VAULT_EVENT_TYPE_LOGOUT:
+            return "Logout";                          
+    }
+
+    return "";
+}
+
+// @NWMEVENT[VAULTMAN_NUI_WINDOW_NAME:NUI_EVENT_CLICK:VAULTMAN_BIND_BUTTON_LOG]
+void VaultMan_ClickLogButton()
+{
+    object oPlayer = OBJECT_SELF;
+    json jCharacter = JsonArrayGet(NWM_GetUserData("vault"), JsonGetInt(NWM_GetUserData("selected")));    
+    int nCharacterId = JsonObjectGetInt(jCharacter, "id");
+    string sName = JsonObjectGetString(jCharacter, "firstname") + " " + JsonObjectGetString(jCharacter, "lastname");
+
+    SendMessageToPC(oPlayer, "Event Log: " + sName);
+
+    string sQuery = "SELECT cdkey, event, datetime(timestamp, 'unixepoch', 'localtime') FROM vault_log WHERE id = @id;";
+    sqlquery sql = SqlPrepareQueryCampaign("servervault", sQuery);
+    SqlBindInt(sql, "@id", nCharacterId);
+
+    while (SqlStep(sql))
+    {
+        string sCDKey = SqlGetString(sql, 0);
+        int nEvent = SqlGetInt(sql, 1);
+        string sTimestamp = SqlGetString(sql, 2);
+
+        string sLog = "* " + sCDKey + " -> " + VaultMan_EventToString(nEvent) + " @ " + sTimestamp;
+        SendMessageToPC(oPlayer, sLog);
+    }    
 }
 
 void VaultMan_ChangeSelection()
@@ -240,79 +274,3 @@ void VaultTest_ShowWindow()
         Profiler_Stop(pd);
     }
 }
-
-int VaultDB_InsertCharacter(string sOwner, json jCharacter)
-{
-    sqlquery sql = SqlPrepareQueryCampaign("servervault", "INSERT INTO vault_characters (owner, character, timestamp) VALUES(@owner, @character, strftime('%s','now'));");
-    SqlBindString(sql, "@owner", sOwner);
-    SqlBindJson(sql, "@character", jCharacter);
-    SqlStep(sql);
-
-    return SqlGetLastInsertIdCampaign("servervault");
-}
-
-void VaultDB_UpdateCharacterById(int nCharacterId, json jCharacter)
-{
-    sqlquery sql = SqlPrepareQueryCampaign("servervault", "UPDATE vault_characters SET character = @character, timestamp = strftime('%s','now') WHERE id = @id;");
-    SqlBindJson(sql, "@character", jCharacter);
-    SqlBindInt(sql, "@id", nCharacterId);
-    SqlStep(sql);
-}
-
-json VaultDB_GetCharacterDataById(int nCharacterId)
-{
-    sqlquery sql = SqlPrepareQueryCampaign("servervault", "SELECT character FROM vault_characters WHERE id = @id;");
-    SqlBindInt(sql, "@id", nCharacterId);
-
-    return SqlStep(sql) ? SqlGetJson(sql, 0) : JsonNull();
-}
-
-void VaultDB_DeleteCharacterById(int nCharacterId)
-{
-    sqlquery sql = SqlPrepareQueryCampaign("servervault", "DELETE FROM vault_characters WHERE id = @id;");
-    SqlBindInt(sql, "@id", nCharacterId);
-    SqlStep(sql);
-}
-
-// @ PMBUTTON[Print Character Json]
-void Vault_CharacterJson()
-{
-    PrintString(JsonDump(NWNX_Vault_GetCharacterJson(OBJECT_SELF)));
-}
-
-// @ PMBUTTON[LeveldownTest]
-void Vault_LevelDownTest()
-{
-    object oPlayer = OBJECT_SELF;
-    int nCharacterId = StringToInt(NWNX_Player_GetBicFileName(oPlayer));
-
-    ApplyEffectAtLocation(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_IMP_AC_BONUS), GetLocation(oPlayer));
-
-    if (nCharacterId == 1)
-    {
-        // Save our current character
-        VaultDB_UpdateCharacterById(nCharacterId, NWNX_Vault_GetCharacterJson(oPlayer));
-        // Leveldown
-        SetXP(oPlayer, 2000);
-        // Insert a temp character
-        nCharacterId = VaultDB_InsertCharacter("TEMP", NWNX_Vault_GetCharacterJson(oPlayer));
-        // Switch to our leveled down character, don't save current
-        NWNX_Vault_SwitchCharacter(oPlayer, nCharacterId, FALSE);
-    }
-    else
-    {
-        json jMainCharacter = VaultDB_GetCharacterDataById(1);
-        json jTempCharacter = NWNX_Vault_GetCharacterJson(oPlayer);
-        // Replace our main character's items and gold with the temp character's state
-        jMainCharacter = GffReplaceList(jMainCharacter, "Equip_ItemList", GffGetList(jTempCharacter, "Equip_ItemList"));
-        jMainCharacter = GffReplaceList(jMainCharacter, "ItemList", GffGetList(jTempCharacter, "ItemList"));
-        jMainCharacter = GffReplaceDword(jMainCharacter, "Gold", JsonGetInt(GffGetDword(jTempCharacter, "Gold")));
-        // Update our main character
-        VaultDB_UpdateCharacterById(1, jMainCharacter);
-        // Switch back to our main
-        NWNX_Vault_SwitchCharacter(oPlayer, 1, FALSE);
-        // Delete our temp character
-        VaultDB_DeleteCharacterById(nCharacterId);
-    }
-}
-

@@ -13,8 +13,6 @@
 #include "nwnx_admin"
 #include "nwnx_regex"
 
-//void main() {}
-
 const string EFCORE_LOG_TAG                             = "Equinox";
 const string EFCORE_SCRIPT_NAME                         = "ef_i_core";
 

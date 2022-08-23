@@ -20,7 +20,9 @@ const int EFCORE_VALIDATE_SYSTEMS                       = TRUE;
 const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
 
 const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = TRUE;
-const int EFCORE_PRECACHE_FUNCTIONS                     = FALSE;
+
+const int EFCORE_PARSE_SYSTEM_FUNCTIONS                 = TRUE;
+const int EFCORE_PRECACHE_SYSTEM_FUNCTIONS              = FALSE;
 
 const int EF_SYSTEM_INIT                                = 1;
 const int EF_SYSTEM_LOAD                                = 2;
@@ -205,56 +207,58 @@ void EFCore_ParseSystem(string sSystem)
         EFCore_InsertAnnotation(sSystem, JsonArrayGetString(JsonArrayGet(jMatches, nMatch), 1));      
     }
 
-    // Get functions
-    jMatches = NWNX_Regex_Match(sScriptData, "(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)" + 
-                                             "(void|object|int|float|string|json|vector|location)\\s(\\w+)\\((.*)\\);");
-    nNumMatches = JsonGetLength(jMatches);
-    for(nMatch = 0; nMatch < nNumMatches; nMatch++)
+    if (EFCORE_PARSE_SYSTEM_FUNCTIONS)
     {
-        json jMatch = JsonArrayGet(jMatches, nMatch);
-        string sReturnType = nssConvertType(JsonArrayGetString(jMatch, 1));
-        string sFunctionName = JsonArrayGetString(jMatch, 2);
-        string sRawParameters = JsonArrayGetString(jMatch, 3);
-        string sParameters;
-
-        if (sRawParameters != "")
+        json jMatches = NWNX_Regex_Match(sScriptData, "(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)" + 
+                                                "(void|object|int|float|string|json|vector|location)\\s(\\w+)\\((.*)\\);");
+        int nMatch, nNumMatches = JsonGetLength(jMatches);
+        for(nMatch = 0; nMatch < nNumMatches; nMatch++)
         {
-            json jRawParameters = NWNX_Regex_Match(sRawParameters, "(object|int|float|string|json|vector|location)\\s");
-            int nRawParameter, nNumRawParameters = JsonGetLength(jRawParameters);
-            for(nRawParameter = 0; nRawParameter < nNumRawParameters; nRawParameter++)
+            json jMatch = JsonArrayGet(jMatches, nMatch);
+            string sReturnType = nssConvertType(JsonArrayGetString(jMatch, 1));
+            string sFunctionName = JsonArrayGetString(jMatch, 2);
+            string sRawParameters = JsonArrayGetString(jMatch, 3);
+            string sParameters;
+
+            if (sRawParameters != "")
             {
-                sParameters += nssConvertType(JsonArrayGetString(JsonArrayGet(jRawParameters, nRawParameter), 1));
+                json jRawParameters = NWNX_Regex_Match(sRawParameters, "(object|int|float|string|json|vector|location)\\s");
+                int nRawParameter, nNumRawParameters = JsonGetLength(jRawParameters);
+                for(nRawParameter = 0; nRawParameter < nNumRawParameters; nRawParameter++)
+                {
+                    sParameters += nssConvertType(JsonArrayGetString(JsonArrayGet(jRawParameters, nRawParameter), 1));
+                }
             }
+
+            string sArguments;
+            int nArgument, nNumArguments = GetStringLength(sParameters);
+            for (nArgument = 0; nArgument < nNumArguments; nArgument++)
+            {
+                sArguments += (!nArgument ? "" : ", ") + 
+                    nssFunction("GetLocal" + nssConvertShortType(GetSubString(sParameters, nArgument, 1)), 
+                        "oModule, " + nssEscape(EFCORE_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
+            }
+
+            string sFunctionBody = nssObject("oModule", nssFunction("GetModule"));
+                sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "", FALSE)));
+
+            if (sReturnType != "")
+            {
+                sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType), 
+                                    "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
+                sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType), 
+                                    "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction(sFunctionName, sArguments, FALSE));
+            }
+            else
+                sFunctionBody += nssFunction(sFunctionName, sArguments);
+
+            string sScriptChunk = nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sFunctionBody);
+
+            if (EFCORE_PRECACHE_SYSTEM_FUNCTIONS)
+                EFCore_CacheScriptChunk(sScriptChunk);
+
+            EFCore_InsertFunction(sSystem, sFunctionName, sReturnType, sParameters, sScriptChunk);
         }
-
-        string sArguments;
-        int nArgument, nNumArguments = GetStringLength(sParameters);
-        for (nArgument = 0; nArgument < nNumArguments; nArgument++)
-        {
-            sArguments += (!nArgument ? "" : ", ") + 
-                nssFunction("GetLocal" + nssConvertShortType(GetSubString(sParameters, nArgument, 1)), 
-                    "oModule, " + nssEscape(EFCORE_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
-        }
-
-        string sFunctionBody = nssObject("oModule", nssFunction("GetModule"));
-               sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "", FALSE)));
-
-        if (sReturnType != "")
-        {
-            sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType), 
-                                "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
-            sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType), 
-                                "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction(sFunctionName, sArguments, FALSE));
-        }
-        else
-            sFunctionBody += nssFunction(sFunctionName, sArguments);
-
-        string sScriptChunk = nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sFunctionBody);
-
-        if (EFCORE_PRECACHE_FUNCTIONS)
-            EFCore_CacheScriptChunk(sScriptChunk);
-
-        EFCore_InsertFunction(sSystem, sFunctionName, sReturnType, sParameters, sScriptChunk);
     }
 
     SqlCommitTransactionModule();
@@ -369,8 +373,10 @@ void EFCore_ParseAnnotationData()
             string sError = ExecuteCachedScriptChunk(nssInclude(sSystem) + nssVoidMain(sFunction), oModule, FALSE);
 
             if (sError != "")
+            {
                 WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + sFunction + "' for '" + 
                                         sSystem + "' failed with error: " + sError);
+            }
 
             NWNX_Util_SetInstructionsExecuted(0);
         }        
@@ -457,6 +463,12 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
     string sFunctionSymbol = GetLocalString(oModule, EFCORE_CURRENT_FUNCTION);
     int nCallStackDepth = 0;
 
+    if (!EFCORE_PARSE_SYSTEM_FUNCTIONS)
+    {
+        WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore::Call() Function Parsing Disabled: could not execute '" + sFunctionSymbol + "'");
+        return nCallStackDepth;
+    }
+
     if (sFunction != EFCORE_INVALID_FUNCTION)
     {
         string sParameters = GetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sFunctionSymbol);
@@ -469,17 +481,17 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
             DecrementCallStackDepth();
 
             if (sError != "")
-                WriteLog(EFCORE_LOG_TAG, "ERROR: (" + NWNX_Util_GetCurrentScriptName() + ") failed to execute '" + sFunctionSymbol + "' with error: " + sError);
+                WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Failed to execute '" + sFunctionSymbol + "' with error: " + sError);
         }
         else
         {
-            WriteLog(EFCORE_LOG_TAG, "ERROR: (" + NWNX_Util_GetCurrentScriptName() + ") Parameter Mismatch: EXPECTED: '" + sFunctionSymbol + "(" + sParameters + 
+            WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Parameter Mismatch: EXPECTED: '" + sFunctionSymbol + "(" + sParameters + 
                                      ")' -> GOT: '"  + sFunctionSymbol + "(" + sArgs + ")'");
         }
     }
     else
     {
-        WriteLog(EFCORE_LOG_TAG, "ERROR: (" + NWNX_Util_GetCurrentScriptName() + ") Function '" + sFunctionSymbol + "' does not exist");
+        WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Function '" + sFunctionSymbol + "' does not exist");
     }
 
     return nCallStackDepth;

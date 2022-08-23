@@ -58,11 +58,12 @@ void EM_Init()
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     // :(
-    AddScript(EM_SCRIPT_NAME, EM_SCRIPT_NAME, nssFunction("EM_SignalObjectEvent"));
+    AddScript(EM_SCRIPT_NAME, EM_SCRIPT_NAME, nssFunction("EM_SignalObjectEvent")); 
+}
 
-    EFCore_ParseAnnotationData(EM_SCRIPT_NAME, "EVENT", "EM_InsertObjectEventAnnotations");
-    EFCore_ParseAnnotationData(EM_SCRIPT_NAME, "NWNX", "EM_SubscribeNWNXAnnotations");
-
+// @CORE[EF_SYSTEM_LOAD]
+void EM_Load()
+{
     EM_SetModuleEventScripts();
 
     object oArea = GetFirstArea();
@@ -70,7 +71,7 @@ void EM_Init()
     {
         EM_SetAreaEventScripts(oArea);
         oArea = GetNextArea();
-    }    
+    }     
 }
 
 // *** Object Events
@@ -101,6 +102,7 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
     }
 }
 
+// @PARSEANNOTATIONDATA[EVENT]
 void EM_InsertObjectEventAnnotations(json jObjectEvent)
 {
     string sSystem = JsonArrayGetString(jObjectEvent, 0);
@@ -287,6 +289,7 @@ string EM_GetNWNXEventScriptChunk(string sSystem, string sEvent)
     return GetLocalString(GetDataObject(EM_SCRIPT_NAME), sSystem + sEvent);
 }
 
+// @PARSEANNOTATIONDATA[NWNX]
 void EM_SubscribeNWNXAnnotations(json jNWNXEvent)
 {
     string sSystem = JsonArrayGetString(jNWNXEvent, 0);

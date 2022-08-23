@@ -31,8 +31,6 @@ void AIMan_Init()
                     "eventtype INTEGER NOT NULL, " +
                     "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
-
-    EFCore_ParseAnnotationData(AIMAN_SCRIPT_NAME, "AIMANEVENT", "AIMan_RegisterAIBehaviorEvent");
 }
 
 string AIMan_GetBehavior(object oCreature)
@@ -134,6 +132,7 @@ void AIMan_ApplyCutsceneGhost(object oCreature = OBJECT_SELF)
     ApplyEffectToObject(DURATION_TYPE_PERMANENT, ExtraordinaryEffect(EffectCutsceneGhost()), oCreature);
 }
 
+// @PARSEANNOTATIONDATA[AIMANEVENT]
 void AIMan_RegisterAIBehaviorEvent(json jAIEventData)
 {
     string sSystem = JsonArrayGetString(jAIEventData, 0);

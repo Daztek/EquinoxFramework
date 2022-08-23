@@ -20,12 +20,6 @@ const string PM_BUTTON_ARRAY        = "ButtonArray";
 const string PM_TOOLTIP_ARRAY       = "TooltipArray";
 const string PM_FUNCTION_ARRAY      = "FunctionArray";
 
-// @CORE[EF_SYSTEM_INIT]
-void PM_Init()
-{
-    EFCore_ParseAnnotationData(PM_SCRIPT_NAME, "PMBUTTON", "PM_RegisterButton");
-}
-
 // @NWMWINDOW[PM_WINDOW_ID]
 json PM_CreateWindow()
 {
@@ -85,6 +79,7 @@ void PM_OnCommandButtonClick()
         ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
 }
 
+// @PARSEANNOTATIONDATA[PMBUTTON]
 void PM_RegisterButton(json jButton)
 {
     string sSystem = JsonArrayGetString(jButton, 0);

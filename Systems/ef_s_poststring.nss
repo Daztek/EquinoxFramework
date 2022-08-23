@@ -53,8 +53,7 @@ void PostString_ClearBySystem(object oPlayer, string sSystem);
 // @CORE[EF_SYSTEM_INIT]
 void PostString_Init()
 {
-    object oDataObject = GetDataObject(POSTSTRING_SCRIPT_NAME);
-    SetLocalInt(oDataObject, "TotalIDs", POSTSTRING_ID_START);
+    SetLocalInt(GetDataObject(POSTSTRING_SCRIPT_NAME), "TotalIDs", POSTSTRING_ID_START);
 }
 
 void PostString_ReserveIDs(string sSystem, int nAmount)

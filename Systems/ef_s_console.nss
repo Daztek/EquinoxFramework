@@ -56,8 +56,6 @@ void Console_Init()
              "function TEXT NOT NULL, " +
              "script_chunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
-
-    EFCore_ParseAnnotationData(CONSOLE_SCRIPT_NAME, "CONSOLE", "Console_RegisterCommand");
 }
 
 // @NWMWINDOW[CONSOLE_WINDOW_ID]
@@ -444,6 +442,7 @@ void Console_ToggleWindow()
     }
 }
 
+// @PARSEANNOTATIONDATA[CONSOLE]
 void Console_RegisterCommand(json jCommand)
 {
     string sSystem = JsonArrayGetString(jCommand, 0);

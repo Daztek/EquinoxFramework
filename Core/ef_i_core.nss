@@ -49,7 +49,7 @@ void EFCore_ParseSystem(string sSystem);
 int EFCore_ValidateSystems();
 void EFCore_ParseSystemsForAnnotationData();
 void EFCore_ExecuteCoreFunction(int nCoreFunctionType);
-void EFCore_ParseAnnotationData(string sSystem, string sAnnotationData, string sFunction);
+void EFCore_ParseAnnotationData();
 
 void EFCore_Initialize()
 {
@@ -72,11 +72,13 @@ void EFCore_Initialize()
 
     EFCore_ParseSystemsForAnnotationData();
 
-    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Init' Functions");
+    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Init' Functions...");
     EFCore_ExecuteCoreFunction(EF_SYSTEM_INIT);
-    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Load' Functions");
+    WriteLog(EFCORE_LOG_TAG, "* Parsing Annotation Data...");
+    EFCore_ParseAnnotationData();
+    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Load' Functions...");
     EFCore_ExecuteCoreFunction(EF_SYSTEM_LOAD);
-    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Post' Functions");
+    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Post' Functions...");
     EFCore_ExecuteCoreFunction(EF_SYSTEM_POST);
 
     NWNX_Administration_SetPlayerPassword("");
@@ -112,6 +114,7 @@ void EFCore_InitializeSystemData()
     SqlStep(SqlPrepareQueryModule(sQuery)); 
 
     EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "@(CORE)\\[(EF_SYSTEM_[A-Z]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(");
+    EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "@(PARSEANNOTATIONDATA)\\[([\\w]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(json\\s[\\w]+\\)");
     
     json jSystems = GetResRefArray(RESTYPE_NSS, EFCORE_SYSTEM_SCRIPT_PREFIX + ".*", FALSE);
     int nSystem, nNumSystems = JsonGetLength(jSystems);
@@ -339,26 +342,35 @@ void EFCore_ExecuteCoreFunction(int nCoreFunctionType)
     }
 }
 
-void EFCore_ParseAnnotationData(string sSystem, string sAnnotation, string sFunction)
+void EFCore_ParseAnnotationData()
 {
     object oModule = GetModule(); 
-    sFunction = nssFunction(sFunction, nssFunction("GetLocalJson", "GetModule(), " + nssEscape(EFCORE_ANNOTATION_DATA), FALSE));    
-    sqlquery sql = SqlPrepareQueryModule("SELECT data FROM " + EFCORE_SCRIPT_NAME + "_annotationdata WHERE annotation = @annotation;");
-    SqlBindString(sql, "@annotation", sAnnotation);
-    
-    while (SqlStep(sql))    
+    sqlquery sqlParseFunction = SqlPrepareQueryModule("SELECT data FROM " + EFCORE_SCRIPT_NAME + "_annotationdata WHERE annotation = @annotation;");
+    SqlBindString(sqlParseFunction, "@annotation", "PARSEANNOTATIONDATA");
+    while (SqlStep(sqlParseFunction))
     {
-        SetLocalJson(oModule, EFCORE_ANNOTATION_DATA, SqlGetJson(sql, 0));
-        string sError = ExecuteCachedScriptChunk(nssInclude(sSystem) + nssVoidMain(sFunction), oModule, FALSE);
+        json jData = SqlGetJson(sqlParseFunction, 0);
+        string sSystem = JsonArrayGetString(jData, 0);
+        string sAnnotation = JsonArrayGetString(jData, 2);
+        string sFunction = nssFunction(JsonArrayGetString(jData, 3), nssFunction("GetLocalJson", "GetModule(), " + nssEscape(EFCORE_ANNOTATION_DATA), FALSE));
 
-        if (sError != "")
-            WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + sFunction + "' for '" + 
-                                     sSystem + "' failed with error: " + sError);
+        sqlquery sqlAnnotationData = SqlPrepareQueryModule("SELECT data FROM " + EFCORE_SCRIPT_NAME + "_annotationdata WHERE annotation = @annotation;");
+        SqlBindString(sqlAnnotationData, "@annotation", sAnnotation);
+        
+        while (SqlStep(sqlAnnotationData))    
+        {
+            SetLocalJson(oModule, EFCORE_ANNOTATION_DATA, SqlGetJson(sqlAnnotationData, 0));
+            string sError = ExecuteCachedScriptChunk(nssInclude(sSystem) + nssVoidMain(sFunction), oModule, FALSE);
 
-        NWNX_Util_SetInstructionsExecuted(0);
+            if (sError != "")
+                WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + sFunction + "' for '" + 
+                                        sSystem + "' failed with error: " + sError);
+
+            NWNX_Util_SetInstructionsExecuted(0);
+        }        
     }
 
-    DeleteLocalJson(oModule, EFCORE_ANNOTATION_DATA);
+    DeleteLocalJson(oModule, EFCORE_ANNOTATION_DATA);    
 }
 
 // **** Function Stuff

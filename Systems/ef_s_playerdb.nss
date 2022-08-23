@@ -55,7 +55,7 @@ int PlayerDB_GetLastUpdated_UnixEpoch(object oPlayer, string sSystem, string sVa
 string PlayerDB_GetLastUpdated_UTC(object oPlayer, string sSystem, string sVarName, int nType);
 
 // @NWNX[NWNX_ON_ELC_VALIDATE_CHARACTER_BEFORE]
-void PlayerDB_Init()
+void PlayerDB_OnELCValidateCharacterBefore()
 {
     object oPlayer = OBJECT_SELF;
     SqlStep(SqlPrepareQueryObject(oPlayer,
@@ -70,7 +70,7 @@ void PlayerDB_Init()
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_CLIENT_EXIT:PLAYERDB_ONCLIENTEXIT_PRIORITY]
-void PlayerDB_DestroySessionDataObject()
+void PlayerDB_DestroySessionDataObjectOnClientExit()
 {
     DestroyDataObject(PLAYERDB_SESSION_DATA + GetObjectUUID(GetExitingObject()));
 }

@@ -12,12 +12,6 @@ const string REST_LOG_TAG                   = "Rest";
 const string REST_SCRIPT_NAME               = "ef_s_rest";
 const string REST_FUNCTIONS_ARRAY_PREFIX    = "FunctionsArray_";
 
-// @CORE[EF_SYSTEM_INIT]
-void GuiEvent_Init()
-{
-    EFCore_ParseAnnotationData(REST_SCRIPT_NAME, "REST", "Rest_RegisterFunction");
-}
-
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_REST]
 void Rest_OnPlayerRest()
 {
@@ -38,6 +32,7 @@ void Rest_OnPlayerRest()
     }
 }
 
+// @PARSEANNOTATIONDATA[REST]
 void Rest_RegisterFunction(json jRestFunction)
 {
     string sSystem = JsonArrayGetString(jRestFunction, 0);

@@ -51,11 +51,56 @@ json NWM_GetPrefixArray(string sWindowId);
 void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string sElement);
 void NWM_Destroy();
 
-// @CORE[EF_SYSTEM_INIT]
-void NWM_Init()
+// @PARSEANNOTATIONDATA[NWMWINDOW]
+void NWM_RegisterWindow(json jNWMWindow)
 {
-    EFCore_ParseAnnotationData(NWM_SCRIPT_NAME, "NWMWINDOW", "NWM_RegisterWindow");
-    EFCore_ParseAnnotationData(NWM_SCRIPT_NAME, "NWMEVENT", "NWM_RegisterEvent");
+    string sSystem = JsonArrayGetString(jNWMWindow, 0);
+    string sWindowId = JsonArrayGetString(jNWMWindow, 2);
+           sWindowId = GetConstantStringValue(sWindowId, sSystem, sWindowId);
+    string sFunction = JsonArrayGetString(jNWMWindow, 3);
+    json jWindow = ExecuteScriptChunkAndReturnJson(sSystem, nssFunction(sFunction), GetModule());
+
+    if (!JsonGetType(jWindow))
+        WriteLog(NWM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register window with no data!");
+    else if (JsonGetType(NWM_GetWindowJson(sWindowId)))
+        WriteLog(NWM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register already registered window: " + sWindowId);
+    else
+    {
+        object oDataObject = GetDataObject(NWM_SCRIPT_NAME);
+        json jGeometry = JsonObjectGet(jWindow, NUI_DEFAULT_GEOMETRY_NAME);
+        SetLocalJson(oDataObject, NWM_REGISTERED_WINDOW + sWindowId, jWindow);
+        SetLocalJson(oDataObject, NWM_WINDOW_GEOMETRY + sWindowId, jGeometry);
+        WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered window: " + sWindowId);
+    }
+}
+
+// @PARSEANNOTATIONDATA[NWMEVENT]
+void NWM_RegisterEvent(json jNWMEvent)
+{
+    string sSystem = JsonArrayGetString(jNWMEvent, 0);
+    string sWindowId = JsonArrayGetString(jNWMEvent, 2);
+           sWindowId = GetConstantStringValue(sWindowId, sSystem, sWindowId);
+    string sEventType = JsonArrayGetString(jNWMEvent, 3);
+           sEventType = GetConstantStringValue(sEventType, sSystem, sEventType);
+    string sElement = JsonArrayGetString(jNWMEvent, 4);
+           sElement = GetConstantStringValue(sElement, sSystem, sElement);
+    string sFunction = JsonArrayGetString(jNWMEvent, 5);
+    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+    int bPrefix = GetStringRight(sElement, 1) == "_"; // Bit of a hack, assume it's a prefix if the last character of an element is an underscore
+
+    if (JsonGetType(NWM_GetWindowJson(sWindowId)))
+    {
+        if (bPrefix)
+            InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_PREFIX + sWindowId, sElement);
+
+        InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement, sScriptChunk);
+        WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
+
+    }
+    else
+    {
+        WriteLog(NWM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register event for a window that does not exist: " + sWindowId);
+    }
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_NUI_EVENT]
@@ -133,28 +178,6 @@ json NWM_GetWindowGeometry(object oPlayer, string sWindowId)
 void NWM_SetWindowGeometry(object oPlayer, string sWindowId, json jGeometry)
 {
     SetLocalJson(oPlayer, NWM_WINDOW_GEOMETRY + sWindowId, jGeometry);
-}
-
-void NWM_RegisterWindow(json jNWMWindow)
-{
-    string sSystem = JsonArrayGetString(jNWMWindow, 0);
-    string sWindowId = JsonArrayGetString(jNWMWindow, 2);
-           sWindowId = GetConstantStringValue(sWindowId, sSystem, sWindowId);
-    string sFunction = JsonArrayGetString(jNWMWindow, 3);
-    json jWindow = ExecuteScriptChunkAndReturnJson(sSystem, nssFunction(sFunction), GetModule());
-
-    if (!JsonGetType(jWindow))
-        WriteLog(NWM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register window with no data!");
-    else if (JsonGetType(NWM_GetWindowJson(sWindowId)))
-        WriteLog(NWM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register already registered window: " + sWindowId);
-    else
-    {
-        object oDataObject = GetDataObject(NWM_SCRIPT_NAME);
-        json jGeometry = JsonObjectGet(jWindow, NUI_DEFAULT_GEOMETRY_NAME);
-        SetLocalJson(oDataObject, NWM_REGISTERED_WINDOW + sWindowId, jWindow);
-        SetLocalJson(oDataObject, NWM_WINDOW_GEOMETRY + sWindowId, jGeometry);
-        WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered window: " + sWindowId);
-    }
 }
 
 int NWM_GetIsWindowOpen(object oPlayer, string sWindowId, int bSetPlayerToken = FALSE)
@@ -266,34 +289,6 @@ void NWM_DeleteUserData(string sKey)
     object oPlayer = NWM_GetPlayer();
     int nToken = NWM_GetToken();
     NuiSetUserData(oPlayer, nToken, JsonObjectDel(NuiGetUserData(oPlayer, nToken), sKey));
-}
-
-void NWM_RegisterEvent(json jNWMEvent)
-{
-    string sSystem = JsonArrayGetString(jNWMEvent, 0);
-    string sWindowId = JsonArrayGetString(jNWMEvent, 2);
-           sWindowId = GetConstantStringValue(sWindowId, sSystem, sWindowId);
-    string sEventType = JsonArrayGetString(jNWMEvent, 3);
-           sEventType = GetConstantStringValue(sEventType, sSystem, sEventType);
-    string sElement = JsonArrayGetString(jNWMEvent, 4);
-           sElement = GetConstantStringValue(sElement, sSystem, sElement);
-    string sFunction = JsonArrayGetString(jNWMEvent, 5);
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
-    int bPrefix = GetStringRight(sElement, 1) == "_"; // Bit of a hack, assume it's a prefix if the last character of an element is an underscore
-
-    if (JsonGetType(NWM_GetWindowJson(sWindowId)))
-    {
-        if (bPrefix)
-            InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_PREFIX + sWindowId, sElement);
-
-        InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement, sScriptChunk);
-        WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
-
-    }
-    else
-    {
-        WriteLog(NWM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register event for a window that does not exist: " + sWindowId);
-    }
 }
 
 json NWM_GetEvents(string sWindowId, string sEventType, string sElement)

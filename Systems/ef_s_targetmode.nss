@@ -38,12 +38,6 @@ void TargetMode_Enter(object oPlayer, string sTargetingMode, int nValidObjectTyp
 // - nFeat: FEAT_* (optional, passed to the shader but does nothing by default, you need to edit the shader to use it)
 void _SetEnterTargetingModeData(object oPlayer, int nShape, float fSizeX, float fSizeY, int nFlags, float fRange = 0.0f, int nSpell = -1, int nFeat = -1);
 
-// @CORE[EF_SYSTEM_INIT]
-void GuiEvent_Init()
-{
-    EFCore_ParseAnnotationData(TARGETMODE_SCRIPT_NAME, "TARGETMODE", "TargetMode_RegisterFunction");
-}
-
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_TARGET]
 void TargetMode_OnPlayerTarget()
 {
@@ -69,6 +63,7 @@ void TargetMode_OnPlayerTarget()
     }
 }
 
+// @PARSEANNOTATIONDATA[TARGETMODE]
 void TargetMode_RegisterFunction(json jTargetModeFunction)
 {
     string sSystem = JsonArrayGetString(jTargetModeFunction, 0);

@@ -12,12 +12,6 @@ const string GUIEVENT_LOG_TAG           = "GuiEvent";
 const string GUIEVENT_SCRIPT_NAME       = "ef_s_guievent";
 const string GUIEVENT_ARRAY_PREFIX      = "GuiEventFunctions_";
 
-// @CORE[EF_SYSTEM_INIT]
-void GuiEvent_Init()
-{
-    EFCore_ParseAnnotationData(GUIEVENT_SCRIPT_NAME, "GUIEVENT", "GuiEvent_RegisterFunction");
-}
-
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_GUIEVENT]
 void GuiEvent_OnPlayerGuiEvent()
 {
@@ -39,6 +33,7 @@ void GuiEvent_OnPlayerGuiEvent()
     }
 }
 
+// @PARSEANNOTATIONDATA[GUIEVENT]
 void GuiEvent_RegisterFunction(json jGuiEvent)
 {
     string sSystem = JsonArrayGetString(jGuiEvent, 0);

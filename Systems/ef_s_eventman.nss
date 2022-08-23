@@ -102,7 +102,7 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
     }
 }
 
-// @PARSEANNOTATIONDATA[EVENT]
+// @PAD[EVENT]
 void EM_InsertObjectEventAnnotations(json jObjectEvent)
 {
     string sSystem = JsonArrayGetString(jObjectEvent, 0);
@@ -289,7 +289,7 @@ string EM_GetNWNXEventScriptChunk(string sSystem, string sEvent)
     return GetLocalString(GetDataObject(EM_SCRIPT_NAME), sSystem + sEvent);
 }
 
-// @PARSEANNOTATIONDATA[NWNX]
+// @PAD[NWNX]
 void EM_SubscribeNWNXAnnotations(json jNWNXEvent)
 {
     string sSystem = JsonArrayGetString(jNWNXEvent, 0);

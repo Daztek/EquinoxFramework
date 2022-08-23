@@ -63,7 +63,7 @@ void TargetMode_OnPlayerTarget()
     }
 }
 
-// @PARSEANNOTATIONDATA[TARGETMODE]
+// @PAD[TARGETMODE]
 void TargetMode_RegisterFunction(json jTargetModeFunction)
 {
     string sSystem = JsonArrayGetString(jTargetModeFunction, 0);

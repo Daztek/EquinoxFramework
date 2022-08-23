@@ -32,7 +32,7 @@ void Rest_OnPlayerRest()
     }
 }
 
-// @PARSEANNOTATIONDATA[REST]
+// @PAD[REST]
 void Rest_RegisterFunction(json jRestFunction)
 {
     string sSystem = JsonArrayGetString(jRestFunction, 0);

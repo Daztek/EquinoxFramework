@@ -114,7 +114,7 @@ void EFCore_InitializeSystemData()
     SqlStep(SqlPrepareQueryModule(sQuery)); 
 
     EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "@(CORE)\\[(EF_SYSTEM_[A-Z]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(");
-    EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "@(PARSEANNOTATIONDATA)\\[([\\w]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(json\\s[\\w]+\\)");
+    EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "@(PAD)\\[([\\w]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(json\\s[\\w]+\\)");
     
     json jSystems = GetResRefArray(RESTYPE_NSS, EFCORE_SYSTEM_SCRIPT_PREFIX + ".*", FALSE);
     int nSystem, nNumSystems = JsonGetLength(jSystems);
@@ -346,7 +346,7 @@ void EFCore_ParseAnnotationData()
 {
     object oModule = GetModule(); 
     sqlquery sqlParseFunction = SqlPrepareQueryModule("SELECT data FROM " + EFCORE_SCRIPT_NAME + "_annotationdata WHERE annotation = @annotation;");
-    SqlBindString(sqlParseFunction, "@annotation", "PARSEANNOTATIONDATA");
+    SqlBindString(sqlParseFunction, "@annotation", "PAD");
     while (SqlStep(sqlParseFunction))
     {
         json jData = SqlGetJson(sqlParseFunction, 0);

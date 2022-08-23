@@ -442,7 +442,7 @@ void Console_ToggleWindow()
     }
 }
 
-// @PARSEANNOTATIONDATA[CONSOLE]
+// @PAD[CONSOLE]
 void Console_RegisterCommand(json jCommand)
 {
     string sSystem = JsonArrayGetString(jCommand, 0);

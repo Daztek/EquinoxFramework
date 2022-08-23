@@ -79,7 +79,7 @@ void PM_OnCommandButtonClick()
         ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
 }
 
-// @PARSEANNOTATIONDATA[PMBUTTON]
+// @PAD[PMBUTTON]
 void PM_RegisterButton(json jButton)
 {
     string sSystem = JsonArrayGetString(jButton, 0);

@@ -51,7 +51,7 @@ json NWM_GetPrefixArray(string sWindowId);
 void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string sElement);
 void NWM_Destroy();
 
-// @PARSEANNOTATIONDATA[NWMWINDOW]
+// @PAD[NWMWINDOW]
 void NWM_RegisterWindow(json jNWMWindow)
 {
     string sSystem = JsonArrayGetString(jNWMWindow, 0);
@@ -74,7 +74,7 @@ void NWM_RegisterWindow(json jNWMWindow)
     }
 }
 
-// @PARSEANNOTATIONDATA[NWMEVENT]
+// @PAD[NWMEVENT]
 void NWM_RegisterEvent(json jNWMEvent)
 {
     string sSystem = JsonArrayGetString(jNWMEvent, 0);

@@ -33,7 +33,7 @@ void GuiEvent_OnPlayerGuiEvent()
     }
 }
 
-// @PARSEANNOTATIONDATA[GUIEVENT]
+// @PAD[GUIEVENT]
 void GuiEvent_RegisterFunction(json jGuiEvent)
 {
     string sSystem = JsonArrayGetString(jGuiEvent, 0);

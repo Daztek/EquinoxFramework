@@ -157,6 +157,14 @@ void NWNX_Optimizations_FlushCachedChunks(string sScriptChunk = "")
     NWNX_CallFunction("NWNX_Optimizations", "FlushCachedChunks");
 }
 
+string NWNX_Optimizations_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain)
+{
+    NWNX_PushArgumentInt(bWrapIntoMain);
+    NWNX_PushArgumentString(sScriptChunk);
+    NWNX_CallFunction("NWNX_Optimizations", "CacheScriptChunk");
+    return NWNX_GetReturnValueString();
+}
+
 string ExecuteCachedScriptChunk(string sScriptChunk, object oObject = OBJECT_SELF, int bWrapIntoMain = TRUE, int bFlushCachedChunk = FALSE)
 {
     if (bFlushCachedChunk)

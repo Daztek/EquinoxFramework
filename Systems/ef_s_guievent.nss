@@ -46,6 +46,7 @@ void GuiEvent_RegisterFunction(json jGuiEvent)
         WriteLog(GUIEVENT_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid gui event: " + sGuiEventType);
     else
     {
+        EFCore_CacheScriptChunk(sScriptChunk);
         InsertStringToLocalJsonArray(GetDataObject(GUIEVENT_SCRIPT_NAME), GUIEVENT_ARRAY_PREFIX + IntToString(nGuiEventType), sScriptChunk);
         WriteLog(GUIEVENT_LOG_TAG, "* System '" + sSystem + "' registered '" + sFunction + "' for gui event '" + sGuiEventType + "'");
     }

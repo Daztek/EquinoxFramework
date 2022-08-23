@@ -86,11 +86,13 @@ void PM_RegisterButton(json jButton)
     string sButton = JsonArrayGetString(jButton, 2);
     string sTooltip = JsonArrayGetString(jButton, 3);
     string sFunction = JsonArrayGetString(jButton, 4);
+    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
     object oDataObject = GetDataObject(PM_SCRIPT_NAME);
     InsertStringToLocalJsonArray(oDataObject, PM_BUTTON_ARRAY, sButton);
     InsertStringToLocalJsonArray(oDataObject, PM_TOOLTIP_ARRAY, sTooltip);
-    InsertStringToLocalJsonArray(oDataObject, PM_FUNCTION_ARRAY, nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction)));
+    InsertStringToLocalJsonArray(oDataObject, PM_FUNCTION_ARRAY, sScriptChunk);
+    EFCore_CacheScriptChunk(sScriptChunk);
 
     WriteLog(PM_LOG_TAG, "* System '" + sSystem + "' registered player menu button '" + sButton + "' with tooltip: \""  + sTooltip + "\"");
 }

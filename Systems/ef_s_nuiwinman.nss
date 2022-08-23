@@ -93,6 +93,7 @@ void NWM_RegisterEvent(json jNWMEvent)
         if (bPrefix)
             InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_PREFIX + sWindowId, sElement);
 
+        EFCore_CacheScriptChunk(sScriptChunk);
         InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement, sScriptChunk);
         WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
 

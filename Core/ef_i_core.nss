@@ -19,6 +19,9 @@ const string EFCORE_SCRIPT_NAME                         = "ef_i_core";
 const int EFCORE_VALIDATE_SYSTEMS                       = TRUE;
 const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
 
+const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = TRUE;
+const int EFCORE_PRECACHE_FUNCTIONS                     = FALSE;
+
 const int EF_SYSTEM_INIT                                = 1;
 const int EF_SYSTEM_LOAD                                = 2;
 const int EF_SYSTEM_POST                                = 3;
@@ -50,6 +53,7 @@ int EFCore_ValidateSystems();
 void EFCore_ParseSystemsForAnnotationData();
 void EFCore_ExecuteCoreFunction(int nCoreFunctionType);
 void EFCore_ParseAnnotationData();
+string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE);
 
 void EFCore_Initialize()
 {
@@ -82,7 +86,6 @@ void EFCore_Initialize()
     EFCore_ExecuteCoreFunction(EF_SYSTEM_POST);
 
     NWNX_Administration_SetPlayerPassword("");
-    NWNX_Optimizations_FlushCachedChunks();
     NWNX_Util_SetInstructionLimit(-1);
 }
 
@@ -248,6 +251,9 @@ void EFCore_ParseSystem(string sSystem)
 
         string sScriptChunk = nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sFunctionBody);
 
+        if (EFCORE_PRECACHE_FUNCTIONS)
+            EFCore_CacheScriptChunk(sScriptChunk);
+
         EFCore_InsertFunction(sSystem, sFunctionName, sReturnType, sParameters, sScriptChunk);
     }
 
@@ -371,6 +377,11 @@ void EFCore_ParseAnnotationData()
     }
 
     DeleteLocalJson(oModule, EFCORE_ANNOTATION_DATA);    
+}
+
+string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)
+{
+    return EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING ? NWNX_Optimizations_CacheScriptChunk(sScriptChunk, bWrapIntoMain) : "";
 }
 
 // **** Function Stuff

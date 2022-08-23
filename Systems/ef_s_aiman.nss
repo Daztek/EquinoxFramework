@@ -42,6 +42,7 @@ void AIMan_RegisterAIBehaviorEvent(json jAIEventData)
     string sEventType = JsonArrayGetString(jAIEventData, 3);
     string sFunction = JsonArrayGetString(jAIEventData, 4);
     int nEventType = GetConstantIntValue(sEventType, "", -1);
+    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
     if (nEventType == -1)
         WriteLog(AIMAN_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);        
@@ -50,8 +51,10 @@ void AIMan_RegisterAIBehaviorEvent(json jAIEventData)
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + AIMAN_SCRIPT_NAME + "(behavior, eventtype, scriptchunk) VALUES(@behavior, @eventtype, @scriptchunk);");
         SqlBindString(sql, "@behavior", sBehavior);
         SqlBindInt(sql, "@eventtype", nEventType);
-        SqlBindString(sql, "@scriptchunk", nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction)));
+        SqlBindString(sql, "@scriptchunk", sScriptChunk);
         SqlStep(sql);
+
+        EFCore_CacheScriptChunk(sScriptChunk);
 
         WriteLog(AIMAN_LOG_TAG, "* System '" + sSystem + "' registered '" + sFunction + "' for behavior '" + sBehavior + "' and event '" + sEventType + "'");
     }

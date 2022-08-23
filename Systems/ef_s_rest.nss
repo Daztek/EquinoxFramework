@@ -41,6 +41,7 @@ void Rest_RegisterFunction(json jRestFunction)
     string sFunction = JsonArrayGetString(jRestFunction, 3);
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
+    EFCore_CacheScriptChunk(sScriptChunk);
     InsertStringToLocalJsonArray(GetDataObject(REST_SCRIPT_NAME), REST_FUNCTIONS_ARRAY_PREFIX + IntToString(nRestEventType), sScriptChunk);
     WriteLog(REST_LOG_TAG, "* System '" + sSystem + "' registered function '" + sFunction + "' for rest event type: " + sRestEventTypeConstant);
 }

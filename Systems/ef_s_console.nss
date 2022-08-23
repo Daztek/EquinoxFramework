@@ -506,5 +506,7 @@ void Console_RegisterCommand(json jCommand)
     SqlBindString(sql, "@script_chunk", sScriptChunk);
     SqlStep(sql);
 
+    EFCore_CacheScriptChunk(sScriptChunk);
+
     WriteLog(CONSOLE_LOG_TAG, "* System '" + sSystem + "' registered command '" + sName + "' with '" + IntToString(nNumArguments) + "' parameters");
 }

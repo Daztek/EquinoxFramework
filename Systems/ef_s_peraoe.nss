@@ -43,6 +43,8 @@ string PerAOE_SetScriptChunk(object oTarget, string sScript, string sSystem, str
         return "";
     }
     
+    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+    EFCore_CacheScriptChunk(sScriptChunk);
     SetLocalString(oTarget, sScript, nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction)));
 
     return sScript;

@@ -76,6 +76,7 @@ void TargetMode_RegisterFunction(json jTargetModeFunction)
         WriteLog(TARGETMODE_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register function '" + sFunction + "' with an invalid target mode id");
     else
     {
+        EFCore_CacheScriptChunk(sScriptChunk);
         InsertStringToLocalJsonArray(GetDataObject(TARGETMODE_SCRIPT_NAME), TARGETMODE_FUNCTIONS_ARRAY_PREFIX + sTargetModeId, sScriptChunk);
         WriteLog(TARGETMODE_LOG_TAG, "* System '" + sSystem + "' registered function '" + sFunction + "' for target mode id: " + sTargetModeId);
     }

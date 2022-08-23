@@ -127,6 +127,8 @@ void EM_InsertObjectEventAnnotations(json jObjectEvent)
         SqlBindInt(sql, "@dispatchlist", bDispatchListMode);
         SqlStep(sql);
 
+        EFCore_CacheScriptChunk(sScriptChunk);
+
         if (EM_LOG_DEBUG)
         {
             string sError = SqlGetError(sql);
@@ -298,6 +300,7 @@ void EM_SubscribeNWNXAnnotations(json jNWNXEvent)
     string sFunction = JsonArrayGetString(jNWNXEvent, 4);
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
+    EFCore_CacheScriptChunk(sScriptChunk);
     EM_SetNWNXEventScriptChunk(sSystem, sEvent, sScriptChunk);
     EM_SubscribeNWNXEvent(sSystem, sEvent, sScriptChunk, bDispatchListMode);
 }

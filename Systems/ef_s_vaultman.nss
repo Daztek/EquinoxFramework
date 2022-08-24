@@ -85,7 +85,7 @@ const string VMAN_BIND_SELECTED_XP_LABEL                    = "selected_xp_label
 const string VMAN_BIND_SELECTED_STATUS_LABEL                = "selected_status_label";
 const string VMAN_BIND_SELECTED_STATUS_COLOR                = "selected_status_color";
 
-const string VMAN_BIND_BUTTON_EDIT                          = "btn_edit";
+const string VMAN_BIND_BUTTON_ITEMS                         = "btn_items";
 const string VMAN_BIND_BUTTON_LOG                           = "btn_log";
 const string VMAN_BIND_BUTTON_DELETE                        = "btn_delete";
 const string VMAN_BIND_BUTTON_SHARE                         = "btn_share";
@@ -100,11 +100,14 @@ const string VMAN_BIND_WINDOW_NAME                          = "window_name";
 const string VMAN_BIND_LIST_ICONS                           = "list_icons";
 const string VMAN_BIND_LIST_LABELS                          = "list_labels";
 
+const string VMAN_NUI_ITEM_WINDOW_NAME                      = "VMAN_ITEMS";
+
 sqlquery VMan_PrepareQuery(string sQuery);
 int VMan_GetPlayersOnline();
 void VMan_LoadCharacterList();
 void VMan_UpdateSelectedCharacterData(int nNewId);
 void VMan_UpdateEventLog(int nCharacterId, string sName);
+void VMan_UpdateItems(int nCharacterId, string sName);
 
 // @NWMWINDOW[VMAN_NUI_MAIN_WINDOW_NAME]
 json VMan_CreateMainWindow()
@@ -204,9 +207,9 @@ json VMan_CreateMainWindow()
                     NB_AddSpacer();
                     NB_StartRow();
                         NB_AddSpacer();
-                        NB_StartElement(NuiButton(JsonString("Edit")));
+                        NB_StartElement(NuiButton(JsonString("Items")));
                             NB_SetDimensions(100.0f, 32.0f);
-                            NB_SetId(VMAN_BIND_BUTTON_EDIT);
+                            NB_SetId(VMAN_BIND_BUTTON_ITEMS);
                         NB_End();
                         NB_AddSpacer();
                         NB_StartElement(NuiButton(JsonString("Log")));
@@ -294,6 +297,27 @@ void VMan_ClickLogButton()
     }
 }
 
+// @NWMEVENT[VMAN_NUI_MAIN_WINDOW_NAME:NUI_EVENT_CLICK:VMAN_BIND_BUTTON_ITEMS]
+void VMan_ClickItemButton()
+{
+    object oPlayer = OBJECT_SELF;
+    int nCharacterId = JsonGetInt(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_ID));
+
+    if (nCharacterId != 0)
+    {
+        if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME))
+            NWM_CloseWindow(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME);
+        else 
+        {
+            string sName = JsonGetString(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_NAME));
+            if (NWM_OpenWindow(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME))
+            {
+                VMan_UpdateItems(nCharacterId, sName);   
+            }
+        }
+    }
+}
+
 // @NWMEVENT[VMAN_NUI_MAIN_WINDOW_NAME:NUI_EVENT_CLOSE:NUI_WINDOW_ROOT_GROUP]
 void VMan_MainWindowClose()
 {
@@ -301,6 +325,9 @@ void VMan_MainWindowClose()
 
     if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_LOG_WINDOW_NAME))
         NWM_CloseWindow(oPlayer, VMAN_NUI_LOG_WINDOW_NAME);
+
+    if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME))
+        NWM_CloseWindow(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME);        
 }
 
 // @NWMWINDOW[VMAN_NUI_LOG_WINDOW_NAME]
@@ -323,7 +350,29 @@ json VMan_CreateLogWindow()
             NB_End();
         NB_End();
     return NB_FinalizeWindow();
-}  
+}
+
+// @NWMWINDOW[VMAN_NUI_ITEM_WINDOW_NAME]
+json VMan_CreateItemWindow()
+{
+    NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 400.0f, 300.0f));
+    NB_SetWindowTitle(NuiBind(VMAN_BIND_WINDOW_NAME));
+        NB_StartColumn();
+            NB_StartList(NuiBind(VMAN_BIND_LIST_ICONS), 32.0f);
+                NB_StartListTemplateCell(32.0f, FALSE);
+                    NB_StartGroup(FALSE, NUI_SCROLLBARS_NONE);
+                        NB_StartElement(NuiImage(NuiBind(VMAN_BIND_LIST_ICONS), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                        NB_End();
+                    NB_End();
+                NB_End();
+                NB_StartListTemplateCell(0.0f, TRUE);
+                    NB_StartElement(NuiLabel(NuiBind(VMAN_BIND_LIST_LABELS), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
+                    NB_End();
+                NB_End();
+            NB_End();
+        NB_End();
+    return NB_FinalizeWindow();
+} 
 
 // @PMBUTTON[Vault Manager:Manage your character vault]
 void VMan_ShowMainWindow()
@@ -348,6 +397,52 @@ string VMan_ConsolePlayersOnline()
     return "Players Online: " + IntToString(VMan_GetPlayersOnline());
 }
 
+// @CONSOLE[VManExportCharacterJson::]
+string VMan_ConsoleExportCharacterJson()
+{
+    object oPlayer = OBJECT_SELF;
+    if (GetIsPC(oPlayer))
+    {
+        PrintString(JsonDump(NWNX_Vault_GetCharacterJson(oPlayer)));
+        return "Exported " + GetName(oPlayer) + " as json.";
+    }
+    else
+        return GetName(oPlayer) + " is not a player character.";   
+        
+}
+
+// @CONSOLE[VManExtractItem::]
+string VMan_ConsoleExtractItem(int nId)
+{
+    object oPlayer = OBJECT_SELF;
+    //string sQuery = "SELECT JSON_EXTRACT(character, '$.ItemList.value') FROM " + VMAN_CHARACTERS_TABLE + " WHERE id = @id;"; 
+    //string sQuery = "SELECT key, value FROM JSON_EACH((SELECT JSON_EXTRACT(character, '$.ItemList.value') FROM " + VMAN_CHARACTERS_TABLE + " WHERE id = @id));";
+    
+    string sQuery = "SELECT json_extract(item.value, '$.BaseItem.value'), json_extract(item.value, '$.LocalizedName.value.id') FROM " +
+                    VMAN_CHARACTERS_TABLE + " AS characters JOIN JSON_EACH(t.character, '$.ItemList.value') AS item WHERE characters.id = @id;";
+    sqlquery sql = VMan_PrepareQuery(sQuery);
+    SqlBindInt(sql, "@id", nId);
+
+    string sItems;
+    while (SqlStep(sql))
+    {
+        int nBaseItemType = SqlGetInt(sql, 0);
+        int nLocalizedNameStrRef = SqlGetInt(sql, 1);
+        
+        sItems += "[" + IntToString(nBaseItemType) + "] " + GetStringByStrRef(nLocalizedNameStrRef) + "\n";
+        /*
+        json jData = SqlGetJson(sql, 1);
+        json jItem = GffCreateObject(OBJECT_TYPE_ITEM);
+             jItem = JsonMerge(jItem, jData);
+
+        JsonToObject(jItem, GetStartingLocation(), OBJECT_INVALID, TRUE);  
+        */
+
+    }   
+    return sItems;
+     
+}
+
 sqlquery VMan_PrepareQuery(string sQuery)
 {
     return SqlPrepareQueryCampaign(VMAN_DATABASE_NAME, sQuery);
@@ -366,12 +461,12 @@ void VMan_LoadCharacterList()
     string sCDKey = GetPCPublicCDKey(oPlayer);
     string sIds, sNames, sPortraits;
 
-    string sQuery = "SELECT " + VMAN_CHARACTERS_TABLE + ".id, " + VMAN_CHARACTERS_TABLE + ".owner, " + 
-                        "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.FirstName.value.0') || ' ' || " +
-                        "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.LastName.value.0') AS fullName, " +
-                        "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.Portrait.value') " +
-                    "FROM " + VMAN_CHARACTERS_TABLE + " INNER JOIN " + VMAN_ACCESS_TABLE + " "  + 
-                    "ON " + VMAN_ACCESS_TABLE + ".id = " + VMAN_CHARACTERS_TABLE + ".id WHERE " + VMAN_ACCESS_TABLE + ".cdkey = @cdkey ORDER BY fullName;";
+    string sQuery = "SELECT characters.id, characters.owner, " + 
+                        "json_extract(characters.character, '$.FirstName.value.0') || ' ' || " +
+                        "json_extract(characters.character, '$.LastName.value.0') AS fullName, " +
+                        "json_extract(characters.character, '$.Portrait.value') " +
+                    "FROM " + VMAN_CHARACTERS_TABLE + " AS characters INNER JOIN " + VMAN_ACCESS_TABLE + " AS access "  + 
+                    "ON access.id = characters.id WHERE access.cdkey = @cdkey ORDER BY fullName;";
     sqlquery sql = VMan_PrepareQuery(sQuery);
     SqlBindString(sql, "@cdkey", sCDKey);
 
@@ -485,7 +580,10 @@ void VMan_UpdateSelectedCharacterData(int nNewId)
         NWM_SetUserData(VMAN_NUI_USERDATA_SELECTED_NAME, JsonString(sName));
 
         if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_LOG_WINDOW_NAME, TRUE))
-            VMan_UpdateEventLog(nNewId, sName);               
+            VMan_UpdateEventLog(nNewId, sName); 
+
+        if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME, TRUE))
+            VMan_UpdateItems(nNewId, sName);                           
     }
 
     Profiler_Stop(pd);
@@ -538,4 +636,91 @@ void VMan_UpdateEventLog(int nCharacterId, string sName)
     NWM_SetBindString(VMAN_BIND_WINDOW_NAME, "Event Log: " + sName);
     NWM_SetBind(VMAN_BIND_LIST_ICONS, StringJsonArrayElementsToJsonArray(sIcons));
     NWM_SetBind(VMAN_BIND_LIST_LABELS, StringJsonArrayElementsToJsonArray(sLabels));
+}
+
+string VMan_GetItemIconResref(int nBaseItem, int nModelPart1)
+{
+    if (nBaseItem == BASE_ITEM_CLOAK)
+        return "iit_cloak";
+/*    else if (nBaseItem == BASE_ITEM_SPELLSCROLL || nBaseItem == BASE_ITEM_ENCHANTED_SCROLL)
+    {
+        if (GetItemHasItemProperty(oItem, ITEM_PROPERTY_CAST_SPELL))
+        {
+            itemproperty ip = GetFirstItemProperty(oItem);
+            while (GetIsItemPropertyValid(ip))
+            {
+                if (GetItemPropertyType(ip) == ITEM_PROPERTY_CAST_SPELL)
+                    return Get2DAString("iprp_spells", "Icon", GetItemPropertySubType(ip));
+
+                ip = GetNextItemProperty(oItem);
+            }
+        }
+    }*/
+    else if (Get2DAString("baseitems", "ModelType", nBaseItem) == "0")
+    {
+        string sSimpleModelId = IntToString(nModelPart1);
+        while (GetStringLength(sSimpleModelId) < 3)
+        {
+            sSimpleModelId = "0" + sSimpleModelId;
+        }
+
+        string sDefaultIcon = Get2DAString("baseitems", "DefaultIcon", nBaseItem);
+        switch (nBaseItem)
+        {
+            case BASE_ITEM_MISCSMALL:
+            case BASE_ITEM_CRAFTMATERIALSML:
+                sDefaultIcon = "iit_smlmisc_" + sSimpleModelId;
+                break;
+            case BASE_ITEM_MISCMEDIUM:
+            case BASE_ITEM_CRAFTMATERIALMED:
+            case 112:/* Crafting Base Material */
+                sDefaultIcon = "iit_midmisc_" + sSimpleModelId;
+                break;
+            case BASE_ITEM_MISCLARGE:
+                sDefaultIcon = "iit_talmisc_" + sSimpleModelId;
+                break;
+            case BASE_ITEM_MISCTHIN:
+                sDefaultIcon = "iit_thnmisc_" + sSimpleModelId;
+                break;
+        }
+
+        int nLength = GetStringLength(sDefaultIcon);
+        if (GetSubString(sDefaultIcon, nLength - 4, 1) == "_")
+            sDefaultIcon = GetStringLeft(sDefaultIcon, nLength - 4);
+        string sIcon = sDefaultIcon + "_" + sSimpleModelId;
+        if (ResManGetAliasFor(sIcon, RESTYPE_TGA) != "")
+            return sIcon;
+
+    }
+
+    return Get2DAString("baseitems", "DefaultIcon", nBaseItem);
+}
+
+void VMan_UpdateItems(int nCharacterId, string sName)
+{
+    object oPlayer = OBJECT_SELF;
+    
+    string sQuery = "SELECT JSON_EXTRACT(item.value, '$.BaseItem.value'), " + 
+                           "JSON_EXTRACT(item.value, '$.LocalizedName.value.id'), " +
+                           "JSON_EXTRACT(item.value, '$.ModelPart1.value') " +
+                           "FROM " + VMAN_CHARACTERS_TABLE + " AS characters " +
+                           "JOIN JSON_EACH(characters.character, '$.ItemList.value') AS item " + 
+                           "WHERE characters.id = @id;";
+    sqlquery sql = VMan_PrepareQuery(sQuery);
+    SqlBindInt(sql, "@id", nCharacterId);
+
+    string sIcons, sLabels;
+    while (SqlStep(sql))
+    {
+        int nBaseItemType = SqlGetInt(sql, 0);
+        int nLocalizedNameStrRef = SqlGetInt(sql, 1);
+        int nModelPart1 = SqlGetInt(sql, 2);
+        
+        sIcons += StringJsonArrayElementString(VMan_GetItemIconResref(nBaseItemType, nModelPart1));
+        sLabels += StringJsonArrayElementString(GetStringByStrRef(nLocalizedNameStrRef));
+    }
+
+    NWM_SetBindString(VMAN_BIND_WINDOW_NAME, "Inventory: " + sName);
+    NWM_SetBind(VMAN_BIND_LIST_ICONS, StringJsonArrayElementsToJsonArray(sIcons));
+    NWM_SetBind(VMAN_BIND_LIST_LABELS, StringJsonArrayElementsToJsonArray(sLabels));       
 }

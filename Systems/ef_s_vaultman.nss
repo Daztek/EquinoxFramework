@@ -49,48 +49,65 @@
 #include "nwnx_player"
 #include "nwnx_vault"
 
-const string VMAN_LOG_TAG                           = "VaultManager";
-const string VMAN_SCRIPT_NAME                       = "ef_s_vaultman";
+const string VMAN_LOG_TAG                                   = "VaultManager";
+const string VMAN_SCRIPT_NAME                               = "ef_s_vaultman";
 
-const string VMAN_DATABASE_NAME                     = "servervault";
-const string VMAN_CHARACTERS_TABLE                  = "vault_characters";
-const string VMAN_ACCESS_TABLE                      = "vault_access";
-const string VMAN_STATUS_TABLE                      = "vault_status";
-const string VMAN_LOG_TABLE                         = "vault_log";
+const string VMAN_DATABASE_NAME                             = "servervault";
+const string VMAN_CHARACTERS_TABLE                          = "vault_characters";
+const string VMAN_ACCESS_TABLE                              = "vault_access";
+const string VMAN_STATUS_TABLE                              = "vault_status";
+const string VMAN_LOG_TABLE                                 = "vault_log";
 
-const string VMAN_NUI_MAIN_WINDOW_NAME              = "VMAN_MAIN";
-const string VMAN_BIND_LIST_PORTRAITS               = "list_portraits";
-const string VMAN_BIND_LIST_NAMES                   = "list_names";
+const string VMAN_NUI_MAIN_WINDOW_NAME                      = "VMAN_MAIN";
+const string VMAN_BIND_LIST_PORTRAITS                       = "list_portraits";
+const string VMAN_BIND_LIST_NAMES                           = "list_names";
 
-const string VMAN_BIND_SELECTED_NAME                = "selected_name";
-const string VMAN_BIND_SELECTED_PORTRAIT            = "selected_portrait";
-const string VMAN_BIND_SELECTED_CLASS_ICON_PREFIX   = "selected_class_icon_";
-const string VMAN_BIND_SELECTED_CLASS_LABEL_PREFIX  = "selected_class_label_";
-const string VMAN_BIND_SELECTED_CLASS_ICON_1        = "selected_class_icon_1";
-const string VMAN_BIND_SELECTED_CLASS_LABEL_1       = "selected_class_label_1";
-const string VMAN_BIND_SELECTED_CLASS_ICON_2        = "selected_class_icon_2";
-const string VMAN_BIND_SELECTED_CLASS_LABEL_2       = "selected_class_label_2";
-const string VMAN_BIND_SELECTED_CLASS_ICON_3        = "selected_class_icon_3";
-const string VMAN_BIND_SELECTED_CLASS_LABEL_3       = "selected_class_label_3";
-const string VMAN_BIND_SELECTED_GOLD_LABEL          = "selected_gold_label";
-const string VMAN_BIND_SELECTED_XP_LABEL            = "selected_gxp_label";
+const string VMAN_BIND_SELECTED_NAME                        = "selected_name";
+const string VMAN_BIND_SELECTED_PORTRAIT                    = "selected_portrait";
+const string VMAN_BIND_SELECTED_CLASS_VISIBLE_PREFIX        = "selected_class_visible_";
+const string VMAN_BIND_SELECTED_CLASS_ICON_PREFIX           = "selected_class_icon_";
+const string VMAN_BIND_SELECTED_CLASS_LABEL_PREFIX          = "selected_class_label_";
 
-const string VMAN_BIND_BUTTON_EDIT                  = "btn_edit";
-const string VMAN_BIND_BUTTON_LOG                   = "btn_log";
-const string VMAN_BIND_BUTTON_DELETE                = "btn_delete";
-const string VMAN_BIND_BUTTON_SHARE                 = "btn_share";
-const string VMAN_BIND_BUTTON_SWITCH                = "btn_switch";
+const string VMAN_BIND_SELECTED_CLASS_VISIBLE_1             = "selected_class_visible_1";
+const string VMAN_BIND_SELECTED_CLASS_ICON_1                = "selected_class_icon_1";
+const string VMAN_BIND_SELECTED_CLASS_LABEL_1               = "selected_class_label_1";
 
-const string VMAN_NUI_USERDATA_SELECTED             = "selected_id";
-const string VMAN_NUI_USERDATA_IDS                  = "character_ids";
+const string VMAN_BIND_SELECTED_CLASS_VISIBLE_2             = "selected_class_visible_2";
+const string VMAN_BIND_SELECTED_CLASS_ICON_2                = "selected_class_icon_2";
+const string VMAN_BIND_SELECTED_CLASS_LABEL_2               = "selected_class_label_2";
+
+const string VMAN_BIND_SELECTED_CLASS_VISIBLE_3             = "selected_class_visible_3";
+const string VMAN_BIND_SELECTED_CLASS_ICON_3                = "selected_class_icon_3";
+const string VMAN_BIND_SELECTED_CLASS_LABEL_3               = "selected_class_label_3";
+
+const string VMAN_BIND_SELECTED_GOLD_LABEL                  = "selected_gold_label";
+const string VMAN_BIND_SELECTED_XP_LABEL                    = "selected_xp_label";
+const string VMAN_BIND_SELECTED_STATUS_LABEL                = "selected_status_label";
+const string VMAN_BIND_SELECTED_STATUS_COLOR                = "selected_status_color";
+
+const string VMAN_BIND_BUTTON_EDIT                          = "btn_edit";
+const string VMAN_BIND_BUTTON_LOG                           = "btn_log";
+const string VMAN_BIND_BUTTON_DELETE                        = "btn_delete";
+const string VMAN_BIND_BUTTON_SHARE                         = "btn_share";
+const string VMAN_BIND_BUTTON_SWITCH                        = "btn_switch";
+
+const string VMAN_NUI_USERDATA_SELECTED_ID                  = "selected_id";
+const string VMAN_NUI_USERDATA_SELECTED_NAME                = "selected_name";
+const string VMAN_NUI_USERDATA_IDS                          = "character_ids";
+
+const string VMAN_NUI_LOG_WINDOW_NAME                       = "VMAN_LOG";
+const string VMAN_BIND_WINDOW_NAME                          = "window_name";
+const string VMAN_BIND_LIST_ICONS                           = "list_icons";
+const string VMAN_BIND_LIST_LABELS                          = "list_labels";
 
 sqlquery VMan_PrepareQuery(string sQuery);
 int VMan_GetPlayersOnline();
 void VMan_LoadCharacterList();
 void VMan_UpdateSelectedCharacterData(int nNewId);
+void VMan_UpdateEventLog(int nCharacterId, string sName);
 
 // @NWMWINDOW[VMAN_NUI_MAIN_WINDOW_NAME]
-json VMan_CreateWindow()
+json VMan_CreateMainWindow()
 {
     NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 688.0f, 390.0f));
     NB_SetWindowTitle(JsonString("Character Vault Manager"));
@@ -134,36 +151,53 @@ json VMan_CreateWindow()
                                 NB_SetDimensions(128.0f, 200.0f);
                             NB_End();
                             NB_StartColumn();
+                                float fIconSize = 20.0f;
                                 NB_StartRow();
-                                    NB_StartElement(NuiImage(NuiBind(VMAN_BIND_SELECTED_CLASS_ICON_1), JsonInt(NUI_ASPECT_EXACTSCALED), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                                        NB_SetDimensions(32.0f, 32.0f);
+                                    NB_StartElement(NuiImage(NuiBind(VMAN_BIND_SELECTED_CLASS_ICON_1), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                                        NB_SetDimensions(fIconSize, fIconSize);
+                                        NB_SetVisible(NuiBind(VMAN_BIND_SELECTED_CLASS_VISIBLE_1));
                                     NB_End();
                                     NB_AddElement(NuiLabel(NuiBind(VMAN_BIND_SELECTED_CLASS_LABEL_1), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
                                 NB_End(); 
                                 NB_StartRow();
-                                    NB_StartElement(NuiImage(NuiBind(VMAN_BIND_SELECTED_CLASS_ICON_2), JsonInt(NUI_ASPECT_EXACTSCALED), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                                        NB_SetDimensions(32.0f, 32.0f);
+                                    NB_StartElement(NuiImage(NuiBind(VMAN_BIND_SELECTED_CLASS_ICON_2), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                                        NB_SetDimensions(fIconSize, fIconSize);
+                                        NB_SetVisible(NuiBind(VMAN_BIND_SELECTED_CLASS_VISIBLE_2));
                                     NB_End();
                                     NB_AddElement(NuiLabel(NuiBind(VMAN_BIND_SELECTED_CLASS_LABEL_2), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
                                 NB_End();
                                 NB_StartRow();
-                                    NB_StartElement(NuiImage(NuiBind(VMAN_BIND_SELECTED_CLASS_ICON_3), JsonInt(NUI_ASPECT_EXACTSCALED), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                                        NB_SetDimensions(32.0f, 32.0f);
+                                    NB_StartElement(NuiImage(NuiBind(VMAN_BIND_SELECTED_CLASS_ICON_3), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                                        NB_SetDimensions(fIconSize, fIconSize);
+                                        NB_SetVisible(NuiBind(VMAN_BIND_SELECTED_CLASS_VISIBLE_3));
                                     NB_End();
                                     NB_AddElement(NuiLabel(NuiBind(VMAN_BIND_SELECTED_CLASS_LABEL_3), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
                                 NB_End();
                                 NB_StartRow();
-                                    NB_StartElement(NuiImage(JsonString("ir_buy"), JsonInt(NUI_ASPECT_EXACTSCALED), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                                        NB_SetDimensions(32.0f, 32.0f);
+                                    NB_StartElement(NuiSpacer());
+                                        NB_SetHeight(8.0f);
+                                    NB_End();
+                                NB_End();
+                                NB_StartRow();
+                                    NB_StartElement(NuiImage(JsonString("ir_buy"), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                                        NB_SetDimensions(fIconSize, fIconSize);
                                     NB_End();
                                     NB_AddElement(NuiLabel(NuiBind(VMAN_BIND_SELECTED_GOLD_LABEL), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
                                 NB_End();  
                                 NB_StartRow();
-                                    NB_StartElement(NuiImage(JsonString("ixx_levelup"), JsonInt(NUI_ASPECT_EXACTSCALED), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                                        NB_SetDimensions(32.0f, 32.0f);
+                                    NB_StartElement(NuiImage(JsonString("ixx_levelup"), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                                        NB_SetDimensions(fIconSize, fIconSize);
                                     NB_End();
                                     NB_AddElement(NuiLabel(NuiBind(VMAN_BIND_SELECTED_XP_LABEL), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
-                                NB_End(); 
+                                NB_End();
+                             NB_StartRow();
+                                    NB_StartElement(NuiImage(JsonString("ir_wave"), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                                        NB_SetDimensions(fIconSize, fIconSize);
+                                    NB_End();
+                                    NB_StartElement(NuiLabel(NuiBind(VMAN_BIND_SELECTED_STATUS_LABEL), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
+                                        NB_SetForegroundColor(NuiBind(VMAN_BIND_SELECTED_STATUS_COLOR));
+                                    NB_End();
+                                NB_End();                                 
                             NB_End();
                         NB_End();
                     NB_End();
@@ -230,14 +264,66 @@ void VMan_MouseUpSelectName()
 void VMan_ClickSwitchButton()
 {
     object oPlayer = OBJECT_SELF;
-    int nCharacterId = JsonGetInt(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED));
+    int nCharacterId = JsonGetInt(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_ID));
 
     if (nCharacterId != 0)
     {
-        ApplyEffectAtLocation(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_FNF_SUMMON_MONSTER_3), GetLocation(oPlayer));
+        ApplyEffectAtLocation(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_IMP_AC_BONUS), GetLocation(oPlayer));
         NWNX_Vault_SwitchCharacter(oPlayer, nCharacterId, TRUE);
     }
 }
+
+// @NWMEVENT[VMAN_NUI_MAIN_WINDOW_NAME:NUI_EVENT_CLICK:VMAN_BIND_BUTTON_LOG]
+void VMan_ClickLogButton()
+{
+    object oPlayer = OBJECT_SELF;
+    int nCharacterId = JsonGetInt(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_ID));
+
+    if (nCharacterId != 0)
+    {
+        if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_LOG_WINDOW_NAME))
+            NWM_CloseWindow(oPlayer, VMAN_NUI_LOG_WINDOW_NAME);
+        else 
+        {
+            string sName = JsonGetString(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_NAME));
+            if (NWM_OpenWindow(oPlayer, VMAN_NUI_LOG_WINDOW_NAME))
+            {
+                VMan_UpdateEventLog(nCharacterId, sName);   
+            }
+        }
+    }
+}
+
+// @NWMEVENT[VMAN_NUI_MAIN_WINDOW_NAME:NUI_EVENT_CLOSE:NUI_WINDOW_ROOT_GROUP]
+void VMan_MainWindowClose()
+{
+    object oPlayer = OBJECT_SELF;
+
+    if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_LOG_WINDOW_NAME))
+        NWM_CloseWindow(oPlayer, VMAN_NUI_LOG_WINDOW_NAME);
+}
+
+// @NWMWINDOW[VMAN_NUI_LOG_WINDOW_NAME]
+json VMan_CreateLogWindow()
+{
+    NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 500.0f, 300.0f));
+    NB_SetWindowTitle(NuiBind(VMAN_BIND_WINDOW_NAME));
+        NB_StartColumn();
+            NB_StartList(NuiBind(VMAN_BIND_LIST_ICONS), 32.0f);
+                NB_StartListTemplateCell(32.0f, FALSE);
+                    NB_StartGroup(FALSE, NUI_SCROLLBARS_NONE);
+                        NB_StartElement(NuiImage(NuiBind(VMAN_BIND_LIST_ICONS), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                        NB_End();
+                    NB_End();
+                NB_End();
+                NB_StartListTemplateCell(0.0f, TRUE);
+                    NB_StartElement(NuiLabel(NuiBind(VMAN_BIND_LIST_LABELS), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
+                    NB_End();
+                NB_End();
+            NB_End();
+        NB_End();
+    return NB_FinalizeWindow();
+}  
 
 // @PMBUTTON[Vault Manager:Manage your character vault]
 void VMan_ShowMainWindow()
@@ -252,9 +338,7 @@ void VMan_ShowMainWindow()
         VMan_LoadCharacterList();
         Profiler_Stop(pd);
 
-        pd = Profiler_Start("VMan_UpdateSelectedCharacterData");
         VMan_UpdateSelectedCharacterData(StringToInt(NWNX_Player_GetBicFileName(oPlayer)));
-        Profiler_Stop(pd);
     }
 }
 
@@ -279,22 +363,23 @@ int VMan_GetPlayersOnline()
 void VMan_LoadCharacterList()
 {
     object oPlayer = OBJECT_SELF;
+    string sCDKey = GetPCPublicCDKey(oPlayer);
     string sIds, sNames, sPortraits;
 
-    string sQuery = "SELECT " + VMAN_CHARACTERS_TABLE + ".id, " + 
-                        "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.FirstName.value.0'), " +
-                        "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.LastName.value.0'), " +
+    string sQuery = "SELECT " + VMAN_CHARACTERS_TABLE + ".id, " + VMAN_CHARACTERS_TABLE + ".owner, " + 
+                        "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.FirstName.value.0') || ' ' || " +
+                        "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.LastName.value.0') AS fullName, " +
                         "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.Portrait.value') " +
-                    "FROM " + VMAN_CHARACTERS_TABLE + " INNER JOIN vault_access " + 
-                    "ON " + VMAN_ACCESS_TABLE + ".id = " + VMAN_CHARACTERS_TABLE + ".id WHERE " + VMAN_ACCESS_TABLE + ".cdkey = @cdkey;";
+                    "FROM " + VMAN_CHARACTERS_TABLE + " INNER JOIN " + VMAN_ACCESS_TABLE + " "  + 
+                    "ON " + VMAN_ACCESS_TABLE + ".id = " + VMAN_CHARACTERS_TABLE + ".id WHERE " + VMAN_ACCESS_TABLE + ".cdkey = @cdkey ORDER BY fullName;";
     sqlquery sql = VMan_PrepareQuery(sQuery);
-    SqlBindString(sql, "@cdkey", GetPCPublicCDKey(oPlayer));
+    SqlBindString(sql, "@cdkey", sCDKey);
 
     while (SqlStep(sql))
     {
         sIds += StringJsonArrayElementInt(SqlGetInt(sql, 0));
         sPortraits += StringJsonArrayElementString(SqlGetString(sql, 3) + "t");
-        sNames += StringJsonArrayElementString(SqlGetString(sql, 1) + " " + SqlGetString(sql, 2));          
+        sNames += StringJsonArrayElementString(SqlGetString(sql, 2) + (SqlGetString(sql, 1) != sCDKey ? " (Shared)" : ""));          
     }
 
     NWM_SetUserData(VMAN_NUI_USERDATA_IDS, StringJsonArrayElementsToJsonArray(sIds));  
@@ -309,52 +394,59 @@ void VMan_SetClassInfo(int nClassPosition, int nClassId, int nLevel)
         NWM_SetBindString(VMAN_BIND_SELECTED_CLASS_ICON_PREFIX + IntToString(nClassPosition), Get2DAString("classes", "Icon", nClassId));
         NWM_SetBindString(VMAN_BIND_SELECTED_CLASS_LABEL_PREFIX + IntToString(nClassPosition), 
             Get2DAStrRefString("classes", "Name", nClassId) + " (" + IntToString(nLevel) + ")");
+        NWM_SetBindBool(VMAN_BIND_SELECTED_CLASS_VISIBLE_PREFIX + IntToString(nClassPosition), TRUE);    
     }
     else
     {
         NWM_SetBindString(VMAN_BIND_SELECTED_CLASS_ICON_PREFIX + IntToString(nClassPosition), "ir_beg"); 
-        NWM_SetBindString(VMAN_BIND_SELECTED_CLASS_LABEL_PREFIX + IntToString(nClassPosition), "");          
+        NWM_SetBindString(VMAN_BIND_SELECTED_CLASS_LABEL_PREFIX + IntToString(nClassPosition), "");
+        NWM_SetBindBool(VMAN_BIND_SELECTED_CLASS_VISIBLE_PREFIX + IntToString(nClassPosition), FALSE);           
     }        
 }
 
 void VMan_UpdateSelectedCharacterData(int nNewId)
 {
-    int nCurrentId = JsonGetInt(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED));
+    struct ProfilerData pd = Profiler_Start("VMan_UpdateSelectedCharacterData");
+
+    object oPlayer = OBJECT_SELF;
+    int nCurrentId = JsonGetInt(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_ID));
 
     if (nCurrentId == nNewId)
         return;
 
-    string sQuery = "SELECT json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.FirstName.value.0'), " +
-                           "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.LastName.value.0'), " +
-                           "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.Portrait.value'), " +
-                           "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.Race.value'), " +
-                           "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.Gender.value'), " +
-                           "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.Gold.value'), " +    
-                           "json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.Experience.value'), " +                                            
-                    "IFNULL(json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.ClassList.value[0].Class.value'), 255), " +
-                    "IFNULL(json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.ClassList.value[1].Class.value'), 255), " +
-                    "IFNULL(json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.ClassList.value[2].Class.value'), 255), " +
-                    "IFNULL(json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.ClassList.value[0].ClassLevel.value'), 0), " +
-                    "IFNULL(json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.ClassList.value[1].ClassLevel.value'), 0), " +
-                    "IFNULL(json_extract(" + VMAN_CHARACTERS_TABLE + ".character, '$.ClassList.value[2].ClassLevel.value'), 0) " +                                                 
+    string sQuery = "SELECT owner, " +
+                           "json_extract(character, '$.FirstName.value.0'), " +
+                           "json_extract(character, '$.LastName.value.0'), " +
+                           "json_extract(character, '$.Portrait.value'), " +
+                           "json_extract(character, '$.Race.value'), " +
+                           "json_extract(character, '$.Gender.value'), " +
+                           "json_extract(character, '$.Gold.value'), " +    
+                           "json_extract(character, '$.Experience.value'), " +                                            
+                    "IFNULL(json_extract(character, '$.ClassList.value[0].Class.value'), 255), " +
+                    "IFNULL(json_extract(character, '$.ClassList.value[1].Class.value'), 255), " +
+                    "IFNULL(json_extract(character, '$.ClassList.value[2].Class.value'), 255), " +
+                    "IFNULL(json_extract(character, '$.ClassList.value[0].ClassLevel.value'), 0), " +
+                    "IFNULL(json_extract(character, '$.ClassList.value[1].ClassLevel.value'), 0), " +
+                    "IFNULL(json_extract(character, '$.ClassList.value[2].ClassLevel.value'), 0) " +                                                 
                     "FROM " + VMAN_CHARACTERS_TABLE + " WHERE id = @id;"; 
     sqlquery sql = VMan_PrepareQuery(sQuery);
     SqlBindInt(sql, "@id", nNewId);
 
     if (SqlStep(sql))
     {
-        string sName = SqlGetString(sql, 0) + " " + SqlGetString(sql, 1);
-        string sPortrait = SqlGetString(sql, 2) + "l";
-        int nRace = SqlGetInt(sql, 3);
-        int nGender = SqlGetInt(sql, 4);
-        int nGold = SqlGetInt(sql, 5);
-        int nExperience = SqlGetInt(sql, 6);
-        int nClass1 = SqlGetInt(sql, 7);
-        int nClass2 = SqlGetInt(sql, 8);
-        int nClass3 = SqlGetInt(sql, 9); 
-        int nClassLevel1 = SqlGetInt(sql, 10);
-        int nClassLevel2 = SqlGetInt(sql, 11);
-        int nClassLevel3 = SqlGetInt(sql, 12);
+        string sOwner = SqlGetString(sql, 0);
+        string sName = SqlGetString(sql, 1) + " " + SqlGetString(sql, 2);
+        string sPortrait = SqlGetString(sql, 3) + "l";
+        int nRace = SqlGetInt(sql, 4);
+        int nGender = SqlGetInt(sql, 5);
+        int nGold = SqlGetInt(sql, 6);
+        int nExperience = SqlGetInt(sql, 7);
+        int nClass1 = SqlGetInt(sql, 8);
+        int nClass2 = SqlGetInt(sql, 9);
+        int nClass3 = SqlGetInt(sql, 10); 
+        int nClassLevel1 = SqlGetInt(sql, 11);
+        int nClassLevel2 = SqlGetInt(sql, 12);
+        int nClassLevel3 = SqlGetInt(sql, 13);
         int nTotalLevel = nClassLevel1 + nClassLevel2 + nClassLevel3; 
 
         NWM_SetBindString(VMAN_BIND_SELECTED_NAME, sName + " the " + (nGender ? "Female" : "Male") + " " + Get2DAStrRefString("racialtypes", "Name", nRace));
@@ -363,8 +455,87 @@ void VMan_UpdateSelectedCharacterData(int nNewId)
         NWM_SetBindString(VMAN_BIND_SELECTED_XP_LABEL, "XP: " + IntToString(nExperience) + " / " + Get2DAString("exptable", "XP", nTotalLevel));
         VMan_SetClassInfo(1, nClass1, nClassLevel1);
         VMan_SetClassInfo(2, nClass2, nClassLevel2);
-        VMan_SetClassInfo(3, nClass3, nClassLevel3);        
+        VMan_SetClassInfo(3, nClass3, nClassLevel3);
+
+        sQuery = "SELECT cdkey FROM " + VMAN_STATUS_TABLE + " WHERE id = @id;";
+        sql = VMan_PrepareQuery(sQuery);
+        SqlBindInt(sql, "@id", nNewId);
+
+        string sStatus = "Available";
+        json jStatusColor = NuiColor(0, 255, 0);
+        if (SqlStep(sql))
+        {
+            string sCDKey = SqlGetString(sql, 0);
+
+            if (sCDKey == GetPCPublicCDKey(oPlayer))
+            {
+                sStatus = "Logged In (YOU)";
+                jStatusColor = NuiColor(255, 140, 0);
+            }
+            else
+            {
+                sStatus = "Logged In (" + sCDKey + ")";
+                jStatusColor = NuiColor(255, 0, 0);
+            }            
+        }
+        NWM_SetBindString(VMAN_BIND_SELECTED_STATUS_LABEL, sStatus);
+        NWM_SetBind(VMAN_BIND_SELECTED_STATUS_COLOR, jStatusColor);
+        
+        NWM_SetUserData(VMAN_NUI_USERDATA_SELECTED_ID, JsonInt(nNewId));
+        NWM_SetUserData(VMAN_NUI_USERDATA_SELECTED_NAME, JsonString(sName));
+
+        if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_LOG_WINDOW_NAME, TRUE))
+            VMan_UpdateEventLog(nNewId, sName);               
     }
 
-    NWM_SetUserData(VMAN_NUI_USERDATA_SELECTED, JsonInt(nNewId));
+    Profiler_Stop(pd);
 } 
+
+string VMan_EventToString(int nEvent)
+{
+    switch (nEvent)
+    {
+        case NWNX_VAULT_EVENT_TYPE_CREATED:
+            return "Created";
+        case NWNX_VAULT_EVENT_TYPE_LOGIN:
+            return "Login";
+        case NWNX_VAULT_EVENT_TYPE_LOGOUT:
+            return "Logout";                          
+    }
+
+    return "";
+}
+
+string VMan_EventToIcon(int nEvent)
+{
+    switch (nEvent)
+    {
+        case NWNX_VAULT_EVENT_TYPE_CREATED:
+            return "ir_cast";
+        case NWNX_VAULT_EVENT_TYPE_LOGIN:
+            return "ief_moveincr";
+        case NWNX_VAULT_EVENT_TYPE_LOGOUT:
+            return "ief_movedecr";                          
+    }
+
+    return "";
+}
+
+void VMan_UpdateEventLog(int nCharacterId, string sName)
+{
+    string sIcons, sLabels;
+    sqlquery sql = VMan_PrepareQuery("SELECT cdkey, event, datetime(timestamp, 'unixepoch', 'localtime') FROM vault_log WHERE id = @id ORDER BY rowid DESC LIMIT 100;");
+    SqlBindInt(sql, "@id", nCharacterId);
+
+    while (SqlStep(sql))
+    {
+        int nEvent = SqlGetInt(sql, 1);
+
+        sIcons += StringJsonArrayElementString(VMan_EventToIcon(nEvent));
+        sLabels += StringJsonArrayElementString("[" + SqlGetString(sql, 2) + "] " + SqlGetString(sql, 0) + ": " + VMan_EventToString(nEvent));
+    }      
+
+    NWM_SetBindString(VMAN_BIND_WINDOW_NAME, "Event Log: " + sName);
+    NWM_SetBind(VMAN_BIND_LIST_ICONS, StringJsonArrayElementsToJsonArray(sIcons));
+    NWM_SetBind(VMAN_BIND_LIST_LABELS, StringJsonArrayElementsToJsonArray(sLabels));
+}

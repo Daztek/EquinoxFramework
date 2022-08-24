@@ -19,6 +19,8 @@ const string NUI_EVENT_WATCH                = "watch";
 const string NUI_EVENT_MOUSEDOWN            = "mousedown";
 const string NUI_EVENT_MOUSEUP              = "mouseup";
 const string NUI_EVENT_MOUSESCROLL          = "mousescroll";
+const string NUI_EVENT_FOCUS                = "focus";
+const string NUI_EVENT_BLUR                 = "blur";
 
 const string NUI_DEFAULT_GEOMETRY_NAME      = "default_geometry";
 

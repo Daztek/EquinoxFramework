@@ -638,24 +638,24 @@ void VMan_UpdateEventLog(int nCharacterId, string sName)
     NWM_SetBind(VMAN_BIND_LIST_LABELS, StringJsonArrayElementsToJsonArray(sLabels));
 }
 
-string VMan_GetItemIconResref(int nBaseItem, int nModelPart1)
+string VMan_GetItemIconResref(int nBaseItem, int nModelPart1, json jProperties)
 {
     if (nBaseItem == BASE_ITEM_CLOAK)
         return "iit_cloak";
-/*    else if (nBaseItem == BASE_ITEM_SPELLSCROLL || nBaseItem == BASE_ITEM_ENCHANTED_SCROLL)
+    else if (nBaseItem == BASE_ITEM_SPELLSCROLL || nBaseItem == BASE_ITEM_ENCHANTED_SCROLL)
     {
-        if (GetItemHasItemProperty(oItem, ITEM_PROPERTY_CAST_SPELL))
+        if (JsonGetType(jProperties))
         {
-            itemproperty ip = GetFirstItemProperty(oItem);
-            while (GetIsItemPropertyValid(ip))
-            {
-                if (GetItemPropertyType(ip) == ITEM_PROPERTY_CAST_SPELL)
-                    return Get2DAString("iprp_spells", "Icon", GetItemPropertySubType(ip));
+            string sQuery = "SELECT JSON_EXTRACT(properties.value, '$.Subtype.value') " +
+                            "FROM JSON_EACH(@properties) AS properties " +
+                            "WHERE JSON_EXTRACT(properties.value, '$.PropertyName.value') = " + IntToString(ITEM_PROPERTY_CAST_SPELL) + ";";
+            sqlquery sql = SqlPrepareQueryModule(sQuery);
+            SqlBindJson(sql, "@properties", jProperties);
 
-                ip = GetNextItemProperty(oItem);
-            }
+            if (SqlStep(sql))
+                return Get2DAString("iprp_spells", "Icon", SqlGetInt(sql, 0));                          
         }
-    }*/
+    }
     else if (Get2DAString("baseitems", "ModelType", nBaseItem) == "0")
     {
         string sSimpleModelId = IntToString(nModelPart1);
@@ -702,9 +702,10 @@ void VMan_UpdateItems(int nCharacterId, string sName)
     
     string sQuery = "SELECT JSON_EXTRACT(item.value, '$.BaseItem.value'), " + 
                            "JSON_EXTRACT(item.value, '$.LocalizedName.value.id'), " +
-                           "JSON_EXTRACT(item.value, '$.ModelPart1.value') " +
+                           "JSON_EXTRACT(item.value, '$.ModelPart1.value'), " +
+                           "JSON_EXTRACT(item.value, '$.PropertiesList.value') " +
                            "FROM " + VMAN_CHARACTERS_TABLE + " AS characters " +
-                           "JOIN JSON_EACH(characters.character, '$.ItemList.value') AS item " + 
+                           "JOIN JSON_EACH(characters.character, '$.ItemList.value') AS item " +
                            "WHERE characters.id = @id;";
     sqlquery sql = VMan_PrepareQuery(sQuery);
     SqlBindInt(sql, "@id", nCharacterId);
@@ -715,8 +716,9 @@ void VMan_UpdateItems(int nCharacterId, string sName)
         int nBaseItemType = SqlGetInt(sql, 0);
         int nLocalizedNameStrRef = SqlGetInt(sql, 1);
         int nModelPart1 = SqlGetInt(sql, 2);
+        json jProperties = SqlGetJson(sql, 3);
         
-        sIcons += StringJsonArrayElementString(VMan_GetItemIconResref(nBaseItemType, nModelPart1));
+        sIcons += StringJsonArrayElementString(VMan_GetItemIconResref(nBaseItemType, nModelPart1, jProperties));
         sLabels += StringJsonArrayElementString(GetStringByStrRef(nLocalizedNameStrRef));
     }
 

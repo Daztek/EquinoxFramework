@@ -269,6 +269,10 @@ void EC_OnCaveGenerated(string sAreaID)
         int nCaveAreaDoorTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX);
 
         object oCaveArea = EC_CreateArea(jCave);
+
+        // Don't persist player locations in EC areas
+        Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oCaveArea));
+
         object oCaveDoor = EC_CreateDoor(sAreaID, nCaveAreaDoorTile);
         object oParentAreaDoor = EC_CreateDoor(sParentAreaID, nParentAreaDoorTile);
 

@@ -83,11 +83,11 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
     if (sScript != "")
         ExecuteScript(sScript, oTarget);
 
-    string sQuery = "SELECT " + EM_SCRIPT_NAME + "_events.scriptchunk FROM " + EM_SCRIPT_NAME + "_events " + 
-                    "WHERE " + EM_SCRIPT_NAME + "_events.eventtype = @eventtype AND (" + EM_SCRIPT_NAME + "_events.dispatchlist = 0 OR " +
-                    "EXISTS(SELECT " + EM_SCRIPT_NAME + "_dispatchlist.id FROM " + EM_SCRIPT_NAME + "_dispatchlist WHERE " + 
-                    EM_SCRIPT_NAME + "_dispatchlist.id = " + EM_SCRIPT_NAME + "_events.rowid AND " + EM_SCRIPT_NAME + "_dispatchlist.objectid = @objectid)) " + 
-                    "ORDER BY " + EM_SCRIPT_NAME + "_events.priority;";
+    string sQuery = "SELECT events.scriptchunk FROM " + EM_SCRIPT_NAME + "_events AS events " + 
+                    "WHERE events.eventtype = @eventtype AND (events.dispatchlist = 0 OR " +
+                    "EXISTS(SELECT dispatchlist.id FROM " + EM_SCRIPT_NAME + "_dispatchlist AS dispatchlist WHERE " + 
+                    "dispatchlist.id = events.rowid AND dispatchlist.objectid = @objectid)) " + 
+                    "ORDER BY events.priority;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@eventtype", nEventType);
     SqlBindString(sql, "@objectid", ObjectToString(oTarget));

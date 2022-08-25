@@ -304,7 +304,7 @@ void VMan_ClickLogButton()
 void VMan_ClickItemButton()
 {
     object oPlayer = OBJECT_SELF;
-    int nCharacterId = JsonGetInt(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_ID));
+    int nCharacterId = NWM_GetUserDataInt(VMAN_NUI_USERDATA_SELECTED_ID);
 
     if (nCharacterId != 0)
     {
@@ -312,7 +312,7 @@ void VMan_ClickItemButton()
             NWM_CloseWindow(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME);
         else 
         {
-            string sName = JsonGetString(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_NAME));
+            string sName = NWM_GetUserDataString(VMAN_NUI_USERDATA_SELECTED_NAME);
             if (NWM_OpenWindow(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME))
             {
                 VMan_UpdateItems(nCharacterId, sName);   
@@ -555,8 +555,7 @@ void VMan_UpdateSelectedCharacterData(int nNewId)
         VMan_SetClassInfo(2, nClass2, nClassLevel2);
         VMan_SetClassInfo(3, nClass3, nClassLevel3);
 
-        sQuery = "SELECT cdkey FROM " + VMAN_STATUS_TABLE + " WHERE id = @id;";
-        sql = VMan_PrepareQuery(sQuery);
+        sql = VMan_PrepareQuery("SELECT cdkey FROM " + VMAN_STATUS_TABLE + " WHERE id = @id;");
         SqlBindInt(sql, "@id", nNewId);
 
         string sStatus = "Offline";
@@ -576,11 +575,12 @@ void VMan_UpdateSelectedCharacterData(int nNewId)
                 jStatusColor = NuiColor(255, 0, 0);
             }            
         }
+
         NWM_SetBindString(VMAN_BIND_SELECTED_STATUS_LABEL, "Status: " + sStatus);
         NWM_SetBind(VMAN_BIND_SELECTED_STATUS_COLOR, jStatusColor);
         
-        NWM_SetUserData(VMAN_NUI_USERDATA_SELECTED_ID, JsonInt(nNewId));
-        NWM_SetUserData(VMAN_NUI_USERDATA_SELECTED_NAME, JsonString(sName));
+        NWM_SetUserDataInt(VMAN_NUI_USERDATA_SELECTED_ID, nNewId);
+        NWM_SetUserDataString(VMAN_NUI_USERDATA_SELECTED_NAME, sName);
 
         if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_LOG_WINDOW_NAME, TRUE))
             VMan_UpdateEventLog(nNewId, sName); 

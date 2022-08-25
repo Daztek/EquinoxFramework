@@ -58,6 +58,7 @@ void EFCore_ParseSystemsForAnnotationData();
 void EFCore_ExecuteCoreFunction(int nCoreFunctionType);
 void EFCore_ParseAnnotationData();
 string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE);
+void EFCore_ResetScriptInstructions();
 
 void EFCore_Initialize()
 {
@@ -265,7 +266,7 @@ void EFCore_ParseSystem(string sSystem)
 
     SqlCommitTransactionModule();
 
-    NWNX_Util_SetInstructionsExecuted(0);
+    EFCore_ResetScriptInstructions();
 }
 
 int EFCore_ValidateSystems()
@@ -290,7 +291,7 @@ int EFCore_ValidateSystems()
         }              
     }
 
-    NWNX_Util_SetInstructionsExecuted(0); 
+    EFCore_ResetScriptInstructions(); 
 
     return bValidated;
 }
@@ -324,7 +325,7 @@ void EFCore_ParseSystemsForAnnotationData()
             }            
         } 
 
-        NWNX_Util_SetInstructionsExecuted(0);           
+        EFCore_ResetScriptInstructions();          
     }
 
     SqlCommitTransactionModule();   
@@ -349,7 +350,7 @@ void EFCore_ExecuteCoreFunction(int nCoreFunctionType)
             if (sError != "")
                 WriteLog(EFCORE_LOG_TAG, "  > Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
 
-            NWNX_Util_SetInstructionsExecuted(0);
+            EFCore_ResetScriptInstructions();
         }    
     }
 }
@@ -380,7 +381,7 @@ void EFCore_ParseAnnotationData()
                                         sSystem + "' failed with error: " + sError);
             }
 
-            NWNX_Util_SetInstructionsExecuted(0);
+            EFCore_ResetScriptInstructions();
         }        
     }
 
@@ -390,6 +391,11 @@ void EFCore_ParseAnnotationData()
 string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)
 {
     return EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING ? NWNX_Optimizations_CacheScriptChunk(sScriptChunk, bWrapIntoMain) : "";
+}
+
+void EFCore_ResetScriptInstructions()
+{
+    NWNX_Util_SetInstructionsExecuted(0);    
 }
 
 // **** Function Stuff
@@ -470,7 +476,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
         WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore::Call() Function Parsing Disabled: could not execute '" + sFunctionSymbol + "'");
         return nCallStackDepth;
     }
-
+    
     if (sFunction != EFCORE_INVALID_FUNCTION)
     {
         string sParameters = GetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sFunctionSymbol);

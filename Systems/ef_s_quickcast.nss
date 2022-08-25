@@ -328,10 +328,10 @@ void QC_SlotMouseDown()
                             if (nSpellTargetType & 0x20) nValidObjectTypes |= OBJECT_TYPE_PLACEABLE;
                             if (nSpellTargetType & 0x40) nValidObjectTypes |= OBJECT_TYPE_TRIGGER;
 
-                            NWM_SetUserData("spellid", JsonInt(nSpellId));
-                            NWM_SetUserData("multiclass", JsonInt(nMultiClass));
-                            NWM_SetUserData("metamagic", JsonInt(nMetaMagic));
-                            NWM_SetUserData("targettype", JsonInt(nSpellTargetType));
+                            NWM_SetUserDataInt("spellid", nSpellId);
+                            NWM_SetUserDataInt("multiclass", nMultiClass);
+                            NWM_SetUserDataInt("metamagic", nMetaMagic);
+                            NWM_SetUserDataInt("targettype", nSpellTargetType);
 
                             TargetMode_SetSpellData(oPlayer, nSpellId);                            
                             TargetMode_Enter(oPlayer, QC_CAST_TARGET_MODE, nValidObjectTypes);
@@ -785,10 +785,10 @@ void QC_OnPlayerTarget()
 
     if (NWM_GetIsWindowOpen(oPlayer, QC_MAIN_WINDOW_ID, TRUE))
     {
-        int nSpellId = JsonGetInt(NWM_GetUserData("spellid"));
-        int nMultiClass = JsonGetInt(NWM_GetUserData("multiclass"));
-        int nMetaMagic = JsonGetInt(NWM_GetUserData("metamagic"));
-        int nTargetType = JsonGetInt(NWM_GetUserData("targettype"));
+        int nSpellId = NWM_GetUserDataInt("spellid");
+        int nMultiClass = NWM_GetUserDataInt("multiclass");
+        int nMetaMagic = NWM_GetUserDataInt("metamagic");
+        int nTargetType = NWM_GetUserDataInt("targettype");
 
         if (oPlayer == oTarget && !(nTargetType & 0x01))
             return;
@@ -1540,7 +1540,7 @@ void QC_SetCustomTarget(object oTarget, vector vPosition)
 {
     object oPlayer = OBJECT_SELF;
 
-    NWM_SetUserData("target", JsonString(ObjectToString(oTarget)));
+    NWM_SetUserDataString("target", ObjectToString(oTarget));
     NWM_SetUserData("position", VectorToJson(vPosition));
 
     if (GetIsObjectValid(oTarget))
@@ -1556,7 +1556,7 @@ void QC_SetCustomTarget(object oTarget, vector vPosition)
 
 object QC_GetCustomTargetObject()
 {
-    return StringToObject(JsonGetString(NWM_GetUserData("target")));
+    return StringToObject(NWM_GetUserDataString("target"));
 }
 
 vector QC_GetCustomTargetPosition()
@@ -1599,12 +1599,12 @@ void QC_InitializeTargetTypeCombo()
 
 void QC_SetPlayerTargetType(int nTargetType)
 {
-    NWM_SetUserData("player_target_type", JsonInt(nTargetType));
+    NWM_SetUserDataInt("player_target_type", nTargetType);
 }
 
 int QC_GetPlayerTargetType()
 {
-    return JsonGetInt(NWM_GetUserData("player_target_type"));
+    return NWM_GetUserDataInt("player_target_type");
 }
 
 int QC_GetSpellHasTargetType(int nSpellId, int nTargetType)
@@ -1617,13 +1617,13 @@ int QC_GetSpellHasTargetType(int nSpellId, int nTargetType)
 
 void QC_SetDragModeData(int nDragMode, json jData)
 {
-    NWM_SetUserData("dragmode_type", JsonInt(nDragMode));
+    NWM_SetUserDataInt("dragmode_type", nDragMode);
     NWM_SetUserData("dragmode_data", jData);
 }
 
 int QC_GetDragModeType()
 {
-    return JsonGetInt(NWM_GetUserData("dragmode_type"));
+    return NWM_GetUserDataInt("dragmode_type");
 }
 
 json QC_GetDragModeData()

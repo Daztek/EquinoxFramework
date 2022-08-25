@@ -45,6 +45,10 @@ void NWM_SetBindInt(string sBindName, int nValue);
 void NWM_SetBindWatch(string sBind, int bWatch);
 json NWM_GetUserData(string sKey);
 void NWM_SetUserData(string sKey, json jValue);
+int NWM_GetUserDataInt(string sKey);
+void NWM_SetUserDataInt(string sKey, int nValue);
+string NWM_GetUserDataString(string sKey);
+void NWM_SetUserDataString(string sKey, string sValue);
 void NWM_DeleteUserData(string sKey);
 void NWM_RegisterEvent(json jNWMEvent);
 json NWM_GetEvents(string sWindowId, string sEventType, string sElement);
@@ -296,6 +300,26 @@ void NWM_SetUserData(string sKey, json jValue)
     object oPlayer = NWM_GetPlayer();
     int nToken = NWM_GetToken();
     NuiSetUserData(oPlayer, nToken, JsonObjectSet(NuiGetUserData(oPlayer, nToken), sKey, jValue));
+}
+
+int NWM_GetUserDataInt(string sKey)
+{
+    return JsonGetInt(NWM_GetUserData(sKey));
+}
+
+void NWM_SetUserDataInt(string sKey, int nValue)
+{
+    NWM_SetUserData(sKey, JsonInt(nValue));    
+}
+
+string NWM_GetUserDataString(string sKey)
+{
+    return JsonGetString(NWM_GetUserData(sKey));
+}
+
+void NWM_SetUserDataString(string sKey, string sValue)
+{
+    NWM_SetUserData(sKey, JsonString(sValue));    
 }
 
 void NWM_DeleteUserData(string sKey)

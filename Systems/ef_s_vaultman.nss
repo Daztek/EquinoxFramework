@@ -38,7 +38,10 @@
     "cdkey TEXT NOT NULL, "
     "event INTEGER NOT NULL, "
     "timestamp INTEGER NOT NULL"
-    ");";    
+    ");";  
+
+    Updating stuff without fucking something up:
+        UPDATE vault_characters SET character = (JSON_SET(character, '$.Gold.value', JSON_EXTRACT(character, '$.Gold.value') + 1000));      
 */
 
 #include "ef_i_core"
@@ -462,9 +465,9 @@ void VMan_LoadCharacterList()
     string sIds, sNames, sPortraits;
 
     string sQuery = "SELECT characters.id, characters.owner, " + 
-                        "json_extract(characters.character, '$.FirstName.value.0') || ' ' || " +
-                        "json_extract(characters.character, '$.LastName.value.0') AS fullName, " +
-                        "json_extract(characters.character, '$.Portrait.value') " +
+                        "JSON_EXTRACT(characters.character, '$.FirstName.value.0') || ' ' || " +
+                        "JSON_EXTRACT(characters.character, '$.LastName.value.0') AS fullName, " +
+                        "JSON_EXTRACT(characters.character, '$.Portrait.value') " +
                     "FROM " + VMAN_CHARACTERS_TABLE + " AS characters INNER JOIN " + VMAN_ACCESS_TABLE + " AS access "  + 
                     "ON access.id = characters.id WHERE access.cdkey = @cdkey ORDER BY fullName;";
     sqlquery sql = VMan_PrepareQuery(sQuery);
@@ -510,19 +513,19 @@ void VMan_UpdateSelectedCharacterData(int nNewId)
         return;
 
     string sQuery = "SELECT owner, " +
-                           "json_extract(character, '$.FirstName.value.0'), " +
-                           "json_extract(character, '$.LastName.value.0'), " +
-                           "json_extract(character, '$.Portrait.value'), " +
-                           "json_extract(character, '$.Race.value'), " +
-                           "json_extract(character, '$.Gender.value'), " +
-                           "json_extract(character, '$.Gold.value'), " +    
-                           "json_extract(character, '$.Experience.value'), " +                                            
-                    "IFNULL(json_extract(character, '$.ClassList.value[0].Class.value'), 255), " +
-                    "IFNULL(json_extract(character, '$.ClassList.value[1].Class.value'), 255), " +
-                    "IFNULL(json_extract(character, '$.ClassList.value[2].Class.value'), 255), " +
-                    "IFNULL(json_extract(character, '$.ClassList.value[0].ClassLevel.value'), 0), " +
-                    "IFNULL(json_extract(character, '$.ClassList.value[1].ClassLevel.value'), 0), " +
-                    "IFNULL(json_extract(character, '$.ClassList.value[2].ClassLevel.value'), 0) " +                                                 
+                           "JSON_EXTRACT(character, '$.FirstName.value.0'), " +
+                           "JSON_EXTRACT(character, '$.LastName.value.0'), " +
+                           "JSON_EXTRACT(character, '$.Portrait.value'), " +
+                           "JSON_EXTRACT(character, '$.Race.value'), " +
+                           "JSON_EXTRACT(character, '$.Gender.value'), " +
+                           "JSON_EXTRACT(character, '$.Gold.value'), " +    
+                           "JSON_EXTRACT(character, '$.Experience.value'), " +                                            
+                    "IFNULL(JSON_EXTRACT(character, '$.ClassList.value[0].Class.value'), 255), " +
+                    "IFNULL(JSON_EXTRACT(character, '$.ClassList.value[1].Class.value'), 255), " +
+                    "IFNULL(JSON_EXTRACT(character, '$.ClassList.value[2].Class.value'), 255), " +
+                    "IFNULL(JSON_EXTRACT(character, '$.ClassList.value[0].ClassLevel.value'), 0), " +
+                    "IFNULL(JSON_EXTRACT(character, '$.ClassList.value[1].ClassLevel.value'), 0), " +
+                    "IFNULL(JSON_EXTRACT(character, '$.ClassList.value[2].ClassLevel.value'), 0) " +                                                 
                     "FROM " + VMAN_CHARACTERS_TABLE + " WHERE id = @id;"; 
     sqlquery sql = VMan_PrepareQuery(sQuery);
     SqlBindInt(sql, "@id", nNewId);
@@ -556,7 +559,7 @@ void VMan_UpdateSelectedCharacterData(int nNewId)
         sql = VMan_PrepareQuery(sQuery);
         SqlBindInt(sql, "@id", nNewId);
 
-        string sStatus = "Available";
+        string sStatus = "Offline";
         json jStatusColor = NuiColor(0, 255, 0);
         if (SqlStep(sql))
         {
@@ -564,16 +567,16 @@ void VMan_UpdateSelectedCharacterData(int nNewId)
 
             if (sCDKey == GetPCPublicCDKey(oPlayer))
             {
-                sStatus = "Logged In (YOU)";
+                sStatus = "Online (You)";
                 jStatusColor = NuiColor(255, 140, 0);
             }
             else
             {
-                sStatus = "Logged In (" + sCDKey + ")";
+                sStatus = "Online (" + sCDKey + ")";
                 jStatusColor = NuiColor(255, 0, 0);
             }            
         }
-        NWM_SetBindString(VMAN_BIND_SELECTED_STATUS_LABEL, sStatus);
+        NWM_SetBindString(VMAN_BIND_SELECTED_STATUS_LABEL, "Status: " + sStatus);
         NWM_SetBind(VMAN_BIND_SELECTED_STATUS_COLOR, jStatusColor);
         
         NWM_SetUserData(VMAN_NUI_USERDATA_SELECTED_ID, JsonInt(nNewId));
@@ -648,7 +651,7 @@ string VMan_GetItemIconResref(int nBaseItem, int nModelPart1, json jProperties)
         {
             string sQuery = "SELECT JSON_EXTRACT(properties.value, '$.Subtype.value') " +
                             "FROM JSON_EACH(@properties) AS properties " +
-                            "WHERE JSON_EXTRACT(properties.value, '$.PropertyName.value') = " + IntToString(ITEM_PROPERTY_CAST_SPELL) + ";";
+                            "WHERE JSON_EXTRACT(properties.value, '$.PropertyName.value') = " + IntToString(ITEM_PROPERTY_CAST_SPELL) + " LIMIT 1;";
             sqlquery sql = SqlPrepareQueryModule(sQuery);
             SqlBindJson(sql, "@properties", jProperties);
 
@@ -704,8 +707,8 @@ void VMan_UpdateItems(int nCharacterId, string sName)
                            "JSON_EXTRACT(item.value, '$.LocalizedName.value.id'), " +
                            "JSON_EXTRACT(item.value, '$.ModelPart1.value'), " +
                            "JSON_EXTRACT(item.value, '$.PropertiesList.value') " +
-                           "FROM " + VMAN_CHARACTERS_TABLE + " AS characters " +
-                           "JOIN JSON_EACH(characters.character, '$.ItemList.value') AS item " +
+                           "FROM " + VMAN_CHARACTERS_TABLE + " AS characters, " +
+                           "JSON_EACH(characters.character, '$.ItemList.value') AS item " +
                            "WHERE characters.id = @id;";
     sqlquery sql = VMan_PrepareQuery(sQuery);
     SqlBindInt(sql, "@id", nCharacterId);

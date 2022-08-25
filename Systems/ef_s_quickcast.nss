@@ -239,8 +239,11 @@ void QC_MainWindowClose()
 {
     object oPlayer = OBJECT_SELF;
 
-    QC_DeletePlayerKnownSpellsTable(oPlayer);
-    QC_DeletePlayerMemorizedSpellsTable(oPlayer);
+    // Most events get fired in ef_s_eventman from a sqlite query 
+    // which apparently locks the table so we can't delete it
+    // So we delay table deletion until the next frame... 
+    DelayCommand(0.0f, QC_DeletePlayerKnownSpellsTable(oPlayer));
+    DelayCommand(0.0f, QC_DeletePlayerMemorizedSpellsTable(oPlayer));
 
     if (NWM_GetIsWindowOpen(oPlayer, QC_SETSLOT_WINDOW_ID))
         NWM_CloseWindow(oPlayer, QC_SETSLOT_WINDOW_ID);
@@ -1248,11 +1251,11 @@ sqlquery QC_GetKnownSpellsList(object oPlayer, int nMultiClass, int nMetaMagic, 
 {
     string sPlayerKnownSpellTable = QC_GetPlayerKnownSpellsTable(oPlayer);
     string sSpellDataTable = QC_GetSpellDataTable();
-    string sQuery = "SELECT " + sSpellDataTable + ".spellid, " + sSpellDataTable + ".icon, " + sSpellDataTable + ".name FROM " +
-                    sSpellDataTable + " INNER JOIN " + sPlayerKnownSpellTable + " ON " + sPlayerKnownSpellTable + ".spellid = " + sSpellDataTable + ".spellid WHERE (" +
-                    sSpellDataTable + ".metamagic & @metamagic) = @metamagic AND " + sPlayerKnownSpellTable + ".multiclass = @multiclass AND (" +
-                    sPlayerKnownSpellTable + ".spelllevel + @metamagicleveladjustment) < @maxspelllevel AND " +
-                    sSpellDataTable + ".name LIKE @like ORDER BY " + sPlayerKnownSpellTable + ".spelllevel ASC, " + sSpellDataTable + ".name ASC LIMIT @limit;";
+    string sQuery = "SELECT spelldata.spellid, spelldata.icon, spelldata.name FROM " +
+                    sSpellDataTable + " AS spelldata INNER JOIN " + sPlayerKnownSpellTable + " AS playerknownspells ON playerknownspells.spellid = spelldata.spellid WHERE (" +
+                    "spelldata.metamagic & @metamagic) = @metamagic AND playerknownspells.multiclass = @multiclass AND (" +
+                    "playerknownspells.spelllevel + @metamagicleveladjustment) < @maxspelllevel AND " +
+                    "spelldata.name LIKE @like ORDER BY playerknownspells.spelllevel ASC, spelldata.name ASC LIMIT @limit;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@metamagic", nMetaMagic);
     SqlBindInt(sql, "@multiclass", nMultiClass);
@@ -1268,12 +1271,12 @@ sqlquery QC_GetClassSpellList(object oPlayer, int nMultiClass, int nMetaMagic, s
 {
     string sClassSpellTablesTable = QC_GetClassSpellTableTable();
     string sSpellDataTable = QC_GetSpellDataTable();
-    string sQuery = "SELECT " + sSpellDataTable + ".spellid, " + sSpellDataTable + ".icon, " + sSpellDataTable + ".name FROM " +
-                    sSpellDataTable + " INNER JOIN " + sClassSpellTablesTable + " ON " + sClassSpellTablesTable + ".spelltable = @spelltable AND " +
-                    sClassSpellTablesTable + ".spellid = " + sSpellDataTable + ".spellid WHERE (" +
-                    sSpellDataTable + ".metamagic & @metamagic) = @metamagic AND (" +
-                    sClassSpellTablesTable + ".spelllevel + @metamagicleveladjustment) < @maxspelllevel AND " +
-                    sSpellDataTable + ".name LIKE @like ORDER BY " + sClassSpellTablesTable + ".spelllevel ASC, " + sSpellDataTable + ".name ASC LIMIT @limit;";
+    string sQuery = "SELECT spelldata.spellid, spelldata.icon, spelldata.name FROM " +
+                    sSpellDataTable + " AS spelldata INNER JOIN " + sClassSpellTablesTable + " AS classspells ON classspells.spelltable = @spelltable AND " +
+                    "classspells.spellid = spelldata.spellid WHERE (" +
+                    "spelldata.metamagic & @metamagic) = @metamagic AND (" +
+                    "classspells.spelllevel + @metamagicleveladjustment) < @maxspelllevel AND " +
+                    "spelldata.name LIKE @like ORDER BY classspells.spelllevel ASC, spelldata.name ASC LIMIT @limit;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@spelltable", Get2DAString("classes", "SpellTableColumn", GetClassByPosition(nMultiClass + 1, oPlayer)));
     SqlBindInt(sql, "@metamagic", nMetaMagic);
@@ -1309,9 +1312,9 @@ void QC_UpdateSpellList()
 
     string sChildSpellTable = QC_GetChildSpellsTable();
     string sSpellDataTable = QC_GetSpellDataTable();
-    string sSelectChildSpellsQuery = "SELECT " + sSpellDataTable + ".spellid, " + sSpellDataTable + ".icon, " + sSpellDataTable + ".name FROM " +
-                                     sSpellDataTable + " INNER JOIN " + sChildSpellTable + " ON " + sChildSpellTable + ".childid = " + sSpellDataTable + ".spellid " +
-                                     "WHERE " + sChildSpellTable + ".masterid = @masterid;";
+    string sSelectChildSpellsQuery = "SELECT spelldata.spellid, spelldata.icon, spelldata.name FROM " +
+                                     sSpellDataTable + " AS spelldata INNER JOIN " + sChildSpellTable + " AS childspells ON childspells.childid = spelldata.spellid " +
+                                     "WHERE childspells.masterid = @masterid;";
     
     while (SqlStep(sql))
     {

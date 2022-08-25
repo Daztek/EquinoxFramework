@@ -16,12 +16,14 @@
 const string EFCORE_LOG_TAG                             = "Equinox";
 const string EFCORE_SCRIPT_NAME                         = "ef_i_core";
 
-const int EFCORE_VALIDATE_SYSTEMS                       = TRUE;
+const int EFCORE_DISABLE_DEBUG_FAST_START               = TRUE;
+
+const int EFCORE_VALIDATE_SYSTEMS                       = EFCORE_DISABLE_DEBUG_FAST_START;
 const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
 
-const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = TRUE;
+const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = EFCORE_DISABLE_DEBUG_FAST_START;
 
-const int EFCORE_PARSE_SYSTEM_FUNCTIONS                 = TRUE;
+const int EFCORE_PARSE_SYSTEM_FUNCTIONS                 = EFCORE_DISABLE_DEBUG_FAST_START;
 const int EFCORE_PRECACHE_SYSTEM_FUNCTIONS              = FALSE;
 
 const int EF_SYSTEM_INIT                                = 1;

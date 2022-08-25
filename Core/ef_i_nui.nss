@@ -26,21 +26,34 @@ const string NUI_DEFAULT_GEOMETRY_NAME      = "default_geometry";
 
 const float NUI_TITLEBAR_HEIGHT             = 33.0f;
 
-json NuiGetCenteredGeometryRect(object oPlayer, float fWindowWidth, float fWindowHeight);
+json NuiGetAdjustedWindowGeometryRect(object oPlayer, json jRect);
 float NuiGetMouseScrollDelta(json jPayload);
 int NuiGetMouseButton(json jPayload);
 void NuiSetClickthroughProtection(object oPlayer = OBJECT_SELF, float fSeconds = 0.5f);
 int NuiGetClickthroughProtection(object oPlayer = OBJECT_SELF);
 int NuiGetIdFromElement(string sElement, string sPrefix);
+json NuiRectReplacePosition(json jOldRect, json jNewRect);
+void PrintNuiRect(json jRect);
+int IsDefaultNuiRect(json jRect);
 
-json NuiGetCenteredGeometryRect(object oPlayer, float fWindowWidth, float fWindowHeight)
+json NuiGetAdjustedWindowGeometryRect(object oPlayer, json jRect)
 {
+    float fX = JsonObjectGetFloat(jRect, "x"); 
+    float fY = JsonObjectGetFloat(jRect, "y");
+    
+    if (fX == -1.0f && fY == -1.0f)
+        return jRect;
+
+    float fWidth = JsonObjectGetFloat(jRect, "w");
+    float fHeight = JsonObjectGetFloat(jRect, "h");  
     float fGuiScale = IntToFloat(GetPlayerDeviceProperty(oPlayer, PLAYER_DEVICE_PROPERTY_GUI_SCALE)) / 100.0f;
 
-    float fX = IntToFloat(GetPlayerDeviceProperty(oPlayer, PLAYER_DEVICE_PROPERTY_GUI_WIDTH) / 2) - ((fWindowWidth * 0.5f) * fGuiScale);
-    float fY = IntToFloat(GetPlayerDeviceProperty(oPlayer, PLAYER_DEVICE_PROPERTY_GUI_HEIGHT) / 2) - ((fWindowHeight * 0.5f) * fGuiScale);
+    if (fX == -1.0f)
+        fX = IntToFloat(GetPlayerDeviceProperty(oPlayer, PLAYER_DEVICE_PROPERTY_GUI_WIDTH) / 2) - ((fWidth * 0.5f) * fGuiScale);
+    if (fY == -1.0f)
+        fY = IntToFloat(GetPlayerDeviceProperty(oPlayer, PLAYER_DEVICE_PROPERTY_GUI_HEIGHT) / 2) - ((fHeight * 0.5f) * fGuiScale);
 
-    return NuiRect(fX, fY, fWindowWidth, fWindowHeight);
+    return NuiRect(fX, fY, fWidth, fHeight);
 }
 
 float NuiGetMouseScrollDelta(json jPayload)
@@ -67,4 +80,29 @@ int NuiGetClickthroughProtection(object oPlayer = OBJECT_SELF)
 int NuiGetIdFromElement(string sElement, string sPrefix)
 {
     return StringToInt(GetStringRight(sElement, GetStringLength(sElement) - GetStringLength(sPrefix)));
+}
+
+json NuiRectReplacePosition(json jOldRect, json jNewRect)
+{
+    jOldRect = JsonObjectSet(jOldRect, "x", JsonObjectGet(jNewRect, "x"));
+    jOldRect = JsonObjectSet(jOldRect, "y", JsonObjectGet(jNewRect, "y"));
+    return jOldRect;
+}
+
+void PrintNuiRect(json jRect)
+{
+    string sX = FloatToString(JsonObjectGetFloat(jRect, "x"), 0, 2);
+    string sY = FloatToString(JsonObjectGetFloat(jRect, "y"), 0, 2);
+    string sW = FloatToString(JsonObjectGetFloat(jRect, "w"), 0, 2);
+    string sH = FloatToString(JsonObjectGetFloat(jRect, "h"), 0, 2);
+
+    PrintString("NuiRect: x=" + sX + ", y=" + sY + ", w=" + sW + ", h=" +sH);
+}
+
+int IsDefaultNuiRect(json jRect)
+{
+    return JsonObjectGetFloat(jRect, "x") == 0.0f && 
+           JsonObjectGetFloat(jRect, "y") == 0.0f &&
+           JsonObjectGetFloat(jRect, "w") == 0.0f &&
+           JsonObjectGetFloat(jRect, "h") == 0.0f;    
 }

@@ -27,8 +27,9 @@ int NWM_GetToken();
 void NWM_SetPlayer(object oPlayer);
 object NWM_GetPlayer();
 json NWM_GetWindowJson(string sWindowId);
-json NWM_GetWindowGeometry(object oPlayer, string sWindowId);
-void NWM_SetWindowGeometry(object oPlayer, string sWindowId, json jGeometry);
+json NWM_GetDefaultWindowGeometry(string sWindowId);
+json NWM_GetPlayerWindowGeometry(object oPlayer, string sWindowId);
+void NWM_SetPlayerWindowGeometry(object oPlayer, string sWindowId, json jGeometry);
 void NWM_RegisterWindow(json jNWMWindow);
 int NWM_GetIsWindowOpen(object oPlayer, string sWindowId, int bSetPlayerToken = FALSE);
 int NWM_OpenWindow(object oPlayer, string sWindowId);
@@ -96,7 +97,6 @@ void NWM_RegisterEvent(json jNWMEvent)
         EFCore_CacheScriptChunk(sScriptChunk);
         InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement, sScriptChunk);
         WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
-
     }
     else
     {
@@ -119,7 +119,12 @@ void NWM_NuiEvent()
 
     if (sEventType == NUI_EVENT_WATCH && sElement == NUI_WINDOW_GEOMETRY_BIND)
     {
-        NWM_SetWindowGeometry(oPlayer, sWindowId, NuiGetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND));
+        json jGeometry = NuiGetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND);
+        if (!IsDefaultNuiRect(jGeometry))
+        {
+            jGeometry = NuiRectReplacePosition(NWM_GetPlayerWindowGeometry(oPlayer, sWindowId), jGeometry);
+            NWM_SetPlayerWindowGeometry(oPlayer, sWindowId, jGeometry);
+        }
     }
 
     if (NWM_DEBUG_EVENTS)
@@ -171,12 +176,17 @@ json NWM_GetWindowJson(string sWindowId)
     return GetLocalJson(GetDataObject(NWM_SCRIPT_NAME), NWM_REGISTERED_WINDOW + sWindowId);
 }
 
-json NWM_GetWindowGeometry(object oPlayer, string sWindowId)
+json NWM_GetDefaultWindowGeometry(string sWindowId)
 {
-    return GetLocalJsonOrDefault(oPlayer, NWM_WINDOW_GEOMETRY + sWindowId, GetLocalJson(GetDataObject(NWM_SCRIPT_NAME), NWM_WINDOW_GEOMETRY + sWindowId));
+    return GetLocalJson(GetDataObject(NWM_SCRIPT_NAME), NWM_WINDOW_GEOMETRY + sWindowId);    
 }
 
-void NWM_SetWindowGeometry(object oPlayer, string sWindowId, json jGeometry)
+json NWM_GetPlayerWindowGeometry(object oPlayer, string sWindowId)
+{
+    return GetLocalJson(oPlayer, NWM_WINDOW_GEOMETRY + sWindowId);
+}
+
+void NWM_SetPlayerWindowGeometry(object oPlayer, string sWindowId, json jGeometry)
 {
     SetLocalJson(oPlayer, NWM_WINDOW_GEOMETRY + sWindowId, jGeometry);
 }
@@ -206,12 +216,15 @@ int NWM_OpenWindow(object oPlayer, string sWindowId)
     NWM_SetPlayer(oPlayer);
     NWM_SetToken(nToken);
 
-    json jGeometry = NWM_GetWindowGeometry(oPlayer, sWindowId);
-    if (JsonGetType(jGeometry))
+    json jGeometry = NWM_GetPlayerWindowGeometry(oPlayer, sWindowId);
+    if (!JsonGetType(jGeometry))
     {
-        NuiSetBindWatch(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND, TRUE);
-        NuiSetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND, jGeometry);
+        jGeometry = NuiGetAdjustedWindowGeometryRect(oPlayer, NWM_GetDefaultWindowGeometry(sWindowId));
+        NWM_SetPlayerWindowGeometry(oPlayer, sWindowId, jGeometry);
     }
+
+    NuiSetBindWatch(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND, TRUE);
+    NuiSetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND, jGeometry);    
 
     return nToken;
 }

@@ -34,14 +34,15 @@ int NuiGetClickthroughProtection(object oPlayer = OBJECT_SELF);
 int NuiGetIdFromElement(string sElement, string sPrefix);
 json NuiRectReplacePosition(json jOldRect, json jNewRect);
 void PrintNuiRect(json jRect);
-int IsDefaultNuiRect(json jRect);
+int GetIsDefaultNuiRect(json jRect);
+int GetNuiRectSizeMatches(json jRect1, json jRect2);
 
 json NuiGetAdjustedWindowGeometryRect(object oPlayer, json jRect)
 {
     float fX = JsonObjectGetFloat(jRect, "x"); 
     float fY = JsonObjectGetFloat(jRect, "y");
     
-    if (fX == -1.0f && fY == -1.0f)
+    if (fX != -1.0f && fY != -1.0f)
         return jRect;
 
     float fWidth = JsonObjectGetFloat(jRect, "w");
@@ -99,10 +100,16 @@ void PrintNuiRect(json jRect)
     PrintString("NuiRect: x=" + sX + ", y=" + sY + ", w=" + sW + ", h=" +sH);
 }
 
-int IsDefaultNuiRect(json jRect)
+int GetIsDefaultNuiRect(json jRect)
 {
     return JsonObjectGetFloat(jRect, "x") == 0.0f && 
            JsonObjectGetFloat(jRect, "y") == 0.0f &&
            JsonObjectGetFloat(jRect, "w") == 0.0f &&
            JsonObjectGetFloat(jRect, "h") == 0.0f;    
+}
+
+int GetNuiRectSizeMatches(json jRect1, json jRect2)
+{
+    return JsonObjectGetFloat(jRect1, "w") == JsonObjectGetFloat(jRect2, "w") &&
+           JsonObjectGetFloat(jRect1, "h") == JsonObjectGetFloat(jRect2, "h");
 }

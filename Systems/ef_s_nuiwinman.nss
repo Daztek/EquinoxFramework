@@ -10,6 +10,7 @@
 */
 
 #include "ef_i_core"
+#include "ef_s_playerdb"
 
 const string NWM_LOG_TAG            = "NuiWindowManager";
 const string NWM_SCRIPT_NAME        = "ef_s_nuiwinman";
@@ -124,7 +125,7 @@ void NWM_NuiEvent()
     if (sEventType == NUI_EVENT_WATCH && sElement == NUI_WINDOW_GEOMETRY_BIND)
     {
         json jGeometry = NuiGetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND);
-        if (!IsDefaultNuiRect(jGeometry))
+        if (!GetIsDefaultNuiRect(jGeometry))
         {
             jGeometry = NuiRectReplacePosition(NWM_GetPlayerWindowGeometry(oPlayer, sWindowId), jGeometry);
             NWM_SetPlayerWindowGeometry(oPlayer, sWindowId, jGeometry);
@@ -187,12 +188,12 @@ json NWM_GetDefaultWindowGeometry(string sWindowId)
 
 json NWM_GetPlayerWindowGeometry(object oPlayer, string sWindowId)
 {
-    return GetLocalJson(oPlayer, NWM_WINDOW_GEOMETRY + sWindowId);
+    return PlayerDB_GetJson(oPlayer, NWM_SCRIPT_NAME, NWM_WINDOW_GEOMETRY + sWindowId);
 }
 
 void NWM_SetPlayerWindowGeometry(object oPlayer, string sWindowId, json jGeometry)
 {
-    SetLocalJson(oPlayer, NWM_WINDOW_GEOMETRY + sWindowId, jGeometry);
+    PlayerDB_SetJson(oPlayer, NWM_SCRIPT_NAME, NWM_WINDOW_GEOMETRY + sWindowId, jGeometry);
 }
 
 int NWM_GetIsWindowOpen(object oPlayer, string sWindowId, int bSetPlayerToken = FALSE)
@@ -220,15 +221,16 @@ int NWM_OpenWindow(object oPlayer, string sWindowId)
     NWM_SetPlayer(oPlayer);
     NWM_SetToken(nToken);
 
-    json jGeometry = NWM_GetPlayerWindowGeometry(oPlayer, sWindowId);
-    if (!JsonGetType(jGeometry))
+    json jDefaultGeometry = NWM_GetDefaultWindowGeometry(sWindowId);
+    json jPlayerGeometry = NWM_GetPlayerWindowGeometry(oPlayer, sWindowId);
+    if (!JsonGetType(jPlayerGeometry) || !GetNuiRectSizeMatches(jDefaultGeometry, jPlayerGeometry))
     {
-        jGeometry = NuiGetAdjustedWindowGeometryRect(oPlayer, NWM_GetDefaultWindowGeometry(sWindowId));
-        NWM_SetPlayerWindowGeometry(oPlayer, sWindowId, jGeometry);
+        jPlayerGeometry = NuiGetAdjustedWindowGeometryRect(oPlayer, jDefaultGeometry);
+        NWM_SetPlayerWindowGeometry(oPlayer, sWindowId, jPlayerGeometry);
     }
 
     NuiSetBindWatch(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND, TRUE);
-    NuiSetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND, jGeometry);    
+    NuiSetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND, jPlayerGeometry);    
 
     return nToken;
 }

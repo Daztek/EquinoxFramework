@@ -291,7 +291,7 @@ void NB_End()
         }
         case NB_TYPE_STATIC_OPTIONS:
         {
-            if (nTypeToAdd == NB_TYPE_STATIC_COMBO_ENTRY)
+            if (nTypeToAdd == NB_TYPE_STATIC_OPTIONS_ENTRY)
                 NB_SetData(JsonObjectInsertToArrayWithKey(jData, "elements", jDataToAdd));
             else if (nTypeToAdd == NB_TYPE_DRAWLIST)
                 NB_SetData(JsonMerge(jData, jDataToAdd));
@@ -304,6 +304,9 @@ void NB_End()
             NB_LogWarning("TYPE MISMATCH: {NB_TYPE_STATIC_OPTIONS_ENTRY} does not accept other types.");
             break;
         }
+        default:
+            NB_LogWarning("UNKNOWN TYPE: " + IntToString(nTypeToAdd));
+        break;
     }
 }
 

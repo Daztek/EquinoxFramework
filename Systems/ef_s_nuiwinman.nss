@@ -18,7 +18,6 @@ const int NWM_DEBUG_EVENTS          = FALSE;
 
 const string NWM_REGISTERED_WINDOW  = "RegisteredWindow_";
 const string NWM_WINDOW_GEOMETRY    = "WindowGeometry_";
-const string NWM_EVENT_FUNCTION     = "EventFunction_";
 const string NWM_EVENT_PREFIX       = "EventPrefix_";
 const string NWM_CURRENT_TOKEN      = "CurrentToken";
 const string NWM_CURRENT_PLAYER     = "CurrentPlayer";
@@ -56,6 +55,17 @@ json NWM_GetEvents(string sWindowId, string sEventType, string sElement);
 json NWM_GetPrefixArray(string sWindowId);
 void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string sElement);
 void NWM_Destroy();
+
+// @CORE[EF_SYSTEM_INIT]
+void NWM_Init()
+{
+    string sQuery = "CREATE TABLE IF NOT EXISTS " + NWM_SCRIPT_NAME + "(" +
+                    "windowid TEXT NOT NULL, " +
+                    "eventtype TEXT NOT NULL, " +
+                    "element TEXT NOT NULL, " +                    
+                    "scriptchunk TEXT NOT NULL);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+}
 
 // @PAD[NWMWINDOW]
 void NWM_RegisterWindow(json jNWMWindow)
@@ -100,7 +110,15 @@ void NWM_RegisterEvent(json jNWMEvent)
             InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_PREFIX + sWindowId, sElement);
 
         EFCore_CacheScriptChunk(sScriptChunk);
-        InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement, sScriptChunk);
+        
+        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + NWM_SCRIPT_NAME + " (windowid, eventtype, element, scriptchunk) " + 
+                                             "VALUES(@windowid, @eventtype, @element, @scriptchunk);");
+        SqlBindString(sql, "@windowid", sWindowId);
+        SqlBindString(sql, "@eventtype", sEventType);
+        SqlBindString(sql, "@element", sElement);
+        SqlBindString(sql, "@scriptchunk", sScriptChunk);
+        SqlStep(sql);
+        
         WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
     }
     else
@@ -117,7 +135,10 @@ void NWM_NuiEvent()
     string sWindowId = NuiGetWindowId(oPlayer, nToken);
 
     if (sWindowId == "" || !JsonGetType(NWM_GetWindowJson(sWindowId)))
-        return;// Don't bother doing anything if it's not a registered window
+    {
+        WriteLog(NWM_LOG_TAG, "WARNING: Unknown or Anonymous Window: " + sWindowId);
+        return;        
+    }
 
     string sEventType = NuiGetEventType();
     string sElement = NuiGetEventElement();
@@ -127,7 +148,6 @@ void NWM_NuiEvent()
         json jGeometry = NuiGetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND);
         if (!GetIsDefaultNuiRect(jGeometry))
         {
-            jGeometry = NuiRectReplacePosition(NWM_GetPlayerWindowGeometry(oPlayer, sWindowId), jGeometry);
             NWM_SetPlayerWindowGeometry(oPlayer, sWindowId, jGeometry);
         }
     }
@@ -331,11 +351,6 @@ void NWM_DeleteUserData(string sKey)
     NuiSetUserData(oPlayer, nToken, JsonObjectDel(NuiGetUserData(oPlayer, nToken), sKey));
 }
 
-json NWM_GetEvents(string sWindowId, string sEventType, string sElement)
-{
-    return GetLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_FUNCTION + sWindowId + sEventType + sElement);
-}
-
 json NWM_GetPrefixArray(string sWindowId)
 {
     return GetLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_PREFIX + sWindowId);
@@ -355,27 +370,24 @@ void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string s
         }
     }
 
-    json jEvents = NWM_GetEvents(sWindowId, sEventType, sElement);
-    int nEvent, nNumEvents = JsonGetLength(jEvents);
-
     if (NWM_DEBUG_EVENTS)
-    {
-        WriteLog(NWM_LOG_TAG, "DEBUG: [" + sWindowId + "] Running Event '" + sEventType + "' for Element '" + sElement + "' " );
-    }
+        WriteLog(NWM_LOG_TAG, "DEBUG: [" + sWindowId + "] Running Event '" + sEventType + "' for Element '" + sElement + "'");
 
-    for (nEvent = 0; nEvent < nNumEvents; nEvent++)
+    sqlquery sql = SqlPrepareQueryModule("SELECT scriptchunk FROM " + NWM_SCRIPT_NAME + " WHERE windowid = @windowid AND eventtype = @eventtype AND element = @element;");
+    SqlBindString(sql, "@windowid", sWindowId);
+    SqlBindString(sql, "@eventtype", sEventType);
+    SqlBindString(sql, "@element", sElement); 
+
+    while (SqlStep(sql))
     {
-        string sScriptChunk = JsonArrayGetString(jEvents, nEvent);
-        if (sScriptChunk != "")
+        string sScriptChunk = SqlGetString(sql, 0);
+        string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+
+        if (NWM_DEBUG_EVENTS)
         {
-            string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
-
-            if (NWM_DEBUG_EVENTS)
-            {
-                if (sError != "")
-                    WriteLog(NWM_LOG_TAG, "DEBUG: [" + IntToString(nEvent) + "] Event Chunk '" + sScriptChunk + "' failed with error: " + sError);
-            }
-        }
+            if (sError != "")
+                WriteLog(NWM_LOG_TAG, "DEBUG: Event Chunk '" + sScriptChunk + "' failed with error: " + sError);
+        }     
     }
 }
 

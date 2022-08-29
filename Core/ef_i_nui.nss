@@ -97,7 +97,7 @@ void PrintNuiRect(json jRect)
     string sW = FloatToString(JsonObjectGetFloat(jRect, "w"), 0, 2);
     string sH = FloatToString(JsonObjectGetFloat(jRect, "h"), 0, 2);
 
-    PrintString("NuiRect: x=" + sX + ", y=" + sY + ", w=" + sW + ", h=" +sH);
+    PrintString("NuiRect: x=" + sX + ", y=" + sY + ", w=" + sW + ", h=" + sH);
 }
 
 int GetIsDefaultNuiRect(json jRect)

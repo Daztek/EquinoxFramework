@@ -99,6 +99,9 @@ void SetLocalVector(object oObject, string sVarName, vector vValue);
 // Convert an 0xFF string to its int value
 int HexStringToInt(string sString);
 
+// Calls GetIsPC() but also checks the object id length for cases where the PC object isn't valid anymore
+int GetIsPlayer(object oObject);
+
 void WriteLog(string sName, string sMessage)
 {
     WriteTimestampedLogEntry("[" + sName + "] " + sMessage);
@@ -426,4 +429,9 @@ int HexStringToInt(string sString)
         nResult |= n << ((nLength - i - 1) * 4);
     }
     return nResult;
+}
+
+int GetIsPlayer(object oObject)
+{
+    return GetIsPC(oObject) || GetStringLength(ObjectToString(oObject)) == 8;
 }

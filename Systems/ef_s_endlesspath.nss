@@ -462,8 +462,10 @@ string EP_TileInfo()
     object oArea = GetArea(oTarget);
     vector vPosition = GetPosition(oTarget);
     struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfo(oArea, vPosition.x, vPosition.y);
+    int nSurfaceMaterial = GetSurfaceMaterial(GetLocation(oTarget));
     return "Tileset: " + GetTilesetResRef(oArea) + ", TileID: " + IntToString(str.nID) + "\n" +
             "GridX: " + IntToString(str.nGridX) + ", GridY: " + IntToString(str.nGridY) + "\n" +
             "Height: " + IntToString(str.nHeight) + "\n" + 
-            "Orientation: " + IntToString(str.nOrientation);
+            "Orientation: " + IntToString(str.nOrientation) + "\n" +
+            "Surface Material: " + Get2DAString("surfacemat", "Label", nSurfaceMaterial) +  " (" + IntToString(nSurfaceMaterial) + ")";
 }

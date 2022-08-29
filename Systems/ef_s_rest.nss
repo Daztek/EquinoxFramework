@@ -10,7 +10,15 @@
 
 const string REST_LOG_TAG                   = "Rest";
 const string REST_SCRIPT_NAME               = "ef_s_rest";
-const string REST_FUNCTIONS_ARRAY_PREFIX    = "FunctionsArray_";
+
+// @CORE[EF_SYSTEM_INIT]
+void Rest_Init()
+{
+    string sQuery = "CREATE TABLE IF NOT EXISTS " + REST_SCRIPT_NAME + "(" +
+                    "resteventtype INTEGER NOT NULL, " +                  
+                    "scriptchunk TEXT NOT NULL);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+}
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_REST]
 void Rest_OnPlayerRest()
@@ -18,17 +26,16 @@ void Rest_OnPlayerRest()
     object oPlayer = GetLastPCRested();
     int nRestEventType = GetLastRestEventType();
 
-    if (nRestEventType != REST_EVENTTYPE_REST_INVALID)
-    {
-        json jFunctions = GetLocalJsonArray(GetDataObject(REST_SCRIPT_NAME), REST_FUNCTIONS_ARRAY_PREFIX + IntToString(nRestEventType));
-        int nFunction, nNumFunctions = JsonGetLength(jFunctions);
+    sqlquery sql = SqlPrepareQueryModule("SELECT scriptchunk FROM " + REST_SCRIPT_NAME + " WHERE resteventtype = @resteventtype;");
+    SqlBindInt(sql, "@resteventtype", nRestEventType);
 
-        for (nFunction = 0; nFunction < nNumFunctions; nFunction++)
-        {
-            string sScriptChunk = JsonArrayGetString(jFunctions, nFunction);
-            if (sScriptChunk != "")
-                ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
-        }
+    while (SqlStep(sql))
+    {
+        string sScriptChunk = SqlGetString(sql, 0);
+        string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+
+        if (sError != "")
+            WriteLog(REST_LOG_TAG, "ERROR: (" + IntToString(nRestEventType) + ") ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);     
     }
 }
 
@@ -41,8 +48,13 @@ void Rest_RegisterFunction(json jRestFunction)
     string sFunction = JsonArrayGetString(jRestFunction, 3);
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
+    sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + REST_SCRIPT_NAME + " (resteventtype, scriptchunk) VALUES(@resteventtype, @scriptchunk);");
+    SqlBindInt(sql, "@resteventtype", nRestEventType);
+    SqlBindString(sql, "@scriptchunk", sScriptChunk);
+    SqlStep(sql);
+
     EFCore_CacheScriptChunk(sScriptChunk);
-    InsertStringToLocalJsonArray(GetDataObject(REST_SCRIPT_NAME), REST_FUNCTIONS_ARRAY_PREFIX + IntToString(nRestEventType), sScriptChunk);
+
     WriteLog(REST_LOG_TAG, "* System '" + sSystem + "' registered function '" + sFunction + "' for rest event type: " + sRestEventTypeConstant);
 }
 

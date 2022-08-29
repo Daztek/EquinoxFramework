@@ -109,8 +109,6 @@ void NWM_RegisterEvent(json jNWMEvent)
         if (bPrefix)
             InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_PREFIX + sWindowId, sElement);
 
-        EFCore_CacheScriptChunk(sScriptChunk);
-        
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + NWM_SCRIPT_NAME + " (windowid, eventtype, element, scriptchunk) " + 
                                              "VALUES(@windowid, @eventtype, @element, @scriptchunk);");
         SqlBindString(sql, "@windowid", sWindowId);
@@ -118,6 +116,8 @@ void NWM_RegisterEvent(json jNWMEvent)
         SqlBindString(sql, "@element", sElement);
         SqlBindString(sql, "@scriptchunk", sScriptChunk);
         SqlStep(sql);
+
+        EFCore_CacheScriptChunk(sScriptChunk);
         
         WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
     }

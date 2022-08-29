@@ -10,26 +10,32 @@
 
 const string GUIEVENT_LOG_TAG           = "GuiEvent";
 const string GUIEVENT_SCRIPT_NAME       = "ef_s_guievent";
-const string GUIEVENT_ARRAY_PREFIX      = "GuiEventFunctions_";
+
+// @CORE[EF_SYSTEM_INIT]
+void GuiEvent_Init()
+{
+    string sQuery = "CREATE TABLE IF NOT EXISTS " + GUIEVENT_SCRIPT_NAME + "(" +
+                    "guieventtype INTEGER NOT NULL, " +                  
+                    "scriptchunk TEXT NOT NULL);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+}
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_GUIEVENT]
 void GuiEvent_OnPlayerGuiEvent()
 {
     object oPlayer = GetLastGuiEventPlayer();
     int nGuiEventType = GetLastGuiEventType();
-    json jFunctions = GetLocalJsonArray(GetDataObject(GUIEVENT_SCRIPT_NAME), GUIEVENT_ARRAY_PREFIX + IntToString(nGuiEventType));
-    int nFunction, nNumFunctions = JsonGetLength(jFunctions);
+    
+    sqlquery sql = SqlPrepareQueryModule("SELECT scriptchunk FROM " + GUIEVENT_SCRIPT_NAME + " WHERE guieventtype = @guieventtype;");
+    SqlBindInt(sql, "@guieventtype", nGuiEventType);
 
-    for (nFunction = 0; nFunction < nNumFunctions; nFunction++)
+    while (SqlStep(sql))
     {
-        string sScriptChunk = JsonArrayGetString(jFunctions, nFunction);
-        if (sScriptChunk != "")
-        {
-            string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+        string sScriptChunk = SqlGetString(sql, 0);
+        string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
 
-            if (sError != "")
-                WriteLog(GUIEVENT_LOG_TAG, "ERROR: ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
-        }
+        if (sError != "")
+            WriteLog(GUIEVENT_LOG_TAG, "ERROR: (" + IntToString(nGuiEventType) + ") ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);     
     }
 }
 
@@ -46,8 +52,13 @@ void GuiEvent_RegisterFunction(json jGuiEvent)
         WriteLog(GUIEVENT_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid gui event: " + sGuiEventType);
     else
     {
+        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + GUIEVENT_SCRIPT_NAME + " (guieventtype, scriptchunk) VALUES(@guieventtype, @scriptchunk);");
+        SqlBindInt(sql, "@guieventtype", nGuiEventType);
+        SqlBindString(sql, "@scriptchunk", sScriptChunk);
+        SqlStep(sql);
+
         EFCore_CacheScriptChunk(sScriptChunk);
-        InsertStringToLocalJsonArray(GetDataObject(GUIEVENT_SCRIPT_NAME), GUIEVENT_ARRAY_PREFIX + IntToString(nGuiEventType), sScriptChunk);
+
         WriteLog(GUIEVENT_LOG_TAG, "* System '" + sSystem + "' registered '" + sFunction + "' for gui event '" + sGuiEventType + "'");
     }
 }

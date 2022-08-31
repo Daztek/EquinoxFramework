@@ -19,6 +19,7 @@ const string EP_DOOR_TAG_PREFIX                 = "EP_DOOR_";
 const string EP_AREA_TAG_PREFIX                 = "AR_EP_";
 
 const float EP_POSTPROCESS_DELAY                = 0.1f;
+const int EP_POSTPROCESS_TILE_BATCH             = 8;
 const string EP_AREA_POST_PROCESS_FINISHED      = "EP_AREA_POST_PROCESS_FINISHED";
 
 const string EP_AREA_TILESET                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
@@ -50,7 +51,7 @@ object EP_CreateDoor(object oArea, int nTileIndex);
 int EP_GetAreaNum(string sAreaID);
 int EP_GetIsEPArea(object oArea);
 object EP_CreateArea(string sAreaID);
-void EP_PostProcess(object oArea, int nCurrentHeight = 0);
+void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0);
 
 // @CORE[EF_SYSTEM_INIT]
 void EP_Init()
@@ -324,21 +325,20 @@ int EP_NearestPathDistance(string sAreaID, int nTileX, int nTileY)
     return nMinDistance;
 }
 
-void EP_PostProcess(object oArea, int nCurrentHeight = 0)
+void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
 {
-    // TODO: Check height/width difference for batching
-    
-    string sAreaID = GetTag(oArea);
-    int nHeight = GetAreaSize(AREA_HEIGHT, oArea);
-    int nWidth = GetAreaSize(AREA_WIDTH, oArea);
+    if (nNumTiles == 0)
+    {
+        nNumTiles = GetAreaSize(AREA_HEIGHT, oArea) * GetAreaSize(AREA_WIDTH, oArea);
+    }
 
-    if (nCurrentHeight == nHeight)
+    if (nCurrentTile == nNumTiles)
     {
         EM_SignalNWNXEvent(EP_AREA_POST_PROCESS_FINISHED, oArea);
         return;
     }
 
-    object oModule = GetModule();
+    string sAreaID = GetTag(oArea);
     int nEntranceTileIndex = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX);
     struct AG_TilePosition strEntrancePosition = AG_GetTilePosition(sAreaID, nEntranceTileIndex);
     vector vEntrancePosition = GetTilePosition(strEntrancePosition.nX, strEntrancePosition.nY);
@@ -346,20 +346,20 @@ void EP_PostProcess(object oArea, int nCurrentHeight = 0)
     struct AG_TilePosition strExitPosition = AG_GetTilePosition(sAreaID, nExitTileIndex);
     string sQuery = "INSERT INTO " + EP_GetTilesTable() + "(area_id, tile_index, tile_x, tile_y, tile_id, entrance_dist, exit_dist, path_dist, group_tile, num_doors) " +
                     "VALUES(@area_id, @tile_index, @tile_x, @tile_y, @tile_id, @entrance_dist, @exit_dist, @path_dist, @group_tile, @num_doors);";
+    int nCurrentMaxTiles = min(nCurrentTile + EP_POSTPROCESS_TILE_BATCH, nNumTiles);
 
     SqlBeginTransactionModule();
     
-    int nTile, nNumTiles = (nCurrentHeight + 1) * nWidth;
-    for (nTile = nCurrentHeight * nWidth; nTile < nNumTiles; nTile++)
+    for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
     {
-        struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nTile);
+        struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nCurrentTile);
         string sCAE = TS_GetCornersAndEdgesAsString(TS_GetTileEdgesAndCorners(EP_AREA_TILESET, strTileInfo.nID));
 
         if (FindSubString(sCAE, "GRASS") != -1)
         {
             vector vTilePosition = GetTilePosition(strTileInfo.nGridX, strTileInfo.nGridY);
 
-            if (NWNX_Area_GetPathExists(oArea, vEntrancePosition, vTilePosition, (nHeight * nWidth)))
+            if (NWNX_Area_GetPathExists(oArea, vEntrancePosition, vTilePosition, nNumTiles))
             {
                 location locTile = Location(oArea, vTilePosition, 0.0f);
                 int nDistanceFromEntrance = abs(strEntrancePosition.nX - strTileInfo.nGridX) + abs(strEntrancePosition.nY - strTileInfo.nGridY);
@@ -370,7 +370,7 @@ void EP_PostProcess(object oArea, int nCurrentHeight = 0)
 
                 sqlquery sql = SqlPrepareQueryModule(sQuery);
                 SqlBindString(sql, "@area_id", sAreaID);
-                SqlBindInt(sql, "@tile_index", nTile);
+                SqlBindInt(sql, "@tile_index", nCurrentTile);
                 SqlBindInt(sql, "@tile_x", strTileInfo.nGridX);
                 SqlBindInt(sql, "@tile_y", strTileInfo.nGridY);
                 SqlBindInt(sql, "@tile_id", strTileInfo.nID);
@@ -386,7 +386,7 @@ void EP_PostProcess(object oArea, int nCurrentHeight = 0)
 
     SqlCommitTransactionModule();
 
-    DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea, ++nCurrentHeight));
+    DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea, nCurrentTile, nNumTiles));
 }
 
 // @CONSOLE[EPSpawnDoors::]

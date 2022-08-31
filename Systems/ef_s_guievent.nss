@@ -15,7 +15,8 @@ const string GUIEVENT_SCRIPT_NAME       = "ef_s_guievent";
 void GuiEvent_Init()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + GUIEVENT_SCRIPT_NAME + "(" +
-                    "guieventtype INTEGER NOT NULL, " +                  
+                    "guieventtype INTEGER NOT NULL, " + 
+                    "system TEXT NOT NULL, " +                
                     "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 }
@@ -26,16 +27,16 @@ void GuiEvent_OnPlayerGuiEvent()
     object oPlayer = GetLastGuiEventPlayer();
     int nGuiEventType = GetLastGuiEventType();
     
-    sqlquery sql = SqlPrepareQueryModule("SELECT scriptchunk FROM " + GUIEVENT_SCRIPT_NAME + " WHERE guieventtype = @guieventtype;");
+    sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptchunk FROM " + GUIEVENT_SCRIPT_NAME + " WHERE guieventtype = @guieventtype;");
     SqlBindInt(sql, "@guieventtype", nGuiEventType);
 
     while (SqlStep(sql))
     {
-        string sScriptChunk = SqlGetString(sql, 0);
+        string sScriptChunk = SqlGetString(sql, 1);
         string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
-            WriteLog(GUIEVENT_LOG_TAG, "ERROR: (" + IntToString(nGuiEventType) + ") ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);     
+            WriteLog(GUIEVENT_LOG_TAG, "ERROR: (" + IntToString(nGuiEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);     
     }
 }
 
@@ -52,8 +53,9 @@ void GuiEvent_RegisterFunction(json jGuiEvent)
         WriteLog(GUIEVENT_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid gui event: " + sGuiEventType);
     else
     {
-        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + GUIEVENT_SCRIPT_NAME + " (guieventtype, scriptchunk) VALUES(@guieventtype, @scriptchunk);");
+        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + GUIEVENT_SCRIPT_NAME + " (guieventtype, system, scriptchunk) VALUES(@guieventtype, @system, @scriptchunk);");
         SqlBindInt(sql, "@guieventtype", nGuiEventType);
+        SqlBindString(sql, "@system", sSystem);
         SqlBindString(sql, "@scriptchunk", sScriptChunk);
         SqlStep(sql);
 

@@ -15,7 +15,8 @@ const string REST_SCRIPT_NAME               = "ef_s_rest";
 void Rest_Init()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + REST_SCRIPT_NAME + "(" +
-                    "resteventtype INTEGER NOT NULL, " +                  
+                    "resteventtype INTEGER NOT NULL, " + 
+                    "system TEXT NOT NULL, " +                 
                     "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 }
@@ -26,16 +27,16 @@ void Rest_OnPlayerRest()
     object oPlayer = GetLastPCRested();
     int nRestEventType = GetLastRestEventType();
 
-    sqlquery sql = SqlPrepareQueryModule("SELECT scriptchunk FROM " + REST_SCRIPT_NAME + " WHERE resteventtype = @resteventtype;");
+    sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptchunk FROM " + REST_SCRIPT_NAME + " WHERE resteventtype = @resteventtype;");
     SqlBindInt(sql, "@resteventtype", nRestEventType);
 
     while (SqlStep(sql))
     {
-        string sScriptChunk = SqlGetString(sql, 0);
+        string sScriptChunk = SqlGetString(sql, 1);
         string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
-            WriteLog(REST_LOG_TAG, "ERROR: (" + IntToString(nRestEventType) + ") ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);     
+            WriteLog(REST_LOG_TAG, "ERROR: (" + IntToString(nRestEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);     
     }
 }
 
@@ -48,8 +49,9 @@ void Rest_RegisterFunction(json jRestFunction)
     string sFunction = JsonArrayGetString(jRestFunction, 3);
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
-    sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + REST_SCRIPT_NAME + " (resteventtype, scriptchunk) VALUES(@resteventtype, @scriptchunk);");
+    sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + REST_SCRIPT_NAME + " (resteventtype, system, scriptchunk) VALUES(@resteventtype, @system, @scriptchunk);");
     SqlBindInt(sql, "@resteventtype", nRestEventType);
+    SqlBindString(sql, "@system", sSystem);    
     SqlBindString(sql, "@scriptchunk", sScriptChunk);
     SqlStep(sql);
 

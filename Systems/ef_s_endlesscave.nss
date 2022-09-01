@@ -6,7 +6,6 @@
 #include "ef_i_core"
 #include "ef_s_areagen"
 #include "ef_s_endlesspath"
-#include "ef_s_gfftools"
 #include "nwnx_object"
 
 const string EC_LOG_TAG                         = "EndlessCave";
@@ -227,33 +226,6 @@ object EC_CreateArea(json jCave)
     return JsonToObject(jArea, GetStartingLocation());
 }
 
-object EC_CreateDoor(string sAreaID, int nTileIndex)
-{
-    object oArea = GetObjectByTag(sAreaID);
-    string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
-    struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nTileIndex);
-    float fTilesetHeighTransition = TS_GetTilesetHeightTransition(sTileset);
-    struct TS_DoorStruct strDoor = TS_GetTilesetTileDoor(sTileset, strTileInfo.nID, 0);
-    string sTag = EC_GetNextDoorID();
-
-    vector vDoorPosition = TS_RotateCanonicalToReal(strTileInfo.nOrientation, strDoor.vPosition);
-           vDoorPosition.x += (strTileInfo.nGridX * 10.0f);
-           vDoorPosition.y += (strTileInfo.nGridY * 10.0f);
-           vDoorPosition.z += (strTileInfo.nHeight * fTilesetHeighTransition);
-
-    switch (strTileInfo.nOrientation)
-    {
-        case 0: strDoor.fOrientation += 0.0f ; break; // ^_^
-        case 1: strDoor.fOrientation += 90.0f; break;
-        case 2: strDoor.fOrientation += 180.0f; break;
-        case 3: strDoor.fOrientation += 270.0f; break;
-    }
-
-    location locSpawn = Location(oArea, vDoorPosition, strDoor.fOrientation);
-
-    return GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);
-}
-
 void EC_OnCaveGenerated(string sAreaID)
 {
     json jCave = GetLocalJson(GetDataObject(EC_SCRIPT_NAME), sAreaID);
@@ -273,8 +245,8 @@ void EC_OnCaveGenerated(string sAreaID)
         // Don't persist player locations in EC areas
         Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oCaveArea));
 
-        object oCaveDoor = EC_CreateDoor(sAreaID, nCaveAreaDoorTile);
-        object oParentAreaDoor = EC_CreateDoor(sParentAreaID, nParentAreaDoorTile);
+        object oCaveDoor = AG_CreateDoor(sAreaID, nCaveAreaDoorTile, EC_GetNextDoorID());
+        object oParentAreaDoor = AG_CreateDoor(sParentAreaID, nParentAreaDoorTile, EC_GetNextDoorID());
 
         object oMapNote = CreateWaypoint(GetLocation(oParentAreaDoor), "WP_EC_" + GetTag(oParentAreaDoor));
         NWNX_Object_SetMapNote(oMapNote, GetName(oCaveArea));

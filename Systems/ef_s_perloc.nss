@@ -38,7 +38,9 @@ void PerLoc_RestoreLocation()
     if (GetIsDM(oPlayer))
         return;
 
-    NWNX_Player_SetSpawnLocation(oPlayer, PlayerDB_GetLocation(oPlayer, PERLOC_SCRIPT_NAME, "Location"));
+    location locPlayer = PlayerDB_GetLocation(oPlayer, PERLOC_SCRIPT_NAME, "Location");
+    if (GetIsLocationValid(locPlayer))
+        NWNX_Player_SetSpawnLocation(oPlayer, locPlayer);
 }
 
 int PerLoc_GetAreaDisabled(object oArea)

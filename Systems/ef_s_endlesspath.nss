@@ -7,8 +7,6 @@
 #include "ef_s_areagen"
 #include "ef_s_eventman"
 #include "ef_s_profiler"
-#include "ef_s_gfftools"
-#include "nwnx_object"
 
 const string EP_LOG_TAG                         = "EndlessPath";
 const string EP_SCRIPT_NAME                     = "ef_s_endlesspath";
@@ -47,7 +45,6 @@ string EP_GetNextDoorID();
 void EP_SetLastGenerationData(object oArea, int nEdge, int nWidth, int nHeight);
 void EP_ToggleTerrainOrCrosser(string sAreaID, object oPreviousArea, string sCrosser, int nChance);
 void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int nAreaWidth, int nAreaHeight);
-object EP_CreateDoor(object oArea, int nTileIndex);
 int EP_GetAreaNum(string sAreaID);
 int EP_GetIsEPArea(object oArea);
 object EP_CreateArea(string sAreaID);
@@ -216,31 +213,6 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     AG_GenerateArea(sAreaID);
 }
 
-object EP_CreateDoor(object oArea, int nTileIndex)
-{
-    struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nTileIndex);
-    float fTilesetHeighTransition = TS_GetTilesetHeightTransition(EP_AREA_TILESET);
-    struct TS_DoorStruct strDoor = TS_GetTilesetTileDoor(EP_AREA_TILESET, strTileInfo.nID, 0);
-    string sTag = EP_GetNextDoorID();
-
-    vector vDoorPosition = TS_RotateCanonicalToReal(strTileInfo.nOrientation, strDoor.vPosition);
-           vDoorPosition.x += (strTileInfo.nGridX * 10.0f);
-           vDoorPosition.y += (strTileInfo.nGridY * 10.0f);
-           vDoorPosition.z += (strTileInfo.nHeight * fTilesetHeighTransition);
-
-    switch (strTileInfo.nOrientation)
-    {
-        case 0: strDoor.fOrientation += 0.0f ; break; // ^_^
-        case 1: strDoor.fOrientation += 90.0f; break;
-        case 2: strDoor.fOrientation += 180.0f; break;
-        case 3: strDoor.fOrientation += 270.0f; break;
-    }
-
-    location locSpawn = Location(oArea, vDoorPosition, strDoor.fOrientation);
-
-    return GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);
-}
-
 int EP_GetAreaNum(string sAreaID)
 {
     int nPrefixLength = GetStringLength(EP_AREA_TAG_PREFIX);
@@ -291,8 +263,8 @@ void EP_OnAreaGenerated(string sAreaID)
         Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oArea));
 
         object oPreviousDoor = GetObjectByTag(EP_GetLastDoorID());
-        object oEntranceDoor = EP_CreateDoor(oArea, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX));
-        object oExitDoor = EP_CreateDoor(oArea, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX));
+        object oEntranceDoor = AG_CreateDoor(sAreaID, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX), EP_GetNextDoorID());
+        object oExitDoor = AG_CreateDoor(sAreaID, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX), EP_GetNextDoorID());
 
         SetTransitionTarget(oPreviousDoor, oEntranceDoor);
         SetTransitionTarget(oEntranceDoor, oPreviousDoor);
@@ -387,43 +359,6 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
     SqlCommitTransactionModule();
 
     DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea, nCurrentTile, nNumTiles));
-}
-
-// @CONSOLE[EPSpawnDoors::]
-void EP_SpawnDoors()
-{
-    object oPlayer = OBJECT_SELF;
-    object oArea = GetArea(oPlayer);
-    int nTileIndex = GetTileIndexFromPosition(oArea, GetPosition(oPlayer));
-
-    if (nTileIndex != -1)
-    {
-        struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nTileIndex);
-        float fTilesetHeighTransition = TS_GetTilesetHeightTransition(EP_AREA_TILESET);
-        int nDoor, nNumDoors = TS_GetTilesetNumDoors(EP_AREA_TILESET, strTileInfo.nID);
-
-        for (nDoor = 0; nDoor < nNumDoors; nDoor++)
-        {
-            struct TS_DoorStruct strDoor = TS_GetTilesetTileDoor(EP_AREA_TILESET, strTileInfo.nID, nDoor);
-            string sTag = "TEST_DOOR";
-
-            vector vDoorPosition = TS_RotateCanonicalToReal(strTileInfo.nOrientation, strDoor.vPosition);
-                   vDoorPosition.x += (strTileInfo.nGridX * 10.0f);
-                   vDoorPosition.y += (strTileInfo.nGridY * 10.0f);
-                   vDoorPosition.z += (strTileInfo.nHeight * fTilesetHeighTransition);
-
-            switch (strTileInfo.nOrientation)
-            {
-                case 0: strDoor.fOrientation += 0.0f ; break; // ^_^
-                case 1: strDoor.fOrientation += 90.0f; break;
-                case 2: strDoor.fOrientation += 180.0f; break;
-                case 3: strDoor.fOrientation += 270.0f; break;
-            }
-
-            location locSpawn = Location(oArea, vDoorPosition, strDoor.fOrientation);
-            object oDoor = GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);
-        }
-    }
 }
 
 void PortToTile(string sType)

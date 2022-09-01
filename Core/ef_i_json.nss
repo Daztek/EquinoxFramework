@@ -147,7 +147,7 @@ location JsonToLocation(json jLocation)
     string sResRef = JsonObjectGetString(jLocation, "area_resref");
 
     if (!GetIsObjectValid(oArea) || GetResRef(oArea) != sResRef)
-        return GetStartingLocation();
+        return Location(OBJECT_INVALID, Vector(0.0f, 0.0f, 0.0f), 0.0f);
 
     vector vPosition = JsonObjectGetVector(jLocation, "position");
     float fOrientation = JsonObjectGetFloat(jLocation, "orientation");

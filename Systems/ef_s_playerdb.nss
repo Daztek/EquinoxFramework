@@ -240,7 +240,7 @@ location PlayerDB_GetLocation(object oPlayer, string sSystem, string sVarName)
 {
     if (!PlayerDB_ValidateArguments(oPlayer, sSystem, sVarName)) return GetStartingLocation();
     sqlquery sql = PlayerDB_PrepareSelect(oPlayer, sSystem, PLAYERDB_TYPE_LOCATION, sVarName);
-    return SqlStep(sql) ? JsonToLocation(SqlGetJson(sql, 0)) : GetStartingLocation();
+    return SqlStep(sql) ? JsonToLocation(SqlGetJson(sql, 0)) : Location(OBJECT_INVALID, Vector(0.0f, 0.0f, 0.0f), 0.0f);
 }
 
 void PlayerDB_SetLocation(object oPlayer, string sSystem, string sVarName, location locValue)

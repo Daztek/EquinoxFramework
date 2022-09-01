@@ -102,6 +102,9 @@ int HexStringToInt(string sString);
 // Calls GetIsPC() but also checks the object id length for cases where the PC object isn't valid anymore
 int GetIsPlayer(object oObject);
 
+// Returns TRUE if locLocation is valid
+int GetIsLocationValid(location locLocation);
+
 void WriteLog(string sName, string sMessage)
 {
     WriteTimestampedLogEntry("[" + sName + "] " + sMessage);
@@ -434,4 +437,9 @@ int HexStringToInt(string sString)
 int GetIsPlayer(object oObject)
 {
     return GetIsPC(oObject) || GetStringLength(ObjectToString(oObject)) == 8;
+}
+
+int GetIsLocationValid(location locLocation)
+{
+    return GetIsObjectValid(GetAreaFromLocation(locLocation));
 }

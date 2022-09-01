@@ -7,6 +7,7 @@
 
 #include "ef_i_core"
 #include "ef_s_tileset"
+#include "ef_s_gfftools"
 #include "ef_s_profiler"
 #include "nwnx_area"
 
@@ -171,6 +172,7 @@ string AG_GetAreaPathCrosserType(string sAreaID);
 struct AG_TilePosition AG_GetTilePosition(string sAreaID, int nTile);
 void AG_CreateRandomEntrance(string sAreaID, int nEntranceTileID);
 json AG_GetTileList(string sAreaID);
+object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex = 0);
 
 object AG_GetAreaDataObject(string sAreaID)
 {
@@ -1501,5 +1503,31 @@ json AG_GetTileList(string sAreaID)
     }
 
     return StringJsonArrayElementsToJsonArray(sTiles);
+}
+
+object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex = 0)
+{
+    object oArea = GetObjectByTag(sAreaID);
+    string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
+    struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nTileIndex);
+    float fTilesetHeighTransition = TS_GetTilesetHeightTransition(sTileset);
+    struct TS_DoorStruct strDoor = TS_GetTilesetTileDoor(sTileset, strTileInfo.nID, nDoorIndex);
+
+    vector vDoorPosition = TS_RotateCanonicalToReal(strTileInfo.nOrientation, strDoor.vPosition);
+           vDoorPosition.x += (strTileInfo.nGridX * 10.0f);
+           vDoorPosition.y += (strTileInfo.nGridY * 10.0f);
+           vDoorPosition.z += (strTileInfo.nHeight * fTilesetHeighTransition);
+
+    switch (strTileInfo.nOrientation)
+    {
+        case 0: strDoor.fOrientation += 0.0f ; break; // ^_^
+        case 1: strDoor.fOrientation += 90.0f; break;
+        case 2: strDoor.fOrientation += 180.0f; break;
+        case 3: strDoor.fOrientation += 270.0f; break;
+    }
+
+    location locSpawn = Location(oArea, vDoorPosition, strDoor.fOrientation);
+
+    return GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);        
 }
 

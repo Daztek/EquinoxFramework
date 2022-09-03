@@ -5,6 +5,7 @@
 
 #include "ef_i_core"
 #include "ef_s_eventman"
+#include "ef_s_profiler"
 
 const string DEBUG_LOG_TAG              = "Debug";
 const string DEBUG_SCRIPT_NAME          = "ef_s_debug";
@@ -35,4 +36,25 @@ void Debug_OnResourceModified()
             }
         }
     }   
+}
+
+// @CORE[EF_SYSTEM_POST]
+void Debug_Init()
+{
+    string sLambda1 = Lambda("i", "{ return Random(arg1); }", "i");    
+    string sLambda2 = Lambda("is", "{ return RetInt(Call(arg2, IntArg(arg1))); }", "i");
+    int a = 100;
+
+    a = RetInt(Call(sLambda2, IntArg(a) + StringArg(sLambda1)));
+    PrintString(IntToString(a));
+
+    struct ProfilerData pd = Profiler_Start("NestedLambda");
+    a = RetInt(Call(sLambda2, IntArg(a) + StringArg(sLambda1)));
+    Profiler_Stop(pd);
+    PrintString(IntToString(a));
+
+    pd = Profiler_Start("NestedLambda");
+    a = RetInt(Call(sLambda2, IntArg(a) + StringArg(sLambda1)));
+    Profiler_Stop(pd);
+    PrintString(IntToString(a));    
 }

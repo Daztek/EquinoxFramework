@@ -33,7 +33,6 @@ const int EF_SYSTEM_POST                                = 3;
 const string EFCORE_SYSTEM_SCRIPT_PREFIX                = "ef_s_";
 const string EFCORE_ANNOTATION_DATA                     = "EFCoreAnnotationData";
 
-const string EFCORE_CURRENT_FUNCTION                    = "EFCoreCurrentFunction";
 const string EFCORE_INVALID_FUNCTION                    = "EFCoreInvalidFunction";
 const string EFCORE_CALLSTACK_DEPTH                     = "EFCoreCallStackDepth";
 const string EFCORE_CALLSTACK_FUNCTION                  = "EFCoreCallStackFunction_";
@@ -44,6 +43,9 @@ const string EFCORE_RETURN_VALUE_PREFIX                 = "EFCoreReturnValue_";
 const string EFCORE_FUNCTION_SCRIPT_CHUNK               = "EFCoreFunctionScriptChunk_";
 const string EFCORE_FUNCTION_PARAMETERS                 = "EFCoreFunctionParameters_";
 const string EFCORE_FUNCTION_RETURN_TYPE                = "EFCoreFunctionReturnType_";
+const string EFCORE_LAMBDA_ID                           = "EFCoreLambdaId_";
+const string EFCORE_LAMBDA_FUNCTION                     = "Lambda::";
+
 
 void EFCore_InitializeSystemData();
 void EFCore_InsertSystem(string sSystem, string sScriptData);
@@ -402,6 +404,7 @@ void EFCore_ResetScriptInstructions()
 
 int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF);
 string Function(string sSystem, string sFunction);
+string Lambda(string sParameters, string sBody, string sReturnType);
 string ObjectArg(object oValue);
 string IntArg(int nValue);
 string FloatArg(float fValue);
@@ -465,41 +468,61 @@ int IncrementArgumentCount()
     return nCount;
 }
 
+int GetNextLambdaId()
+{
+    object oModule = GetModule();
+    int nId = GetLocalInt(oModule, EFCORE_LAMBDA_ID) + 1;
+    SetLocalInt(oModule, EFCORE_LAMBDA_ID, nId);
+    return nId;   
+}
+
+int GetLambdaIdFromFunction(string sFunction)
+{
+    int nPrefixLength = GetStringLength(EFCORE_LAMBDA_FUNCTION);
+    if (GetStringLeft(sFunction, nPrefixLength) == EFCORE_LAMBDA_FUNCTION)
+        return StringToInt(GetStringRight(sFunction, GetStringLength(sFunction) - nPrefixLength));
+    return 0;
+}
+
 int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 {
     object oModule = GetModule();
-    string sFunctionSymbol = GetLocalString(oModule, EFCORE_CURRENT_FUNCTION);
+    int nLambdaId = GetLambdaIdFromFunction(sFunction);
     int nCallStackDepth = 0;
 
-    if (!EFCORE_PARSE_SYSTEM_FUNCTIONS)
+    if (!EFCORE_PARSE_SYSTEM_FUNCTIONS && !nLambdaId)
     {
-        WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore::Call() Function Parsing Disabled: could not execute '" + sFunctionSymbol + "'");
+        WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore::Call() Function Parsing Disabled: could not execute '" + sFunction + "'");
         return nCallStackDepth;
     }
+
+    string sScriptChunk = GetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunction);       
+
+    ClearArgumentCount();
     
-    if (sFunction != EFCORE_INVALID_FUNCTION)
+    if (sFunction != EFCORE_INVALID_FUNCTION || nLambdaId)
     {
-        string sParameters = GetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sFunctionSymbol);
-        string sReturnType = GetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sFunctionSymbol);
+        string sParameters = GetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sFunction);
+        string sReturnType = GetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sFunction);
 
         if (sParameters == sArgs)
         {
-            nCallStackDepth = IncrementCallStackDepth(sFunctionSymbol, sReturnType);
-            string sError = ExecuteCachedScriptChunk(sFunction, oTarget, FALSE);
+            nCallStackDepth = IncrementCallStackDepth(sFunction, sReturnType);
+            string sError = ExecuteCachedScriptChunk(sScriptChunk, oTarget, FALSE);
             DecrementCallStackDepth();
 
             if (sError != "")
-                WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Failed to execute '" + sFunctionSymbol + "' with error: " + sError);
+                WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Failed to execute '" + sFunction + "' with error: " + sError);
         }
         else
         {
-            WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Parameter Mismatch: EXPECTED: '" + sFunctionSymbol + "(" + sParameters + 
-                                     ")' -> GOT: '"  + sFunctionSymbol + "(" + sArgs + ")'");
+            WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Parameter Mismatch: EXPECTED: '" + sFunction + "(" + sParameters + 
+                                     ")' -> GOT: '"  + sFunction + "(" + sArgs + ")'");
         }
     }
     else
     {
-        WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Function '" + sFunctionSymbol + "' does not exist");
+        WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Function '" + sFunction + "' does not exist");
     }
 
     return nCallStackDepth;
@@ -531,10 +554,54 @@ string Function(string sSystem, string sFunction)
         SetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunctionSymbol, sScriptChunk);
     }
 
-    SetLocalString(oModule, EFCORE_CURRENT_FUNCTION, sFunctionSymbol);
-    ClearArgumentCount();
+    return sFunctionSymbol;
+}
 
-    return sScriptChunk;
+string Lambda(string sParameters, string sBody, string sReturnType)
+{
+    object oModule = GetModule();
+    string sLambdaSymbol = sParameters + "::" + sBody + "::" + sReturnType; 
+    int nLambdaId = GetLocalInt(oModule, EFCORE_LAMBDA_ID + sLambdaSymbol);
+
+    if (!nLambdaId)
+    {
+        nLambdaId = GetNextLambdaId();
+        string sArguments, sLambdaParameters;
+        int nArgument, nNumArguments = GetStringLength(sParameters);
+        for (nArgument = 0; nArgument < nNumArguments; nArgument++)
+        {
+            string sParameter = GetSubString(sParameters, nArgument, 1);
+            sArguments += (!nArgument ? "" : ", ") + 
+                nssFunction("GetLocal" + nssConvertShortType(sParameter), 
+                    "oModule, " + nssEscape(EFCORE_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
+            sLambdaParameters += (!nArgument ? "(" : ", ") + 
+                nssParameter(nssConvertShortType(sParameter, TRUE), "arg" + IntToString(nArgument + 1));
+        }
+        sLambdaParameters += ")";
+
+        string sLambdaFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "LambaFunction" + sLambdaParameters + sBody; 
+
+        string sFunctionBody = nssObject("oModule", nssFunction("GetModule"));
+            sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "", FALSE)));
+
+        if (sReturnType != "")
+        {
+            sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType), 
+                                "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
+            sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType), 
+                                "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("LambaFunction", sArguments, FALSE));
+        }
+        else
+            sFunctionBody += nssFunction("LambaFunction", sArguments);
+
+        SetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId), sReturnType);            
+        SetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId), sParameters);            
+
+        string sScriptChunk = nssInclude(EFCORE_SCRIPT_NAME) + " " + sLambdaFunction + " " + nssVoidMain(sFunctionBody);
+        SetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId), sScriptChunk);
+    }
+
+    return EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId);
 }
 
 string ObjectArg(object oValue)
@@ -653,4 +720,3 @@ location RetLocation(int nCallStackDepth)
     else
         return Location(OBJECT_INVALID, Vector(0.0f, 0.0f, 0.0f), 0.0f);
 }
-

@@ -34,6 +34,7 @@ const int EP_AREA_STREAM_CHANCE                 = 30;
 const int EP_AREA_RIDGE_CHANCE                  = 25;
 const int EP_AREA_ROAD_CHANCE                   = 25;
 const int EP_AREA_GRASS2_CHANCE                 = 25;
+const int EP_AREA_WALL_CHANCE                   = 5;
 
 const int EP_AREA_SINGLE_GROUP_TILE_CHANCE      = 5;
 
@@ -184,7 +185,6 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     //AG_AddEdgeTerrain(sAreaID, "GRASS2");
 
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "ROAD");
-    AG_SetIgnoreTerrainOrCrosser(sAreaID, "WALL");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "BRIDGE");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "STREET");
 
@@ -196,6 +196,7 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
         EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "STREAM", EP_AREA_STREAM_CHANCE);
         EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "RIDGE", EP_AREA_RIDGE_CHANCE);
         EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "GRASS2", EP_AREA_GRASS2_CHANCE);
+        EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "WALL", EP_AREA_WALL_CHANCE);
     }
 
     AG_AddPathDoorCrosserCombo(sAreaID, 80, "ROAD");

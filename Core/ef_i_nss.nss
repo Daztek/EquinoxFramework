@@ -15,6 +15,8 @@ string nssBrackets(string sContents);
 string nssEscape(string sString);
 string nssSwitch(string sVariable, string sCases);
 string nssCaseStatement(int nCase, string sContents, int bBreak = TRUE);
+string nssVariable(string sType, string sVarName, string sFunction);
+string nssParameter(string sType, string sVarName);
 string nssObject(string sVarName, string sFunction = "", int bIncludeType = TRUE);
 string nssString(string sVarName, string sFunction = "", int bIncludeType = TRUE);
 string nssInt(string sVarName, string sFunction = "", int bIncludeType = TRUE);
@@ -87,6 +89,11 @@ string nssSemicolon(string sString)
 string nssVariable(string sType, string sVarName, string sFunction)
 {
     return sType + " " + sVarName + (sFunction == "" ? ";" : "=" + nssSemicolon(sFunction));
+}
+
+string nssParameter(string sType, string sVarName)
+{
+    return sType + " " + sVarName;    
 }
 
 string nssObject(string sVarName, string sFunction = "", int bIncludeType = TRUE)

@@ -404,7 +404,7 @@ void EFCore_ResetScriptInstructions()
 
 int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF);
 string Function(string sSystem, string sFunction);
-string Lambda(string sParameters, string sBody, string sReturnType);
+string Lambda(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "");
 string ObjectArg(object oValue);
 string IntArg(int nValue);
 string FloatArg(float fValue);
@@ -557,15 +557,16 @@ string Function(string sSystem, string sFunction)
     return sFunctionSymbol;
 }
 
-string Lambda(string sParameters, string sBody, string sReturnType)
+string Lambda(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "")
 {
     object oModule = GetModule();
-    string sLambdaSymbol = sParameters + "::" + sBody + "::" + sReturnType; 
-    int nLambdaId = GetLocalInt(oModule, EFCORE_LAMBDA_ID + sLambdaSymbol);
+    int nLambdaId = GetLocalInt(oModule, EFCORE_LAMBDA_ID + sParameters + "::" + sBody + "::" + sReturnType);
+    string sLambdaSymbol = EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId);
 
     if (!nLambdaId)
     {
         nLambdaId = GetNextLambdaId();
+        sLambdaSymbol = EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId);
         string sArguments, sLambdaParameters;
         int nArgument, nNumArguments = GetStringLength(sParameters);
         for (nArgument = 0; nArgument < nNumArguments; nArgument++)
@@ -579,7 +580,7 @@ string Lambda(string sParameters, string sBody, string sReturnType)
         }
         sLambdaParameters += ")";
 
-        string sLambdaFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "LambaFunction" + sLambdaParameters + sBody; 
+        string sLambdaFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "LambdaFunction" + sLambdaParameters + sBody; 
 
         string sFunctionBody = nssObject("oModule", nssFunction("GetModule"));
             sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "", FALSE)));
@@ -589,19 +590,21 @@ string Lambda(string sParameters, string sBody, string sReturnType)
             sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType), 
                                 "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
             sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType), 
-                                "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("LambaFunction", sArguments, FALSE));
+                                "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("LambdaFunction", sArguments, FALSE));
         }
         else
-            sFunctionBody += nssFunction("LambaFunction", sArguments);
+            sFunctionBody += nssFunction("LambdaFunction", sArguments);
 
-        SetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId), sReturnType);            
-        SetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId), sParameters);            
+        SetLocalInt(oModule, EFCORE_LAMBDA_ID + sParameters + "::" + sBody + "::" + sReturnType, nLambdaId);
+        
+        SetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sLambdaSymbol, sReturnType);            
+        SetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sLambdaSymbol, sParameters);        
 
-        string sScriptChunk = nssInclude(EFCORE_SCRIPT_NAME) + " " + sLambdaFunction + " " + nssVoidMain(sFunctionBody);
-        SetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId), sScriptChunk);
+        string sScriptChunk = nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(sInclude) + sLambdaFunction + nssVoidMain(sFunctionBody);
+        SetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sLambdaSymbol, sScriptChunk);
     }
 
-    return EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId);
+    return sLambdaSymbol;
 }
 
 string ObjectArg(object oValue)

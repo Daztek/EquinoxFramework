@@ -1234,7 +1234,7 @@ int QC_GetPlayerMaxSpellLevel(object oPlayer, int nMultiClass)
 {
     int nClassType = GetClassByPosition(nMultiClass + 1, oPlayer);
     int nClassLevels = GetLevelByClass(nClassType, oPlayer);
-    int nSpellcastingAbility = SpellcastingAbilityToConstant(Get2DAString("classes", "SpellcastingAbil", nClassType));
+    int nSpellcastingAbility = AbilityToConstant(Get2DAString("classes", "SpellcastingAbil", nClassType));
     string sSpellgainTable = Get2DAString("classes", "SpellGainTable", nClassType);
     int nAbilityScore = GetAbilityScore(oPlayer, nSpellcastingAbility, TRUE) - 9;
         nAbilityScore = nAbilityScore < 0 ? 0 : nAbilityScore > 10 ? 10 : nAbilityScore;

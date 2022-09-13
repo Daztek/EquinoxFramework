@@ -110,6 +110,8 @@ string StringJsonArrayElementInt(int nValue);
 string StringJsonArrayElementString(string sValue);
 // Convert a string of stringified json elements to a json array
 json StringJsonArrayElementsToJsonArray(string sValues);
+// Get a JsonArray() of nSize with jDefaultValue
+json GetJsonArrayOfSize(int nSize, json jDefaultValue);
 
 json VectorToJson(vector vVector)
 {
@@ -335,3 +337,13 @@ json StringJsonArrayElementsToJsonArray(string sValues)
     return JsonParse("[" + (GetStringRight(sValues, 1) == "," ? GetStringLeft(sValues, GetStringLength(sValues) - 1) : sValues) + "]");
 }
 
+json GetJsonArrayOfSize(int nSize, json jDefaultValue)
+{
+    json jArray = JsonArray();
+    int nCount;
+    for (nCount = 0; nCount < nSize; nCount++)
+    {
+        jArray = JsonArrayInsert(jArray, jDefaultValue);
+    }
+    return jArray;
+}

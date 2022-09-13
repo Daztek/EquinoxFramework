@@ -29,6 +29,8 @@ const float NUI_TITLEBAR_HEIGHT             = 33.0f;
 json NuiGetAdjustedWindowGeometryRect(object oPlayer, json jRect);
 float NuiGetMouseScrollDelta(json jPayload);
 int NuiGetMouseButton(json jPayload);
+float NuiGetMouseX(json jPayload);
+float NuiGetMouseY(json jPayload);
 void NuiSetClickthroughProtection(object oPlayer = OBJECT_SELF, float fSeconds = 0.5f);
 int NuiGetClickthroughProtection(object oPlayer = OBJECT_SELF);
 int NuiGetIdFromElement(string sElement, string sPrefix);
@@ -65,6 +67,16 @@ float NuiGetMouseScrollDelta(json jPayload)
 int NuiGetMouseButton(json jPayload)
 {
     return JsonObjectGetInt(jPayload, "mouse_btn");
+}
+
+float NuiGetMouseX(json jPayload)
+{
+    return JsonObjectGetFloat(JsonObjectGet(jPayload, "mouse_pos"), "x");    
+}
+
+float NuiGetMouseY(json jPayload)
+{
+    return JsonObjectGetFloat(JsonObjectGet(jPayload, "mouse_pos"), "y");    
 }
 
 void NuiSetClickthroughProtection(object oPlayer = OBJECT_SELF, float fSeconds = 0.5f)

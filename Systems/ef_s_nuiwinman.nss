@@ -27,6 +27,7 @@ int NWM_GetToken();
 void NWM_SetPlayer(object oPlayer);
 object NWM_GetPlayer();
 json NWM_GetWindowJson(string sWindowId);
+json NWM_GetWindowRootJson(string sWindowId);
 json NWM_GetDefaultWindowGeometry(string sWindowId);
 json NWM_GetPlayerWindowGeometry(object oPlayer, string sWindowId);
 void NWM_SetPlayerWindowGeometry(object oPlayer, string sWindowId, json jGeometry);
@@ -55,6 +56,7 @@ json NWM_GetEvents(string sWindowId, string sEventType, string sElement);
 json NWM_GetPrefixArray(string sWindowId);
 void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string sElement);
 void NWM_Destroy();
+void NWM_SetRootWindowLayout(string sOtherWindowId);
 
 // @CORE[EF_SYSTEM_INIT]
 void NWM_Init()
@@ -199,6 +201,11 @@ object NWM_GetPlayer()
 json NWM_GetWindowJson(string sWindowId)
 {
     return GetLocalJson(GetDataObject(NWM_SCRIPT_NAME), NWM_REGISTERED_WINDOW + sWindowId);
+}
+
+json NWM_GetWindowRootJson(string sWindowId)
+{
+    return JsonObjectGet(GetLocalJson(GetDataObject(NWM_SCRIPT_NAME), NWM_REGISTERED_WINDOW + sWindowId), "root");
 }
 
 json NWM_GetDefaultWindowGeometry(string sWindowId)
@@ -401,3 +408,7 @@ void NWM_Destroy()
     NuiDestroy(oPlayer, nToken);
 }
 
+void NWM_SetRootWindowLayout(string sOtherWindowId)
+{
+    NuiSetGroupLayout(NWM_GetPlayer(), NWM_GetToken(), NUI_WINDOW_ROOT_GROUP, NWM_GetWindowRootJson(sOtherWindowId));
+}

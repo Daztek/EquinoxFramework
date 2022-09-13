@@ -18,7 +18,8 @@ string SpellSchoolToString(int nSpellSchool);
 string MissChanceToString(int nMissChance);
 string ObjectTypeToString(int nObjectType);
 int MetaMagicConstantTo2DARow(int nMetaMagic);
-int SpellcastingAbilityToConstant(string sSpellcastingAbility);
+int AbilityToConstant(string sStringAbility);
+string AbilityConstantToName(int nAbility);
 
 int EffectIconToEffectType(int nEffectIcon)
 {
@@ -432,21 +433,40 @@ int MetaMagicConstantTo2DARow(int nMetaMagic)
     return 0;
 }
 
-int SpellcastingAbilityToConstant(string sSpellcastingAbility)
+int AbilityToConstant(string sStringAbility)
 {
-    if (sSpellcastingAbility == "STR")
+    string sAbility = GetStringLowerCase(sStringAbility);
+    if (sAbility == "str")
         return ABILITY_STRENGTH;
-    if (sSpellcastingAbility == "DEX")
+    if (sAbility == "dex")
         return ABILITY_DEXTERITY;
-    if (sSpellcastingAbility == "CON")
+    if (sAbility == "con")
         return ABILITY_CONSTITUTION;
-    if (sSpellcastingAbility == "INT")
+    if (sAbility == "int")
         return ABILITY_INTELLIGENCE;
-    if (sSpellcastingAbility == "WIS")
+    if (sAbility == "wis")
         return ABILITY_WISDOM;
-    if (sSpellcastingAbility == "CHA")
+    if (sAbility == "cha")
         return ABILITY_CHARISMA;
 
     return -1;// :|
+}
+
+string AbilityConstantToName(int nAbility)
+{
+    if (nAbility == ABILITY_STRENGTH)
+        return "Strength";
+    if (nAbility == ABILITY_DEXTERITY)
+        return "Dexterity";
+    if (nAbility == ABILITY_CONSTITUTION)
+        return "Consitution";
+    if (nAbility == ABILITY_INTELLIGENCE)
+        return "Intelligence";
+    if (nAbility == ABILITY_WISDOM)
+        return "Wisdom";
+    if (nAbility == ABILITY_CHARISMA)
+        return "Charisma";
+
+    return "";
 }
 

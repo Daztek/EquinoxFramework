@@ -38,13 +38,17 @@ const string CG_BIND_COMBO_ENTRIES_ALIGNMENT        = "combo_entries_alignment";
 
 const string CG_ID_BUTTON_RANDOM_FIRST_NAME         = "btn_random_first_name";
 const string CG_ID_BUTTON_RANDOM_LAST_NAME          = "btn_random_last_name";
+
 const string CG_ID_BUTTON_ABILITY_WINDOW            = "btn_ability_window";
+const string CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED  = "btn_ability_window_enabled";
 const string CG_ID_BUTTON_SKILL_WINDOW              = "btn_skill_window";
+const string CG_BIND_BUTTON_SKILL_WINDOW_ENABLED    = "btn_skill_window_enabled";
 const string CG_ID_BUTTON_FEAT_WINDOW               = "btn_feat_window";
+const string CG_BIND_BUTTON_FEAT_WINDOW_ENABLED     = "btn_feat_window_enabled";
+
 const string CG_ID_BUTTON_LIST_ABILITY              = "btn_list_ability";
 const string CG_ID_BUTTON_ABILITY_OK                = "btn_ability_ok";
-
-const string CG_BUTTON_ABILITY_OK_ENABLED           = "btn_ability_ok_enabled";
+const string CG_BIND_BUTTON_ABILITY_OK_ENABLED      = "btn_ability_ok_enabled";
 
 const string CG_BIND_LIST_ABILITY_NAMES             = "list_ability_names";
 const string CG_BIND_LIST_ABILITY_VALUES            = "list_ability_values";
@@ -54,10 +58,20 @@ const string CG_BIND_TEXT_POINT_BUY_NUMBER          = "text_point_buy_number";
 const string CG_USERDATA_ABILITY_POINT_BUY_NUMBER   = "AbilityPointBuyNumber";
 const string CG_USERDATA_BASE_ABILITY_SCORES        = "BaseAbilityScores";
 
+const string CG_CURRENT_STATE                       = "CurrentState";
+const int CG_STATE_BASE                             = 1;
+const int CG_STATE_ABILITY                          = 2;
+const int CG_STATE_SKILL                            = 3;
+const int CG_STATE_FEAT                             = 4;
+
 void CG_LoadRaceData();
 void CG_LoadClassData();
 void CG_LoadRulesetData();
 int CG_GetRulesetData(string sEntry);
+
+void CG_SetCurrentState(int nState);
+int CG_GetCurrentState();
+void CG_HandleStateChange(int nState);
 
 void CG_LoadRaceComboBox();
 void CG_LoadClassComboBox();
@@ -154,6 +168,58 @@ int CG_GetRulesetData(string sEntry)
     return GetLocalInt(GetDataObject(CG_SCRIPT_NAME), sEntry);
 }
 
+// *** STATE FUNCTIONS
+
+void CG_SetCurrentState(int nState)
+{
+    NWM_SetUserDataInt(CG_CURRENT_STATE, nState);
+    CG_HandleStateChange(nState);
+}
+
+int CG_GetCurrentState()
+{
+    return NWM_GetUserDataInt(CG_CURRENT_STATE);
+}
+
+void CG_HandleStateChange(int nState)
+{
+    PrintString("State Change: " + IntToString(nState));
+    
+    switch (nState)
+    {
+        case CG_STATE_BASE:
+        {
+            NWM_SetBindBool(CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED, FALSE);
+            NWM_SetBindBool(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED, FALSE);
+            NWM_SetBindBool(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED, FALSE);
+            
+            CG_SetBaseAbilityScores();
+            CG_SetCurrentState(CG_STATE_ABILITY);
+            break;
+        }
+
+        case CG_STATE_ABILITY:
+        {            
+            NWM_SetBindBool(CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED, TRUE);
+            NWM_SetBindBool(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED, FALSE);
+            NWM_SetBindBool(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED, FALSE);
+            break;
+        }
+
+        case CG_STATE_SKILL:
+        {
+            NWM_SetBindBool(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED, TRUE);
+            break;
+        }
+
+        case CG_STATE_FEAT:
+        {
+            NWM_SetBindBool(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED, TRUE);
+            break;
+        }                        
+    }
+}
+
 // *** WINDOWS
 
 // @NWMWINDOW[CG_MAIN_WINDOW_ID]
@@ -245,16 +311,19 @@ json CG_CreateMainWindow()
                 NB_StartElement(NuiButton(JsonString("Abilities")));
                     NB_SetDimensions(150.0f, 32.0f);
                     NB_SetId(CG_ID_BUTTON_ABILITY_WINDOW);
+                    NB_SetEnabled(NuiBind(CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED));
                 NB_End();
                 NB_AddSpacer();
                 NB_StartElement(NuiButton(JsonString("Skills")));
                     NB_SetDimensions(150.0f, 32.0f);
                     NB_SetId(CG_ID_BUTTON_SKILL_WINDOW);
+                    NB_SetEnabled(NuiBind(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED));
                 NB_End();
                 NB_AddSpacer(); 
                 NB_StartElement(NuiButton(JsonString("Feats")));
                     NB_SetDimensions(150.0f, 32.0f);
                     NB_SetId(CG_ID_BUTTON_FEAT_WINDOW);
+                    NB_SetEnabled(NuiBind(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED));
                 NB_End();                              
             NB_End();                                                                             
 
@@ -326,7 +395,7 @@ json CG_CreateAbilityWindow()
                 NB_StartElement(NuiButton(JsonString("OK")));
                     NB_SetDimensions(100.0f, 32.0f);
                     NB_SetId(CG_ID_BUTTON_ABILITY_OK);
-                    NB_SetEnabled(NuiBind(CG_BUTTON_ABILITY_OK_ENABLED));
+                    NB_SetEnabled(NuiBind(CG_BIND_BUTTON_ABILITY_OK_ENABLED));
                 NB_End();             
             NB_End();                
         NB_End();
@@ -346,6 +415,8 @@ void CG_ShowMainWindow()
     {      
         CG_LoadRaceComboBox();
         CG_LoadClassComboBox();
+
+        CG_SetCurrentState(CG_STATE_BASE);
      }
 }
 
@@ -377,7 +448,7 @@ void CG_WatchRaceBind()
 {
     PrintString("Race Changed: " + IntToString(NWM_GetBindInt(CG_BIND_VALUE_RACE)));
 
-    CG_SetBaseAbilityScores();
+    CG_SetCurrentState(CG_STATE_BASE);
 }
 
 // *** CHARACTER NAME
@@ -438,7 +509,7 @@ void CG_WatchClassBind()
     PrintString("Class Changed: " + IntToString(NWM_GetBindInt(CG_BIND_VALUE_CLASS)));
 
     CG_UpdateAlignmentComboBox();
-    CG_SetBaseAbilityScores();
+    CG_SetCurrentState(CG_STATE_BASE);
 }
 
 // *** ALIGNMENT
@@ -610,6 +681,14 @@ int CG_CheckAbilityAboveMinimum(int nAbility, int nBaseValue)
         return nBaseValue > CG_GetRulesetData(CG_RULESET_BASE_ABILITY_MIN);
 }
 
+void CG_CheckAbilityOkButtonStatus()
+{
+    if (CG_GetAbilityPointBuyNumber() == 0)
+        NWM_SetBindBool(CG_BIND_BUTTON_ABILITY_OK_ENABLED, TRUE);
+    else
+        NWM_SetBindBool(CG_BIND_BUTTON_ABILITY_OK_ENABLED, FALSE);
+}
+
 void CG_AdjustAbility(int nAbility, int bIncrement)
 {
     json jBaseAbilityScores = NWM_GetUserData(CG_USERDATA_BASE_ABILITY_SCORES);
@@ -624,8 +703,9 @@ void CG_AdjustAbility(int nAbility, int bIncrement)
             jBaseAbilityScores = JsonArraySetInt(jBaseAbilityScores, nAbility, nAbilityValue + 1);
             CG_ModifyAbilityPointBuyNumber(-nAbilityPointCost);
             NWM_SetUserData(CG_USERDATA_BASE_ABILITY_SCORES, jBaseAbilityScores);
-            NWM_SetBindString(CG_BIND_TEXT_POINT_BUY_NUMBER, IntToString(CG_GetAbilityPointBuyNumber()));            
+            NWM_SetBindString(CG_BIND_TEXT_POINT_BUY_NUMBER, " " + IntToString(CG_GetAbilityPointBuyNumber()));            
             CG_UpdateAbilityValues();
+            CG_CheckAbilityOkButtonStatus();
         }
     }
     else
@@ -636,8 +716,9 @@ void CG_AdjustAbility(int nAbility, int bIncrement)
             jBaseAbilityScores = JsonArraySetInt(jBaseAbilityScores, nAbility, nAbilityValue);
             CG_ModifyAbilityPointBuyNumber(CG_CalculatePointCost(nAbilityValue));
             NWM_SetUserData(CG_USERDATA_BASE_ABILITY_SCORES, jBaseAbilityScores);
-            NWM_SetBindString(CG_BIND_TEXT_POINT_BUY_NUMBER, IntToString(CG_GetAbilityPointBuyNumber()));
-            CG_UpdateAbilityValues();            
+            NWM_SetBindString(CG_BIND_TEXT_POINT_BUY_NUMBER, " " + IntToString(CG_GetAbilityPointBuyNumber()));
+            CG_UpdateAbilityValues(); 
+            CG_CheckAbilityOkButtonStatus();           
         }
     }    
 }
@@ -646,24 +727,29 @@ void CG_AdjustAbility(int nAbility, int bIncrement)
 void CG_ClickAbilitiesButton()
 {
     object oPlayer = OBJECT_SELF;
+    
+    if (NWM_GetIsWindowOpen(oPlayer, CG_ABILITY_WINDOW_ID))
+        return;
+
+    CG_SetCurrentState(CG_STATE_ABILITY);
+
     int nRace = NWM_GetBindInt(CG_BIND_VALUE_RACE);
     int nClass = NWM_GetBindInt(CG_BIND_VALUE_CLASS);
     int nPointBuyNumber = CG_GetAbilityPointBuyNumber();
     json jBaseAbilityScores = NWM_GetUserData(CG_USERDATA_BASE_ABILITY_SCORES);
 
-    if (NWM_GetIsWindowOpen(oPlayer, CG_ABILITY_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, CG_ABILITY_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, CG_ABILITY_WINDOW_ID))
-    {      
+    if (NWM_OpenWindow(oPlayer, CG_ABILITY_WINDOW_ID))
+    {
         CG_SetAbilityPointBuyNumber(nPointBuyNumber);
         NWM_SetUserDataInt(CG_BIND_VALUE_RACE, nRace);
         NWM_SetUserDataInt(CG_BIND_VALUE_CLASS, nClass);
         NWM_SetUserData(CG_USERDATA_BASE_ABILITY_SCORES, jBaseAbilityScores);
-
+        
         CG_SetAbilityNames();
-        CG_UpdateAbilityValues();       
+        CG_UpdateAbilityValues();
+        CG_CheckAbilityOkButtonStatus(); 
 
-        NWM_SetBindString(CG_BIND_TEXT_POINT_BUY_NUMBER, IntToString(nPointBuyNumber));
+        NWM_SetBindString(CG_BIND_TEXT_POINT_BUY_NUMBER, " " + IntToString(nPointBuyNumber));
     }
 }
 
@@ -675,8 +761,26 @@ void CG_AbilityAdjustmentButtonMouseUp()
 
     if (nMouseButton == NUI_MOUSE_BUTTON_LEFT)
     {    
+        struct ProfilerData pd = Profiler_Start("CG_AdjustAbility");
         CG_AdjustAbility(NuiGetEventArrayIndex(), NuiGetMouseY(jPayload) <= 14.0f);
+        Profiler_Stop(pd);
     }
+}
+
+// @NWMEVENT[CG_ABILITY_WINDOW_ID:NUI_EVENT_CLICK:CG_ID_BUTTON_ABILITY_OK]
+void CG_ClickAbilityOkButton()
+{
+    object oPlayer = OBJECT_SELF;
+    int nPointBuyNumber = CG_GetAbilityPointBuyNumber();
+    json jBaseAbilityScores = NWM_GetUserData(CG_USERDATA_BASE_ABILITY_SCORES);
+
+    if (NWM_GetIsWindowOpen(oPlayer, CG_MAIN_WINDOW_ID, TRUE))
+    {
+        CG_SetAbilityPointBuyNumber(nPointBuyNumber);
+        NWM_SetUserData(CG_USERDATA_BASE_ABILITY_SCORES, jBaseAbilityScores);
+        CG_SetCurrentState(CG_STATE_SKILL);
+        NWM_CloseWindow(oPlayer, CG_ABILITY_WINDOW_ID);        
+    }  
 }
 
 // ***

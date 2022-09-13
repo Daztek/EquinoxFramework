@@ -138,7 +138,8 @@ void NWM_NuiEvent()
 
     if (sWindowId == "" || !JsonGetType(NWM_GetWindowJson(sWindowId)))
     {
-        WriteLog(NWM_LOG_TAG, "WARNING: Unknown or Anonymous Window: " + sWindowId);
+        if (NWM_DEBUG_EVENTS)
+            WriteLog(NWM_LOG_TAG, "WARNING: Unknown or Anonymous Window: " + sWindowId + " (Event: " + NuiGetEventType() + ", Element: " + NuiGetEventElement() + ")");
         return;        
     }
 

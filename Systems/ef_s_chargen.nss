@@ -45,6 +45,8 @@ const string CG_BIND_LIST_NAMES                     = "list_names";
 const string CG_BIND_LIST_VALUES                    = "list_values";
 const string CG_BIND_TEXT_POINTS_REMAINING          = "list_points_remaining";
 
+const string CG_USERDATA_RACE                       = "Race";
+const string CG_USERDATA_CLASS                      = "Class";
 const string CG_USERDATA_ABILITY_POINT_BUY_NUMBER   = "AbilityPointBuyNumber";
 const string CG_USERDATA_BASE_ABILITY_SCORES        = "BaseAbilityScores";
 const string CG_USERDATA_SKILLPOINTS_REMAINING      = "SkillPointsRemaining";
@@ -91,7 +93,7 @@ void CG_Init()
 }
 
 // @CORE[EF_SYSTEM_POST]
-void CG_POST()
+void CG_Post()
 {
     CG_LoadFeatData();
 }
@@ -604,7 +606,8 @@ void CG_LoadRaceComboBox()
 
 // @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_WATCH:CG_BIND_VALUE_RACE]
 void CG_WatchRaceBind()
-{
+{    
+    NWM_SetUserData(CG_USERDATA_RACE, NWM_GetBind(CG_BIND_VALUE_RACE));
     CG_ChangeState(CG_STATE_BASE);
 }
 
@@ -624,7 +627,7 @@ string CG_GetRandomCharacterName(int nRace, int nGender, int bFirstName)
 // @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_CLICK:CG_ID_BUTTON_RANDOM_FIRST_NAME]
 void CG_ClickFirstNameButton()
 {
-    int nRace = NWM_GetBindInt(CG_BIND_VALUE_RACE);
+    int nRace = NWM_GetUserDataInt(CG_USERDATA_RACE);
     int nGender = NWM_GetBindInt(CG_BIND_VALUE_GENDER);
     NWM_SetBindString(CG_BIND_VALUE_FIRST_NAME, CG_GetRandomCharacterName(nRace, nGender, TRUE));
 }
@@ -632,7 +635,7 @@ void CG_ClickFirstNameButton()
 // @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_CLICK:CG_ID_BUTTON_RANDOM_LAST_NAME]
 void CG_ClickLastNameButton()
 {
-    int nRace = NWM_GetBindInt(CG_BIND_VALUE_RACE);
+    int nRace = NWM_GetUserDataInt(CG_USERDATA_RACE);
     int nGender = NWM_GetBindInt(CG_BIND_VALUE_GENDER);    
     NWM_SetBindString(CG_BIND_VALUE_LAST_NAME, CG_GetRandomCharacterName(nRace, nGender, FALSE));
 }
@@ -663,6 +666,7 @@ void CG_LoadClassComboBox()
 // @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_WATCH:CG_BIND_VALUE_CLASS]
 void CG_WatchClassBind()
 {
+    NWM_SetUserData(CG_USERDATA_CLASS, NWM_GetBind(CG_BIND_VALUE_CLASS));    
     CG_ChangeState(CG_STATE_BASE);
     CG_UpdateAlignmentComboBox();    
 }
@@ -701,7 +705,7 @@ int CG_CombineAlignmentConstants(int nLawfulChaoticConstant, int nGoodEvilConsta
 
 void CG_UpdateAlignmentComboBox()
 {
-    int nClass = NWM_GetBindInt(CG_BIND_VALUE_CLASS);
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
     json jComboEntries = JsonArray();
 
     if (CG_GetIsAlignmentAllowed(nClass, ALIGNMENT_LAWFUL, ALIGNMENT_GOOD))
@@ -773,8 +777,8 @@ int CG_CalculateAbilityModifier(int nAbilityValue)
 
 void CG_SetBaseAbilityScores()
 {
-    int nRace = NWM_GetBindInt(CG_BIND_VALUE_RACE);
-    int nClass = NWM_GetBindInt(CG_BIND_VALUE_CLASS);
+    int nRace = NWM_GetUserDataInt(CG_USERDATA_RACE);
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
     int nAbilityMin = RS2DA_GetIntEntry("CHARGEN_BASE_ABILITY_MIN"); 
     int nAbilityMinPrimary = RS2DA_GetIntEntry("CHARGEN_BASE_ABILITY_MIN_PRIMARY");
 
@@ -791,15 +795,15 @@ void CG_SetBaseAbilityScores()
         CG_SetAbilityPointBuyNumber(nPointBuyChange + nAbilityAdjust);
         jAbilities = JsonArraySetInt(jAbilities, nSpellcastingAbility, nAbilityMinPrimary - nAbilityAdjust);
     } 
-       
+
     NWM_SetUserData(CG_USERDATA_BASE_ABILITY_SCORES, jAbilities);
 }
 
 int CG_GetAdjustedAbilityScore(int nAbility)
 {
     return JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_BASE_ABILITY_SCORES), nAbility) + 
-           CG_GetRacialAbilityAdjust(NWM_GetBindInt(CG_BIND_VALUE_RACE), nAbility) + 
-           CG_GetClassAbilityAdjust(NWM_GetBindInt(CG_BIND_VALUE_CLASS), nAbility);
+           CG_GetRacialAbilityAdjust(NWM_GetUserDataInt(CG_USERDATA_RACE), nAbility) + 
+           CG_GetClassAbilityAdjust(NWM_GetUserDataInt(CG_USERDATA_CLASS), nAbility);
 }
 
 void CG_SetAbilityNames()
@@ -815,8 +819,8 @@ void CG_SetAbilityNames()
 
 void CG_UpdateAbilityValues()
 {
-    int nRace = NWM_GetUserDataInt(CG_BIND_VALUE_RACE);
-    int nClass = NWM_GetUserDataInt(CG_BIND_VALUE_CLASS);
+    int nRace = NWM_GetUserDataInt(CG_USERDATA_RACE);
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
     json jBaseAbilityScores = NWM_GetUserData(CG_USERDATA_BASE_ABILITY_SCORES);
     json jAbilityValues = JsonArray();
     int nAbility;
@@ -843,8 +847,8 @@ int CG_CalculatePointCost(int nAbilityValue)
 
 int CG_CheckAbilityAboveMinimum(int nAbility, int nBaseValue)
 {
-    if (AbilityToConstant(Get2DAString("classes", "SpellcastingAbil", NWM_GetUserDataInt(CG_BIND_VALUE_CLASS))) == nAbility)
-        return (nBaseValue + CG_GetRacialAbilityAdjust(NWM_GetUserDataInt(CG_BIND_VALUE_RACE), nAbility)) > RS2DA_GetIntEntry("CHARGEN_BASE_ABILITY_MIN_PRIMARY");
+    if (AbilityToConstant(Get2DAString("classes", "SpellcastingAbil", NWM_GetUserDataInt(CG_USERDATA_CLASS))) == nAbility)
+        return (nBaseValue + CG_GetRacialAbilityAdjust(NWM_GetUserDataInt(CG_USERDATA_RACE), nAbility)) > RS2DA_GetIntEntry("CHARGEN_BASE_ABILITY_MIN_PRIMARY");
     else
         return nBaseValue > RS2DA_GetIntEntry("CHARGEN_BASE_ABILITY_MIN");
 }
@@ -901,22 +905,17 @@ void CG_ClickAbilitiesButton()
 
     CG_ChangeState(CG_STATE_ABILITY);
 
-    int nRace = NWM_GetBindInt(CG_BIND_VALUE_RACE);
-    int nClass = NWM_GetBindInt(CG_BIND_VALUE_CLASS);
-    int nPointBuyNumber = CG_GetAbilityPointBuyNumber();
-    json jBaseAbilityScores = NWM_GetUserData(CG_USERDATA_BASE_ABILITY_SCORES);
-
     if (NWM_OpenWindow(oPlayer, CG_ABILITY_WINDOW_ID))
     {
-        CG_SetAbilityPointBuyNumber(nPointBuyNumber);
-        NWM_SetUserDataInt(CG_BIND_VALUE_RACE, nRace);
-        NWM_SetUserDataInt(CG_BIND_VALUE_CLASS, nClass);
-        NWM_SetUserData(CG_USERDATA_BASE_ABILITY_SCORES, jBaseAbilityScores);
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_RACE);
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_CLASS);
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_ABILITY_POINT_BUY_NUMBER);
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_BASE_ABILITY_SCORES);
         
         CG_SetAbilityNames();
         CG_UpdateAbilityValues();
         CG_CheckAbilityOkButtonStatus();
-        NWM_SetBindString(CG_BIND_TEXT_POINTS_REMAINING, "Ability Points: " + IntToString(nPointBuyNumber));
+        NWM_SetBindString(CG_BIND_TEXT_POINTS_REMAINING, "Ability Points: " + IntToString(CG_GetAbilityPointBuyNumber()));
     }
 }
 
@@ -935,13 +934,11 @@ void CG_AbilityAdjustmentButtonMouseUp()
 void CG_ClickAbilityOkButton()
 {
     object oPlayer = OBJECT_SELF;
-    int nPointBuyNumber = CG_GetAbilityPointBuyNumber();
-    json jBaseAbilityScores = NWM_GetUserData(CG_USERDATA_BASE_ABILITY_SCORES);
 
     if (NWM_GetIsWindowOpen(oPlayer, CG_MAIN_WINDOW_ID, TRUE))
     {
-        CG_SetAbilityPointBuyNumber(nPointBuyNumber);
-        NWM_SetUserData(CG_USERDATA_BASE_ABILITY_SCORES, jBaseAbilityScores);        
+        NWM_CopyUserData(CG_ABILITY_WINDOW_ID, CG_USERDATA_ABILITY_POINT_BUY_NUMBER);        
+        NWM_CopyUserData(CG_ABILITY_WINDOW_ID, CG_USERDATA_BASE_ABILITY_SCORES);        
         CG_ChangeState(CG_STATE_SKILL); 
         NWM_CloseWindow(oPlayer, CG_ABILITY_WINDOW_ID);        
     }  
@@ -966,8 +963,8 @@ void CG_ModifySkillPointsRemaining(int nModify)
 
 void CG_SetBaseSkillValues()
 {
-    int nRace = NWM_GetBindInt(CG_BIND_VALUE_RACE);
-    int nClass = NWM_GetBindInt(CG_BIND_VALUE_CLASS);
+    int nRace = NWM_GetUserDataInt(CG_USERDATA_RACE);
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
 
     int nFirstLevelSkillPointsMultiplier = StringToInt(Get2DAString("racialtypes", "FirstLevelSkillPointsMultiplier", nRace));
     int nExtraSkillPointsPerLevel = StringToInt(Get2DAString("racialtypes", "ExtraSkillPointsPerLevel", nRace));
@@ -999,7 +996,7 @@ int CG_GetIsClassSkill(int nClass, int nSkill)
 
 void CG_SetSkillData(json jSkillRanks)
 {
-    int nClass = NWM_GetUserDataInt(CG_BIND_VALUE_CLASS);
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
 
     json jSkillArray = JsonArray();
     json jIconsArray = JsonArray();
@@ -1031,7 +1028,7 @@ void CG_SetSkillData(json jSkillRanks)
 void CG_AdjustSkill(int nSkillIndex, int bIncrement)
 {
     json jSkillValues = NWM_GetBind(CG_BIND_LIST_VALUES);
-    int nClass = NWM_GetUserDataInt(CG_BIND_VALUE_CLASS);
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
     int nSkill = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_CLASS_AVAILABLE_SKILLS), nSkillIndex);
     int nCurrentRank = JsonArrayGetInt(jSkillValues, nSkillIndex);
     int nMaxRank = 1 + RS2DA_GetIntEntry("CHARGEN_SKILL_MAX_LEVEL_1_BONUS");
@@ -1048,8 +1045,7 @@ void CG_AdjustSkill(int nSkillIndex, int bIncrement)
         if (CG_GetSkillPointsRemaining() >= nCost && nCurrentRank < nMaxRank)
         {
             CG_ModifySkillPointsRemaining(-nCost);
-            jSkillValues = JsonArraySetInt(jSkillValues, nSkillIndex, nCurrentRank + 1);
-            NWM_SetBind(CG_BIND_LIST_VALUES, jSkillValues);
+            NWM_SetBind(CG_BIND_LIST_VALUES, JsonArraySetInt(jSkillValues, nSkillIndex, nCurrentRank + 1));
             NWM_SetBindString(CG_BIND_TEXT_POINTS_REMAINING, "Remaining Skill Points: " + IntToString(CG_GetSkillPointsRemaining()));            
         }    
     }
@@ -1058,8 +1054,7 @@ void CG_AdjustSkill(int nSkillIndex, int bIncrement)
         if (nCurrentRank > 0)
         {
             CG_ModifySkillPointsRemaining(nCost);
-            jSkillValues = JsonArraySetInt(jSkillValues, nSkillIndex, nCurrentRank - 1);
-            NWM_SetBind(CG_BIND_LIST_VALUES, jSkillValues);
+            NWM_SetBind(CG_BIND_LIST_VALUES, JsonArraySetInt(jSkillValues, nSkillIndex, nCurrentRank - 1));
             NWM_SetBindString(CG_BIND_TEXT_POINTS_REMAINING, "Remaining Skill Points: " + IntToString(CG_GetSkillPointsRemaining()));            
         } 
     }
@@ -1087,18 +1082,13 @@ void CG_ClickSkillsButton()
     if (NWM_GetIsWindowOpen(oPlayer, CG_SKILL_WINDOW_ID))
         return;
 
-    int nRace = NWM_GetBindInt(CG_BIND_VALUE_RACE);
-    int nClass = NWM_GetBindInt(CG_BIND_VALUE_CLASS);
-    int nSkillPointsRemaining = CG_GetSkillPointsRemaining();
-    json jSkillRanks = NWM_GetUserData(CG_USERDATA_SKILLRANKS);
-
     if (NWM_OpenWindow(oPlayer, CG_SKILL_WINDOW_ID))
     {
-        NWM_SetUserDataInt(CG_BIND_VALUE_RACE, nRace);
-        NWM_SetUserDataInt(CG_BIND_VALUE_CLASS, nClass);
-        CG_SetSkillPointsRemaining(nSkillPointsRemaining);
-        CG_SetSkillData(jSkillRanks);
-        NWM_SetBindString(CG_BIND_TEXT_POINTS_REMAINING, "Remaining Skill Points: " + IntToString(nSkillPointsRemaining));
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_RACE);
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_CLASS);
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_SKILLPOINTS_REMAINING);
+        CG_SetSkillData(NWM_GetUserDataFromWindow(CG_MAIN_WINDOW_ID, CG_USERDATA_SKILLRANKS));
+        NWM_SetBindString(CG_BIND_TEXT_POINTS_REMAINING, "Remaining Skill Points: " + IntToString(CG_GetSkillPointsRemaining()));
     }
 }
 
@@ -1122,7 +1112,7 @@ void CG_ClickSkillOkButton()
 
     if (NWM_GetIsWindowOpen(oPlayer, CG_MAIN_WINDOW_ID, TRUE))
     {
-        CG_SetSkillPointsRemaining(nSKillPointsRemaining);
+        NWM_CopyUserData(CG_SKILL_WINDOW_ID, CG_USERDATA_SKILLPOINTS_REMAINING);
         NWM_SetUserData(CG_USERDATA_SKILLRANKS, jSkillRanks);   
         CG_ChangeState(CG_STATE_FEAT); 
         NWM_CloseWindow(oPlayer, CG_SKILL_WINDOW_ID);        

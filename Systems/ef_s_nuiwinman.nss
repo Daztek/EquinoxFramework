@@ -51,6 +51,8 @@ void NWM_SetUserDataInt(string sKey, int nValue);
 string NWM_GetUserDataString(string sKey);
 void NWM_SetUserDataString(string sKey, string sValue);
 void NWM_DeleteUserData(string sKey);
+json NWM_GetUserDataFromWindow(string sWindowId, string sKey);
+void NWM_CopyUserData(string sSourceWindow, string sKey);
 void NWM_RegisterEvent(json jNWMEvent);
 json NWM_GetEvents(string sWindowId, string sEventType, string sElement);
 json NWM_GetPrefixArray(string sWindowId);
@@ -359,6 +361,24 @@ void NWM_DeleteUserData(string sKey)
     object oPlayer = NWM_GetPlayer();
     int nToken = NWM_GetToken();
     NuiSetUserData(oPlayer, nToken, JsonObjectDel(NuiGetUserData(oPlayer, nToken), sKey));
+}
+
+json NWM_GetUserDataFromWindow(string sWindowId, string sKey)
+{
+    object oPlayer = NWM_GetPlayer();
+    int nToken = NWM_GetToken();
+    json jUserData;
+
+     if (NWM_GetIsWindowOpen(oPlayer, sWindowId, TRUE))
+        jUserData = NWM_GetUserData(sKey);   
+    
+    NWM_SetToken(nToken);
+    return jUserData;
+}
+
+void NWM_CopyUserData(string sSourceWindow, string sKey)
+{
+    NWM_SetUserData(sKey, NWM_GetUserDataFromWindow(sSourceWindow, sKey));
 }
 
 json NWM_GetPrefixArray(string sWindowId)

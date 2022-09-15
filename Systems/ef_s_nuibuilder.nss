@@ -90,6 +90,7 @@ void NB_SetWindowCollapsed(json jCollapsed);
 void NB_SetWindowClosable(json jCloseable);
 void NB_SetWindowTransparent(json jTransparent);
 void NB_SetWindowBorder(json jBorder);
+void NB_SetWindowAcceptsInput(json jAcceptsInput);
 void NB_SetWindowTitlebarHidden();
 json NB_FinalizeWindow();
 
@@ -463,53 +464,58 @@ void NB_InitializeWindow(json jDefaultGeometry)
 {
     NB_LogDebug("* INITIALIZE WINDOW");
     DestroyDataObject(NB_SCRIPT_NAME);
-    NB_SetWindow(NuiWindow(JsonNull(), JsonString(""), NuiBind(NUI_WINDOW_GEOMETRY_BIND), JsonBool(FALSE), JsonNull(), JsonBool(TRUE), JsonBool(FALSE), JsonBool(TRUE)));
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), NUI_DEFAULT_GEOMETRY_NAME,  jDefaultGeometry));
+    NB_SetWindow(NuiWindow(JsonNull(), JsonString(""), NuiBind(NUI_WINDOW_GEOMETRY_BIND), JsonBool(FALSE), JsonNull(), JsonBool(TRUE), JsonBool(FALSE), JsonBool(TRUE), JsonBool(TRUE)));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), NUI_DEFAULT_GEOMETRY_NAME, jDefaultGeometry));
 }
 
 void NB_SetWindowVersion(int nVersion)
 {
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "version",  JsonInt(nVersion)));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "version", JsonInt(nVersion)));
 }
 
 void NB_SetWindowRoot(json jRoot)
 {
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "root",  jRoot));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "root", jRoot));
 }
 
 void NB_SetWindowTitle(json jTitle)
 {
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "title",  jTitle));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "title", jTitle));
 }
 
 void NB_SetWindowGeometry(json jGeometry)
 {
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "geometry",  jGeometry));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "geometry", jGeometry));
 }
 
 void NB_SetWindowResizable(json jResizable)
 {
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "resizable",  jResizable));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "resizable", jResizable));
 }
 
 void NB_SetWindowCollapsed(json jCollapsed)
 {
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "collapsed",  jCollapsed));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "collapsed", jCollapsed));
 }
 
 void NB_SetWindowClosable(json jCloseable)
 {
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "closable",  jCloseable));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "closable", jCloseable));
 }
 
 void NB_SetWindowTransparent(json jTransparent)
 {
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "transparent",  jTransparent));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "transparent", jTransparent));
 }
 
 void NB_SetWindowBorder(json jBorder)
 {
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "border",  jBorder));
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "border", jBorder));
+}
+
+void NB_SetWindowAcceptsInput(json jAcceptsInput)
+{
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "accepts_input", jAcceptsInput));    
 }
 
 void NB_SetWindowTitlebarHidden()

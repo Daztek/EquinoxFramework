@@ -60,10 +60,11 @@ const int CG_STATE_FEAT                             = 4;
 void CG_LoadRaceData();
 void CG_LoadClassData();
 void CG_LoadSkillData();
+void CG_LoadFeatData();
 
 void CG_SetCurrentState(int nState);
 int CG_GetCurrentState();
-void CG_HandleStateChange(int nState);
+void CG_ChangeState(int nState);
 
 void CG_CloseChildWindows(string sWindowIdToSkip = "");
 
@@ -87,6 +88,12 @@ void CG_Init()
     CG_LoadRaceData();
     CG_LoadClassData();
     CG_LoadSkillData();
+}
+
+// @CORE[EF_SYSTEM_POST]
+void CG_POST()
+{
+    CG_LoadFeatData();
 }
 
 // *** DATA FUNCTIONS
@@ -187,12 +194,79 @@ void CG_LoadSkillData()
     SqlCommitTransactionModule();      
 }
 
+// Feats ... 
+// Step 1: Grab all granted on level 1 feats for all classes. 
+// Step 2: Grab all feats that all classes can use and aren't invalid or have an epic level prereq
+
+const string CG_CLASS_FEATS_GRANTED_ON_LEVEL1 = "ClassFeatsGrantedOnLevel1_";
+
+void CG_LoadLevel1GrantedFeats()
+{
+    sqlquery sqlClasses = SqlPrepareQueryModule("SELECT id FROM " + CG_SCRIPT_NAME + "_classes;");
+    while (SqlStep(sqlClasses))
+    {
+        int nClass = SqlGetInt(sqlClasses, 0);
+        string sFeatsTable = Get2DAString("classes", "FeatsTable", nClass);
+        json jGrantedLevel1Feats = JsonArray();
+    
+        int nRow, nNumRows = Get2DARowCount(sFeatsTable);
+        for (nRow = 0; nRow < nNumRows; nRow++)
+        {
+            if (StringToInt(Get2DAString(sFeatsTable, "List", nRow)) == 3 &&
+                StringToInt(Get2DAString(sFeatsTable, "GrantedOnLevel", nRow)) == 1)
+            {
+                jGrantedLevel1Feats = JsonArrayInsertUniqueInt(jGrantedLevel1Feats, StringToInt(Get2DAString(sFeatsTable, "FeatIndex", nRow)));  
+            }                
+        }
+
+        SetLocalJson(GetDataObject(CG_SCRIPT_NAME), CG_CLASS_FEATS_GRANTED_ON_LEVEL1 + IntToString(nClass), jGrantedLevel1Feats);      
+    }        
+}
+
+void CG_LoadFeatData()
+{
+    CG_LoadLevel1GrantedFeats();
+    /*
+    string sQuery = "CREATE TABLE IF NOT EXISTS " + CG_SCRIPT_NAME + "_feats (" +
+                    "id INTEGER NOT NULL, " +
+                    "name TEXT NOT NULL, " +
+                    "icon TEXT NOT NULL, " +
+                    "all_classes_can_use INTEGER NOT NULL, " +
+                    "masterfeat INTEGER NOT NULL);";
+    SqlStep(SqlPrepareQueryModule(sQuery));    
+
+    SqlBeginTransactionModule();
+
+    int nFeat, nNumFeats = Get2DARowCount("feat");
+    for (nFeat = 0; nFeat < nNumFeats; nFeat++)
+    {
+        if (StringToInt(Get2DAString("feat", "PreReqEpic", nFeat)))
+            continue; // Don't care about epic feats for level 1        
+        
+        string sNameStrRef = Get2DAString("feat", "FEAT", nFeat);
+        if (sNameStrRef == "")
+            continue; // Don't care about invalid feats either
+
+        string sMasterFeat = Get2DAString("feat", "MASTERFEAT", nFeat);
+
+        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + CG_SCRIPT_NAME + "_feats(id, name, icon, all_classes_can_use, masterfeat) VALUES(@class, @id, @name, @icon, @all_classes_can_use, @masterfeat);");
+        SqlBindInt(sql, "@id", nFeat);
+        SqlBindString(sql, "@name", GetStringByStrRef(StringToInt(sNameStrRef)));
+        SqlBindString(sql, "@icon", Get2DAString("feat", "ICON", nFeat));   
+        SqlBindInt(sql, "@all_classes_can_use", StringToInt(Get2DAString("feat", "ALLCLASSESCANUSE", nFeat)));                    
+        SqlBindInt(sql, "@masterfeat", sMasterFeat == "" ? -1 : StringToInt(sMasterFeat));
+        SqlStep(sql);             
+    }
+
+    SqlCommitTransactionModule();
+    */     
+}
+
 // *** STATE FUNCTIONS
 
 void CG_SetCurrentState(int nState)
 {
     NWM_SetUserDataInt(CG_CURRENT_STATE, nState);
-    CG_HandleStateChange(nState);
 }
 
 int CG_GetCurrentState()
@@ -200,38 +274,39 @@ int CG_GetCurrentState()
     return NWM_GetUserDataInt(CG_CURRENT_STATE);
 }
 
-void CG_HandleStateChange(int nState)
+void CG_ChangeState(int nState)
 {
     PrintString("State Change: " + IntToString(nState));
-    
+
+    CG_SetCurrentState(nState);
+
     switch (nState)
     {
         case CG_STATE_BASE:
         {
-            CG_CloseChildWindows();           
+            CG_CloseChildWindows();
             NWM_SetBindBool(CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED, FALSE);
             NWM_SetBindBool(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED, FALSE);
-            NWM_SetBindBool(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED, FALSE);
-            
+            NWM_SetBindBool(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED, FALSE);            
             CG_SetBaseAbilityScores();
-            CG_SetCurrentState(CG_STATE_ABILITY);
+            CG_ChangeState(CG_STATE_ABILITY);
             break;
         }
 
         case CG_STATE_ABILITY:
         {
+            CG_CloseChildWindows(CG_ABILITY_WINDOW_ID);
             NWM_SetBindBool(CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED, TRUE);
             NWM_SetBindBool(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED, FALSE);
             NWM_SetBindBool(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED, FALSE);
-            CG_CloseChildWindows(CG_ABILITY_WINDOW_ID);
             break;
         }
 
         case CG_STATE_SKILL:
         { 
+            CG_CloseChildWindows(CG_SKILL_WINDOW_ID);
             NWM_SetBindBool(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED, TRUE);
-            CG_SetBaseSkillValues();
-            CG_CloseChildWindows(CG_SKILL_WINDOW_ID); 
+            CG_SetBaseSkillValues(); 
             break;
         }
 
@@ -247,13 +322,13 @@ void CG_HandleStateChange(int nState)
 
 void CG_CloseChildWindows(string sWindowIdToSkip = "")
 {
-    object oPlayer = OBJECT_SELF;
-    
+    object oPlayer = OBJECT_SELF;    
+
     if (sWindowIdToSkip != CG_ABILITY_WINDOW_ID)
         NWM_CloseWindow(oPlayer, CG_ABILITY_WINDOW_ID);
 
     if (sWindowIdToSkip != CG_SKILL_WINDOW_ID)
-        NWM_CloseWindow(oPlayer, CG_SKILL_WINDOW_ID);
+        NWM_CloseWindow(oPlayer, CG_SKILL_WINDOW_ID);     
 }
 
 // @NWMWINDOW[CG_MAIN_WINDOW_ID]
@@ -386,25 +461,20 @@ json CG_CreateAbilityWindow()
             NB_StartRow();
                 NB_StartList(NuiBind(CG_BIND_LIST_NAMES), 28.0f, TRUE, NUI_SCROLLBARS_NONE);
                     NB_SetHeight(200.0f);
-                    
                     NB_StartListTemplateCell(2.0f, FALSE);
                         NB_AddSpacer();
-                    NB_End();                        
-                    
+                    NB_End();
                     NB_StartListTemplateCell(100.0f, FALSE);
                         NB_StartElement(NuiLabel(NuiBind(CG_BIND_LIST_NAMES), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
                         NB_End();
                     NB_End();
-
                     NB_StartListTemplateCell(30.0f, TRUE);
                         NB_AddSpacer();
-                    NB_End();                     
-
+                    NB_End();
                     NB_StartListTemplateCell(50.0f, FALSE);
                         NB_StartElement(NuiLabel(NuiBind(CG_BIND_LIST_VALUES), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
                         NB_End();
-                    NB_End();                  
-
+                    NB_End();
                     NB_StartListTemplateCell(14.0f, FALSE);
                         NB_StartElement(NuiSpacer());
                             NB_SetId(CG_ID_BUTTON_LIST_ADJUST);
@@ -415,8 +485,7 @@ json CG_CreateAbilityWindow()
                                         JsonInt(NUI_ASPECT_EXACTSCALED), JsonInt(NUI_VALIGN_MIDDLE), JsonInt(NUI_HALIGN_CENTER))); 
                             NB_End();
                         NB_End();
-                    NB_End();                      
-
+                    NB_End();
                 NB_End();
             NB_End();
             NB_StartRow();
@@ -442,31 +511,26 @@ json CG_CreateSkillWindow()
         NB_StartColumn();
             NB_StartRow();
                 NB_StartList(NuiBind(CG_BIND_LIST_ICONS), 32.0f, TRUE, NUI_SCROLLBARS_Y);
-                    NB_SetHeight(500.0f); 
-                    
+                    NB_SetHeight(500.0f);                     
                     NB_StartListTemplateCell(32.0f, FALSE);
                         NB_StartGroup(FALSE, NUI_SCROLLBARS_NONE);
                             NB_StartElement(NuiImage(NuiBind(CG_BIND_LIST_ICONS), JsonInt(NUI_ASPECT_EXACTSCALED), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
                             NB_End();
                         NB_End();
-                    NB_End();
-                    
+                    NB_End();                    
                     NB_StartListTemplateCell(250.0f, FALSE);
                         NB_StartElement(NuiLabel(NuiBind(CG_BIND_LIST_NAMES), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
                         NB_End();
                     NB_End();
-
                     NB_StartListTemplateCell(30.0f, TRUE);
                         NB_AddSpacer();
-                    NB_End();                     
-
+                    NB_End();
                     NB_StartListTemplateCell(50.0f, FALSE);
                         NB_StartGroup(TRUE, NUI_SCROLLBARS_NONE);
                             NB_StartElement(NuiLabel(NuiBind(CG_BIND_LIST_VALUES), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
                             NB_End();
                         NB_End();                            
-                    NB_End();                  
-
+                    NB_End();
                     NB_StartListTemplateCell(14.0f, FALSE);
                         NB_StartElement(NuiSpacer());
                             NB_SetId(CG_ID_BUTTON_LIST_ADJUST);
@@ -478,11 +542,9 @@ json CG_CreateSkillWindow()
                             NB_End();
                         NB_End();
                     NB_End();
-
                     NB_StartListTemplateCell(4.0f, FALSE);
                         NB_AddSpacer();
-                    NB_End();                                           
-
+                    NB_End();
                 NB_End();
             NB_End();
             NB_StartRow();
@@ -513,7 +575,7 @@ void CG_ShowMainWindow()
         CG_LoadRaceComboBox();
         CG_LoadClassComboBox();
 
-        CG_SetCurrentState(CG_STATE_BASE);
+        CG_ChangeState(CG_STATE_BASE);
      }
 }
 
@@ -543,9 +605,7 @@ void CG_LoadRaceComboBox()
 // @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_WATCH:CG_BIND_VALUE_RACE]
 void CG_WatchRaceBind()
 {
-    PrintString("Race Changed: " + IntToString(NWM_GetBindInt(CG_BIND_VALUE_RACE)));
-
-    CG_SetCurrentState(CG_STATE_BASE);
+    CG_ChangeState(CG_STATE_BASE);
 }
 
 // *** CHARACTER NAME
@@ -603,10 +663,8 @@ void CG_LoadClassComboBox()
 // @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_WATCH:CG_BIND_VALUE_CLASS]
 void CG_WatchClassBind()
 {
-    PrintString("Class Changed: " + IntToString(NWM_GetBindInt(CG_BIND_VALUE_CLASS)));
-
-    CG_UpdateAlignmentComboBox();
-    CG_SetCurrentState(CG_STATE_BASE);
+    CG_ChangeState(CG_STATE_BASE);
+    CG_UpdateAlignmentComboBox();    
 }
 
 // *** ALIGNMENT
@@ -698,7 +756,7 @@ int CG_GetClassAbilityAdjust(int nClass, int nAbility)
 
     if (sStatGainTable == "")
         return 0;        
-    // NOTE: We only deal with level 1 stat gain here
+
     return StringToInt(Get2DAString("sStatGainTable", GetStringLeft(AbilityConstantToName(nAbility), 3), 0));
 }
 
@@ -732,11 +790,8 @@ void CG_SetBaseAbilityScores()
 
         CG_SetAbilityPointBuyNumber(nPointBuyChange + nAbilityAdjust);
         jAbilities = JsonArraySetInt(jAbilities, nSpellcastingAbility, nAbilityMinPrimary - nAbilityAdjust);
-    }    
-    
-    PrintString("Base Ability Scores: " + JsonDump(jAbilities));
-    PrintString("Point Buy Number: " + IntToString(CG_GetAbilityPointBuyNumber()));
-
+    } 
+       
     NWM_SetUserData(CG_USERDATA_BASE_ABILITY_SCORES, jAbilities);
 }
 
@@ -844,7 +899,7 @@ void CG_ClickAbilitiesButton()
     if (NWM_GetIsWindowOpen(oPlayer, CG_ABILITY_WINDOW_ID))
         return;
 
-    CG_SetCurrentState(CG_STATE_ABILITY);
+    CG_ChangeState(CG_STATE_ABILITY);
 
     int nRace = NWM_GetBindInt(CG_BIND_VALUE_RACE);
     int nClass = NWM_GetBindInt(CG_BIND_VALUE_CLASS);
@@ -887,7 +942,7 @@ void CG_ClickAbilityOkButton()
     {
         CG_SetAbilityPointBuyNumber(nPointBuyNumber);
         NWM_SetUserData(CG_USERDATA_BASE_ABILITY_SCORES, jBaseAbilityScores);        
-        CG_SetCurrentState(CG_STATE_SKILL); 
+        CG_ChangeState(CG_STATE_SKILL); 
         NWM_CloseWindow(oPlayer, CG_ABILITY_WINDOW_ID);        
     }  
 }
@@ -923,10 +978,7 @@ void CG_SetBaseSkillValues()
                                 (nFirstLevelSkillPointsMultiplier * nExtraSkillPointsPerLevel);
 
     CG_SetSkillPointsRemaining(nSkillPointsRemaining);
-    NWM_SetUserData(CG_USERDATA_SKILLRANKS, GetJsonArrayOfSize(Get2DARowCount("skills"), JsonInt(0)));
-
-    PrintString("SkillPointsRemaining: " + IntToString(nSkillPointsRemaining)); 
-    PrintString("SkillRanks: " + JsonDump(NWM_GetUserData(CG_USERDATA_SKILLRANKS)));                                  
+    NWM_SetUserData(CG_USERDATA_SKILLRANKS, GetJsonArrayOfSize(Get2DARowCount("skills"), JsonInt(0)));                                 
 }
 
 int CG_GetClassHasSkill(int nClass, int nSkill)
@@ -967,7 +1019,7 @@ void CG_SetSkillData(json jSkillRanks)
             jSkillArray = JsonArrayInsertInt(jSkillArray, nSkill);
             jIconsArray = JsonArrayInsertString(jIconsArray, sIcon);
             jNamesArray = JsonArrayInsertString(jNamesArray, sName + (CG_GetIsClassSkill(nClass, nSkill) ? " (Class Skill)" : ""));
-            jValuesArray = JsonArrayInsertString(jValuesArray, IntToString(JsonArrayGetInt(jSkillRanks, nSkill))); 
+            jValuesArray = JsonArrayInsertInt(jValuesArray, JsonArrayGetInt(jSkillRanks, nSkill)); 
         }
     }
     NWM_SetUserData(CG_USERDATA_CLASS_AVAILABLE_SKILLS, jSkillArray);
@@ -978,16 +1030,14 @@ void CG_SetSkillData(json jSkillRanks)
 
 void CG_AdjustSkill(int nSkillIndex, int bIncrement)
 {
-    int nClass = NWM_GetUserDataInt(CG_BIND_VALUE_CLASS);
-    int nSkillPointsRemaining = CG_GetSkillPointsRemaining();
-    int nSkill = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_CLASS_AVAILABLE_SKILLS), nSkillIndex);
     json jSkillValues = NWM_GetBind(CG_BIND_LIST_VALUES);
+    int nClass = NWM_GetUserDataInt(CG_BIND_VALUE_CLASS);
+    int nSkill = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_CLASS_AVAILABLE_SKILLS), nSkillIndex);
     int nCurrentRank = JsonArrayGetInt(jSkillValues, nSkillIndex);
     int nMaxRank = 1 + RS2DA_GetIntEntry("CHARGEN_SKILL_MAX_LEVEL_1_BONUS");
-    int bClassSkill = CG_GetIsClassSkill(nClass, nSkill);
     int nCost = 1;
 
-    if (!bClassSkill)
+    if (!CG_GetIsClassSkill(nClass, nSkill))
     {
         nMaxRank /= 2;
         nCost += 1;
@@ -995,7 +1045,7 @@ void CG_AdjustSkill(int nSkillIndex, int bIncrement)
 
     if (bIncrement)
     {
-        if (nSkillPointsRemaining >= nCost && nCurrentRank < nMaxRank)
+        if (CG_GetSkillPointsRemaining() >= nCost && nCurrentRank < nMaxRank)
         {
             CG_ModifySkillPointsRemaining(-nCost);
             jSkillValues = JsonArraySetInt(jSkillValues, nSkillIndex, nCurrentRank + 1);
@@ -1023,10 +1073,8 @@ json CG_GetMergedSkillRanks()
     int nSkill, nNumSkills = JsonGetLength(jSkillArray);
     for (nSkill = 0; nSkill < nNumSkills; nSkill++)
     {
-        int nId = JsonArrayGetInt(jSkillArray, nSkill);
-        int nValue = JsonArrayGetInt(jSkillValues, nSkill);
-        jSkillRanks = JsonArraySetInt(jSkillRanks, nId, nValue);
-    }
+        jSkillRanks = JsonArraySetInt(jSkillRanks, JsonArrayGetInt(jSkillArray, nSkill), JsonArrayGetInt(jSkillValues, nSkill));
+    }  
 
     return jSkillRanks;
 }
@@ -1044,19 +1092,12 @@ void CG_ClickSkillsButton()
     int nSkillPointsRemaining = CG_GetSkillPointsRemaining();
     json jSkillRanks = NWM_GetUserData(CG_USERDATA_SKILLRANKS);
 
-    PrintString("SkillPointsRemaining: " + IntToString(nSkillPointsRemaining)); 
-    PrintString("SkillRanks: " + JsonDump(jSkillRanks));    
-
     if (NWM_OpenWindow(oPlayer, CG_SKILL_WINDOW_ID))
     {
         NWM_SetUserDataInt(CG_BIND_VALUE_RACE, nRace);
         NWM_SetUserDataInt(CG_BIND_VALUE_CLASS, nClass);
         CG_SetSkillPointsRemaining(nSkillPointsRemaining);
-
-        struct ProfilerData pd = Profiler_Start("CG_SetSkillData");
         CG_SetSkillData(jSkillRanks);
-        Profiler_Stop(pd);
-
         NWM_SetBindString(CG_BIND_TEXT_POINTS_REMAINING, "Remaining Skill Points: " + IntToString(nSkillPointsRemaining));
     }
 }
@@ -1068,9 +1109,7 @@ void CG_SkillAdjustmentButtonMouseUp()
 
     if (NuiGetMouseButton(jPayload) == NUI_MOUSE_BUTTON_LEFT)
     {    
-        struct ProfilerData pd = Profiler_Start("CG_AdjustSkill");
         CG_AdjustSkill(NuiGetEventArrayIndex(), NuiGetMouseY(jPayload) <= 16.0f);
-        Profiler_Stop(pd);
     }
 }
 
@@ -1079,15 +1118,25 @@ void CG_ClickSkillOkButton()
 {
     object oPlayer = OBJECT_SELF;
     int nSKillPointsRemaining = CG_GetSkillPointsRemaining();
-    struct ProfilerData pd = Profiler_Start("CG_GetMergedSkillRanks");
     json jSkillRanks = CG_GetMergedSkillRanks();
-    Profiler_Stop(pd);
 
     if (NWM_GetIsWindowOpen(oPlayer, CG_MAIN_WINDOW_ID, TRUE))
     {
         CG_SetSkillPointsRemaining(nSKillPointsRemaining);
         NWM_SetUserData(CG_USERDATA_SKILLRANKS, jSkillRanks);   
-        CG_SetCurrentState(CG_STATE_FEAT); 
+        CG_ChangeState(CG_STATE_FEAT); 
         NWM_CloseWindow(oPlayer, CG_SKILL_WINDOW_ID);        
     }  
+}
+
+// *** FEATS
+
+json CG_GetLevel1GrantedFeats(int nClass)
+{
+    return GetLocalJson(GetDataObject(CG_SCRIPT_NAME), CG_CLASS_FEATS_GRANTED_ON_LEVEL1 + IntToString(nClass));
+}
+
+int CG_GetHasFeat(int nClass, int nFeat)
+{
+    return JsonArrayContainsInt(CG_GetLevel1GrantedFeats(nClass), nFeat);
 }

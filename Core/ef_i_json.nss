@@ -59,6 +59,13 @@ int JsonArrayGetInt(json jArray, int nIndex);
 // Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
 // Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
 json JsonArrayInsertInt(json jArray, int nValue, int nIndex = -1);
+// Returns a modified copy of jArray with nValue inserted as JsonInt() at position nIndex, if jArray does not already contain nValue
+// All succeeding objects in the array will move by one.
+// By default (-1), inserts objects at the end of the array ("push").
+// nIndex = 0 inserts at the beginning of the array.
+// Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
+// Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
+json JsonArrayInsertUniqueInt(json jArray, int nValue, int nIndex = -1);
 // Returns a modified copy of jArray with position nIndex set to bValue as JsonInt.
 // Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
 // Returns a json null value if nIndex is out of bounds, with JsonGetError() filled in.
@@ -90,8 +97,10 @@ json JsonObjectInsertToArrayWithKey(json jObject, string sKey, json jValue);
 // Returns the key value of sKey on the object jObect.
 // Returns jDefault if sKey does not exist on the object.
 json JsonObjectGetOrDefault(json jObject, string sKey, json jDefault);
-// Returns TRUE if jArray contains sString
-int JsonArrayContainsString(json jArray, string sString);
+// Returns TRUE if jArray contains sValue
+int JsonArrayContainsString(json jArray, string sValue);
+// Returns TRUE if jArray contains nValue
+int JsonArrayContainsInt(json jArray, int nValue);
 // Returns a json integer point
 json JsonPointInt(int nX, int nY);
 // Insert sValue to the local json array sVarName on oObject at nIndex.
@@ -243,6 +252,14 @@ json JsonArrayInsertInt(json jArray, int nValue, int nIndex = -1)
     return JsonArrayInsert(jArray, JsonInt(nValue), nIndex);
 }
 
+json JsonArrayInsertUniqueInt(json jArray, int nValue, int nIndex = -1)
+{
+    if (!JsonArrayContainsInt(jArray, nValue))
+        return JsonArrayInsert(jArray, JsonInt(nValue), nIndex);
+    else 
+        return jArray;        
+}
+
 json JsonArraySetInt(json jArray, int nIndex, int nValue)
 {
     return JsonArraySet(jArray, nIndex, JsonInt(nValue));
@@ -284,9 +301,14 @@ json JsonObjectGetOrDefault(json jObject, string sKey, json jDefault)
     return !JsonGetType(jReturn) ? jDefault : jReturn;
 }
 
-int JsonArrayContainsString(json jArray, string sString)
+int JsonArrayContainsString(json jArray, string sValue)
 {
-    return JsonGetType(JsonFind(jArray, JsonString(sString))) == JSON_TYPE_INTEGER;
+    return JsonGetType(JsonFind(jArray, JsonString(sValue))) == JSON_TYPE_INTEGER;
+}
+
+int JsonArrayContainsInt(json jArray, int nValue)
+{
+    return JsonGetType(JsonFind(jArray, JsonInt(nValue))) == JSON_TYPE_INTEGER;
 }
 
 json JsonPointInt(int nX, int nY)

@@ -265,14 +265,16 @@ int NWM_OpenWindow(object oPlayer, string sWindowId)
 
 void NWM_CloseWindow(object oPlayer, string sWindowId)
 {
-    int nToken = NuiFindWindow(oPlayer, sWindowId);
-    if (nToken)
+    int nToken = NWM_GetToken();
+    int nWindowToken = NuiFindWindow(oPlayer, sWindowId);
+    if (nWindowToken)
     {
         NWM_SetPlayer(oPlayer);
-        NWM_SetToken(nToken);
+        NWM_SetToken(nWindowToken);
         NWM_RunEvents(oPlayer, sWindowId, NUI_EVENT_CLOSE, NUI_WINDOW_ROOT_GROUP);
-        NuiDestroy(oPlayer, nToken);
+        NuiDestroy(oPlayer, nWindowToken);
     }
+    NWM_SetToken(nToken);    
 }
 
 json NWM_GetBind(string sBindName)

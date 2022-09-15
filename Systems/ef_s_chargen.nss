@@ -59,6 +59,13 @@ const int CG_STATE_ABILITY                          = 2;
 const int CG_STATE_SKILL                            = 3;
 const int CG_STATE_FEAT                             = 4;
 
+const string CG_CLASS_BASE_STAT_ATTACK_BONUS        = "ClassBaseStatAttackBonus_";
+const string CG_CLASS_BASE_FORTITUDE_SAVING_THROW   = "ClassBaseFortitudeSavingThrow_";
+const string CG_CLASS_BASE_REFLEX_SAVING_THROW      = "ClassBaseReflexSavingThrow_";
+const string CG_CLASS_BASE_WILL_SAVING_THROW        = "ClassBaseWillSavingThrow_";
+const string CG_CLASS_BASE_SPELL_LEVEL              = "ClassBaseSpellLevel_";
+const string CG_CLASS_FEATS_GRANTED_ON_LEVEL1       = "ClassFeatsGrantedOnLevel1_";
+
 void CG_LoadRaceData();
 void CG_LoadClassData();
 void CG_LoadSkillData();
@@ -87,14 +94,10 @@ void CG_SetBaseSkillValues();
 // @CORE[EF_SYSTEM_INIT]
 void CG_Init()
 {
+    // Do not reorder
     CG_LoadRaceData();
     CG_LoadClassData();
     CG_LoadSkillData();
-}
-
-// @CORE[EF_SYSTEM_POST]
-void CG_Post()
-{
     CG_LoadFeatData();
 }
 
@@ -196,45 +199,9 @@ void CG_LoadSkillData()
     SqlCommitTransactionModule();      
 }
 
-// Feats ... 
-// Step 1: Grab all granted on level 1 feats for all classes. 
-// Step 2: Grab all feats that all classes can use and aren't invalid or have an epic level prereq
-
-const string CG_CLASS_FEATS_GRANTED_ON_LEVEL1 = "ClassFeatsGrantedOnLevel1_";
-
-void CG_LoadLevel1GrantedFeats()
+void CG_LoadFeatList()
 {
-    sqlquery sqlClasses = SqlPrepareQueryModule("SELECT id FROM " + CG_SCRIPT_NAME + "_classes;");
-    while (SqlStep(sqlClasses))
-    {
-        int nClass = SqlGetInt(sqlClasses, 0);
-        string sFeatsTable = Get2DAString("classes", "FeatsTable", nClass);
-        json jGrantedLevel1Feats = JsonArray();
-    
-        int nRow, nNumRows = Get2DARowCount(sFeatsTable);
-        for (nRow = 0; nRow < nNumRows; nRow++)
-        {
-            if (StringToInt(Get2DAString(sFeatsTable, "List", nRow)) == 3 &&
-                StringToInt(Get2DAString(sFeatsTable, "GrantedOnLevel", nRow)) == 1)
-            {
-                jGrantedLevel1Feats = JsonArrayInsertUniqueInt(jGrantedLevel1Feats, StringToInt(Get2DAString(sFeatsTable, "FeatIndex", nRow)));  
-            }                
-        }
-
-        SetLocalJson(GetDataObject(CG_SCRIPT_NAME), CG_CLASS_FEATS_GRANTED_ON_LEVEL1 + IntToString(nClass), jGrantedLevel1Feats);      
-    }        
-}
-
-void CG_LoadFeatData()
-{
-    CG_LoadLevel1GrantedFeats();
-    /*
-    string sQuery = "CREATE TABLE IF NOT EXISTS " + CG_SCRIPT_NAME + "_feats (" +
-                    "id INTEGER NOT NULL, " +
-                    "name TEXT NOT NULL, " +
-                    "icon TEXT NOT NULL, " +
-                    "all_classes_can_use INTEGER NOT NULL, " +
-                    "masterfeat INTEGER NOT NULL);";
+    string sQuery = "CREATE TABLE IF NOT EXISTS " + CG_SCRIPT_NAME + "_globalfeatlist (id INTEGER NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));    
 
     SqlBeginTransactionModule();
@@ -243,25 +210,155 @@ void CG_LoadFeatData()
     for (nFeat = 0; nFeat < nNumFeats; nFeat++)
     {
         if (StringToInt(Get2DAString("feat", "PreReqEpic", nFeat)))
-            continue; // Don't care about epic feats for level 1        
-        
-        string sNameStrRef = Get2DAString("feat", "FEAT", nFeat);
-        if (sNameStrRef == "")
+            continue; // Don't care about epic feats for level 1 
+        if (!StringToInt(Get2DAString("feat", "ALLCLASSESCANUSE", nFeat)))
+            continue; // Don't care about feats that not all classes can use
+        if (StringToInt(Get2DAString("feat", "MinLevel", nFeat)) > 1)
+            continue; // Don't care about feats with a minlevel of >1
+        if (Get2DAString("feat", "FEAT", nFeat) == "")
             continue; // Don't care about invalid feats either
 
-        string sMasterFeat = Get2DAString("feat", "MASTERFEAT", nFeat);
-
-        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + CG_SCRIPT_NAME + "_feats(id, name, icon, all_classes_can_use, masterfeat) VALUES(@class, @id, @name, @icon, @all_classes_can_use, @masterfeat);");
+        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + CG_SCRIPT_NAME + "_globalfeatlist(id) VALUES(@id);");
         SqlBindInt(sql, "@id", nFeat);
-        SqlBindString(sql, "@name", GetStringByStrRef(StringToInt(sNameStrRef)));
-        SqlBindString(sql, "@icon", Get2DAString("feat", "ICON", nFeat));   
-        SqlBindInt(sql, "@all_classes_can_use", StringToInt(Get2DAString("feat", "ALLCLASSESCANUSE", nFeat)));                    
-        SqlBindInt(sql, "@masterfeat", sMasterFeat == "" ? -1 : StringToInt(sMasterFeat));
-        SqlStep(sql);             
+        SqlStep(sql);          
     }
 
     SqlCommitTransactionModule();
-    */     
+}
+
+void CG_LoadClassBaseStatData(int nClass)
+{
+    object oDataObject = GetDataObject(CG_SCRIPT_NAME);
+
+    // Base Attack Bonus
+    string sAttackBonusTable = Get2DAString("classes", "AttackBonusTable", nClass);
+    int nBaseAttackBonus = StringToInt(Get2DAString(sAttackBonusTable, "BAB", 0));
+    SetLocalInt(oDataObject, CG_CLASS_BASE_STAT_ATTACK_BONUS + IntToString(nClass), nBaseAttackBonus);
+
+    // Saving Throws
+    string sSavingThrowTable = Get2DAString("classes", "SavingThrowTable", nClass);
+    int nBaseFortitudeSave = StringToInt(Get2DAString(sSavingThrowTable, "FortSave", 0));
+    int nBaseReflexSave = StringToInt(Get2DAString(sSavingThrowTable, "RefSave", 0));
+    int nBaseWillSave = StringToInt(Get2DAString(sSavingThrowTable, "WillSave", 0));    
+    SetLocalInt(oDataObject, CG_CLASS_BASE_FORTITUDE_SAVING_THROW + IntToString(nClass), nBaseFortitudeSave);
+    SetLocalInt(oDataObject, CG_CLASS_BASE_REFLEX_SAVING_THROW + IntToString(nClass), nBaseReflexSave);          
+    SetLocalInt(oDataObject, CG_CLASS_BASE_WILL_SAVING_THROW + IntToString(nClass), nBaseReflexSave); 
+
+    // Spell Level
+    if (StringToInt(Get2DAString("classes", "SpellCaster", nClass)))
+    {
+        string sSpellGainTable = Get2DAString("classes", "SpellGainTable", nClass);
+        int nBaseSpellLevel = StringToInt(Get2DAString(sSpellGainTable, "NumSpellLevels", 0)) - 1;
+        SetLocalInt(oDataObject, CG_CLASS_BASE_SPELL_LEVEL + IntToString(nClass), nBaseSpellLevel);         
+    }
+    else
+    {
+        SetLocalInt(oDataObject, CG_CLASS_BASE_SPELL_LEVEL + IntToString(nClass), -1); 
+    }               
+}
+
+void CG_LoadClassLevel1GrantedFeats(int nClass)
+{
+    string sFeatsTable = Get2DAString("classes", "FeatsTable", nClass);
+    json jGrantedLevel1Feats = JsonArray();
+
+    int nRow, nNumRows = Get2DARowCount(sFeatsTable);
+    for (nRow = 0; nRow < nNumRows; nRow++)
+    {
+        if (StringToInt(Get2DAString(sFeatsTable, "List", nRow)) == 3 &&
+            StringToInt(Get2DAString(sFeatsTable, "GrantedOnLevel", nRow)) == 1)
+        {
+            jGrantedLevel1Feats = JsonArrayInsertUniqueInt(jGrantedLevel1Feats, StringToInt(Get2DAString(sFeatsTable, "FeatIndex", nRow)));  
+        }                
+    }
+
+    SetLocalJson(GetDataObject(CG_SCRIPT_NAME), CG_CLASS_FEATS_GRANTED_ON_LEVEL1 + IntToString(nClass), jGrantedLevel1Feats);
+}
+
+void CG_LoadClassFeatTable(int nClass)
+{   
+    object oDataObject = GetDataObject(CG_SCRIPT_NAME);
+
+    // Step 1: Copy feats from the global feat list into the class feat list
+    SqlBeginTransactionModule();
+    string sQuery = "INSERT INTO " + CG_SCRIPT_NAME + "_feats(class, id, list, name, icon) VALUES(@class, @id, @list, @name, @icon)";
+    sqlquery sqlGlobalFeatList = SqlPrepareQueryModule("SELECT id FROM " + CG_SCRIPT_NAME + "_globalfeatlist;");
+    while (SqlStep(sqlGlobalFeatList))
+    {
+        int nFeat = SqlGetInt(sqlGlobalFeatList, 0);
+
+        // Prefilter based on min spell level
+        string sMinSpellLevel = Get2DAString("feat", "MINSPELLLVL", nFeat);
+        if (sMinSpellLevel != "" && GetLocalInt(oDataObject, CG_CLASS_BASE_SPELL_LEVEL + IntToString(nClass)) < StringToInt(sMinSpellLevel))
+            continue;
+        
+        sqlquery sql = SqlPrepareQueryModule(sQuery);
+        SqlBindInt(sql, "@class", nClass);
+        SqlBindInt(sql, "@id", nFeat);
+        SqlBindInt(sql, "@list", 0);
+        SqlBindString(sql, "@name", Get2DAStrRefString("feat", "FEAT", nFeat));
+        SqlBindString(sql, "@icon", Get2DAString("feat", "ICON", nFeat));
+        SqlStep(sql);
+    }
+    SqlCommitTransactionModule();
+
+    // Step 2: Parse the class feat list to add missed feats and update the list type    
+    SqlBeginTransactionModule();
+    sQuery = "REPLACE INTO " + CG_SCRIPT_NAME + "_feats(class, id, list, name, icon) VALUES(@class, @id, @list, @name, @icon)";
+    string sFeatsTable = Get2DAString("classes", "FeatsTable", nClass);    
+    int nRow, nNumRows = Get2DARowCount(sFeatsTable);
+    for (nRow = 0; nRow < nNumRows; nRow++)
+    {        
+        int nList = StringToInt(Get2DAString(sFeatsTable, "List", nRow));
+        if (nList == 3) 
+            continue;
+
+        int nFeat = StringToInt(Get2DAString(sFeatsTable, "FeatIndex", nRow));
+
+        if (StringToInt(Get2DAString("feat", "PreReqEpic", nFeat)))
+            continue; // Still don't care about epic feats for level 1 
+        if (StringToInt(Get2DAString("feat", "MinLevel", nFeat)) > 1)
+            continue; // Still don't care about feats with a minlevel of >1
+
+        sqlquery sql = SqlPrepareQueryModule(sQuery);
+        SqlBindInt(sql, "@class", nClass);
+        SqlBindInt(sql, "@id", nFeat);
+        SqlBindInt(sql, "@list", nList);
+        SqlBindString(sql, "@name", Get2DAStrRefString("feat", "FEAT", nFeat));
+        SqlBindString(sql, "@icon", Get2DAString("feat", "ICON", nFeat));
+        SqlStep(sql);
+    }
+
+    SqlCommitTransactionModule();
+}
+
+void CG_LoadFeatData()
+{
+    string sQuery = "CREATE TABLE IF NOT EXISTS " + CG_SCRIPT_NAME + "_feats (" +
+                    "class INTEGER NOT NULL, " +
+                    "id INTEGER NOT NULL, " +
+                    "list INTEGER NOT NULL, " +
+                    "name TEXT NOT NULL, " +
+                    "icon TEXT NOT NULL);";
+    SqlStep(SqlPrepareQueryModule(sQuery));      
+    
+    // Step 1: Prepare the global feat list consisting of feats that all classes can use, have a min level <=1 and aren't epic feats
+    CG_LoadFeatList();    
+
+    sqlquery sqlClasses = SqlPrepareQueryModule("SELECT id FROM " + CG_SCRIPT_NAME + "_classes;");
+    while (SqlStep(sqlClasses))
+    {
+        int nClass = SqlGetInt(sqlClasses, 0);
+        
+        // Step 2: Load some base stat data
+        CG_LoadClassBaseStatData(nClass);
+
+        // Step 3: Grab all granted on level 1 feats
+        CG_LoadClassLevel1GrantedFeats(nClass);
+
+        // Step 4: Prepare the class feat list
+        CG_LoadClassFeatTable(nClass);
+    }            
 }
 
 // *** STATE FUNCTIONS

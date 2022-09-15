@@ -11,6 +11,7 @@
 
 const string EF_DATAOBJECT_TAG_PREFIX       = "EFDataObject_";
 const string EF_DEFAULT_SCRIPT_ALIAS        = "NWNX";
+const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
 
 // Write a message to the log
 void WriteLog(string sName, string sMessage);
@@ -104,6 +105,9 @@ int GetIsPlayer(object oObject);
 
 // Returns TRUE if locLocation is valid
 int GetIsLocationValid(location locLocation);
+
+// Get an integer from a 2da, returns EF_UNSET_INTEGER_VALUE if not set.
+int Get2DAInt(string s2DA, string sColumn, int nRow);
 
 void WriteLog(string sName, string sMessage)
 {
@@ -442,4 +446,10 @@ int GetIsPlayer(object oObject)
 int GetIsLocationValid(location locLocation)
 {
     return GetIsObjectValid(GetAreaFromLocation(locLocation));
+}
+
+int Get2DAInt(string s2DA, string sColumn, int nRow)
+{
+    string sValue = Get2DAString(s2DA, sColumn, nRow);
+    return sValue == "" ? EF_UNSET_INTEGER_VALUE : StringToInt(sValue);
 }

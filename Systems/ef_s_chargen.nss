@@ -59,7 +59,7 @@ const int CG_STATE_ABILITY                          = 2;
 const int CG_STATE_SKILL                            = 3;
 const int CG_STATE_FEAT                             = 4;
 
-const string CG_CLASS_BASE_STAT_ATTACK_BONUS        = "ClassBaseStatAttackBonus_";
+const string CG_CLASS_BASE_ATTACK_BONUS             = "ClassBaseAttackBonus_";
 const string CG_CLASS_BASE_FORTITUDE_SAVING_THROW   = "ClassBaseFortitudeSavingThrow_";
 const string CG_CLASS_BASE_REFLEX_SAVING_THROW      = "ClassBaseReflexSavingThrow_";
 const string CG_CLASS_BASE_WILL_SAVING_THROW        = "ClassBaseWillSavingThrow_";
@@ -233,7 +233,7 @@ void CG_LoadClassBaseStatData(int nClass)
     // Base Attack Bonus
     string sAttackBonusTable = Get2DAString("classes", "AttackBonusTable", nClass);
     int nBaseAttackBonus = StringToInt(Get2DAString(sAttackBonusTable, "BAB", 0));
-    SetLocalInt(oDataObject, CG_CLASS_BASE_STAT_ATTACK_BONUS + IntToString(nClass), nBaseAttackBonus);
+    SetLocalInt(oDataObject, CG_CLASS_BASE_ATTACK_BONUS + IntToString(nClass), nBaseAttackBonus);
 
     // Saving Throws
     string sSavingThrowTable = Get2DAString("classes", "SavingThrowTable", nClass);
@@ -405,7 +405,6 @@ void CG_ChangeState(int nState)
         { 
             CG_CloseChildWindows(CG_SKILL_WINDOW_ID);
             NWM_SetBindBool(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED, TRUE);
-            CG_SetBaseSkillValues(); 
             break;
         }
 
@@ -1035,7 +1034,8 @@ void CG_ClickAbilityOkButton()
     if (NWM_GetIsWindowOpen(oPlayer, CG_MAIN_WINDOW_ID, TRUE))
     {
         NWM_CopyUserData(CG_ABILITY_WINDOW_ID, CG_USERDATA_ABILITY_POINT_BUY_NUMBER);        
-        NWM_CopyUserData(CG_ABILITY_WINDOW_ID, CG_USERDATA_BASE_ABILITY_SCORES);        
+        NWM_CopyUserData(CG_ABILITY_WINDOW_ID, CG_USERDATA_BASE_ABILITY_SCORES);
+        CG_SetBaseSkillValues();                 
         CG_ChangeState(CG_STATE_SKILL); 
         NWM_CloseWindow(oPlayer, CG_ABILITY_WINDOW_ID);        
     }  
@@ -1072,7 +1072,7 @@ void CG_SetBaseSkillValues()
                                 (nFirstLevelSkillPointsMultiplier * nExtraSkillPointsPerLevel);
 
     CG_SetSkillPointsRemaining(nSkillPointsRemaining);
-    NWM_SetUserData(CG_USERDATA_SKILLRANKS, GetJsonArrayOfSize(Get2DARowCount("skills"), JsonInt(0)));                                 
+    NWM_SetUserData(CG_USERDATA_SKILLRANKS, GetJsonArrayOfSize(Get2DARowCount("skills"), JsonInt(-1)));                                 
 }
 
 int CG_GetClassHasSkill(int nClass, int nSkill)
@@ -1113,7 +1113,8 @@ void CG_SetSkillData(json jSkillRanks)
             jSkillArray = JsonArrayInsertInt(jSkillArray, nSkill);
             jIconsArray = JsonArrayInsertString(jIconsArray, sIcon);
             jNamesArray = JsonArrayInsertString(jNamesArray, sName + (CG_GetIsClassSkill(nClass, nSkill) ? " (Class Skill)" : ""));
-            jValuesArray = JsonArrayInsertInt(jValuesArray, JsonArrayGetInt(jSkillRanks, nSkill)); 
+            int nValue = JsonArrayGetInt(jSkillRanks, nSkill);
+            jValuesArray = JsonArrayInsertInt(jValuesArray, nValue == -1 ? 0 : nValue); 
         }
     }
     NWM_SetUserData(CG_USERDATA_CLASS_AVAILABLE_SKILLS, jSkillArray);
@@ -1226,4 +1227,123 @@ json CG_GetLevel1GrantedFeats(int nClass)
 int CG_GetHasFeat(int nClass, int nFeat)
 {
     return JsonArrayContainsInt(CG_GetLevel1GrantedFeats(nClass), nFeat);
+}
+
+int CG_MeetsFeatRequirements(int nFeat)
+{
+    int nMinAttackBonus = Get2DAInt("feat", "MINATTACKBONUS", nFeat);
+    if (nMinAttackBonus != EF_UNSET_INTEGER_VALUE && GetLocalInt(GetDataObject(CG_SCRIPT_NAME), CG_CLASS_BASE_ATTACK_BONUS + IntToString(NWM_GetUserDataInt(CG_USERDATA_CLASS))) < nMinAttackBonus)
+        return FALSE;
+
+    int nMinStr = Get2DAInt("feat", "MINSTR", nFeat);
+    if (nMinStr != EF_UNSET_INTEGER_VALUE && CG_GetAdjustedAbilityScore(ABILITY_STRENGTH) < nMinStr)
+        return FALSE;
+
+    int nMinDex = Get2DAInt("feat", "MINDEX", nFeat);
+    if (nMinDex != EF_UNSET_INTEGER_VALUE && CG_GetAdjustedAbilityScore(ABILITY_DEXTERITY) < nMinDex)
+        return FALSE;
+
+    int nMinInt = Get2DAInt("feat", "MININT", nFeat);
+    if (nMinInt != EF_UNSET_INTEGER_VALUE && CG_GetAdjustedAbilityScore(ABILITY_INTELLIGENCE) < nMinInt)
+        return FALSE; 
+
+    int nMinWis = Get2DAInt("feat", "MINWIS", nFeat);
+    if (nMinWis != EF_UNSET_INTEGER_VALUE && CG_GetAdjustedAbilityScore(ABILITY_WISDOM) < nMinWis)
+        return FALSE;
+
+    int nMinCon = Get2DAInt("feat", "MINCON", nFeat);
+    if (nMinCon != EF_UNSET_INTEGER_VALUE && CG_GetAdjustedAbilityScore(ABILITY_CONSTITUTION) < nMinCon)
+        return FALSE;
+
+    int nMinCha = Get2DAInt("feat", "MINCHA", nFeat);
+    if (nMinCha != EF_UNSET_INTEGER_VALUE && CG_GetAdjustedAbilityScore(ABILITY_CHARISMA) < nMinCha)
+        return FALSE;
+
+    int nMinSpellLevel = Get2DAInt("feat", "MINSPELLLVL", nFeat);
+    if (nMinSpellLevel != EF_UNSET_INTEGER_VALUE && GetLocalInt(GetDataObject(CG_SCRIPT_NAME), CG_CLASS_BASE_SPELL_LEVEL + IntToString(NWM_GetUserDataInt(CG_USERDATA_CLASS))) < nMinSpellLevel)
+        return FALSE;
+
+    int nPreReqFeat1 = Get2DAInt("feat", "PREREQFEAT1", nFeat);
+    if (nPreReqFeat1 != EF_UNSET_INTEGER_VALUE && !CG_GetHasFeat(NWM_GetUserDataInt(CG_USERDATA_CLASS), nPreReqFeat1))
+        return FALSE;
+
+    int nPreReqFeat2 = Get2DAInt("feat", "PREREQFEAT2", nFeat);
+    if (nPreReqFeat2 != EF_UNSET_INTEGER_VALUE && !CG_GetHasFeat(NWM_GetUserDataInt(CG_USERDATA_CLASS), nPreReqFeat2))
+        return FALSE;
+
+    int nFeatIndex, bHasOrPrereqFeat, bOrPrereqFeatAcquired;
+    for (nFeatIndex = 0; !bOrPrereqFeatAcquired && nFeatIndex < 5; nFeatIndex++)
+    {
+        int nOrPreReqFeat = Get2DAInt("feat", "OrReqFeat" + IntToString(nFeatIndex), nFeat);
+        if (nOrPreReqFeat != EF_UNSET_INTEGER_VALUE)
+        {
+            bHasOrPrereqFeat = TRUE;
+
+            if (CG_GetHasFeat(NWM_GetUserDataInt(CG_USERDATA_CLASS), nOrPreReqFeat))
+                bOrPrereqFeatAcquired = TRUE;            
+        }
+    }
+    if (bHasOrPrereqFeat && !bOrPrereqFeatAcquired)
+        return FALSE;
+
+    int nReqSkill1 = Get2DAInt("feat", "REQSKILL", nFeat);
+    if (nReqSkill1 != EF_UNSET_INTEGER_VALUE)
+    {
+        int nSkillRank = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_SKILLRANKS), nReqSkill1);
+        if (nSkillRank == -1)
+            return FALSE;
+
+        int nReqMinSkillRanks = Get2DAInt("feat", "ReqSkillMinRanks", nFeat);
+        if (nReqMinSkillRanks != EF_UNSET_INTEGER_VALUE && nSkillRank < nReqMinSkillRanks)
+            return FALSE;                    
+    }
+
+    int nReqSkill2 = Get2DAInt("feat", "REQSKILL2", nFeat);
+    if (nReqSkill2 != EF_UNSET_INTEGER_VALUE)
+    {
+        int nSkillRank = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_SKILLRANKS), nReqSkill2);
+        if (nSkillRank == -1)
+            return FALSE;
+
+        int nReqMinSkillRanks = Get2DAInt("feat", "ReqSkillMinRanks2", nFeat);
+        if (nReqMinSkillRanks != EF_UNSET_INTEGER_VALUE && nSkillRank < nReqMinSkillRanks)
+            return FALSE;                    
+    }
+
+    int nMinLevel = Get2DAInt("feat", "MinLevel", nFeat);
+    if (nMinLevel != EF_UNSET_INTEGER_VALUE)
+    {
+        if (1 < nMinLevel)
+            return FALSE;
+
+        int nMinLevelClass = Get2DAInt("feat", "MinLevelClass", nFeat); 
+        if (nMinLevelClass != EF_UNSET_INTEGER_VALUE && NWM_GetUserDataInt(CG_USERDATA_CLASS) != nMinLevelClass)
+            return FALSE;           
+    }
+
+    int nMinFortSave = Get2DAInt("feat", "MinFortSave", nFeat);                                                                                             
+    if (nMinFortSave != EF_UNSET_INTEGER_VALUE && GetLocalInt(GetDataObject(CG_SCRIPT_NAME), CG_CLASS_BASE_FORTITUDE_SAVING_THROW + IntToString(NWM_GetUserDataInt(CG_USERDATA_CLASS))) < nMinFortSave)
+        return FALSE;
+
+    return TRUE;    
+}
+
+// @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_CLICK:CG_ID_BUTTON_FEAT_WINDOW]
+void CG_ClickFeatsButton()
+{
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
+    
+    string sQuery = "SELECT id, name FROM " + CG_SCRIPT_NAME + "_feats WHERE class = @class ORDER BY name ASC;";
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
+    SqlBindInt(sql, "@class", nClass);
+    while (SqlStep(sql))
+    {
+        int nFeat = SqlGetInt(sql, 0);
+        string sName = SqlGetString(sql, 1);
+
+        if (CG_GetHasFeat(nClass, nFeat))
+            continue;
+
+        PrintString("Feat: " + sName + " -> " + IntToString(CG_MeetsFeatRequirements(nFeat)));
+    }
 }

@@ -9,60 +9,60 @@
 #include "ef_s_ruleset2da"
 #include "ef_s_profiler"
 
-const string CG_LOG_TAG                             = "CharacterGemeration";
-const string CG_SCRIPT_NAME                         = "ef_s_chargen";
+const string CG_LOG_TAG                                 = "CharacterGemeration";
+const string CG_SCRIPT_NAME                             = "ef_s_chargen";
 
-const string CG_MAIN_WINDOW_ID                      = "CG_MAIN";
-const string CG_ABILITY_WINDOW_ID                   = "CG_ABILITY";
-const string CG_SKILL_WINDOW_ID                     = "CG_SKILL";
+const string CG_MAIN_WINDOW_ID                          = "CG_MAIN";
+const string CG_ABILITY_WINDOW_ID                       = "CG_ABILITY";
+const string CG_SKILL_WINDOW_ID                         = "CG_SKILL";
+const string CG_FEAT_WINDOW_ID                          = "CG_FEAT";
 
-const string CG_BIND_VALUE_GENDER                   = "val_gender";
-const string CG_BIND_VALUE_RACE                     = "val_race";
-const string CG_BIND_VALUE_FIRST_NAME               = "val_first_name";
-const string CG_BIND_VALUE_LAST_NAME                = "val_last_name";
-const string CG_BIND_VALUE_CLASS                    = "val_class";
-const string CG_BIND_VALUE_ALIGNMENT                = "val_alignment";
+const string CG_BIND_VALUE_GENDER                       = "val_gender";
+const string CG_BIND_VALUE_RACE                         = "val_race";
+const string CG_BIND_VALUE_FIRST_NAME                   = "val_first_name";
+const string CG_BIND_VALUE_LAST_NAME                    = "val_last_name";
+const string CG_BIND_VALUE_CLASS                        = "val_class";
+const string CG_BIND_VALUE_ALIGNMENT                    = "val_alignment";
 
-const string CG_BIND_COMBO_ENTRIES_RACE             = "combo_entries_race";
-const string CG_BIND_COMBO_ENTRIES_CLASS            = "combo_entries_class";
-const string CG_BIND_COMBO_ENTRIES_ALIGNMENT        = "combo_entries_alignment";
+const string CG_BIND_COMBO_ENTRIES_RACE                 = "combo_entries_race";
+const string CG_BIND_COMBO_ENTRIES_CLASS                = "combo_entries_class";
+const string CG_BIND_COMBO_ENTRIES_ALIGNMENT            = "combo_entries_alignment";
 
-const string CG_ID_BUTTON_RANDOM_FIRST_NAME         = "btn_random_first_name";
-const string CG_ID_BUTTON_RANDOM_LAST_NAME          = "btn_random_last_name";
+const string CG_ID_BUTTON_RANDOM_FIRST_NAME             = "btn_random_first_name";
+const string CG_ID_BUTTON_RANDOM_LAST_NAME              = "btn_random_last_name";
 
-const string CG_ID_BUTTON_ABILITY_WINDOW            = "btn_ability_window";
-const string CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED  = "btn_ability_window_enabled";
-const string CG_ID_BUTTON_SKILL_WINDOW              = "btn_skill_window";
-const string CG_BIND_BUTTON_SKILL_WINDOW_ENABLED    = "btn_skill_window_enabled";
-const string CG_ID_BUTTON_FEAT_WINDOW               = "btn_feat_window";
-const string CG_BIND_BUTTON_FEAT_WINDOW_ENABLED     = "btn_feat_window_enabled";
+const string CG_ID_BUTTON_ABILITY_WINDOW                = "btn_ability_window";
+const string CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED      = "btn_ability_window_enabled";
+const string CG_ID_BUTTON_SKILLFEAT_WINDOW              = "btn_skillfeat_window";
+const string CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED    = "btn_skillfeat_window_enabled";
 
-const string CG_ID_BUTTON_OK                        = "btn_ok";
-const string CG_ID_BUTTON_OK_ENABLED                = "btn_ok_enabled";
-const string CG_ID_BUTTON_LIST_ADJUST               = "btn_list_adjust";
-const string CG_BIND_LIST_ICONS                     = "list_icons";
-const string CG_BIND_LIST_NAMES                     = "list_names";
-const string CG_BIND_LIST_VALUES                    = "list_values";
-const string CG_BIND_TEXT_POINTS_REMAINING          = "list_points_remaining";
+const string CG_ID_BUTTON_OK                            = "btn_ok";
+const string CG_ID_BUTTON_OK_ENABLED                    = "btn_ok_enabled";
+const string CG_ID_BUTTON_LIST_ADJUST                   = "btn_list_adjust";
+const string CG_BIND_LIST_ICONS                         = "list_icons";
+const string CG_BIND_LIST_NAMES                         = "list_names";
+const string CG_BIND_LIST_VALUES                        = "list_values";
+const string CG_BIND_TEXT_POINTS_REMAINING              = "list_points_remaining";
 
-const string CG_USERDATA_RACE                       = "Race";
-const string CG_USERDATA_CLASS                      = "Class";
-const string CG_USERDATA_ABILITY_POINT_BUY_NUMBER   = "AbilityPointBuyNumber";
-const string CG_USERDATA_BASE_ABILITY_SCORES        = "BaseAbilityScores";
-const string CG_USERDATA_SKILLPOINTS_REMAINING      = "SkillPointsRemaining";
-const string CG_USERDATA_SKILLRANKS                 = "SkillRanks";
-const string CG_USERDATA_CLASS_AVAILABLE_SKILLS     = "ClassAvailableSkills";
+const string CG_USERDATA_RACE                           = "Race";
+const string CG_USERDATA_CLASS                          = "Class";
+const string CG_USERDATA_ABILITY_POINT_BUY_NUMBER       = "AbilityPointBuyNumber";
+const string CG_USERDATA_BASE_ABILITY_SCORES            = "BaseAbilityScores";
+const string CG_USERDATA_SKILLPOINTS_REMAINING          = "SkillPointsRemaining";
+const string CG_USERDATA_SKILLRANKS                     = "SkillRanks";
+const string CG_USERDATA_CLASS_AVAILABLE_SKILLS         = "ClassAvailableSkills";
+const string CG_USERDATA_CHOSEN_FEATS                   = "ChosenFeats";
 
-const string CG_CURRENT_STATE                       = "CurrentState";
-const int CG_STATE_BASE                             = 1;
-const int CG_STATE_ABILITY                          = 2;
-const int CG_STATE_SKILL                            = 3;
-const int CG_STATE_FEAT                             = 4;
+const string CG_CURRENT_STATE                           = "CurrentState";
+const int CG_STATE_BASE                                 = 1;
+const int CG_STATE_ABILITY                              = 2;
+const int CG_STATE_PACKAGES                             = 3;
 
-const string CG_CLASS_BASE_ATTACK_BONUS             = "ClassBaseAttackBonus_";
-const string CG_CLASS_BASE_FORTITUDE_SAVING_THROW   = "ClassBaseFortitudeSavingThrow_";
-const string CG_CLASS_BASE_SPELL_LEVEL              = "ClassBaseSpellLevel_";
-const string CG_CLASS_FEATS_GRANTED_ON_LEVEL1       = "ClassFeatsGrantedOnLevel1_";
+const string CG_CLASS_BASE_ATTACK_BONUS                 = "ClassBaseAttackBonus_";
+const string CG_CLASS_BASE_FORTITUDE_SAVING_THROW       = "ClassBaseFortitudeSavingThrow_";
+const string CG_CLASS_BASE_SPELL_LEVEL                  = "ClassBaseSpellLevel_";
+const string CG_CLASS_FEATS_GRANTED_ON_LEVEL1           = "ClassFeatsGrantedOnLevel1_";
+const string CG_CLASS_NUM_LEVEL_1_BONUS_FEATS           = "ClassNumLevel1BonusFeats_";
 
 void CG_LoadRaceData();
 void CG_LoadClassData();
@@ -82,12 +82,14 @@ void CG_UpdateAlignmentComboBox();
 void CG_SetAbilityPointBuyNumber(int nPoints);
 int CG_GetAbilityPointBuyNumber();
 void CG_ModifyAbilityPointBuyNumber(int nModify);
-int CG_GetRacialAbilityAdjust(int nRace, int nAbility);
-int CG_GetClassAbilityAdjust(int nClass, int nAbility);
+int CG_GetRacialAbilityAdjust(int nAbility);
+int CG_GetClassAbilityAdjust(int nAbility);
 void CG_SetBaseAbilityScores();
 int CG_GetAdjustedAbilityScore(int nAbility);
 
 void CG_SetBaseSkillValues();
+
+void CG_OpenFeatsWindow();
 
 // @CORE[EF_SYSTEM_INIT]
 void CG_Init()
@@ -125,6 +127,38 @@ void CG_LoadRaceData()
     SqlCommitTransactionModule();    
 }
 
+void CG_LoadClassBaseStatData(int nClass)
+{
+    object oDataObject = GetDataObject(CG_SCRIPT_NAME);
+
+    // Base Attack Bonus
+    string sAttackBonusTable = Get2DAString("classes", "AttackBonusTable", nClass);
+    int nBaseAttackBonus = StringToInt(Get2DAString(sAttackBonusTable, "BAB", 0));
+    SetLocalInt(oDataObject, CG_CLASS_BASE_ATTACK_BONUS + IntToString(nClass), nBaseAttackBonus);
+
+    // Fortitude Saving Throw
+    string sSavingThrowTable = Get2DAString("classes", "SavingThrowTable", nClass);
+    int nBaseFortitudeSave = StringToInt(Get2DAString(sSavingThrowTable, "FortSave", 0)); 
+    SetLocalInt(oDataObject, CG_CLASS_BASE_FORTITUDE_SAVING_THROW + IntToString(nClass), nBaseFortitudeSave); 
+
+    // Spell Level
+    if (StringToInt(Get2DAString("classes", "SpellCaster", nClass)))
+    {
+        string sSpellGainTable = Get2DAString("classes", "SpellGainTable", nClass);
+        int nBaseSpellLevel = StringToInt(Get2DAString(sSpellGainTable, "NumSpellLevels", 0)) - 1;
+        SetLocalInt(oDataObject, CG_CLASS_BASE_SPELL_LEVEL + IntToString(nClass), nBaseSpellLevel);         
+    }
+    else
+    {
+        SetLocalInt(oDataObject, CG_CLASS_BASE_SPELL_LEVEL + IntToString(nClass), -1); 
+    }
+
+    // Num Level 1 Bonus Feats
+    string sBonusFeatTable = Get2DAString("classes", "BonusFeatsTable", nClass);
+    int nNumBonusFeats = StringToInt(Get2DAString(sBonusFeatTable, "Bonus", 0));
+    SetLocalInt(oDataObject, CG_CLASS_NUM_LEVEL_1_BONUS_FEATS + IntToString(nClass), nNumBonusFeats);                   
+}
+
 void CG_LoadClassData()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + CG_SCRIPT_NAME + "_classes (" +
@@ -144,6 +178,8 @@ void CG_LoadClassData()
         SqlBindInt(sql, "@id", nRow);
         SqlBindString(sql, "@name", Get2DAStrRefString("classes", "Name", nRow));                
         SqlStep(sql);
+
+        CG_LoadClassBaseStatData(nRow);
     }
 
     SqlCommitTransactionModule();    
@@ -222,33 +258,6 @@ void CG_LoadFeatList()
     }
 
     SqlCommitTransactionModule();
-}
-
-void CG_LoadClassBaseStatData(int nClass)
-{
-    object oDataObject = GetDataObject(CG_SCRIPT_NAME);
-
-    // Base Attack Bonus
-    string sAttackBonusTable = Get2DAString("classes", "AttackBonusTable", nClass);
-    int nBaseAttackBonus = StringToInt(Get2DAString(sAttackBonusTable, "BAB", 0));
-    SetLocalInt(oDataObject, CG_CLASS_BASE_ATTACK_BONUS + IntToString(nClass), nBaseAttackBonus);
-
-    // Fortitude Saving Throw
-    string sSavingThrowTable = Get2DAString("classes", "SavingThrowTable", nClass);
-    int nBaseFortitudeSave = StringToInt(Get2DAString(sSavingThrowTable, "FortSave", 0)); 
-    SetLocalInt(oDataObject, CG_CLASS_BASE_FORTITUDE_SAVING_THROW + IntToString(nClass), nBaseFortitudeSave); 
-
-    // Spell Level
-    if (StringToInt(Get2DAString("classes", "SpellCaster", nClass)))
-    {
-        string sSpellGainTable = Get2DAString("classes", "SpellGainTable", nClass);
-        int nBaseSpellLevel = StringToInt(Get2DAString(sSpellGainTable, "NumSpellLevels", 0)) - 1;
-        SetLocalInt(oDataObject, CG_CLASS_BASE_SPELL_LEVEL + IntToString(nClass), nBaseSpellLevel);         
-    }
-    else
-    {
-        SetLocalInt(oDataObject, CG_CLASS_BASE_SPELL_LEVEL + IntToString(nClass), -1); 
-    }               
 }
 
 void CG_LoadClassLevel1GrantedFeats(int nClass)
@@ -358,13 +367,10 @@ void CG_LoadFeatData()
     {
         int nClass = SqlGetInt(sqlClasses, 0);
         
-        // Step 2: Load some base stat data
-        CG_LoadClassBaseStatData(nClass);
-
-        // Step 3: Grab all granted on level 1 feats
+        // Step 2: Grab all granted on level 1 feats
         CG_LoadClassLevel1GrantedFeats(nClass);
 
-        // Step 4: Prepare the class feat list
+        // Step 3: Prepare the class feat list
         CG_LoadClassFeatTable(nClass);
     }            
 }
@@ -383,8 +389,6 @@ int CG_GetCurrentState()
 
 void CG_ChangeState(int nState)
 {
-    PrintString("State Change: " + IntToString(nState));
-
     CG_SetCurrentState(nState);
 
     switch (nState)
@@ -393,8 +397,8 @@ void CG_ChangeState(int nState)
         {
             CG_CloseChildWindows();
             NWM_SetBindBool(CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED, FALSE);
-            NWM_SetBindBool(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED, FALSE);
-            NWM_SetBindBool(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED, FALSE);            
+            NWM_SetBindBool(CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED, FALSE);         
+            
             CG_SetBaseAbilityScores();
             CG_ChangeState(CG_STATE_ABILITY);
             break;
@@ -404,23 +408,16 @@ void CG_ChangeState(int nState)
         {
             CG_CloseChildWindows(CG_ABILITY_WINDOW_ID);
             NWM_SetBindBool(CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED, TRUE);
-            NWM_SetBindBool(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED, FALSE);
-            NWM_SetBindBool(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED, FALSE);
+            NWM_SetBindBool(CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED, FALSE);            
             break;
         }
 
-        case CG_STATE_SKILL:
+        case CG_STATE_PACKAGES:
         { 
-            CG_CloseChildWindows(CG_SKILL_WINDOW_ID);
-            NWM_SetBindBool(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED, TRUE);
+            CG_SetBaseSkillValues(); 
+            NWM_SetBindBool(CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED, TRUE);             
             break;
-        }
-
-        case CG_STATE_FEAT:
-        {
-            NWM_SetBindBool(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED, TRUE);
-            break;
-        }                        
+        }                      
     }
 }
 
@@ -434,7 +431,10 @@ void CG_CloseChildWindows(string sWindowIdToSkip = "")
         NWM_CloseWindow(oPlayer, CG_ABILITY_WINDOW_ID);
 
     if (sWindowIdToSkip != CG_SKILL_WINDOW_ID)
-        NWM_CloseWindow(oPlayer, CG_SKILL_WINDOW_ID);     
+        NWM_CloseWindow(oPlayer, CG_SKILL_WINDOW_ID);
+
+    if (sWindowIdToSkip != CG_FEAT_WINDOW_ID)
+        NWM_CloseWindow(oPlayer, CG_FEAT_WINDOW_ID);              
 }
 
 // @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_CLOSE:NUI_WINDOW_ROOT_GROUP]
@@ -542,16 +542,10 @@ json CG_CreateMainWindow()
 
             NB_StartRow();
                 NB_AddSpacer();
-                NB_StartElement(NuiButton(JsonString("Skills")));
-                    NB_SetDimensions(150.0f, 32.0f);
-                    NB_SetId(CG_ID_BUTTON_SKILL_WINDOW);
-                    NB_SetEnabled(NuiBind(CG_BIND_BUTTON_SKILL_WINDOW_ENABLED));
-                NB_End();
-                NB_AddSpacer(); 
-                NB_StartElement(NuiButton(JsonString("Feats")));
-                    NB_SetDimensions(150.0f, 32.0f);
-                    NB_SetId(CG_ID_BUTTON_FEAT_WINDOW);
-                    NB_SetEnabled(NuiBind(CG_BIND_BUTTON_FEAT_WINDOW_ENABLED));
+                NB_StartElement(NuiButton(JsonString("Skills & Feats")));
+                    NB_SetDimensions(250.0f, 32.0f);
+                    NB_SetId(CG_ID_BUTTON_SKILLFEAT_WINDOW);
+                    NB_SetEnabled(NuiBind(CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED));
                 NB_End();
                 NB_AddSpacer();                              
             NB_End();
@@ -673,6 +667,19 @@ json CG_CreateSkillWindow()
     return NB_FinalizeWindow();        
 }
 
+// @NWMWINDOW[CG_FEAT_WINDOW_ID]
+json CG_CreateFeatWindow()
+{
+   NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 600.0f, 600.0f));
+    NB_SetWindowTitle(JsonString("Character Creator: Feats"));
+        NB_StartColumn();
+            NB_StartRow();
+                NB_AddSpacer();
+            NB_End();          
+        NB_End();
+    return NB_FinalizeWindow();        
+}
+
 // *** PLAYER MENU BUTTON
 
 // @PMBUTTON[Character Creator:Create a new character]
@@ -725,13 +732,10 @@ void CG_WatchRaceBind()
 
 string CG_GetRandomCharacterName(int nRace, int nGender, int bFirstName)
 {
-    string sName;
     if (bFirstName)
-        sName = RandomName(2 + ((nRace == 3 ? 4 : nRace == 4 ? 3 : nRace) * 3) + nGender > 0);
-    else 
-        sName = RandomName(2 + (nRace * 3) + 2);
-
-    return sName;
+        return RandomName(2 + ((nRace == 3 ? 4 : nRace == 4 ? 3 : nRace) * 3) + (nGender > 0));
+    else
+        return RandomName(2 + (nRace * 3) + 2);
 }
 
 // @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_CLICK:CG_ID_BUTTON_RANDOM_FIRST_NAME]
@@ -859,14 +863,14 @@ void CG_ModifyAbilityPointBuyNumber(int nModify)
     CG_SetAbilityPointBuyNumber(CG_GetAbilityPointBuyNumber() + nModify);    
 }
 
-int CG_GetRacialAbilityAdjust(int nRace, int nAbility)
+int CG_GetRacialAbilityAdjust(int nAbility)
 {
-    return StringToInt(Get2DAString("racialtypes", GetStringLeft(AbilityConstantToName(nAbility), 3) + "Adjust", nRace));
+    return StringToInt(Get2DAString("racialtypes", GetStringLeft(AbilityConstantToName(nAbility), 3) + "Adjust", NWM_GetUserDataInt(CG_USERDATA_RACE)));
 }
 
-int CG_GetClassAbilityAdjust(int nClass, int nAbility)
+int CG_GetClassAbilityAdjust(int nAbility)
 {
-    string sStatGainTable = Get2DAString("classes", "StatGainTable", nClass);
+    string sStatGainTable = Get2DAString("classes", "StatGainTable", NWM_GetUserDataInt(CG_USERDATA_CLASS));
 
     if (sStatGainTable == "")
         return 0;        
@@ -899,7 +903,7 @@ void CG_SetBaseAbilityScores()
     {
         int nSpellcastingAbility = AbilityToConstant(Get2DAString("classes", "SpellcastingAbil", nClass));
         int nCurrentAbilityValue = JsonArrayGetInt(jAbilities, nSpellcastingAbility);
-        int nAbilityAdjust = CG_GetRacialAbilityAdjust(nRace, nSpellcastingAbility) + CG_GetClassAbilityAdjust(nClass, nSpellcastingAbility);
+        int nAbilityAdjust = CG_GetRacialAbilityAdjust(nSpellcastingAbility) + CG_GetClassAbilityAdjust(nSpellcastingAbility);
         int nPointBuyChange = CG_GetAbilityPointBuyNumber() - (nAbilityMinPrimary - nAbilityMin);
 
         CG_SetAbilityPointBuyNumber(nPointBuyChange + nAbilityAdjust);
@@ -911,9 +915,7 @@ void CG_SetBaseAbilityScores()
 
 int CG_GetAdjustedAbilityScore(int nAbility)
 {
-    return JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_BASE_ABILITY_SCORES), nAbility) + 
-           CG_GetRacialAbilityAdjust(NWM_GetUserDataInt(CG_USERDATA_RACE), nAbility) + 
-           CG_GetClassAbilityAdjust(NWM_GetUserDataInt(CG_USERDATA_CLASS), nAbility);
+    return JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_BASE_ABILITY_SCORES), nAbility) + CG_GetRacialAbilityAdjust(nAbility) + CG_GetClassAbilityAdjust(nAbility);
 }
 
 void CG_SetAbilityNames()
@@ -929,14 +931,11 @@ void CG_SetAbilityNames()
 
 void CG_UpdateAbilityValues()
 {
-    int nRace = NWM_GetUserDataInt(CG_USERDATA_RACE);
-    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
-    json jBaseAbilityScores = NWM_GetUserData(CG_USERDATA_BASE_ABILITY_SCORES);
     json jAbilityValues = JsonArray();
     int nAbility;
     for (nAbility = 0; nAbility < 6; nAbility++)
     {
-        int nAbilityValue = JsonArrayGetInt(jBaseAbilityScores, nAbility) + CG_GetRacialAbilityAdjust(nRace, nAbility) + CG_GetClassAbilityAdjust(nClass, nAbility);        
+        int nAbilityValue = CG_GetAdjustedAbilityScore(nAbility);        
         int nModifier = CG_CalculateAbilityModifier(nAbilityValue);        
         jAbilityValues = JsonArrayInsertString(jAbilityValues, IntToString(nAbilityValue) + " (" + (nModifier >= 0 ? "+" : "" ) + IntToString(nModifier) + ")");
     }
@@ -958,7 +957,7 @@ int CG_CalculatePointCost(int nAbilityValue)
 int CG_CheckAbilityAboveMinimum(int nAbility, int nBaseValue)
 {
     if (AbilityToConstant(Get2DAString("classes", "SpellcastingAbil", NWM_GetUserDataInt(CG_USERDATA_CLASS))) == nAbility)
-        return (nBaseValue + CG_GetRacialAbilityAdjust(NWM_GetUserDataInt(CG_USERDATA_RACE), nAbility)) > RS2DA_GetIntEntry("CHARGEN_BASE_ABILITY_MIN_PRIMARY");
+        return (nBaseValue + CG_GetRacialAbilityAdjust(nAbility)) > RS2DA_GetIntEntry("CHARGEN_BASE_ABILITY_MIN_PRIMARY");
     else
         return nBaseValue > RS2DA_GetIntEntry("CHARGEN_BASE_ABILITY_MIN");
 }
@@ -1048,9 +1047,8 @@ void CG_ClickAbilityOkButton()
     if (NWM_GetIsWindowOpen(oPlayer, CG_MAIN_WINDOW_ID, TRUE))
     {
         NWM_CopyUserData(CG_ABILITY_WINDOW_ID, CG_USERDATA_ABILITY_POINT_BUY_NUMBER);        
-        NWM_CopyUserData(CG_ABILITY_WINDOW_ID, CG_USERDATA_BASE_ABILITY_SCORES);
-        CG_SetBaseSkillValues();                 
-        CG_ChangeState(CG_STATE_SKILL); 
+        NWM_CopyUserData(CG_ABILITY_WINDOW_ID, CG_USERDATA_BASE_ABILITY_SCORES);           
+        CG_ChangeState(CG_STATE_PACKAGES); 
         NWM_CloseWindow(oPlayer, CG_ABILITY_WINDOW_ID);        
     }  
 }
@@ -1089,26 +1087,24 @@ void CG_SetBaseSkillValues()
     NWM_SetUserData(CG_USERDATA_SKILLRANKS, GetJsonArrayOfSize(Get2DARowCount("skills"), JsonInt(0)));                                 
 }
 
-int CG_GetClassHasSkill(int nClass, int nSkill)
+int CG_GetClassHasSkill(int nSkill)
 {
     sqlquery sql = SqlPrepareQueryModule("SELECT id FROM "+ CG_SCRIPT_NAME + "_class_skills WHERE class = @class AND id = @id;");
-    SqlBindInt(sql, "@class", nClass);
+    SqlBindInt(sql, "@class", NWM_GetUserDataInt(CG_USERDATA_CLASS));
     SqlBindInt(sql, "@id", nSkill);
     return SqlStep(sql);   
 }
 
-int CG_GetIsClassSkill(int nClass, int nSkill)
+int CG_GetIsClassSkill(int nSkill)
 {
     sqlquery sql = SqlPrepareQueryModule("SELECT class_skill FROM "+ CG_SCRIPT_NAME + "_class_skills WHERE class = @class AND id = @id;");
-    SqlBindInt(sql, "@class", nClass);
+    SqlBindInt(sql, "@class", NWM_GetUserDataInt(CG_USERDATA_CLASS));
     SqlBindInt(sql, "@id", nSkill);
     return SqlStep(sql) ? SqlGetInt(sql, 0) : FALSE;
 }
 
 void CG_SetSkillData(json jSkillRanks)
 {
-    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
-
     json jSkillArray = JsonArray();
     json jIconsArray = JsonArray();
     json jNamesArray = JsonArray();
@@ -1122,11 +1118,11 @@ void CG_SetSkillData(json jSkillRanks)
         string sIcon = SqlGetString(sqlSkills, 2);
         int bAllClassesCanUse = SqlGetInt(sqlSkills, 3);
 
-        if (bAllClassesCanUse || CG_GetClassHasSkill(nClass, nSkill))
+        if (bAllClassesCanUse || CG_GetClassHasSkill(nSkill))
         {
             jSkillArray = JsonArrayInsertInt(jSkillArray, nSkill);
             jIconsArray = JsonArrayInsertString(jIconsArray, sIcon);
-            jNamesArray = JsonArrayInsertString(jNamesArray, sName + (CG_GetIsClassSkill(nClass, nSkill) ? " (Class Skill)" : ""));
+            jNamesArray = JsonArrayInsertString(jNamesArray, sName + (CG_GetIsClassSkill(nSkill) ? " (Class Skill)" : ""));
             jValuesArray = JsonArrayInsertInt(jValuesArray, JsonArrayGetInt(jSkillRanks, nSkill)); 
         }
     }
@@ -1139,13 +1135,12 @@ void CG_SetSkillData(json jSkillRanks)
 void CG_AdjustSkill(int nSkillIndex, int bIncrement)
 {
     json jSkillValues = NWM_GetBind(CG_BIND_LIST_VALUES);
-    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
     int nSkill = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_CLASS_AVAILABLE_SKILLS), nSkillIndex);
     int nCurrentRank = JsonArrayGetInt(jSkillValues, nSkillIndex);
     int nMaxRank = 1 + RS2DA_GetIntEntry("CHARGEN_SKILL_MAX_LEVEL_1_BONUS");
     int nCost = 1;
 
-    if (!CG_GetIsClassSkill(nClass, nSkill))
+    if (!CG_GetIsClassSkill(nSkill))
     {
         nMaxRank /= 2;
         nCost += 1;
@@ -1185,12 +1180,12 @@ json CG_GetMergedSkillRanks()
     return jSkillRanks;
 }
 
-// @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_CLICK:CG_ID_BUTTON_SKILL_WINDOW]
-void CG_ClickSkillsButton()
+// @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_CLICK:CG_ID_BUTTON_SKILLFEAT_WINDOW]
+void CG_ClickSkillsFeatsButton()
 {
     object oPlayer = OBJECT_SELF;
     
-    if (NWM_GetIsWindowOpen(oPlayer, CG_SKILL_WINDOW_ID))
+    if (NWM_GetIsWindowOpen(oPlayer, CG_SKILL_WINDOW_ID) || NWM_GetIsWindowOpen(oPlayer, CG_FEAT_WINDOW_ID))
         return;
 
     if (NWM_OpenWindow(oPlayer, CG_SKILL_WINDOW_ID))
@@ -1225,21 +1220,22 @@ void CG_ClickSkillOkButton()
     {
         NWM_CopyUserData(CG_SKILL_WINDOW_ID, CG_USERDATA_SKILLPOINTS_REMAINING);
         NWM_SetUserData(CG_USERDATA_SKILLRANKS, jSkillRanks);   
-        CG_ChangeState(CG_STATE_FEAT); 
-        NWM_CloseWindow(oPlayer, CG_SKILL_WINDOW_ID);        
+        NWM_CloseWindow(oPlayer, CG_SKILL_WINDOW_ID);
+
+        CG_OpenFeatsWindow();        
     }  
 }
 
 // *** FEATS
 
-json CG_GetLevel1GrantedFeats(int nClass)
+json CG_GetLevel1GrantedFeats()
 {
-    return GetLocalJson(GetDataObject(CG_SCRIPT_NAME), CG_CLASS_FEATS_GRANTED_ON_LEVEL1 + IntToString(nClass));
+    return GetLocalJson(GetDataObject(CG_SCRIPT_NAME), CG_CLASS_FEATS_GRANTED_ON_LEVEL1 + IntToString(NWM_GetUserDataInt(CG_USERDATA_CLASS)));
 }
 
-int CG_GetHasFeat(int nClass, int nFeat)
+int CG_GetHasFeat(int nFeat)
 {
-    return JsonArrayContainsInt(CG_GetLevel1GrantedFeats(nClass), nFeat);
+    return JsonArrayContainsInt(CG_GetLevel1GrantedFeats(), nFeat);
 }
 
 int CG_MeetsFeatRequirements(int nFeat)
@@ -1277,11 +1273,11 @@ int CG_MeetsFeatRequirements(int nFeat)
         return FALSE;
 
     int nPreReqFeat1 = Get2DAInt("feat", "PREREQFEAT1", nFeat);
-    if (nPreReqFeat1 != EF_UNSET_INTEGER_VALUE && !CG_GetHasFeat(NWM_GetUserDataInt(CG_USERDATA_CLASS), nPreReqFeat1))
+    if (nPreReqFeat1 != EF_UNSET_INTEGER_VALUE && !CG_GetHasFeat(nPreReqFeat1))
         return FALSE;
 
     int nPreReqFeat2 = Get2DAInt("feat", "PREREQFEAT2", nFeat);
-    if (nPreReqFeat2 != EF_UNSET_INTEGER_VALUE && !CG_GetHasFeat(NWM_GetUserDataInt(CG_USERDATA_CLASS), nPreReqFeat2))
+    if (nPreReqFeat2 != EF_UNSET_INTEGER_VALUE && !CG_GetHasFeat(nPreReqFeat2))
         return FALSE;
 
     int nFeatIndex, bHasOrPrereqFeat, bOrPrereqFeatAcquired;
@@ -1292,7 +1288,7 @@ int CG_MeetsFeatRequirements(int nFeat)
         {
             bHasOrPrereqFeat = TRUE;
 
-            if (CG_GetHasFeat(NWM_GetUserDataInt(CG_USERDATA_CLASS), nOrPreReqFeat))
+            if (CG_GetHasFeat(nOrPreReqFeat))
                 bOrPrereqFeatAcquired = TRUE;            
         }
     }
@@ -1302,7 +1298,7 @@ int CG_MeetsFeatRequirements(int nFeat)
     int nReqSkill1 = Get2DAInt("feat", "REQSKILL", nFeat);
     if (nReqSkill1 != EF_UNSET_INTEGER_VALUE)
     {
-        if (!CG_GetClassHasSkill(NWM_GetUserDataInt(CG_USERDATA_CLASS), nReqSkill1))
+        if (!CG_GetClassHasSkill(nReqSkill1))
             return FALSE;
 
         int nReqMinSkillRanks = Get2DAInt("feat", "ReqSkillMinRanks", nFeat);
@@ -1313,7 +1309,7 @@ int CG_MeetsFeatRequirements(int nFeat)
     int nReqSkill2 = Get2DAInt("feat", "REQSKILL2", nFeat);
     if (nReqSkill2 != EF_UNSET_INTEGER_VALUE)
     {
-        if (!CG_GetClassHasSkill(NWM_GetUserDataInt(CG_USERDATA_CLASS), nReqSkill2))
+        if (!CG_GetClassHasSkill(nReqSkill2))
             return FALSE;
 
         int nReqMinSkillRanks = Get2DAInt("feat", "ReqSkillMinRanks2", nFeat);
@@ -1339,10 +1335,19 @@ int CG_MeetsFeatRequirements(int nFeat)
     return TRUE;    
 }
 
-// @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_CLICK:CG_ID_BUTTON_FEAT_WINDOW]
-void CG_ClickFeatsButton()
+void CG_OpenFeatsWindow()
 {
-    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
+    object oPlayer = OBJECT_SELF;
+    if (NWM_OpenWindow(oPlayer, CG_FEAT_WINDOW_ID))
+    {
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_RACE);
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_CLASS);
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_BASE_ABILITY_SCORES);
+        NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_SKILLRANKS);
+    }    
+    
+    /*
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);     
     
     string sQuery = "SELECT id, name FROM " + CG_SCRIPT_NAME + "_feats WHERE class = @class ORDER BY name ASC;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
@@ -1357,4 +1362,5 @@ void CG_ClickFeatsButton()
 
         PrintString("Feat: " + sName + " -> " + IntToString(CG_MeetsFeatRequirements(nFeat)));
     }
+    */
 }

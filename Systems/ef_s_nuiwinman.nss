@@ -43,7 +43,7 @@ int NWM_GetBindBool(string sBindName);
 void NWM_SetBindBool(string sBindName, int bValue);
 int NWM_GetBindInt(string sBindName);
 void NWM_SetBindInt(string sBindName, int nValue);
-void NWM_SetBindWatch(string sBind, int bWatch);
+void NWM_SetBindWatch(string sBind, int bWatch = TRUE);
 json NWM_GetUserData(string sKey);
 void NWM_SetUserData(string sKey, json jValue);
 int NWM_GetUserDataInt(string sKey);
@@ -319,7 +319,7 @@ void NWM_SetBindInt(string sBindName, int nValue)
     NWM_SetBind(sBindName, JsonInt(nValue));
 }
 
-void NWM_SetBindWatch(string sBind, int bWatch)
+void NWM_SetBindWatch(string sBind, int bWatch = TRUE)
 {
     NuiSetBindWatch(NWM_GetPlayer(), NWM_GetToken(), sBind, bWatch);
 }

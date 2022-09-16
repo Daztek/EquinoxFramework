@@ -61,8 +61,6 @@ const int CG_STATE_FEAT                             = 4;
 
 const string CG_CLASS_BASE_ATTACK_BONUS             = "ClassBaseAttackBonus_";
 const string CG_CLASS_BASE_FORTITUDE_SAVING_THROW   = "ClassBaseFortitudeSavingThrow_";
-const string CG_CLASS_BASE_REFLEX_SAVING_THROW      = "ClassBaseReflexSavingThrow_";
-const string CG_CLASS_BASE_WILL_SAVING_THROW        = "ClassBaseWillSavingThrow_";
 const string CG_CLASS_BASE_SPELL_LEVEL              = "ClassBaseSpellLevel_";
 const string CG_CLASS_FEATS_GRANTED_ON_LEVEL1       = "ClassFeatsGrantedOnLevel1_";
 
@@ -235,14 +233,10 @@ void CG_LoadClassBaseStatData(int nClass)
     int nBaseAttackBonus = StringToInt(Get2DAString(sAttackBonusTable, "BAB", 0));
     SetLocalInt(oDataObject, CG_CLASS_BASE_ATTACK_BONUS + IntToString(nClass), nBaseAttackBonus);
 
-    // Saving Throws
+    // Fortitude Saving Throw
     string sSavingThrowTable = Get2DAString("classes", "SavingThrowTable", nClass);
-    int nBaseFortitudeSave = StringToInt(Get2DAString(sSavingThrowTable, "FortSave", 0));
-    int nBaseReflexSave = StringToInt(Get2DAString(sSavingThrowTable, "RefSave", 0));
-    int nBaseWillSave = StringToInt(Get2DAString(sSavingThrowTable, "WillSave", 0));    
-    SetLocalInt(oDataObject, CG_CLASS_BASE_FORTITUDE_SAVING_THROW + IntToString(nClass), nBaseFortitudeSave);
-    SetLocalInt(oDataObject, CG_CLASS_BASE_REFLEX_SAVING_THROW + IntToString(nClass), nBaseReflexSave);          
-    SetLocalInt(oDataObject, CG_CLASS_BASE_WILL_SAVING_THROW + IntToString(nClass), nBaseReflexSave); 
+    int nBaseFortitudeSave = StringToInt(Get2DAString(sSavingThrowTable, "FortSave", 0)); 
+    SetLocalInt(oDataObject, CG_CLASS_BASE_FORTITUDE_SAVING_THROW + IntToString(nClass), nBaseFortitudeSave); 
 
     // Spell Level
     if (StringToInt(Get2DAString("classes", "SpellCaster", nClass)))
@@ -287,10 +281,14 @@ void CG_LoadClassFeatTable(int nClass)
     {
         int nFeat = SqlGetInt(sqlGlobalFeatList, 0);
 
-        // Prefilter based on min spell level
-        string sMinSpellLevel = Get2DAString("feat", "MINSPELLLVL", nFeat);
-        if (sMinSpellLevel != "" && GetLocalInt(oDataObject, CG_CLASS_BASE_SPELL_LEVEL + IntToString(nClass)) < StringToInt(sMinSpellLevel))
+        // Filter based on min spell level
+        int nMinSpellLevel = Get2DAInt("feat", "MINSPELLLVL", nFeat);
+        if (nMinSpellLevel != EF_UNSET_INTEGER_VALUE && GetLocalInt(oDataObject, CG_CLASS_BASE_SPELL_LEVEL + IntToString(nClass)) < nMinSpellLevel)
             continue;
+        // Filter based on min attack bonus
+        int nMinAttackBonus = Get2DAInt("feat", "MINATTACKBONUS", nFeat);
+        if (nMinAttackBonus != EF_UNSET_INTEGER_VALUE && GetLocalInt(oDataObject, CG_CLASS_BASE_ATTACK_BONUS + IntToString(nClass)) < nMinAttackBonus)
+            continue;            
         
         sqlquery sql = SqlPrepareQueryModule(sQuery);
         SqlBindInt(sql, "@class", nClass);
@@ -319,6 +317,15 @@ void CG_LoadClassFeatTable(int nClass)
             continue; // Still don't care about epic feats for level 1 
         if (StringToInt(Get2DAString("feat", "MinLevel", nFeat)) > 1)
             continue; // Still don't care about feats with a minlevel of >1
+        
+        // Filter based on min spell level, again
+        int nMinSpellLevel = Get2DAInt("feat", "MINSPELLLVL", nFeat);
+        if (nMinSpellLevel != EF_UNSET_INTEGER_VALUE && GetLocalInt(oDataObject, CG_CLASS_BASE_SPELL_LEVEL + IntToString(nClass)) < nMinSpellLevel)
+            continue;
+        // Filter based on min attack bonus, again
+        int nMinAttackBonus = Get2DAInt("feat", "MINATTACKBONUS", nFeat);
+        if (nMinAttackBonus != EF_UNSET_INTEGER_VALUE && GetLocalInt(oDataObject, CG_CLASS_BASE_ATTACK_BONUS + IntToString(nClass)) < nMinAttackBonus)
+            continue;             
 
         sqlquery sql = SqlPrepareQueryModule(sQuery);
         SqlBindInt(sql, "@class", nClass);
@@ -339,7 +346,8 @@ void CG_LoadFeatData()
                     "id INTEGER NOT NULL, " +
                     "list INTEGER NOT NULL, " +
                     "name TEXT NOT NULL, " +
-                    "icon TEXT NOT NULL);";
+                    "icon TEXT NOT NULL, " +
+                    "PRIMARY KEY(class, id));";
     SqlStep(SqlPrepareQueryModule(sQuery));      
     
     // Step 1: Prepare the global feat list consisting of feats that all classes can use, have a min level <=1 and aren't epic feats
@@ -427,6 +435,12 @@ void CG_CloseChildWindows(string sWindowIdToSkip = "")
 
     if (sWindowIdToSkip != CG_SKILL_WINDOW_ID)
         NWM_CloseWindow(oPlayer, CG_SKILL_WINDOW_ID);     
+}
+
+// @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_CLOSE:NUI_WINDOW_ROOT_GROUP]
+void QC_MainWindowClose()
+{
+    CG_CloseChildWindows();
 }
 
 // @NWMWINDOW[CG_MAIN_WINDOW_ID]
@@ -1072,7 +1086,7 @@ void CG_SetBaseSkillValues()
                                 (nFirstLevelSkillPointsMultiplier * nExtraSkillPointsPerLevel);
 
     CG_SetSkillPointsRemaining(nSkillPointsRemaining);
-    NWM_SetUserData(CG_USERDATA_SKILLRANKS, GetJsonArrayOfSize(Get2DARowCount("skills"), JsonInt(-1)));                                 
+    NWM_SetUserData(CG_USERDATA_SKILLRANKS, GetJsonArrayOfSize(Get2DARowCount("skills"), JsonInt(0)));                                 
 }
 
 int CG_GetClassHasSkill(int nClass, int nSkill)
@@ -1113,8 +1127,7 @@ void CG_SetSkillData(json jSkillRanks)
             jSkillArray = JsonArrayInsertInt(jSkillArray, nSkill);
             jIconsArray = JsonArrayInsertString(jIconsArray, sIcon);
             jNamesArray = JsonArrayInsertString(jNamesArray, sName + (CG_GetIsClassSkill(nClass, nSkill) ? " (Class Skill)" : ""));
-            int nValue = JsonArrayGetInt(jSkillRanks, nSkill);
-            jValuesArray = JsonArrayInsertInt(jValuesArray, nValue == -1 ? 0 : nValue); 
+            jValuesArray = JsonArrayInsertInt(jValuesArray, JsonArrayGetInt(jSkillRanks, nSkill)); 
         }
     }
     NWM_SetUserData(CG_USERDATA_CLASS_AVAILABLE_SKILLS, jSkillArray);
@@ -1289,24 +1302,22 @@ int CG_MeetsFeatRequirements(int nFeat)
     int nReqSkill1 = Get2DAInt("feat", "REQSKILL", nFeat);
     if (nReqSkill1 != EF_UNSET_INTEGER_VALUE)
     {
-        int nSkillRank = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_SKILLRANKS), nReqSkill1);
-        if (nSkillRank == -1)
+        if (!CG_GetClassHasSkill(NWM_GetUserDataInt(CG_USERDATA_CLASS), nReqSkill1))
             return FALSE;
 
         int nReqMinSkillRanks = Get2DAInt("feat", "ReqSkillMinRanks", nFeat);
-        if (nReqMinSkillRanks != EF_UNSET_INTEGER_VALUE && nSkillRank < nReqMinSkillRanks)
+        if (nReqMinSkillRanks != EF_UNSET_INTEGER_VALUE && JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_SKILLRANKS), nReqSkill1) < nReqMinSkillRanks)
             return FALSE;                    
     }
 
     int nReqSkill2 = Get2DAInt("feat", "REQSKILL2", nFeat);
     if (nReqSkill2 != EF_UNSET_INTEGER_VALUE)
     {
-        int nSkillRank = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_SKILLRANKS), nReqSkill2);
-        if (nSkillRank == -1)
+        if (!CG_GetClassHasSkill(NWM_GetUserDataInt(CG_USERDATA_CLASS), nReqSkill2))
             return FALSE;
 
         int nReqMinSkillRanks = Get2DAInt("feat", "ReqSkillMinRanks2", nFeat);
-        if (nReqMinSkillRanks != EF_UNSET_INTEGER_VALUE && nSkillRank < nReqMinSkillRanks)
+        if (nReqMinSkillRanks != EF_UNSET_INTEGER_VALUE && JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_SKILLRANKS), nReqSkill2) < nReqMinSkillRanks)
             return FALSE;                    
     }
 

@@ -46,9 +46,13 @@ const string CG_BIND_LIST_NAMES                         = "list_names";
 const string CG_BIND_LIST_VALUES                        = "list_values";
 const string CG_BIND_TEXT_POINTS_REMAINING              = "list_points_remaining";
 
-const string CG_BIND_LIST_AVAILABLE_FEATS_PREFIX         = "available_feats_";
-const string CG_BIND_LIST_GRANTED_FEATS_PREFIX           = "granted_feats_";
-const string CG_BIND_LIST_CHOSEN_FEATS_PREFIX            = "chosen_feats_";
+const string CG_BIND_LIST_AVAILABLE_FEATS_PREFIX        = "available_feats_";
+const string CG_BIND_LIST_GRANTED_FEATS_PREFIX          = "granted_feats_";
+const string CG_BIND_LIST_CHOSEN_FEATS_PREFIX           = "chosen_feats_";
+
+const string CG_BIND_VALUE_SEARCH_TEXT                  = "val_search_text";
+const string CG_ID_BUTTON_CLEAR_SEARCH                  = "btn_clear_search";
+const string CG_BIND_BUTTON_CLEAR_SEARCH_ENABLED        = "btn_clear_search_enabled";
 
 const string CG_USERDATA_RACE                           = "Race";
 const string CG_USERDATA_CLASS                          = "Class";
@@ -719,12 +723,12 @@ json CG_CreateFeatWindow()
                     NB_End();
 
                     NB_StartRow();
-                        NB_StartElement(NuiTextEdit(JsonString("Search Feats..."), NuiBind("TEMP"), 32, FALSE));
+                        NB_StartElement(NuiTextEdit(JsonString("Search Feats..."), NuiBind(CG_BIND_VALUE_SEARCH_TEXT), 32, FALSE));
                             NB_SetHeight(32.0f);
                         NB_End();
                         NB_StartElement(NuiButton(JsonString("X")));
-                            //NB_SetId(QC_BIND_BUTTON_CLEAR_SPELL_SEARCH);
-                            //NB_SetEnabled(NuiBind(QC_BIND_BUTTON_CLEAR_SPELL_SEARCH));
+                            NB_SetId(CG_ID_BUTTON_CLEAR_SEARCH);
+                            NB_SetEnabled(NuiBind(CG_BIND_BUTTON_CLEAR_SEARCH_ENABLED));
                             NB_SetDimensions(32.0f, 32.0f);
                         NB_End();
                     NB_End();
@@ -751,6 +755,15 @@ json CG_CreateFeatWindow()
                             NB_End();                             
                         NB_End();
                     NB_End();
+
+                    NB_StartRow();
+                        NB_StartGroup(TRUE, NUI_SCROLLBARS_NONE);
+                            NB_SetDimensions(375.0f, 32.0f);                    
+                            NB_StartElement(NuiLabel(NuiBind(CG_BIND_TEXT_POINTS_REMAINING), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                                NB_SetDimensions(367.0f, 22.0f);
+                            NB_End();
+                        NB_End();
+                    NB_End();                      
 
                 NB_End();
 
@@ -810,15 +823,13 @@ json CG_CreateFeatWindow()
                                 NB_End();
                             NB_End();                             
                         NB_End();
-                    NB_End();            
+                    NB_End();                                          
+
                 NB_End();            
             
             NB_End();
 
-            NB_StartRow();
-                NB_StartElement(NuiLabel(NuiBind(CG_BIND_TEXT_POINTS_REMAINING), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
-                    NB_SetDimensions(200.0f, 32.0f);
-                NB_End();
+            NB_StartRow();                   
                 NB_AddSpacer();
                 NB_StartElement(NuiButton(JsonString("OK")));
                     NB_SetDimensions(200.0f, 32.0f);
@@ -1366,7 +1377,6 @@ void CG_SkillAdjustmentButtonMouseUp()
 void CG_ClickSkillOkButton()
 {
     object oPlayer = OBJECT_SELF;
-    int nSKillPointsRemaining = CG_GetSkillPointsRemaining();
     json jSkillRanks = CG_GetMergedSkillRanks();
 
     if (NWM_GetIsWindowOpen(oPlayer, CG_MAIN_WINDOW_ID, TRUE))
@@ -1500,11 +1510,9 @@ void CG_SetBaseFeatValues()
 
     NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS, JsonArray());
     NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE, JsonArray());
-
-    PrintString("Normal Feats:" + IntToString(nNumberNormalFeatsEveryNthLevel + nExtraFeatsAtFirstLevel) + ", Bonus Feats: " + IntToString(nNumBonusFeats));
 }
 
-int CG_GetTotalNumChosenFeats()
+int CG_GetTotalNumChooseableFeats()
 {
     return NWM_GetUserDataInt(CG_USERDATA_NUM_NORMAL_FEATS) + NWM_GetUserDataInt(CG_USERDATA_NUM_BONUS_FEATS);
 }
@@ -1658,12 +1666,14 @@ void CG_UpdateAvailableFeatsList()
     int nNumNormalFeats = NWM_GetUserDataInt(CG_USERDATA_NUM_NORMAL_FEATS);
     int nNumBonusFeats = NWM_GetUserDataInt(CG_USERDATA_NUM_BONUS_FEATS);   
     json jChosenFeats = NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS);
-    json jChosenFeatsListType = NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE);    
+    json jChosenFeatsListType = NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE);
+    string sSearch = NWM_GetBindString(CG_BIND_VALUE_SEARCH_TEXT);    
     string sFeatArray;  
     string sNamesArray;
     string sIconsArray;     
-    sqlquery sql = SqlPrepareQueryModule("SELECT id, list, name, icon FROM " + CG_SCRIPT_NAME + "_feats WHERE class = @class ORDER BY name ASC;");
+    sqlquery sql = SqlPrepareQueryModule("SELECT id, list, name, icon FROM " + CG_SCRIPT_NAME + "_feats WHERE class = @class AND name LIKE @like ORDER BY name ASC;");
     SqlBindInt(sql, "@class", nClass);
+    SqlBindString(sql, "@like", "%" + sSearch + "%");
     while (SqlStep(sql))
     {
         int nFeat = SqlGetInt(sql, 0);
@@ -1702,8 +1712,37 @@ void CG_UpdateChosenFeatsList()
 void CG_UpdatingRemainingFeatsText()
 {
     int nNumChosenFeats = JsonGetLength(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS));
-    int nNumChooseableFeats = NWM_GetUserDataInt(CG_USERDATA_NUM_NORMAL_FEATS) + NWM_GetUserDataInt(CG_USERDATA_NUM_BONUS_FEATS);
+    int nNumChooseableFeats = CG_GetTotalNumChooseableFeats();
     NWM_SetBindString(CG_BIND_TEXT_POINTS_REMAINING, "Remaining Feats: " + IntToString(nNumChooseableFeats - nNumChosenFeats));
+}
+
+void CG_CheckFeatOkButtonStatus()
+{
+    if (JsonGetLength(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS)) == CG_GetTotalNumChooseableFeats())
+        NWM_SetBindBool(CG_ID_BUTTON_OK_ENABLED, TRUE);
+    else
+        NWM_SetBindBool(CG_ID_BUTTON_OK_ENABLED, FALSE);
+}
+
+void CG_VerifyChosenFeats()
+{
+    int nRace = NWM_GetUserDataInt(CG_USERDATA_RACE);
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);    
+    int nChosenFeatIndex = 0;
+
+    while (nChosenFeatIndex < JsonGetLength(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS)))
+    {
+        int nFeat = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS), nChosenFeatIndex);
+
+        if (!CG_MeetsFeatRequirements(nRace, nClass, nFeat))
+        {
+            NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS, JsonArrayDel(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS), nChosenFeatIndex));
+            NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE, JsonArrayDel(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE), nChosenFeatIndex));
+            nChosenFeatIndex = 0;            
+        }
+        else
+            nChosenFeatIndex++;   
+    }  
 }
 
 void CG_OpenFeatsWindow()
@@ -1720,61 +1759,87 @@ void CG_OpenFeatsWindow()
         NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_CHOSEN_FEATS);
         NWM_CopyUserData(CG_MAIN_WINDOW_ID, CG_USERDATA_CHOSEN_FEATS_LIST_TYPE);
 
-        struct ProfilerData pd = Profiler_Start("CG_UpdateGrantedFeatsList");
-        CG_UpdateGrantedFeatsList();
-        Profiler_Stop(pd);
+        CG_VerifyChosenFeats();
         
-        pd = Profiler_Start("CG_UpdateAvailableFeatsList");
+        CG_UpdateGrantedFeatsList();        
         CG_UpdateAvailableFeatsList();
-        Profiler_Stop(pd);  
-
         CG_UpdateChosenFeatsList();
+        CG_UpdatingRemainingFeatsText();
+        CG_CheckFeatOkButtonStatus();
 
-        CG_UpdatingRemainingFeatsText();              
+        NWM_SetBindWatch(CG_BIND_VALUE_SEARCH_TEXT, TRUE);                      
     }    
+}
+
+void CG_AddChosenFeat(int nAvailableFeatIndex)
+{
+    if (nAvailableFeatIndex == -1)
+        return;
+
+    int nFeat = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST), nAvailableFeatIndex);
+    int nList = CG_GetFeatListType(nFeat);
+
+    NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS, JsonArrayInsertInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS), nFeat));
+    NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE, JsonArrayInsertInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE), nList));
+
+    CG_UpdateAvailableFeatsList();
+    CG_UpdateChosenFeatsList();
+    CG_UpdatingRemainingFeatsText();
+    CG_CheckFeatOkButtonStatus(); 
+}
+
+void CG_RemoveChosenFeat(int nChosenFeatIndex)
+{
+    if (nChosenFeatIndex == -1)
+        return;
+
+    NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS, JsonArrayDel(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS), nChosenFeatIndex));
+    NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE, JsonArrayDel(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE), nChosenFeatIndex));
+    
+    CG_VerifyChosenFeats();
+    
+    CG_UpdateAvailableFeatsList();
+    CG_UpdateChosenFeatsList();
+    CG_UpdatingRemainingFeatsText();
+    CG_CheckFeatOkButtonStatus(); 
 }
 
 // @NWMEVENT[CG_FEAT_WINDOW_ID:NUI_EVENT_MOUSEUP:CG_ID_BUTTON_LIST_ADD_FEAT]
 void CG_FeatAddMouseUp()
 {
-    json jPayload = NuiGetEventPayload();
-
-    if (NuiGetMouseButton(jPayload) == NUI_MOUSE_BUTTON_LEFT)
-    {    
-        int nFeat = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST), NuiGetEventArrayIndex());
-        int nList = CG_GetFeatListType(nFeat);
-
-        NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS, JsonArrayInsertInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS), nFeat));
-        NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE, JsonArrayInsertInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE), nList));
-
-        struct ProfilerData pd = Profiler_Start("CG_UpdateGrantedFeatsList");
-        CG_UpdateAvailableFeatsList();
-        Profiler_Stop(pd);
-
-        CG_UpdateChosenFeatsList();   
-
-        CG_UpdatingRemainingFeatsText();     
-    }
+    if (NuiGetMouseButton(NuiGetEventPayload()) == NUI_MOUSE_BUTTON_LEFT)
+        CG_AddChosenFeat(NuiGetEventArrayIndex());
 }
 
 // @NWMEVENT[CG_FEAT_WINDOW_ID:NUI_EVENT_MOUSEUP:CG_ID_BUTTON_LIST_REMOVE_FEAT]
 void CG_FeatRemoveMouseUp()
 {
-    json jPayload = NuiGetEventPayload();
+    if (NuiGetMouseButton(NuiGetEventPayload()) == NUI_MOUSE_BUTTON_LEFT)
+        CG_RemoveChosenFeat(NuiGetEventArrayIndex());
+}
 
-    if (NuiGetMouseButton(jPayload) == NUI_MOUSE_BUTTON_LEFT)
-    {    
-        int nFeatIndex = NuiGetEventArrayIndex();
+// @NWMEVENT[CG_FEAT_WINDOW_ID:NUI_EVENT_CLICK:CG_ID_BUTTON_OK]
+void CG_ClickFeatOkButton()
+{
+    object oPlayer = OBJECT_SELF;
 
-        NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS, JsonArrayDel(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS), nFeatIndex));
-        NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE, JsonArrayDel(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE), nFeatIndex));
-     
-        struct ProfilerData pd = Profiler_Start("CG_UpdateGrantedFeatsList");
-        CG_UpdateAvailableFeatsList();
-        Profiler_Stop(pd);
+    if (NWM_GetIsWindowOpen(oPlayer, CG_MAIN_WINDOW_ID, TRUE))
+    {
+        NWM_CopyUserData(CG_FEAT_WINDOW_ID, CG_USERDATA_CHOSEN_FEATS);
+        NWM_CopyUserData(CG_FEAT_WINDOW_ID, CG_USERDATA_CHOSEN_FEATS_LIST_TYPE);
+        NWM_CloseWindow(oPlayer, CG_FEAT_WINDOW_ID);     
+    }  
+}
 
-        CG_UpdateChosenFeatsList();   
+// @NWMEVENT[CG_FEAT_WINDOW_ID:NUI_EVENT_WATCH:CG_BIND_VALUE_SEARCH_TEXT]
+void CG_WatchFeatSearch()
+{
+    NWM_SetBindBool(CG_BIND_BUTTON_CLEAR_SEARCH_ENABLED, GetStringLength(NWM_GetBindString(CG_BIND_VALUE_SEARCH_TEXT)));
+    CG_UpdateAvailableFeatsList();
+}
 
-        CG_UpdatingRemainingFeatsText();     
-    }
+// @NWMEVENT[CG_FEAT_WINDOW_ID:NUI_EVENT_CLICK:CG_ID_BUTTON_CLEAR_SEARCH]
+void CG_ClickClearFeatSearchButton()
+{
+    NWM_SetBindString(CG_BIND_VALUE_SEARCH_TEXT, "");
 }

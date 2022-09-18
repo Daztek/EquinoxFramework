@@ -66,7 +66,7 @@ void NWM_Init()
     string sQuery = "CREATE TABLE IF NOT EXISTS " + NWM_SCRIPT_NAME + "(" +
                     "windowid TEXT NOT NULL, " +
                     "eventtype TEXT NOT NULL, " +
-                    "element TEXT NOT NULL, " +                    
+                    "element TEXT NOT NULL, " +
                     "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 }
@@ -113,7 +113,7 @@ void NWM_RegisterEvent(json jNWMEvent)
         if (bPrefix)
             InsertStringToLocalJsonArray(GetDataObject(NWM_SCRIPT_NAME), NWM_EVENT_PREFIX + sWindowId, sElement);
 
-        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + NWM_SCRIPT_NAME + " (windowid, eventtype, element, scriptchunk) " + 
+        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + NWM_SCRIPT_NAME + " (windowid, eventtype, element, scriptchunk) " +
                                              "VALUES(@windowid, @eventtype, @element, @scriptchunk);");
         SqlBindString(sql, "@windowid", sWindowId);
         SqlBindString(sql, "@eventtype", sEventType);
@@ -122,7 +122,7 @@ void NWM_RegisterEvent(json jNWMEvent)
         SqlStep(sql);
 
         EFCore_CacheScriptChunk(sScriptChunk);
-        
+
         WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
     }
     else
@@ -142,7 +142,7 @@ void NWM_NuiEvent()
     {
         if (NWM_DEBUG_EVENTS)
             WriteLog(NWM_LOG_TAG, "WARNING: Unknown or Anonymous Window: " + sWindowId + " (Event: " + NuiGetEventType() + ", Element: " + NuiGetEventElement() + ")");
-        return;        
+        return;
     }
 
     string sEventType = NuiGetEventType();
@@ -213,7 +213,7 @@ json NWM_GetWindowRootJson(string sWindowId)
 
 json NWM_GetDefaultWindowGeometry(string sWindowId)
 {
-    return GetLocalJson(GetDataObject(NWM_SCRIPT_NAME), NWM_WINDOW_GEOMETRY + sWindowId);    
+    return GetLocalJson(GetDataObject(NWM_SCRIPT_NAME), NWM_WINDOW_GEOMETRY + sWindowId);
 }
 
 json NWM_GetPlayerWindowGeometry(object oPlayer, string sWindowId)
@@ -260,7 +260,7 @@ int NWM_OpenWindow(object oPlayer, string sWindowId)
     }
 
     NuiSetBindWatch(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND, TRUE);
-    NuiSetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND, jPlayerGeometry);    
+    NuiSetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND, jPlayerGeometry);
 
     return nToken;
 }
@@ -276,7 +276,7 @@ void NWM_CloseWindow(object oPlayer, string sWindowId)
         NWM_RunEvents(oPlayer, sWindowId, NUI_EVENT_CLOSE, NUI_WINDOW_ROOT_GROUP);
         NuiDestroy(oPlayer, nWindowToken);
     }
-    NWM_SetToken(nToken);    
+    NWM_SetToken(nToken);
 }
 
 json NWM_GetBind(string sBindName)
@@ -343,7 +343,7 @@ int NWM_GetUserDataInt(string sKey)
 
 void NWM_SetUserDataInt(string sKey, int nValue)
 {
-    NWM_SetUserData(sKey, JsonInt(nValue));    
+    NWM_SetUserData(sKey, JsonInt(nValue));
 }
 
 string NWM_GetUserDataString(string sKey)
@@ -353,7 +353,7 @@ string NWM_GetUserDataString(string sKey)
 
 void NWM_SetUserDataString(string sKey, string sValue)
 {
-    NWM_SetUserData(sKey, JsonString(sValue));    
+    NWM_SetUserData(sKey, JsonString(sValue));
 }
 
 void NWM_DeleteUserData(string sKey)
@@ -370,8 +370,8 @@ json NWM_GetUserDataFromWindow(string sWindowId, string sKey)
     json jUserData;
 
      if (NWM_GetIsWindowOpen(oPlayer, sWindowId, TRUE))
-        jUserData = NWM_GetUserData(sKey);   
-    
+        jUserData = NWM_GetUserData(sKey);
+
     NWM_SetToken(nToken);
     return jUserData;
 }
@@ -406,7 +406,7 @@ void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string s
     sqlquery sql = SqlPrepareQueryModule("SELECT scriptchunk FROM " + NWM_SCRIPT_NAME + " WHERE windowid = @windowid AND eventtype = @eventtype AND element = @element;");
     SqlBindString(sql, "@windowid", sWindowId);
     SqlBindString(sql, "@eventtype", sEventType);
-    SqlBindString(sql, "@element", sElement); 
+    SqlBindString(sql, "@element", sElement);
 
     while (SqlStep(sql))
     {
@@ -417,7 +417,7 @@ void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string s
         {
             if (sError != "")
                 WriteLog(NWM_LOG_TAG, "DEBUG: Event Chunk '" + sScriptChunk + "' failed with error: " + sError);
-        }     
+        }
     }
 }
 

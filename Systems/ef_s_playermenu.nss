@@ -96,4 +96,3 @@ void PM_RegisterButton(json jButton)
 
     WriteLog(PM_LOG_TAG, "* System '" + sSystem + "' registered player menu button '" + sButton + "' with tooltip: \""  + sTooltip + "\"");
 }
-

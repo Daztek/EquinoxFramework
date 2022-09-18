@@ -390,4 +390,3 @@ string PlayerDB_GetLastUpdated_UTC(object oPlayer, string sSystem, string sVarNa
     else
         return "";
 }
-

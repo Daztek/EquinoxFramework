@@ -103,4 +103,3 @@ void Emote_ToggleWindow()
     else if (NWM_OpenWindow(oPlayer, EMOTE_WINDOW_ID))
         NWM_SetBind("buttons", GetLocalJsonArray(GetDataObject(EMOTE_SCRIPT_NAME), EMOTE_NAME_ARRAY));
 }
-

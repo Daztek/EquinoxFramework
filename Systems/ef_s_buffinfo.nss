@@ -375,4 +375,3 @@ string BuffInfo_GetModifierType(int nEffectType, int nPlus, int nMinus)
 {
     return nEffectType == nPlus ? "+" : nEffectType == nMinus ? "-" : "";
 }
-

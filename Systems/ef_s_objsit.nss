@@ -109,4 +109,3 @@ void ObjSit_OnPlaceableUsed()
         }
     }
 }
-

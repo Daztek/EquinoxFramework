@@ -1528,6 +1528,5 @@ object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex
 
     location locSpawn = Location(oArea, vDoorPosition, strDoor.fOrientation);
 
-    return GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);        
+    return GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);
 }
-

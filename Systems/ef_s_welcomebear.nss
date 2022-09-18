@@ -38,4 +38,3 @@ void WB_OnAreaPostProcessed()
         }
     }
 }
-

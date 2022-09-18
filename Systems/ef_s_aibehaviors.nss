@@ -47,7 +47,7 @@ void AIB_WanderFlee_OnEnterAoE()
         PlayVoiceChat(VOICE_CHAT_GATTACK1, oSelf);
 
         AssignCommand(oSelf, ClearAllActions());
-        AssignCommand(oSelf, ActionMoveAwayFromObject(oPlayer, TRUE, 10.0f + IntToFloat(Random(5))));    
+        AssignCommand(oSelf, ActionMoveAwayFromObject(oPlayer, TRUE, 10.0f + IntToFloat(Random(5))));
         AssignCommand(oSelf, ActionRandomWalk());
     }
 }
@@ -101,7 +101,7 @@ void AIB_ChargeFlee_OnEnterAoE()
         AssignCommand(oSelf, ClearAllActions());
         AssignCommand(oSelf, ActionMoveToObject(oPlayer, TRUE, 1.0f));
         AssignCommand(oSelf, ActionDoCommand(AIB_ChargeFlee_Knockdown(oPlayer)));
-        AssignCommand(oSelf, ActionMoveAwayFromObject(oPlayer, TRUE, 15.0f + IntToFloat(Random(5))));    
+        AssignCommand(oSelf, ActionMoveAwayFromObject(oPlayer, TRUE, 15.0f + IntToFloat(Random(5))));
         AssignCommand(oSelf, ActionRandomWalk());
     }
 }

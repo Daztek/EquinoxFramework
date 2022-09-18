@@ -469,4 +469,3 @@ string AbilityConstantToName(int nAbility)
 
     return "";
 }
-

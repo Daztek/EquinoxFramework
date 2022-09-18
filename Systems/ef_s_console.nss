@@ -120,8 +120,8 @@ json Console_CreateWindow()
                             NB_SetId(CONSOLE_BIND_LIST_COMMAND_NAME);
                             NB_StartDrawList(JsonBool(TRUE));
                                 NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiColor(255, 255, 255), NuiRect(0.0f, 0.0f, 200.0f, 16.0f), NuiBind(CONSOLE_BIND_LIST_COMMAND_NAME), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_OFF));
-                                NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiColor(50, 150, 250), NuiRect(0.0f, 0.0f, 200.0f, 16.0f), NuiBind(CONSOLE_BIND_LIST_COMMAND_NAME), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_HOVER));                                
-                            NB_End();                            
+                                NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiColor(50, 150, 250), NuiRect(0.0f, 0.0f, 200.0f, 16.0f), NuiBind(CONSOLE_BIND_LIST_COMMAND_NAME), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_HOVER));
+                            NB_End();
                         NB_End();
                     NB_End();
                 NB_End();
@@ -331,7 +331,7 @@ void Console_MouseUpListCommandName()
 {
     if (NuiGetClickthroughProtection())
         return;
-        
+
     int nCommand = JsonArrayGetInt(NWM_GetUserData("commands"), NuiGetEventArrayIndex());
     if (nCommand != 0 && JsonGetInt(NWM_GetUserData("selected_command")) != nCommand)
         Console_SelectCommand(nCommand);
@@ -363,9 +363,9 @@ void Console_ClickClearArgsButton()
 
     for (nArgument = 0; nArgument < nNumArguments; nArgument++)
     {
-        sArgumentValueArray += StringJsonArrayElementString("");   
+        sArgumentValueArray += StringJsonArrayElementString("");
     }
-    
+
     NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, StringJsonArrayElementsToJsonArray(sArgumentValueArray));
 }
 

@@ -221,4 +221,3 @@ void AV_OnAreaGenerated(string sAreaID)
     }
 
 }
-

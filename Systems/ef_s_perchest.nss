@@ -325,4 +325,3 @@ void PC_SetDepositMode(object oPlayer, int bEnabled)
         NWNX_Player_SetTlkOverride(oPlayer, 10469, "");
     }
 }
-

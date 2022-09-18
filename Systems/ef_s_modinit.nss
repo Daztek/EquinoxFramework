@@ -62,4 +62,3 @@ void ModInit_Init()
     NWNX_Feedback_SetCombatLogMessageHidden(NWNX_FEEDBACK_COMBATLOG_ENTERTARGETINGMODE, TRUE);
     */
 }
-

@@ -24,7 +24,7 @@ void PerAOE_AddScript(string sScript)
     string sExecuteCachedScriptChunk = nssFunction("ExecuteCachedScriptChunk", sGetLocalString + ", OBJECT_SELF, FALSE");
     string sScriptChunk = sObjectSelf + sExecuteCachedScriptChunk;
 
-    AddScript(sScript, PERAOE_SCRIPT_NAME, sScriptChunk); 
+    AddScript(sScript, PERAOE_SCRIPT_NAME, sScriptChunk);
 }
 
 // @CORE[EF_SYSTEM_INIT]
@@ -32,7 +32,7 @@ void PerAOE_Init()
 {
     PerAOE_AddScript(PERAOE_SCRIPT_ON_ENTER);
     PerAOE_AddScript(PERAOE_SCRIPT_ON_EXIT);
-    PerAOE_AddScript(PERAOE_SCRIPT_ON_HEARTBEAT);    
+    PerAOE_AddScript(PERAOE_SCRIPT_ON_HEARTBEAT);
 }
 
 string PerAOE_SetScriptChunk(object oTarget, string sScript, string sSystem, string sFunction)
@@ -42,7 +42,7 @@ string PerAOE_SetScriptChunk(object oTarget, string sScript, string sSystem, str
         DeleteLocalString(oTarget, sScript);
         return "";
     }
-    
+
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
     EFCore_CacheScriptChunk(sScriptChunk);
     SetLocalString(oTarget, sScript, nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction)));
@@ -59,7 +59,7 @@ void PerAOE_Apply(object oTarget, float fRadius, string sEffectTag, string sSyst
 
     sOnEnterFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_ENTER, sSystem, sOnEnterFunction);
     sOnExitFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_EXIT, sSystem, sOnExitFunction);
-    sOnHeartbeatFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_HEARTBEAT, sSystem, sOnHeartbeatFunction);    
+    sOnHeartbeatFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_HEARTBEAT, sSystem, sOnHeartbeatFunction);
 
     effect eAoE = EffectAreaOfEffect(AOE_MOB_CUSTOM, sOnEnterFunction, sOnHeartbeatFunction, sOnExitFunction);
            eAoE = TagEffect(eAoE, sEffectTag);

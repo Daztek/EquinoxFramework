@@ -26,4 +26,3 @@ void VersionCheck_OnClientConnect()
         EM_SkipNWNXEvent();
     }
 }
-

@@ -93,7 +93,7 @@ string nssVariable(string sType, string sVarName, string sFunction)
 
 string nssParameter(string sType, string sVarName)
 {
-    return sType + " " + sVarName;    
+    return sType + " " + sVarName;
 }
 
 string nssObject(string sVarName, string sFunction = "", int bIncludeType = TRUE)
@@ -172,4 +172,3 @@ string nssConvertType(string sType)
 
     return sReturn;
 }
-

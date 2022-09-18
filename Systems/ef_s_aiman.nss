@@ -45,7 +45,7 @@ void AIMan_RegisterAIBehaviorEvent(json jAIEventData)
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
     if (nEventType == -1)
-        WriteLog(AIMAN_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);        
+        WriteLog(AIMAN_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);
     else
     {
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + AIMAN_SCRIPT_NAME + "(behavior, eventtype, scriptchunk) VALUES(@behavior, @eventtype, @scriptchunk);");
@@ -68,11 +68,11 @@ string AIMan_GetBehavior(object oCreature)
 void AIMan_SetBehavior(object oCreature, string sBehavior)
 {
     if (sBehavior == "")
-        return;         
-    
+        return;
+
     //struct ProfilerData pd = Profiler_Start("AIMan_SetBehavior: " + sBehavior);
 
-    AIMan_UnsetBehavior(oCreature); 
+    AIMan_UnsetBehavior(oCreature);
     SetLocalString(oCreature, AIMAN_BEHAVIOR_NAME, sBehavior);
     EM_ClearObjectEventScripts(oCreature);
 
@@ -83,23 +83,23 @@ void AIMan_SetBehavior(object oCreature, string sBehavior)
     while (SqlStep(sql))
     {
         int nEventType = SqlGetInt(sql, 0);
-        
+
         if (nEventType == EVENT_SCRIPT_CREATURE_ON_DEATH)
-            bHandleOnDeath = FALSE;   
-        
+            bHandleOnDeath = FALSE;
+
         if (nLastEventType != nEventType)
         {
             nLastEventType = nEventType;
-            EM_SetObjectEventScript(oCreature, nEventType, FALSE);            
+            EM_SetObjectEventScript(oCreature, nEventType, FALSE);
             EM_ObjectDispatchListInsert(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, nEventType));
-        } 
+        }
     }
 
     if (bHandleOnDeath)
     {
         EM_SetObjectEventScript(oCreature, EVENT_SCRIPT_CREATURE_ON_DEATH, FALSE);
-        EM_ObjectDispatchListInsert(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, EVENT_SCRIPT_CREATURE_ON_DEATH));       
-    }   
+        EM_ObjectDispatchListInsert(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, EVENT_SCRIPT_CREATURE_ON_DEATH));
+    }
 
     //Profiler_Stop(pd);
 }
@@ -111,8 +111,8 @@ void AIMan_UnsetBehavior(object oCreature)
     if (sBehavior == "")
         return;
 
-    //struct ProfilerData pd = Profiler_Start("AIMan_UnsetBehavior: " + sBehavior);        
-        
+    //struct ProfilerData pd = Profiler_Start("AIMan_UnsetBehavior: " + sBehavior);
+
     DeleteLocalString(oCreature, AIMAN_BEHAVIOR_NAME);
 
     int nLastEventType = 0, bHandleOnDeath = TRUE;
@@ -124,23 +124,23 @@ void AIMan_UnsetBehavior(object oCreature)
         int nEventType = SqlGetInt(sql, 0);
 
         if (nEventType == EVENT_SCRIPT_CREATURE_ON_DEATH)
-            bHandleOnDeath = FALSE;   
-        
+            bHandleOnDeath = FALSE;
+
         if (nLastEventType != nEventType)
         {
             nLastEventType = nEventType;
             SetEventScript(oCreature, nEventType, "");
             EM_ObjectDispatchListRemove(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, nEventType));
-        } 
+        }
     }
 
     if (bHandleOnDeath)
     {
         SetEventScript(oCreature, EVENT_SCRIPT_CREATURE_ON_DEATH, "");
-        EM_ObjectDispatchListRemove(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, EVENT_SCRIPT_CREATURE_ON_DEATH));       
-    }  
+        EM_ObjectDispatchListRemove(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, EVENT_SCRIPT_CREATURE_ON_DEATH));
+    }
 
-    //Profiler_Stop(pd);    
+    //Profiler_Stop(pd);
 }
 
 int AIMan_GetTimeOut(string sTimeoutFlag, object oCreature = OBJECT_SELF)

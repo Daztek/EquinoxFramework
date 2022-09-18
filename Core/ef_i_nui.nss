@@ -29,6 +29,7 @@ const float NUI_TITLEBAR_HEIGHT             = 33.0f;
 json NuiGetAdjustedWindowGeometryRect(object oPlayer, json jRect);
 float NuiGetMouseScrollDelta(json jPayload);
 int NuiGetMouseButton(json jPayload);
+int NuiGetIsLeftMouseButton(json jPayload);
 float NuiGetMouseX(json jPayload);
 float NuiGetMouseY(json jPayload);
 void NuiSetClickthroughProtection(object oPlayer = OBJECT_SELF, float fSeconds = 0.5f);
@@ -41,14 +42,14 @@ int GetNuiRectSizeMatches(json jRect1, json jRect2);
 
 json NuiGetAdjustedWindowGeometryRect(object oPlayer, json jRect)
 {
-    float fX = JsonObjectGetFloat(jRect, "x"); 
+    float fX = JsonObjectGetFloat(jRect, "x");
     float fY = JsonObjectGetFloat(jRect, "y");
-    
+
     if (fX != -1.0f && fY != -1.0f)
         return jRect;
 
     float fWidth = JsonObjectGetFloat(jRect, "w");
-    float fHeight = JsonObjectGetFloat(jRect, "h");  
+    float fHeight = JsonObjectGetFloat(jRect, "h");
     float fGuiScale = IntToFloat(GetPlayerDeviceProperty(oPlayer, PLAYER_DEVICE_PROPERTY_GUI_SCALE)) / 100.0f;
 
     if (fX == -1.0f)
@@ -69,14 +70,19 @@ int NuiGetMouseButton(json jPayload)
     return JsonObjectGetInt(jPayload, "mouse_btn");
 }
 
+int NuiGetIsLeftMouseButton(json jPayload)
+{
+    return NuiGetMouseButton(jPayload) == NUI_MOUSE_BUTTON_LEFT;
+}
+
 float NuiGetMouseX(json jPayload)
 {
-    return JsonObjectGetFloat(JsonObjectGet(jPayload, "mouse_pos"), "x");    
+    return JsonObjectGetFloat(JsonObjectGet(jPayload, "mouse_pos"), "x");
 }
 
 float NuiGetMouseY(json jPayload)
 {
-    return JsonObjectGetFloat(JsonObjectGet(jPayload, "mouse_pos"), "y");    
+    return JsonObjectGetFloat(JsonObjectGet(jPayload, "mouse_pos"), "y");
 }
 
 void NuiSetClickthroughProtection(object oPlayer = OBJECT_SELF, float fSeconds = 0.5f)
@@ -114,10 +120,10 @@ void PrintNuiRect(json jRect)
 
 int GetIsDefaultNuiRect(json jRect)
 {
-    return JsonObjectGetFloat(jRect, "x") == 0.0f && 
+    return JsonObjectGetFloat(jRect, "x") == 0.0f &&
            JsonObjectGetFloat(jRect, "y") == 0.0f &&
            JsonObjectGetFloat(jRect, "w") == 0.0f &&
-           JsonObjectGetFloat(jRect, "h") == 0.0f;    
+           JsonObjectGetFloat(jRect, "h") == 0.0f;
 }
 
 int GetNuiRectSizeMatches(json jRect1, json jRect2)

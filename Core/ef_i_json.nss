@@ -256,8 +256,8 @@ json JsonArrayInsertUniqueInt(json jArray, int nValue, int nIndex = -1)
 {
     if (!JsonArrayContainsInt(jArray, nValue))
         return JsonArrayInsert(jArray, JsonInt(nValue), nIndex);
-    else 
-        return jArray;        
+    else
+        return jArray;
 }
 
 json JsonArraySetInt(json jArray, int nIndex, int nValue)

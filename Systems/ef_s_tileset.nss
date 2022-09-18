@@ -617,7 +617,7 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
             return;
 
         if (nTileID == 1383)// Forest - Elf Tower
-            return;            
+            return;
     }
 
     int nOrientation;
@@ -665,4 +665,3 @@ vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical)
 
     return vReal;
 }
-

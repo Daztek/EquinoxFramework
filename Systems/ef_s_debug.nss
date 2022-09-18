@@ -35,7 +35,7 @@ void Debug_OnResourceModified()
                     WriteLog(DEBUG_LOG_TAG, "   > Failed to execute debug script, error: " + sResult);
             }
         }
-    }   
+    }
 }
 
 int MyRandom(int i)
@@ -46,7 +46,7 @@ int MyRandom(int i)
 // @CORE[EF_SYSTEM_POST]
 void Debug_Init()
 {
-    string sLambda1 = Lambda("{ return MyRandom(arg1); }", "i", "i", "ef_s_debug");    
+    string sLambda1 = Lambda("{ return MyRandom(arg1); }", "i", "i", "ef_s_debug");
     string sLambda2 = Lambda("{ return RetInt(Call(arg2, IntArg(arg1))); }", "is", "i");
     int a = 100;
 
@@ -61,5 +61,5 @@ void Debug_Init()
     pd = Profiler_Start("NestedLambda");
     a = RetInt(Call(sLambda2, IntArg(a) + StringArg(sLambda1)));
     Profiler_Stop(pd);
-    PrintString(IntToString(a));    
+    PrintString(IntToString(a));
 }

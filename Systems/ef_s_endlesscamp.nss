@@ -30,4 +30,3 @@ void EC_OnAreaPostProcessed()
         WriteLog(EC_LOG_TAG, "* Found Campsite Type '" + IntToString(nTileID) + "' @ " + IntToString(nTileX) + "," + IntToString(nTileY) + " in area: " + sAreaID);
     }
 }
-

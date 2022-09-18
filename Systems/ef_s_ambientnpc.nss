@@ -37,11 +37,11 @@ void AmNPC_SetupTemplateNPC()
 
     json jNPC = ObjectToJson(oNPC, FALSE);
         jNPC = GffRemoveDword(jNPC, "AreaId");
-        jNPC = GffRemoveString(jNPC, "NWNX_POS"); 
+        jNPC = GffRemoveString(jNPC, "NWNX_POS");
         jNPC = GffReplaceLocString(jNPC, "FirstName", "");
         jNPC = GffReplaceResRef(jNPC, "ScriptAttacked", "");
         jNPC = GffReplaceResRef(jNPC, "ScriptDamaged", "");
-        jNPC = GffReplaceResRef(jNPC, "ScriptDeath", "");    
+        jNPC = GffReplaceResRef(jNPC, "ScriptDeath", "");
         jNPC = GffReplaceResRef(jNPC, "ScriptDialogue", "");
         jNPC = GffReplaceResRef(jNPC, "ScriptDisturbed", "");
         jNPC = GffReplaceResRef(jNPC, "ScriptEndRound", "");
@@ -52,9 +52,9 @@ void AmNPC_SetupTemplateNPC()
         jNPC = GffReplaceResRef(jNPC, "ScriptSpawn", "");
         jNPC = GffReplaceResRef(jNPC, "ScriptSpellAt", "");
         jNPC = GffReplaceResRef(jNPC, "ScriptUserDefine", "");
-    
+
     SetLocalJson(GetDataObject(AMNPC_SCRIPT_NAME), AMNPC_NPC_TEMPLATE, jNPC);
-    
+
     DestroyObject(oNPC);
 
     //PrintString(JsonDump(jNPC));

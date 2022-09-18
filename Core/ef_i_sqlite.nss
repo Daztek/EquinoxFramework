@@ -111,4 +111,3 @@ void SqlCommitTransactionModule()
 {
     SqlStep(SqlPrepareQueryObject(GetModule(), "COMMIT;"));
 }
-

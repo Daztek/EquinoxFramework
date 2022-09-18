@@ -85,4 +85,3 @@ void AL_ToggleWindow()
     else if (NWM_OpenWindow(oPlayer, AL_WINDOW_ID))
         AL_RefreshAreaList();
 }
-

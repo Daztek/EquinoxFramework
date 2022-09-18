@@ -20,7 +20,7 @@ void RS2DA_Init()
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     SqlBeginTransactionModule();
-    
+
     sQuery = "INSERT INTO " + RS2DA_SCRIPT_NAME + "(name, value) VALUES(@name, @value);";
     int nRow, nNumRows = Get2DARowCount("ruleset");
     for (nRow = 0; nRow < nNumRows; nRow++)
@@ -33,7 +33,7 @@ void RS2DA_Init()
 
         sqlquery sql = SqlPrepareQueryModule(sQuery);
         SqlBindString(sql, "@name", sName);
-        SqlBindString(sql, "@value", sValue);                
+        SqlBindString(sql, "@value", sValue);
         SqlStep(sql);
     }
 

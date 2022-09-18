@@ -74,7 +74,7 @@ void EFCore_Initialize()
     if (EFCORE_VALIDATE_SYSTEMS && !EFCore_ValidateSystems())
     {
         WriteLog(EFCORE_LOG_TAG, "* ERROR: System Validation Failure!");
-        
+
         if (EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE)
             NWNX_Administration_ShutdownServer();
 
@@ -99,7 +99,7 @@ void EFCore_Initialize()
 void EFCore_InitializeSystemData()
 {
     WriteLog(EFCORE_LOG_TAG, "* Initializing System Data...");
-    
+
     string sQuery = "CREATE TABLE IF NOT EXISTS " + EFCORE_SCRIPT_NAME + "_systems (" +
                     "system TEXT NOT NULL, " +
                     "scriptdata TEXT NOT NULL);";
@@ -108,24 +108,24 @@ void EFCore_InitializeSystemData()
     sQuery = "CREATE TABLE IF NOT EXISTS " + EFCORE_SCRIPT_NAME + "_annotations (" +
              "system TEXT NOT NULL, " +
              "annotation TEXT NOT NULL);";
-    SqlStep(SqlPrepareQueryModule(sQuery));   
+    SqlStep(SqlPrepareQueryModule(sQuery));
 
     sQuery = "CREATE TABLE IF NOT EXISTS " + EFCORE_SCRIPT_NAME + "_annotationdata (" +
              "annotation TEXT NOT NULL, " +
              "data TEXT NOT NULL);";
-    SqlStep(SqlPrepareQueryModule(sQuery)); 
+    SqlStep(SqlPrepareQueryModule(sQuery));
 
     sQuery = "CREATE TABLE IF NOT EXISTS " + EFCORE_SCRIPT_NAME + "_functions (" +
              "system TEXT NOT NULL, " +
              "function TEXT NOT NULL, " +
-             "returntype TEXT NOT NULL, " + 
+             "returntype TEXT NOT NULL, " +
              "parameters TEXT NOT NULL, " +
              "scriptchunk TEXT NOT NULL);";
-    SqlStep(SqlPrepareQueryModule(sQuery)); 
+    SqlStep(SqlPrepareQueryModule(sQuery));
 
     EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "@(CORE)\\[(EF_SYSTEM_[A-Z]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(");
     EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "@(PAD)\\[([\\w]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(json\\s[\\w]+\\)");
-    
+
     json jSystems = GetResRefArray(RESTYPE_NSS, EFCORE_SYSTEM_SCRIPT_PREFIX + ".*", FALSE);
     int nSystem, nNumSystems = JsonGetLength(jSystems);
     for (nSystem = 0; nSystem < nNumSystems; nSystem++)
@@ -142,7 +142,7 @@ void EFCore_InsertSystem(string sSystem, string sScriptData)
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@system", sSystem);
     SqlBindString(sql, "@scriptdata", sScriptData);
-    SqlStep(sql);    
+    SqlStep(sql);
 }
 
 void EFCore_InsertAnnotation(string sSystem, string sAnnotation)
@@ -151,12 +151,12 @@ void EFCore_InsertAnnotation(string sSystem, string sAnnotation)
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@system", sSystem);
     SqlBindString(sql, "@annotation", sAnnotation);
-    SqlStep(sql);    
-} 
+    SqlStep(sql);
+}
 
 void EFCore_InsertFunction(string sSystem, string sFunction, string sReturnType, string sParameters, string sScriptChunk)
 {
-    string sQuery = "INSERT INTO " + EFCORE_SCRIPT_NAME + "_functions(system, function, returntype, parameters, scriptchunk) " + 
+    string sQuery = "INSERT INTO " + EFCORE_SCRIPT_NAME + "_functions(system, function, returntype, parameters, scriptchunk) " +
                     "VALUES(@system, @function, @returntype, @parameters, @scriptchunk);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@system", sSystem);
@@ -172,20 +172,20 @@ void EFCore_InsertAnnotationData(string sAnnotation, json jData)
     string sQuery = "INSERT INTO " + EFCORE_SCRIPT_NAME + "_annotationdata(annotation, data) VALUES(@annotation, @data);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@annotation", sAnnotation);
-    SqlBindJson(sql, "@data", jData); 
-    SqlStep(sql);  
+    SqlBindJson(sql, "@data", jData);
+    SqlStep(sql);
 }
 
 int EFCore_GetNumberOfSystems()
 {
     sqlquery sql = SqlPrepareQueryModule("SELECT COUNT(system) FROM " + EFCORE_SCRIPT_NAME + "_systems;");
-    return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;   
+    return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
 }
 
 int EFCore_GetNumberOfAnnotations()
 {
     sqlquery sql = SqlPrepareQueryModule("SELECT COUNT(system) FROM " + EFCORE_SCRIPT_NAME + "_annotations;");
-    return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;   
+    return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
 }
 
 void EFCore_ParseSystem(string sSystem)
@@ -209,12 +209,12 @@ void EFCore_ParseSystem(string sSystem)
     int nMatch, nNumMatches = JsonGetLength(jMatches);
     for(nMatch = 0; nMatch < nNumMatches; nMatch++)
     {
-        EFCore_InsertAnnotation(sSystem, JsonArrayGetString(JsonArrayGet(jMatches, nMatch), 1));      
+        EFCore_InsertAnnotation(sSystem, JsonArrayGetString(JsonArrayGet(jMatches, nMatch), 1));
     }
 
     if (EFCORE_PARSE_SYSTEM_FUNCTIONS)
     {
-        json jMatches = NWNX_Regex_Match(sScriptData, "(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)" + 
+        json jMatches = NWNX_Regex_Match(sScriptData, "(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)" +
                                                 "(void|object|int|float|string|json|vector|location)\\s(\\w+)\\((.*)\\);");
         int nMatch, nNumMatches = JsonGetLength(jMatches);
         for(nMatch = 0; nMatch < nNumMatches; nMatch++)
@@ -239,8 +239,8 @@ void EFCore_ParseSystem(string sSystem)
             int nArgument, nNumArguments = GetStringLength(sParameters);
             for (nArgument = 0; nArgument < nNumArguments; nArgument++)
             {
-                sArguments += (!nArgument ? "" : ", ") + 
-                    nssFunction("GetLocal" + nssConvertShortType(GetSubString(sParameters, nArgument, 1)), 
+                sArguments += (!nArgument ? "" : ", ") +
+                    nssFunction("GetLocal" + nssConvertShortType(GetSubString(sParameters, nArgument, 1)),
                         "oModule, " + nssEscape(EFCORE_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
             }
 
@@ -249,9 +249,9 @@ void EFCore_ParseSystem(string sSystem)
 
             if (sReturnType != "")
             {
-                sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType), 
+                sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
                                     "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
-                sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType), 
+                sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
                                     "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction(sFunctionName, sArguments, FALSE));
             }
             else
@@ -282,7 +282,7 @@ int EFCore_ValidateSystems()
     while (SqlStep(sql))
     {
         string sSystem = SqlGetString(sql, 0);
-        string sScriptData = SqlGetString(sql, 1); 
+        string sScriptData = SqlGetString(sql, 1);
 
         string sError = ExecuteCachedScriptChunk(sScriptData + " " + nssVoidMain(""),  oModule, FALSE);
 
@@ -290,10 +290,10 @@ int EFCore_ValidateSystems()
         {
             bValidated = FALSE;
             WriteLog(EFCORE_LOG_TAG, "  > System '" + sSystem + "' failed to validate with error: " + sError);
-        }              
+        }
     }
 
-    EFCore_ResetScriptInstructions(); 
+    EFCore_ResetScriptInstructions();
 
     return bValidated;
 }
@@ -301,14 +301,14 @@ int EFCore_ValidateSystems()
 void EFCore_ParseSystemsForAnnotationData()
 {
     WriteLog(EFCORE_LOG_TAG, "* Parsing Systems for " + IntToString(EFCore_GetNumberOfAnnotations()) + " Annotations...");
-    
+
     SqlBeginTransactionModule();
-    
+
     sqlquery sqlSystems = SqlPrepareQueryModule("SELECT system, scriptdata FROM " + EFCORE_SCRIPT_NAME + "_systems;");
     while (SqlStep(sqlSystems))
     {
         string sSystem = SqlGetString(sqlSystems, 0);
-        string sScriptData = SqlGetString(sqlSystems, 1); 
+        string sScriptData = SqlGetString(sqlSystems, 1);
 
         sqlquery sqlAnnotations = SqlPrepareQueryModule("SELECT annotation FROM " + EFCORE_SCRIPT_NAME + "_annotations;");
         while (SqlStep(sqlAnnotations))
@@ -323,14 +323,14 @@ void EFCore_ParseSystemsForAnnotationData()
                 // Replace the full match with the system name
                 jMatch = JsonArraySetString(jMatch, 0, sSystem);
 
-                EFCore_InsertAnnotationData(JsonArrayGetString(jMatch, 1), jMatch); 
-            }            
-        } 
+                EFCore_InsertAnnotationData(JsonArrayGetString(jMatch, 1), jMatch);
+            }
+        }
 
-        EFCore_ResetScriptInstructions();          
+        EFCore_ResetScriptInstructions();
     }
 
-    SqlCommitTransactionModule();   
+    SqlCommitTransactionModule();
 }
 
 void EFCore_ExecuteCoreFunction(int nCoreFunctionType)
@@ -338,10 +338,10 @@ void EFCore_ExecuteCoreFunction(int nCoreFunctionType)
     object oModule = GetModule();
     sqlquery sql = SqlPrepareQueryModule("SELECT data FROM " + EFCORE_SCRIPT_NAME + "_annotationdata WHERE annotation = @annotation;");
     SqlBindString(sql, "@annotation", "CORE");
-    while (SqlStep(sql))    
+    while (SqlStep(sql))
     {
         json jData = SqlGetJson(sql, 0);
-        
+
         if (GetConstantIntValue(JsonArrayGetString(jData, 2), EFCORE_SCRIPT_NAME) == nCoreFunctionType)
         {
             string sSystem = JsonArrayGetString(jData, 0);
@@ -353,13 +353,13 @@ void EFCore_ExecuteCoreFunction(int nCoreFunctionType)
                 WriteLog(EFCORE_LOG_TAG, "  > Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
 
             EFCore_ResetScriptInstructions();
-        }    
+        }
     }
 }
 
 void EFCore_ParseAnnotationData()
 {
-    object oModule = GetModule(); 
+    object oModule = GetModule();
     sqlquery sqlParseFunction = SqlPrepareQueryModule("SELECT data FROM " + EFCORE_SCRIPT_NAME + "_annotationdata WHERE annotation = @annotation;");
     SqlBindString(sqlParseFunction, "@annotation", "PAD");
     while (SqlStep(sqlParseFunction))
@@ -371,23 +371,23 @@ void EFCore_ParseAnnotationData()
 
         sqlquery sqlAnnotationData = SqlPrepareQueryModule("SELECT data FROM " + EFCORE_SCRIPT_NAME + "_annotationdata WHERE annotation = @annotation;");
         SqlBindString(sqlAnnotationData, "@annotation", sAnnotation);
-        
-        while (SqlStep(sqlAnnotationData))    
+
+        while (SqlStep(sqlAnnotationData))
         {
             SetLocalJson(oModule, EFCORE_ANNOTATION_DATA, SqlGetJson(sqlAnnotationData, 0));
             string sError = ExecuteCachedScriptChunk(nssInclude(sSystem) + nssVoidMain(sFunction), oModule, FALSE);
 
             if (sError != "")
             {
-                WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + sFunction + "' for '" + 
+                WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + sFunction + "' for '" +
                                         sSystem + "' failed with error: " + sError);
             }
 
             EFCore_ResetScriptInstructions();
-        }        
+        }
     }
 
-    DeleteLocalJson(oModule, EFCORE_ANNOTATION_DATA);    
+    DeleteLocalJson(oModule, EFCORE_ANNOTATION_DATA);
 }
 
 string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)
@@ -397,7 +397,7 @@ string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)
 
 void EFCore_ResetScriptInstructions()
 {
-    NWNX_Util_SetInstructionsExecuted(0);    
+    NWNX_Util_SetInstructionsExecuted(0);
 }
 
 // **** Function Stuff
@@ -473,7 +473,7 @@ int GetNextLambdaId()
     object oModule = GetModule();
     int nId = GetLocalInt(oModule, EFCORE_LAMBDA_ID) + 1;
     SetLocalInt(oModule, EFCORE_LAMBDA_ID, nId);
-    return nId;   
+    return nId;
 }
 
 int GetLambdaIdFromFunction(string sFunction)
@@ -496,10 +496,10 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
         return nCallStackDepth;
     }
 
-    string sScriptChunk = GetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunction);       
+    string sScriptChunk = GetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunction);
 
     ClearArgumentCount();
-    
+
     if (sFunction != EFCORE_INVALID_FUNCTION || nLambdaId)
     {
         string sParameters = GetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sFunction);
@@ -516,7 +516,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
         }
         else
         {
-            WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Parameter Mismatch: EXPECTED: '" + sFunction + "(" + sParameters + 
+            WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Parameter Mismatch: EXPECTED: '" + sFunction + "(" + sParameters +
                                      ")' -> GOT: '"  + sFunction + "(" + sArgs + ")'");
         }
     }
@@ -540,11 +540,11 @@ string Function(string sSystem, string sFunction)
                         "system = @system AND function = @function;";
         sqlquery sql = SqlPrepareQueryModule(sQuery);
         SqlBindString(sql, "@system", sSystem);
-        SqlBindString(sql, "@function", sFunction);                        
-        
+        SqlBindString(sql, "@function", sFunction);
+
         if (SqlStep(sql))
         {
-            SetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sFunctionSymbol, SqlGetString(sql, 0));            
+            SetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sFunctionSymbol, SqlGetString(sql, 0));
             SetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sFunctionSymbol, SqlGetString(sql, 1));
             sScriptChunk = SqlGetString(sql, 2);
         }
@@ -572,33 +572,33 @@ string Lambda(string sBody, string sParameters = "", string sReturnType = "", st
         for (nArgument = 0; nArgument < nNumArguments; nArgument++)
         {
             string sParameter = GetSubString(sParameters, nArgument, 1);
-            sArguments += (!nArgument ? "" : ", ") + 
-                nssFunction("GetLocal" + nssConvertShortType(sParameter), 
+            sArguments += (!nArgument ? "" : ", ") +
+                nssFunction("GetLocal" + nssConvertShortType(sParameter),
                     "oModule, " + nssEscape(EFCORE_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
-            sLambdaParameters += (!nArgument ? "(" : ", ") + 
+            sLambdaParameters += (!nArgument ? "(" : ", ") +
                 nssParameter(nssConvertShortType(sParameter, TRUE), "arg" + IntToString(nArgument + 1));
         }
         sLambdaParameters += ")";
 
-        string sLambdaFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "LambdaFunction" + sLambdaParameters + sBody; 
+        string sLambdaFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "LambdaFunction" + sLambdaParameters + sBody;
 
         string sFunctionBody = nssObject("oModule", nssFunction("GetModule"));
             sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "", FALSE)));
 
         if (sReturnType != "")
         {
-            sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType), 
+            sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
                                 "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
-            sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType), 
+            sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
                                 "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("LambdaFunction", sArguments, FALSE));
         }
         else
             sFunctionBody += nssFunction("LambdaFunction", sArguments);
 
         SetLocalInt(oModule, EFCORE_LAMBDA_ID + sParameters + "::" + sBody + "::" + sReturnType, nLambdaId);
-        
-        SetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sLambdaSymbol, sReturnType);            
-        SetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sLambdaSymbol, sParameters);        
+
+        SetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sLambdaSymbol, sReturnType);
+        SetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sLambdaSymbol, sParameters);
 
         string sScriptChunk = nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(sInclude) + sLambdaFunction + nssVoidMain(sFunctionBody);
         SetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sLambdaSymbol, sScriptChunk);
@@ -660,7 +660,7 @@ int ValidateReturnType(int nCallStackDepth, string sRequestedType)
     string sReturnType = GetCallStackReturnType(nCallStackDepth);
     if (sReturnType != sRequestedType)
     {
-        WriteLog(EFCORE_LOG_TAG, "WARNING: (" + NWNX_Util_GetCurrentScriptName() + ") Tried to get return type '" + sRequestedType + "' for function '" + 
+        WriteLog(EFCORE_LOG_TAG, "WARNING: (" + NWNX_Util_GetCurrentScriptName() + ") Tried to get return type '" + sRequestedType + "' for function '" +
                                  GetCallStackFunction(nCallStackDepth) + "' with return type: " + sReturnType);
         return FALSE;
     }

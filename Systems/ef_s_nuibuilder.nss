@@ -431,7 +431,7 @@ void NB_SetDisabledTooltip(json jDisabledTooltip)
 
 void NB_SetEncouraged(json jEncouraged)
 {
-    NB_SetData(NuiEncouraged(NB_GetData(), jEncouraged));    
+    NB_SetData(NuiEncouraged(NB_GetData(), jEncouraged));
 }
 
 void NB_SetVisible(json jVisible)
@@ -515,7 +515,7 @@ void NB_SetWindowBorder(json jBorder)
 
 void NB_SetWindowAcceptsInput(json jAcceptsInput)
 {
-    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "accepts_input", jAcceptsInput));    
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "accepts_input", jAcceptsInput));
 }
 
 void NB_SetWindowTitlebarHidden()
@@ -531,4 +531,3 @@ json NB_FinalizeWindow()
     NB_SetWindowRoot(NB_GetData());
     return NB_GetWindow();
 }
-

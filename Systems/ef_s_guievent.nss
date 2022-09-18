@@ -15,8 +15,8 @@ const string GUIEVENT_SCRIPT_NAME       = "ef_s_guievent";
 void GuiEvent_Init()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + GUIEVENT_SCRIPT_NAME + "(" +
-                    "guieventtype INTEGER NOT NULL, " + 
-                    "system TEXT NOT NULL, " +                
+                    "guieventtype INTEGER NOT NULL, " +
+                    "system TEXT NOT NULL, " +
                     "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 }
@@ -26,7 +26,7 @@ void GuiEvent_OnPlayerGuiEvent()
 {
     object oPlayer = GetLastGuiEventPlayer();
     int nGuiEventType = GetLastGuiEventType();
-    
+
     sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptchunk FROM " + GUIEVENT_SCRIPT_NAME + " WHERE guieventtype = @guieventtype;");
     SqlBindInt(sql, "@guieventtype", nGuiEventType);
 
@@ -36,7 +36,7 @@ void GuiEvent_OnPlayerGuiEvent()
         string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
-            WriteLog(GUIEVENT_LOG_TAG, "ERROR: (" + IntToString(nGuiEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);     
+            WriteLog(GUIEVENT_LOG_TAG, "ERROR: (" + IntToString(nGuiEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
     }
 }
 
@@ -64,4 +64,3 @@ void GuiEvent_RegisterFunction(json jGuiEvent)
         WriteLog(GUIEVENT_LOG_TAG, "* System '" + sSystem + "' registered '" + sFunction + "' for gui event '" + sGuiEventType + "'");
     }
 }
-

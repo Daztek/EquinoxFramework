@@ -114,4 +114,3 @@ json GffSetLightingScheme(json jArea, int nIndex)
 
     return jArea;
 }
-

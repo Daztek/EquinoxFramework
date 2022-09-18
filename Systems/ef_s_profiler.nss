@@ -142,4 +142,3 @@ int Profiler_Calibrate(int nIterations)
 
     return nIterations == 0 ? 0 : nSum / nIterations;
 }
-

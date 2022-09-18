@@ -53,4 +53,3 @@ void Travel_OnMaterialChange()
     if (GetEffectType(eEffect))
         DelayCommand(TRAVEL_IMPACT_DELAY_TIMER, Travel_ApplyEffect(oPlayer, nMaterial, eEffect));
 }
-

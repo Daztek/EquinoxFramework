@@ -178,4 +178,3 @@ object GffTools_CreateDoor(int nAppearance, location locSpawn, string sTag)
 
     return JsonToObject(jDoor, locSpawn);
 }
-

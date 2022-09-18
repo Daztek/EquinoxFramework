@@ -39,4 +39,3 @@ void CloseDoor_OnOpen()
     ActionWait(CLOSEDOOR_CLOSE_DELAY);
     ActionCloseDoor(OBJECT_SELF);
 }
-

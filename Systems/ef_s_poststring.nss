@@ -111,4 +111,3 @@ void PostString_ClearBySystem(object oPlayer, string sSystem)
 
     PostString_ClearByRange(oPlayer, nStartID, nEndID);
 }
-

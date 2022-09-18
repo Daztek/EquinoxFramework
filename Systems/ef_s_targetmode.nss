@@ -110,30 +110,30 @@ void TargetMode_SetSpellData(object oPlayer, int nSpellId)
 {
     int nShape = 0;
     string sShape = Get2DAString("spells", "TargetShape", nSpellId);
-    
+
     if (sShape == "sphere")
         nShape = _SPELL_TARGETING_SHAPE_SPHERE;
-    else if (sShape == "rectangle")    
+    else if (sShape == "rectangle")
         nShape = _SPELL_TARGETING_SHAPE_RECT;
     else if (sShape == "cone")
         nShape = _SPELL_TARGETING_SHAPE_CONE;
-    else if (sShape == "hsphere") 
+    else if (sShape == "hsphere")
         nShape = _SPELL_TARGETING_SHAPE_HSPHERE;
 
     float fSizeX = StringToFloat(Get2DAString("spells", "TargetSizeX", nSpellId));
     float fSizeY = StringToFloat(Get2DAString("spells", "TargetSizeY", nSpellId));
     int nFlags = StringToInt(Get2DAString("spells", "TargetFlags", nSpellId));
-    
+
     float fRange = 0.0f;
     string sRange = Get2DAString("spells", "Range", nSpellId);
 
     if (sRange == "L")
         fRange = 40.0f;
-    else if (sRange == "M") 
-        fRange = 20.0f;        
+    else if (sRange == "M")
+        fRange = 20.0f;
     else if (sRange == "S")
         fRange = 8.0f;
-    else if (sRange == "T" || sRange == "P")    
+    else if (sRange == "T" || sRange == "P")
         fRange = 2.25f;
 
     _SetEnterTargetingModeData(oPlayer, nShape, fSizeX, fSizeY, nFlags, fRange, nSpellId);

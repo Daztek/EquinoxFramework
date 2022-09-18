@@ -322,7 +322,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
     int nCurrentMaxTiles = min(nCurrentTile + EP_POSTPROCESS_TILE_BATCH, nNumTiles);
 
     SqlBeginTransactionModule();
-    
+
     for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
     {
         struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nCurrentTile);
@@ -401,7 +401,7 @@ string EP_TileInfo()
     int nSurfaceMaterial = GetSurfaceMaterial(GetLocation(oTarget));
     return "Tileset: " + GetTilesetResRef(oArea) + ", TileID: " + IntToString(str.nID) + "\n" +
             "GridX: " + IntToString(str.nGridX) + ", GridY: " + IntToString(str.nGridY) + "\n" +
-            "Height: " + IntToString(str.nHeight) + "\n" + 
+            "Height: " + IntToString(str.nHeight) + "\n" +
             "Orientation: " + IntToString(str.nOrientation) + "\n" +
             "Surface Material: " + Get2DAString("surfacemat", "Label", nSurfaceMaterial) +  " (" + IntToString(nSurfaceMaterial) + ")";
 }

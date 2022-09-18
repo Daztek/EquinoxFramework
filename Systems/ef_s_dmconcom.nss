@@ -10,7 +10,7 @@ const string DMCONCOM_LOG_TAG           = "DMConsoleCommands";
 const string DMCONCOM_SCRIPT_NAME       = "ef_s_dmconcom";
 
 // @CONSOLE[DumpLocals:isk_search:Dump local variables of an object]
-string DMConCom_DumpLocals(int bModule = 0, int bArea = 0) 
+string DMConCom_DumpLocals(int bModule = 0, int bArea = 0)
 {
     object oTarget = OBJECT_SELF;
 
@@ -107,17 +107,17 @@ string DMConCom_GiveXP(int nAmount, int bUntilNextLevel = 1)
     if (bUntilNextLevel)
     {
         int nCurrentLevel = GetHitDice(oTarget);
-        
+
         if (nCurrentLevel < 40)
             nAmount = StringToInt(Get2DAString("exptable", "XP", nCurrentLevel)) - GetXP(oTarget);
         else
             nAmount = 0;
     }
-    
+
     if (nAmount > 0)
         GiveXPToCreature(oTarget, nAmount);
 
-    return "Gave " + IntToString(nAmount) + " XP to " + GetName(oTarget);      
+    return "Gave " + IntToString(nAmount) + " XP to " + GetName(oTarget);
 }
 
 // @CONSOLE[SetCurrentHitPoints:ir_heal:Set the current hitpoints of a target]
@@ -176,8 +176,8 @@ string DMConCom_ToggleCutsceneInvisibility()
 
     if (bCutsceneInvisibility)
         RemoveEffectsWithTag(oTarget, sTag);
-    else    
-        ApplyEffectToObject(DURATION_TYPE_PERMANENT, TagEffect(EffectVisualEffect(VFX_DUR_CUTSCENE_INVISIBILITY), sTag), oTarget);    
+    else
+        ApplyEffectToObject(DURATION_TYPE_PERMANENT, TagEffect(EffectVisualEffect(VFX_DUR_CUTSCENE_INVISIBILITY), sTag), oTarget);
 
     return "Set Cutscene Invisibility to: " + IntToString(!bCutsceneInvisibility);
 }

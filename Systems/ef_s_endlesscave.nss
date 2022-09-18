@@ -269,4 +269,3 @@ void EC_OnMapPinClick()
         AssignCommand(oPlayer, JumpToObject(oMapPin));
     }
 }
-

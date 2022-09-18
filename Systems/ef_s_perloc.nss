@@ -25,7 +25,7 @@ void PerLoc_SaveLocation()
 
     object oMaster = GetMaster(oPlayer);
     if (GetIsObjectValid(oMaster)) oPlayer = oMaster;
-  
+
     if (!PerLoc_GetAreaDisabled(GetArea(oPlayer)))
         PlayerDB_SetLocation(oPlayer, PERLOC_SCRIPT_NAME, "Location", GetLocation(oPlayer));
 }

@@ -58,7 +58,7 @@ void EM_Init()
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     // :(
-    AddScript(EM_SCRIPT_NAME, EM_SCRIPT_NAME, nssFunction("EM_SignalObjectEvent")); 
+    AddScript(EM_SCRIPT_NAME, EM_SCRIPT_NAME, nssFunction("EM_SignalObjectEvent"));
 }
 
 // @CORE[EF_SYSTEM_LOAD]
@@ -71,22 +71,22 @@ void EM_Load()
     {
         EM_SetAreaEventScripts(oArea);
         oArea = GetNextArea();
-    }     
+    }
 }
 
 // *** Object Events
 
 void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
 {
-    int nEventType = GetCurrentlyRunningEvent(FALSE);    
+    int nEventType = GetCurrentlyRunningEvent(FALSE);
     string sScript = GetLocalString(oTarget, EM_OLD_EVENT_SCRIPT_PREFIX + IntToString(nEventType));
     if (sScript != "")
         ExecuteScript(sScript, oTarget);
 
-    string sQuery = "SELECT events.scriptchunk FROM " + EM_SCRIPT_NAME + "_events AS events " + 
+    string sQuery = "SELECT events.scriptchunk FROM " + EM_SCRIPT_NAME + "_events AS events " +
                     "WHERE events.eventtype = @eventtype AND (events.dispatchlist = 0 OR " +
-                    "EXISTS(SELECT dispatchlist.id FROM " + EM_SCRIPT_NAME + "_dispatchlist AS dispatchlist WHERE " + 
-                    "dispatchlist.id = events.rowid AND dispatchlist.objectid = @objectid)) " + 
+                    "EXISTS(SELECT dispatchlist.id FROM " + EM_SCRIPT_NAME + "_dispatchlist AS dispatchlist WHERE " +
+                    "dispatchlist.id = events.rowid AND dispatchlist.objectid = @objectid)) " +
                     "ORDER BY events.priority;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@eventtype", nEventType);
@@ -117,7 +117,7 @@ void EM_InsertObjectEventAnnotations(json jObjectEvent)
         WriteLog(EM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid object event: " + sEventType);
     else
     {
-        string sQuery = "INSERT INTO " + EM_SCRIPT_NAME + "_events(system, eventtype, scriptchunk, priority, dispatchlist) " + 
+        string sQuery = "INSERT INTO " + EM_SCRIPT_NAME + "_events(system, eventtype, scriptchunk, priority, dispatchlist) " +
                         "VALUES(@system, @eventtype, @scriptchunk, @priority, @dispatchlist);";
         sqlquery sql = SqlPrepareQueryModule(sQuery);
         SqlBindString(sql, "@system", sSystem);
@@ -133,10 +133,10 @@ void EM_InsertObjectEventAnnotations(json jObjectEvent)
         {
             string sError = SqlGetError(sql);
             if (sError != "")
-                WriteLog(EM_LOG_TAG, "DEBUG: Failed to insert event: " + sError);    
+                WriteLog(EM_LOG_TAG, "DEBUG: Failed to insert event: " + sError);
         }
 
-        WriteLog(EM_LOG_TAG, "* System '" + sSystem + "' subscribed to object event '" + IntToString(nEventType) + 
+        WriteLog(EM_LOG_TAG, "* System '" + sSystem + "' subscribed to object event '" + IntToString(nEventType) +
                             "' with priority '" + IntToString(nPriority) + "', DL=" + IntToString(bDispatchListMode));
     }
 }
@@ -148,7 +148,7 @@ string EM_GetObjectEventScript()
 
 int EM_GetObjectDispatchListId(string sSystem, int nEventType, int nPriority = 0)
 {
-    string sQuery = "SELECT rowid FROM " + EM_SCRIPT_NAME + "_events WHERE " + 
+    string sQuery = "SELECT rowid FROM " + EM_SCRIPT_NAME + "_events WHERE " +
                     "system = @system AND eventtype = @eventtype AND priority = @priority AND dispatchlist = 1;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@system", sSystem);
@@ -164,9 +164,9 @@ void EM_ObjectDispatchListInsert(object oObject, int nObjectDispatchListId)
     {
         string sQuery = "INSERT INTO " + EM_SCRIPT_NAME + "_dispatchlist(id, objectid) VALUES(@id, @objectid);";
         sqlquery sql = SqlPrepareQueryModule(sQuery);
-        SqlBindInt(sql, "@id", nObjectDispatchListId);          
+        SqlBindInt(sql, "@id", nObjectDispatchListId);
         SqlBindString(sql, "@objectid", ObjectToString(oObject));
-        SqlStep(sql);                      
+        SqlStep(sql);
     }
 }
 
@@ -176,9 +176,9 @@ void EM_ObjectDispatchListRemove(object oObject, int nObjectDispatchListId)
     {
         string sQuery = "DELETE FROM " + EM_SCRIPT_NAME + "_dispatchlist WHERE id = @id AND objectid = @objectid;";
         sqlquery sql = SqlPrepareQueryModule(sQuery);
-        SqlBindInt(sql, "@id", nObjectDispatchListId);          
+        SqlBindInt(sql, "@id", nObjectDispatchListId);
         SqlBindString(sql, "@objectid", ObjectToString(oObject));
-        SqlStep(sql);                      
+        SqlStep(sql);
     }
 }
 
@@ -222,34 +222,34 @@ void EM_SetAreaEventScripts(object oArea, int bSetHeartbeat = EM_HOOK_AREA_HEART
 void EM_ClearObjectEventScripts(object oObject)
 {
     int nStart, nEnd;
-    
+
     switch (GetObjectType(oObject))
     {
-        case OBJECT_TYPE_CREATURE: 
+        case OBJECT_TYPE_CREATURE:
             nStart = EVENT_SCRIPT_CREATURE_ON_HEARTBEAT;
             nEnd = EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR;
-        break;                             
-        case OBJECT_TYPE_TRIGGER: 
+        break;
+        case OBJECT_TYPE_TRIGGER:
             nStart = EVENT_SCRIPT_TRIGGER_ON_HEARTBEAT;
             nEnd = EVENT_SCRIPT_TRIGGER_ON_CLICKED;
-        break; 
-        case OBJECT_TYPE_DOOR: 
+        break;
+        case OBJECT_TYPE_DOOR:
             nStart = EVENT_SCRIPT_DOOR_ON_OPEN;
             nEnd = EVENT_SCRIPT_DOOR_ON_FAIL_TO_OPEN;
         break;
-        case OBJECT_TYPE_AREA_OF_EFFECT: 
+        case OBJECT_TYPE_AREA_OF_EFFECT:
             nStart = EVENT_SCRIPT_AREAOFEFFECT_ON_HEARTBEAT;
             nEnd = EVENT_SCRIPT_AREAOFEFFECT_ON_OBJECT_EXIT;
         break;
-        case OBJECT_TYPE_PLACEABLE: 
+        case OBJECT_TYPE_PLACEABLE:
             nStart = EVENT_SCRIPT_PLACEABLE_ON_CLOSED;
             nEnd = EVENT_SCRIPT_PLACEABLE_ON_LEFT_CLICK;
         break;
-        case OBJECT_TYPE_STORE: 
+        case OBJECT_TYPE_STORE:
             nStart = EVENT_SCRIPT_STORE_ON_OPEN;
             nEnd = EVENT_SCRIPT_STORE_ON_CLOSE;
         break;
-        case OBJECT_TYPE_ENCOUNTER: 
+        case OBJECT_TYPE_ENCOUNTER:
             nStart = EVENT_SCRIPT_ENCOUNTER_ON_OBJECT_ENTER;
             nEnd = EVENT_SCRIPT_ENCOUNTER_ON_USER_DEFINED_EVENT;
         break;
@@ -258,17 +258,17 @@ void EM_ClearObjectEventScripts(object oObject)
             if (oObject == GetArea(oObject))
             {
                 nStart = EVENT_SCRIPT_AREA_ON_HEARTBEAT;
-                nEnd = EVENT_SCRIPT_AREA_ON_EXIT;            
-            }            
+                nEnd = EVENT_SCRIPT_AREA_ON_EXIT;
+            }
             else if (oObject == GetModule())
             {
                 nStart = EVENT_SCRIPT_MODULE_ON_HEARTBEAT;
                 nEnd = EVENT_SCRIPT_MODULE_ON_NUI_EVENT;
             }
             break;
-        }                                                                        
+        }
     }
-    
+
     if (nStart && nEnd)
     {
         int nEvent;
@@ -276,7 +276,7 @@ void EM_ClearObjectEventScripts(object oObject)
         {
             SetEventScript(oObject, nEvent, "");
         }
-    } 
+    }
 }
 
 // *** NWNX Events

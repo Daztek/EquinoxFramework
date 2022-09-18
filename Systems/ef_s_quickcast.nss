@@ -1297,12 +1297,13 @@ void QC_UpdateSpellList()
     int nClassType = GetClassByPosition(nMultiClass + 1, oPlayer);
     int bSpellbookRestricted = StringToInt(Get2DAString("classes", "SpellbookRestricted", nClassType));
     int bMemorizesSpells = StringToInt(Get2DAString("classes", "MemorizesSpells", nClassType));
+    json jSpellIdArray = JsonArray();
+    json jIconArray = JsonArray();
+    json jNameArray = JsonArray();
+    json jColorArray = JsonArray();
 
-    // This is an optimization, we build the arrays using strings and do a JsonParse() at the end. JsonArrayInsert/Set get costly fast.
-    string sSpellIdArray, sIconArray, sNameArray, sColorArray;
-
-    string sColorWhite = JsonDump(NuiColor(255, 255, 255));
-    string sColorGreen = JsonDump(NuiColor(0, 200, 100));
+    json jColorWhite = NuiColor(255, 255, 255);
+    json jColorGreen = NuiColor(0, 200, 100);
 
     sqlquery sql;
     if (bSpellbookRestricted)
@@ -1335,33 +1336,33 @@ void QC_UpdateSpellList()
                 string sChildIcon = SqlGetString(sqlGetChildSpells, 1);
                 string sChildName = SqlGetString(sqlGetChildSpells, 2);
 
-                sSpellIdArray += StringJsonArrayElementInt(nChildSpellId);
-                sIconArray += StringJsonArrayElementString(sChildIcon);
-                sNameArray += StringJsonArrayElementString(sChildName);
-                sColorArray += (QC_GetHasMemorizedSpell(oPlayer, nMultiClass, QC_GetMasterSpell(nChildSpellId), nMetaMagic) ? sColorGreen : sColorWhite) + ",";
+                jSpellIdArray = JsonArrayInsertInt(jSpellIdArray, nChildSpellId);
+                jIconArray = JsonArrayInsertString(jIconArray, sChildIcon);
+                jNameArray = JsonArrayInsertString(jNameArray, sChildName);
+                jColorArray = JsonArrayInsert(jColorArray, QC_GetHasMemorizedSpell(oPlayer, nMultiClass, QC_GetMasterSpell(nChildSpellId), nMetaMagic) ? jColorGreen : jColorWhite);
             }
 
             if (!bIsMasterSpell)
             {
-                sSpellIdArray += StringJsonArrayElementInt(nMasterSpellId);
-                sIconArray += StringJsonArrayElementString(sMasterIcon);
-                sNameArray += StringJsonArrayElementString(sMasterName);
-                sColorArray += (QC_GetHasMemorizedSpell(oPlayer, nMultiClass, nMasterSpellId, nMetaMagic) ? sColorGreen : sColorWhite) + ",";
+                jSpellIdArray = JsonArrayInsertInt(jSpellIdArray, nMasterSpellId);
+                jIconArray = JsonArrayInsertString(jIconArray, sMasterIcon);
+                jNameArray = JsonArrayInsertString(jNameArray, sMasterName);
+                jColorArray = JsonArrayInsert(jColorArray, QC_GetHasMemorizedSpell(oPlayer, nMultiClass, nMasterSpellId, nMetaMagic) ? jColorGreen : jColorWhite);
             }
         }
         else
         {
-            sSpellIdArray += StringJsonArrayElementInt(SqlGetInt(sql, 0));
-            sIconArray += StringJsonArrayElementString(SqlGetString(sql, 1));
-            sNameArray += StringJsonArrayElementString(SqlGetString(sql, 2));
-            sColorArray += sColorWhite + ",";
+            jSpellIdArray = JsonArrayInsertInt(jSpellIdArray, SqlGetInt(sql, 0));
+            jIconArray = JsonArrayInsertString(jIconArray, SqlGetString(sql, 1));
+            jNameArray = JsonArrayInsertString(jNameArray, SqlGetString(sql, 2));
+            jColorArray = JsonArrayInsert(jColorArray, jColorWhite);
         }
     }
 
-    NWM_SetBind(QC_BIND_LIST_SPELL_ICON, StringJsonArrayElementsToJsonArray(sIconArray));
-    NWM_SetBind(QC_BIND_LIST_SPELL_NAME, StringJsonArrayElementsToJsonArray(sNameArray));
-    NWM_SetBind(QC_BIND_LIST_SPELL_COLOR, StringJsonArrayElementsToJsonArray(sColorArray));
-    NWM_SetUserData("spellids", StringJsonArrayElementsToJsonArray(sSpellIdArray));
+    NWM_SetBind(QC_BIND_LIST_SPELL_ICON, jIconArray);
+    NWM_SetBind(QC_BIND_LIST_SPELL_NAME, jNameArray);
+    NWM_SetBind(QC_BIND_LIST_SPELL_COLOR, jColorArray);
+    NWM_SetUserData("spellids", jSpellIdArray);
 }
 
 string QC_GetMetaMagicTooltip(int nMetaMagic)

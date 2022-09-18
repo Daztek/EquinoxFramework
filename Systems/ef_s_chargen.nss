@@ -1534,9 +1534,9 @@ int CG_IsBonusFeat(int nFeat, int nList)
     return (nList & 0x2);
 }
 
-int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nNumNormalFeats, int nNumBonusFeats, json jChosenFeats, json jChosenFeatsListType)
+int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nTotalNumNormalFeats, int nTotalNumBonusFeats, json jChosenFeats, json jChosenFeatsListType)
 {
-    if (!nNumNormalFeats && !nNumBonusFeats)
+    if (!nTotalNumNormalFeats && !nTotalNumBonusFeats)
         return FALSE;
 
     if (CG_GetHasFeat(nClass, nFeat))
@@ -1548,14 +1548,14 @@ int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nNumNormal
     if (!CG_MeetsFeatRequirements(nRace, nClass, nFeat))
         return FALSE;
 
-    int bNormalListFeat = CG_IsNormalFeat(nFeat, nList);
-    int bBonusListFeat = CG_IsBonusFeat(nFeat, nList);
+    int bIsNormalListFeat = CG_IsNormalFeat(nFeat, nList);
+    int bIsBonusListFeat = CG_IsBonusFeat(nFeat, nList);
 
-    if (!bNormalListFeat && !bBonusListFeat)
+    if (!bIsNormalListFeat && !bIsBonusListFeat)
         return FALSE;
 
-    int nNormalFeats = nNumNormalFeats;
-    int nBonusFeats = nNumBonusFeats;
+    int nNumNormalFeats = nTotalNumNormalFeats;
+    int nNumBonusFeats = nTotalNumBonusFeats;
     int nChosenFeatIndex, nNumChosenFeats = JsonGetLength(jChosenFeats);
     json jAllocatedFeats = GetJsonArrayOfSize(nNumChosenFeats, JsonInt(FALSE));
 
@@ -1563,45 +1563,45 @@ int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nNumNormal
     {
         int nChosenFeat = JsonArrayGetInt(jChosenFeats, nChosenFeatIndex);
         int nChosenFeatListType = JsonArrayGetInt(jChosenFeatsListType, nChosenFeatIndex);
-        int bIsNormalFeat = CG_IsNormalFeat(nChosenFeat, nChosenFeatListType);
-        int bIsBonusFeat = CG_IsBonusFeat(nChosenFeat, nChosenFeatListType);
+        int bChosenFeatIsNormalFeat = CG_IsNormalFeat(nChosenFeat, nChosenFeatListType);
+        int bChosenFeatIsBonusFeat = CG_IsBonusFeat(nChosenFeat, nChosenFeatListType);
 
-        if (bIsNormalFeat && !bIsBonusFeat)
+        if (bChosenFeatIsNormalFeat && !bChosenFeatIsBonusFeat)
         {
-            if (!nNormalFeats)
+            if (!nNumNormalFeats)
                 return FALSE;
 
             jAllocatedFeats = JsonArraySetInt(jAllocatedFeats, nChosenFeatIndex, TRUE);
-            nNormalFeats--;
+            nNumNormalFeats--;
         }
 
-        if (!bIsNormalFeat && bIsBonusFeat)
+        if (!bChosenFeatIsNormalFeat && bChosenFeatIsBonusFeat)
         {
-            if (!nBonusFeats)
+            if (!nNumBonusFeats)
                 return FALSE;
 
             jAllocatedFeats = JsonArraySetInt(jAllocatedFeats, nChosenFeatIndex, TRUE);
-            nBonusFeats--;
+            nNumBonusFeats--;
         }
     }
 
     int bNewFeatAllocated = FALSE;
-    if (bNormalListFeat && !bBonusListFeat)
+    if (bIsNormalListFeat && !bIsBonusListFeat)
     {
-        if (nNormalFeats)
+        if (nNumNormalFeats)
         {
-            nNormalFeats--;
+            nNumNormalFeats--;
             bNewFeatAllocated = TRUE;
         }
         else
             return FALSE;
     }
 
-    if (!bNormalListFeat && bBonusListFeat)
+    if (!bIsNormalListFeat && bIsBonusListFeat)
     {
-        if (nBonusFeats)
+        if (nNumBonusFeats)
         {
-            nBonusFeats--;
+            nNumBonusFeats--;
             bNewFeatAllocated = TRUE;
         }
         else
@@ -1612,12 +1612,12 @@ int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nNumNormal
     {
         if (!JsonArrayGetInt(jAllocatedFeats, nChosenFeatIndex))
         {
-            if (nNormalFeats)
-                nNormalFeats--;
+            if (nNumNormalFeats)
+                nNumNormalFeats--;
             else
             {
-                if (nBonusFeats)
-                    nBonusFeats--;
+                if (nNumBonusFeats)
+                    nNumBonusFeats--;
                 else
                     return FALSE;
             }
@@ -1626,12 +1626,12 @@ int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nNumNormal
 
     if (!bNewFeatAllocated)
     {
-        if (nNormalFeats)
-            nNormalFeats--;
+        if (nNumNormalFeats)
+            nNumNormalFeats--;
         else
         {
-            if (nBonusFeats)
-                nBonusFeats--;
+            if (nNumBonusFeats)
+                nNumBonusFeats--;
             else
                 return FALSE;
         }
@@ -1642,13 +1642,17 @@ int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nNumNormal
 
 void CG_UpdateAvailableFeatsList()
 {
+    struct ProfilerData pd = Profiler_Start("CG_UpdateAvailableFeatsList");
     int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
     int nRace = NWM_GetUserDataInt(CG_USERDATA_RACE);
-    int nNumNormalFeats = NWM_GetUserDataInt(CG_USERDATA_NUM_NORMAL_FEATS);
-    int nNumBonusFeats = NWM_GetUserDataInt(CG_USERDATA_NUM_BONUS_FEATS);
+    int nTotalNumNormalFeats = NWM_GetUserDataInt(CG_USERDATA_NUM_NORMAL_FEATS);
+    int nTotalNumBonusFeats = NWM_GetUserDataInt(CG_USERDATA_NUM_BONUS_FEATS);
     json jChosenFeats = NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS);
     json jChosenFeatsListType = NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE);
     string sSearch = NWM_GetBindString(CG_BIND_VALUE_SEARCH_TEXT);
+    json jFeatsArray = JsonArray();
+    json jNamesArray = JsonArray();
+    json jIconsArray = JsonArray();
     string sFeatArray;
     string sNamesArray;
     string sIconsArray;
@@ -1660,17 +1664,19 @@ void CG_UpdateAvailableFeatsList()
         int nFeat = SqlGetInt(sql, 0);
         int nList = SqlGetInt(sql, 1);
 
-        if (!CG_CanChooseFeat(nRace, nClass, nFeat, nList, nNumNormalFeats, nNumBonusFeats, jChosenFeats, jChosenFeatsListType))
+        if (!CG_CanChooseFeat(nRace, nClass, nFeat, nList, nTotalNumNormalFeats, nTotalNumBonusFeats, jChosenFeats, jChosenFeatsListType))
             continue;
 
-        sFeatArray += StringJsonArrayElementInt(nFeat);
-        sNamesArray += StringJsonArrayElementString(SqlGetString(sql, 2));
-        sIconsArray += StringJsonArrayElementString(SqlGetString(sql, 3));
+        jFeatsArray = JsonArrayInsertInt(jFeatsArray, nFeat);
+        jNamesArray = JsonArrayInsertString(jNamesArray, SqlGetString(sql, 2));
+        jIconsArray = JsonArrayInsertString(jIconsArray, SqlGetString(sql, 3));
     }
 
-    NWM_SetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST, StringJsonArrayElementsToJsonArray(sFeatArray));
-    NWM_SetBind(CG_BIND_LIST_AVAILABLE_FEATS_PREFIX + CG_BIND_LIST_ICONS, StringJsonArrayElementsToJsonArray(sIconsArray));
-    NWM_SetBind(CG_BIND_LIST_AVAILABLE_FEATS_PREFIX + CG_BIND_LIST_NAMES, StringJsonArrayElementsToJsonArray(sNamesArray));
+    NWM_SetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST, jFeatsArray);
+    NWM_SetBind(CG_BIND_LIST_AVAILABLE_FEATS_PREFIX + CG_BIND_LIST_ICONS, jIconsArray);
+    NWM_SetBind(CG_BIND_LIST_AVAILABLE_FEATS_PREFIX + CG_BIND_LIST_NAMES, jNamesArray);
+
+    Profiler_Stop(pd);
 }
 
 void CG_UpdateChosenFeatsList()

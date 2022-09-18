@@ -45,17 +45,17 @@ json AL_CreateWindow()
 
 void AL_RefreshAreaList()
 {
-    string sAreaNames, sAreaIds;
+    json jAreaNames = JsonArray(), jAreaIds = JsonArray();
     object oArea = GetFirstArea();
     while (GetIsObjectValid(oArea))
     {
-        sAreaNames += StringJsonArrayElementString(GetName(oArea) + " (" + GetTag(oArea) + ")");
-        sAreaIds += StringJsonArrayElementString(ObjectToString(oArea));
+        jAreaNames = JsonArrayInsertString(jAreaNames, GetName(oArea) + " (" + GetTag(oArea) + ")");
+        jAreaIds = JsonArrayInsertString(jAreaIds, ObjectToString(oArea));
         oArea = GetNextArea();
     }
 
-    NWM_SetBind(AL_NUI_BIND_BUTTONS, StringJsonArrayElementsToJsonArray(sAreaNames));
-    NWM_SetUserData("areas", StringJsonArrayElementsToJsonArray(sAreaIds));
+    NWM_SetBind(AL_NUI_BIND_BUTTONS, jAreaNames);
+    NWM_SetUserData("areas", jAreaIds);
 }
 
 // @NWMEVENT[AL_WINDOW_ID:NUI_EVENT_CLICK:AL_ELEMENT_REFRESH_BUTTON]

@@ -11,7 +11,6 @@
 #include "ef_i_util"
 #include "ef_i_convert"
 #include "nwnx_admin"
-#include "nwnx_regex"
 
 const string EFCORE_LOG_TAG                             = "Equinox";
 const string EFCORE_SCRIPT_NAME                         = "ef_i_core";
@@ -21,7 +20,7 @@ const int EFCORE_DISABLE_DEBUG_FAST_START               = TRUE;
 const int EFCORE_VALIDATE_SYSTEMS                       = EFCORE_DISABLE_DEBUG_FAST_START;
 const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
 
-const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = EFCORE_DISABLE_DEBUG_FAST_START;
+const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = FALSE;//EFCORE_DISABLE_DEBUG_FAST_START;
 
 const int EFCORE_PARSE_SYSTEM_FUNCTIONS                 = EFCORE_DISABLE_DEBUG_FAST_START;
 const int EFCORE_PRECACHE_SYSTEM_FUNCTIONS              = FALSE;
@@ -205,7 +204,7 @@ void EFCore_ParseSystem(string sSystem)
     // Get annotations
     string sRegex = "@ANNOTATION\\[([\\S]+)\\]";
     json jAnnotations = JsonArray();
-    json jMatches = NWNX_Regex_Match(sScriptData, sRegex);
+    json jMatches = RegExpIterate(sRegex, sScriptData);
     int nMatch, nNumMatches = JsonGetLength(jMatches);
     for(nMatch = 0; nMatch < nNumMatches; nMatch++)
     {
@@ -214,8 +213,8 @@ void EFCore_ParseSystem(string sSystem)
 
     if (EFCORE_PARSE_SYSTEM_FUNCTIONS)
     {
-        json jMatches = NWNX_Regex_Match(sScriptData, "(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)" +
-                                                "(void|object|int|float|string|json|vector|location)\\s(\\w+)\\((.*)\\);");
+        json jMatches = RegExpIterate("(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)" +
+                                      "(void|object|int|float|string|json|vector|location)\\s(\\w+)\\((.*)\\);", sScriptData);
         int nMatch, nNumMatches = JsonGetLength(jMatches);
         for(nMatch = 0; nMatch < nNumMatches; nMatch++)
         {
@@ -227,7 +226,7 @@ void EFCore_ParseSystem(string sSystem)
 
             if (sRawParameters != "")
             {
-                json jRawParameters = NWNX_Regex_Match(sRawParameters, "(object|int|float|string|json|vector|location)\\s");
+                json jRawParameters = RegExpIterate("(object|int|float|string|json|vector|location)\\s", sRawParameters);
                 int nRawParameter, nNumRawParameters = JsonGetLength(jRawParameters);
                 for(nRawParameter = 0; nRawParameter < nNumRawParameters; nRawParameter++)
                 {
@@ -314,7 +313,7 @@ void EFCore_ParseSystemsForAnnotationData()
         while (SqlStep(sqlAnnotations))
         {
             string sAnnotation = SqlGetString(sqlAnnotations, 0);
-            json jMatches = NWNX_Regex_Match(sScriptData, sAnnotation);
+            json jMatches = RegExpIterate(sAnnotation, sScriptData);
 
             int nMatch, nNumMatches = JsonGetLength(jMatches);
             for(nMatch = 0; nMatch < nNumMatches; nMatch++)

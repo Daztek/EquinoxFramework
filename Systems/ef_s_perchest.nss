@@ -232,10 +232,10 @@ void PC_UpdateItemList()
     object oPlayer = NWM_GetPlayer();
     object oDataObject = GetDataObject(PC_SCRIPT_NAME);
 
-    string sUUIDArray;
-    string sNamesArray;
-    string sTooltipArray;
-    string sIconArray;
+    json jUUIDArray = JsonArray();
+    json jNamesArray = JsonArray();
+    json jTooltipArray = JsonArray();
+    json jIconArray = JsonArray();
 
     int nNumItems = PC_GetStoredItemAmount(oPlayer);
     string sSearch = JsonGetString(NWM_GetBind(PC_BIND_SEARCH_TEXT));
@@ -254,16 +254,16 @@ void PC_UpdateItemList()
         int nStackSize = SqlGetInt(sql, 3);
         string sIconResRef = SqlGetString(sql, 4);
 
-        sUUIDArray += StringJsonArrayElementString(sUUID);
-        sNamesArray += StringJsonArrayElementString(sName + (nStackSize > 1 ? " (x" + IntToString(nStackSize) + ")" : ""));
-        sTooltipArray += StringJsonArrayElementString(Get2DAStrRefString("baseitems", "Name", nBaseItem));
-        sIconArray += StringJsonArrayElementString(sIconResRef);
+        jUUIDArray = JsonArrayInsertString(jUUIDArray, sUUID);
+        jNamesArray = JsonArrayInsertString(jNamesArray, sName + (nStackSize > 1 ? " (x" + IntToString(nStackSize) + ")" : ""));
+        jTooltipArray = JsonArrayInsertString(jTooltipArray, Get2DAStrRefString("baseitems", "Name", nBaseItem));
+        jIconArray = JsonArrayInsertString(jIconArray, sIconResRef);
     }
 
-    NWM_SetUserData("uuid_array", StringJsonArrayElementsToJsonArray(sUUIDArray));
-    NWM_SetBind(PC_BIND_ICONS_ARRAY, StringJsonArrayElementsToJsonArray(sIconArray));
-    NWM_SetBind(PC_BIND_NAMES_ARRAY, StringJsonArrayElementsToJsonArray(sNamesArray));
-    NWM_SetBind(PC_BIND_TOOLTIPS_ARRAY, StringJsonArrayElementsToJsonArray(sTooltipArray));
+    NWM_SetUserData("uuid_array", jUUIDArray);
+    NWM_SetBind(PC_BIND_ICONS_ARRAY, jIconArray);
+    NWM_SetBind(PC_BIND_NAMES_ARRAY, jNamesArray);
+    NWM_SetBind(PC_BIND_TOOLTIPS_ARRAY, jTooltipArray);
     NWM_SetBind(PC_BIND_PROGRESS, JsonFloat(IntToFloat(nNumItems) / IntToFloat(PC_MAX_ITEMS)));
     NWM_SetBind(PC_BIND_PROGRESS_TOOLTIP, JsonString(IntToString(nNumItems) + " / " + IntToString(PC_MAX_ITEMS) + " Items Stored"));
 }

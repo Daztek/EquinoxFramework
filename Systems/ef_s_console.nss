@@ -193,10 +193,10 @@ json Console_CreateWindow()
 
 void Console_UpdateCommandList(string sSearch)
 {
-    string sIdArray;
-    string sNameArray;
-    string sIconArray;
-    string sTooltipArray;
+    json jIdArray = JsonArray();
+    json jNameArray = JsonArray();
+    json jIconArray = JsonArray();
+    json jTooltipArray = JsonArray();
 
     string sSystem = JsonArrayGetString(NWM_GetUserData("systems"), JsonGetInt(NWM_GetBind(CONSOLE_BIND_COMBO_SYSTEM_SELECTED)));
 
@@ -209,17 +209,17 @@ void Console_UpdateCommandList(string sSearch)
 
     while (SqlStep(sql))
     {
-        sIdArray += StringJsonArrayElementInt(SqlGetInt(sql, 0));
-        sNameArray += StringJsonArrayElementString(SqlGetString(sql, 1));
-        sIconArray += StringJsonArrayElementString(SqlGetString(sql, 2));
-        sTooltipArray += StringJsonArrayElementString(SqlGetString(sql, 3));
+        jIdArray = JsonArrayInsertInt(jIdArray, SqlGetInt(sql, 0));
+        jNameArray = JsonArrayInsertString(jNameArray, SqlGetString(sql, 1));
+        jIconArray = JsonArrayInsertString(jIconArray, SqlGetString(sql, 2));
+        jTooltipArray = JsonArrayInsertString(jTooltipArray, SqlGetString(sql, 3));
     }
 
-    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_NAME, StringJsonArrayElementsToJsonArray(sNameArray));
-    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_ICON, StringJsonArrayElementsToJsonArray(sIconArray));
-    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_TOOLTIP, StringJsonArrayElementsToJsonArray(sTooltipArray));
+    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_NAME, jNameArray);
+    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_ICON, jIconArray);
+    NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_TOOLTIP, jTooltipArray);
 
-    NWM_SetUserData("commands", StringJsonArrayElementsToJsonArray(sIdArray));
+    NWM_SetUserData("commands", jIdArray);
 }
 
 void Console_UpdateSystemCombo()
@@ -262,9 +262,10 @@ void Console_SelectCommand(int nCommand)
         string sIcon = SqlGetString(sql, 1);
         json jParameters = SqlGetJson(sql, 2);
         string sScriptChunk = SqlGetString(sql, 3);
-        string sArrayArgName;
-        string sArrayArgValue;
-        string sArrayArgTooltip;
+
+        json jArgNameArray = JsonArray();
+        json jArgValueArray = JsonArray();
+        json jArgTooltipArray = JsonArray();
 
         int nParameter, nNumParameters = JsonGetLength(jParameters);
         for (nParameter = 0; nParameter < nNumParameters; nParameter++)
@@ -274,9 +275,9 @@ void Console_SelectCommand(int nCommand)
             string sName = JsonObjectGetString(jParameter, "name");
             string sDefault = JsonObjectGetString(jParameter, "default");
 
-            sArrayArgName += StringJsonArrayElementString(JsonObjectGetString(jParameter, "name"));
-            sArrayArgValue += StringJsonArrayElementString(JsonObjectGetString(jParameter, "default"));
-            sArrayArgTooltip += StringJsonArrayElementString(nssConvertShortType(JsonObjectGetString(jParameter, "type")));
+            jArgNameArray = JsonArrayInsert(jArgNameArray, JsonObjectGet(jParameter, "name"));
+            jArgValueArray = JsonArrayInsert(jArgValueArray, JsonObjectGet(jParameter, "default"));
+            jArgTooltipArray = JsonArrayInsert(jArgTooltipArray, JsonObjectGet(jParameter, "type"));
         }
 
         NWM_SetUserData("selected_command", JsonInt(nCommand));
@@ -285,9 +286,9 @@ void Console_SelectCommand(int nCommand)
 
         NWM_SetBindString(CONSOLE_BIND_SELECTED_COMMAND_ICON, sIcon);
         NWM_SetBindString(CONSOLE_BIND_SELECTED_COMMAND_NAME, sName);
-        NWM_SetBind(CONSOLE_BIND_LIST_ARG_NAME, StringJsonArrayElementsToJsonArray(sArrayArgName));
-        NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, StringJsonArrayElementsToJsonArray(sArrayArgValue));
-        NWM_SetBind(CONSOLE_BIND_LIST_ARG_TYPE_TOOLTIP, StringJsonArrayElementsToJsonArray(sArrayArgTooltip));
+        NWM_SetBind(CONSOLE_BIND_LIST_ARG_NAME, jArgNameArray);
+        NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, jArgValueArray);
+        NWM_SetBind(CONSOLE_BIND_LIST_ARG_TYPE_TOOLTIP, jArgTooltipArray);
 
         NWM_SetBindBool(CONSOLE_BIND_BUTTON_CLEAR_ARGS_ENABLED, TRUE);
         NWM_SetBindBool(CONSOLE_BIND_BUTTON_EXECUTE_ENABLED, TRUE);
@@ -359,14 +360,14 @@ void Console_ClickClearArgsButton()
 {
     json jValues = NWM_GetBind(CONSOLE_BIND_LIST_ARG_VALUE);
     int nArgument, nNumArguments = JsonGetLength(jValues);
-    string sArgumentValueArray;
+    json jArgumentValueArray;
 
     for (nArgument = 0; nArgument < nNumArguments; nArgument++)
     {
-        sArgumentValueArray += StringJsonArrayElementString("");
+        jArgumentValueArray = JsonArrayInsertString(jArgumentValueArray, "");
     }
 
-    NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, StringJsonArrayElementsToJsonArray(sArgumentValueArray));
+    NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, jArgumentValueArray);
 }
 
 // @NWMEVENT[CONSOLE_WINDOW_ID:NUI_EVENT_CLICK:CONSOLE_BIND_BUTTON_EXECUTE]
@@ -456,7 +457,7 @@ void Console_RegisterCommand(json jCommand)
     json jParameters = JsonArray();
     if (sParameters != "")
     {
-        json jMatches = NWNX_Regex_Match(sParameters, "(int|float|string)\\s(\\w+)(?:\\s=\\s)?(-?\\d+|-?\\d+\\.\\d+f?|\".*\")?(?:,|$)");
+        json jMatches = RegExpIterate("(int|float|string)\\s(\\w+)(?:\\s=\\s)?(-?\\d+|-?\\d+\\.\\d+f?|\".*\")?(?:,|$)", sParameters);
         int nMatch, nNumMatches = JsonGetLength(jMatches);
         for(nMatch = 0; nMatch < nNumMatches; nMatch++)
         {

@@ -462,7 +462,9 @@ void VMan_LoadCharacterList()
 {
     object oPlayer = OBJECT_SELF;
     string sCDKey = GetPCPublicCDKey(oPlayer);
-    string sIds, sNames, sPortraits;
+    json jIds = JsonArray();
+    json jPortraits = JsonArray();
+    json jNames = JsonArray();
 
     string sQuery = "SELECT characters.id, characters.owner, " +
                         "JSON_EXTRACT(characters.character, '$.FirstName.value.0') || ' ' || " +
@@ -475,14 +477,14 @@ void VMan_LoadCharacterList()
 
     while (SqlStep(sql))
     {
-        sIds += StringJsonArrayElementInt(SqlGetInt(sql, 0));
-        sPortraits += StringJsonArrayElementString(SqlGetString(sql, 3) + "t");
-        sNames += StringJsonArrayElementString(SqlGetString(sql, 2) + (SqlGetString(sql, 1) != sCDKey ? " (Shared)" : ""));
+        jIds = JsonArrayInsertInt(jIds, SqlGetInt(sql, 0));
+        jPortraits = JsonArrayInsertString(jPortraits, SqlGetString(sql, 3) + "t");
+        jNames = JsonArrayInsertString(jNames, SqlGetString(sql, 2) + (SqlGetString(sql, 1) != sCDKey ? " (Shared)" : ""));
     }
 
-    NWM_SetUserData(VMAN_NUI_USERDATA_IDS, StringJsonArrayElementsToJsonArray(sIds));
-    NWM_SetBind(VMAN_BIND_LIST_PORTRAITS, StringJsonArrayElementsToJsonArray(sPortraits));
-    NWM_SetBind(VMAN_BIND_LIST_NAMES, StringJsonArrayElementsToJsonArray(sNames));
+    NWM_SetUserData(VMAN_NUI_USERDATA_IDS, jIds);
+    NWM_SetBind(VMAN_BIND_LIST_PORTRAITS, jPortraits);
+    NWM_SetBind(VMAN_BIND_LIST_NAMES, jNames);
 }
 
 void VMan_SetClassInfo(int nClassPosition, int nClassId, int nLevel)
@@ -624,7 +626,7 @@ string VMan_EventToIcon(int nEvent)
 
 void VMan_UpdateEventLog(int nCharacterId, string sName)
 {
-    string sIcons, sLabels;
+    json jIcons = JsonArray(), jLabels = JsonArray();
     sqlquery sql = VMan_PrepareQuery("SELECT cdkey, event, datetime(timestamp, 'unixepoch', 'localtime') FROM vault_log WHERE id = @id ORDER BY rowid DESC LIMIT 100;");
     SqlBindInt(sql, "@id", nCharacterId);
 
@@ -632,13 +634,13 @@ void VMan_UpdateEventLog(int nCharacterId, string sName)
     {
         int nEvent = SqlGetInt(sql, 1);
 
-        sIcons += StringJsonArrayElementString(VMan_EventToIcon(nEvent));
-        sLabels += StringJsonArrayElementString("[" + SqlGetString(sql, 2) + "] " + SqlGetString(sql, 0) + ": " + VMan_EventToString(nEvent));
+        jIcons = JsonArrayInsertString(jIcons, VMan_EventToIcon(nEvent));
+        jLabels = JsonArrayInsertString(jLabels, "[" + SqlGetString(sql, 2) + "] " + SqlGetString(sql, 0) + ": " + VMan_EventToString(nEvent));
     }
 
     NWM_SetBindString(VMAN_BIND_WINDOW_NAME, "Event Log: " + sName);
-    NWM_SetBind(VMAN_BIND_LIST_ICONS, StringJsonArrayElementsToJsonArray(sIcons));
-    NWM_SetBind(VMAN_BIND_LIST_LABELS, StringJsonArrayElementsToJsonArray(sLabels));
+    NWM_SetBind(VMAN_BIND_LIST_ICONS, jIcons);
+    NWM_SetBind(VMAN_BIND_LIST_LABELS, jLabels);
 }
 
 string VMan_GetItemIconResref(int nBaseItem, int nModelPart1, json jProperties)
@@ -713,7 +715,7 @@ void VMan_UpdateItems(int nCharacterId, string sName)
     sqlquery sql = VMan_PrepareQuery(sQuery);
     SqlBindInt(sql, "@id", nCharacterId);
 
-    string sIcons, sLabels;
+    json jIcons = JsonArray(), jLabels = JsonArray();
     while (SqlStep(sql))
     {
         int nBaseItemType = SqlGetInt(sql, 0);
@@ -721,11 +723,11 @@ void VMan_UpdateItems(int nCharacterId, string sName)
         int nModelPart1 = SqlGetInt(sql, 2);
         json jProperties = SqlGetJson(sql, 3);
 
-        sIcons += StringJsonArrayElementString(VMan_GetItemIconResref(nBaseItemType, nModelPart1, jProperties));
-        sLabels += StringJsonArrayElementString(GetStringByStrRef(nLocalizedNameStrRef));
+        jIcons = JsonArrayInsertString(jIcons, VMan_GetItemIconResref(nBaseItemType, nModelPart1, jProperties));
+        jLabels = JsonArrayInsertString(jLabels, GetStringByStrRef(nLocalizedNameStrRef));
     }
 
     NWM_SetBindString(VMAN_BIND_WINDOW_NAME, "Inventory: " + sName);
-    NWM_SetBind(VMAN_BIND_LIST_ICONS, StringJsonArrayElementsToJsonArray(sIcons));
-    NWM_SetBind(VMAN_BIND_LIST_LABELS, StringJsonArrayElementsToJsonArray(sLabels));
+    NWM_SetBind(VMAN_BIND_LIST_ICONS, jIcons);
+    NWM_SetBind(VMAN_BIND_LIST_LABELS, jLabels);
 }

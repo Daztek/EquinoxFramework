@@ -1133,10 +1133,10 @@ void QC_PreparePlayerKnownSpells(object oPlayer)
         int nSpellLevel;
         for (nSpellLevel = 0; nSpellLevel < QC_NUM_SPELL_LEVELS; nSpellLevel++)
         {
-            int nSpellIndex, nNumKnownSpells = NWNX_Creature_GetKnownSpellCount(oPlayer, nClassType, nSpellLevel);
+            int nSpellIndex, nNumKnownSpells = GetKnownSpellCount(oPlayer, nClassType, nSpellLevel);
             for (nSpellIndex = 0; nSpellIndex < nNumKnownSpells; nSpellIndex++)
             {
-                int nSpellId = NWNX_Creature_GetKnownSpell(oPlayer, nClassType, nSpellLevel, nSpellIndex);
+                int nSpellId = GetKnownSpellId(oPlayer, nClassType, nSpellLevel, nSpellIndex);
 
                 int bIsMasterSpell = FALSE;
                 sqlquery sqlGetChildSpells = SqlPrepareQueryModule(sSelectChildSpellsQuery);
@@ -1206,15 +1206,13 @@ void QC_PreparePlayerMemorizedSpells(object oPlayer)
         int nSpellLevel;
         for (nSpellLevel = 0; nSpellLevel < QC_NUM_SPELL_LEVELS; nSpellLevel++)
         {
-            int nSpellIndex, nNumMemorizedSpells = NWNX_Creature_GetMemorisedSpellCountByLevel(oPlayer, nClassType, nSpellLevel);
+            int nSpellIndex, nNumMemorizedSpells = GetMemorizedSpellCountByLevel(oPlayer, nClassType, nSpellLevel);
             for (nSpellIndex = 0; nSpellIndex < nNumMemorizedSpells; nSpellIndex++)
             {
-                struct NWNX_Creature_MemorisedSpell strSpell = NWNX_Creature_GetMemorisedSpell(oPlayer, nClassType, nSpellLevel, nSpellIndex);
-
                 sqlquery sql = SqlPrepareQueryModule(sQuery);
                 SqlBindInt(sql, "@multiclass", nMultiClass);
-                SqlBindInt(sql, "@spellid", strSpell.id);
-                SqlBindInt(sql, "@metamagic", strSpell.meta);
+                SqlBindInt(sql, "@spellid", GetMemorizedSpellId(oPlayer, nClassType, nSpellLevel, nSpellIndex));
+                SqlBindInt(sql, "@metamagic", GetMemorizedSpellMetaMagic(oPlayer, nClassType, nSpellLevel, nSpellIndex));
                 SqlBindInt(sql, "@spelllevel", nSpellLevel);
 
                 SqlStep(sql);
@@ -1409,11 +1407,11 @@ json QC_GetMetaMagicRect(int nMetaMagic)
 
 void QC_SetSpellUsesState(object oPlayer, int nSlotId, int nSpellId, int nMultiClass, int nMetaMagic)
 {
-    int nUses;
-    if (StringToInt(Get2DAString("classes", "MemorizesSpells", GetClassByPosition(nMultiClass + 1, oPlayer))))
-        nUses = NWNX_Creature_GetMemorizedSpellReadyCount(oPlayer, QC_GetMasterSpell(nSpellId), nMultiClass, nMetaMagic);
+    int nUses, nClassType = GetClassByPosition(nMultiClass + 1, oPlayer);
+    if (StringToInt(Get2DAString("classes", "MemorizesSpells", nClassType)))
+        nUses = GetSpellUsesLeft(oPlayer, nClassType, QC_GetMasterSpell(nSpellId), nMetaMagic);
     else
-        nUses = NWNX_Creature_GetSpellUsesLeft(oPlayer, nSpellId, nMultiClass, 0, nMetaMagic);
+        nUses = GetSpellUsesLeft(oPlayer, nClassType, nSpellId, nMetaMagic);
 
     string sSlotId = IntToString(nSlotId);
 

@@ -13,20 +13,6 @@ const string TARGETMODE_SCRIPT_NAME             = "ef_s_targetmode";
 const string TARGETMODE_FUNCTIONS_ARRAY_PREFIX  = "FunctionsArray_";
 const string TARGETMODE_CURRENT_TARGET_MODE     = "CurrentTargetMode_";
 
-const int _SPELL_TARGETING_SHAPE_NONE                      = 0;
-const int _SPELL_TARGETING_SHAPE_SPHERE                    = 1;
-const int _SPELL_TARGETING_SHAPE_RECT                      = 2;
-const int _SPELL_TARGETING_SHAPE_CONE                      = 3;
-const int _SPELL_TARGETING_SHAPE_HSPHERE                   = 4;
-
-const int _SPELL_TARGETING_FLAGS_NONE                      = 0;
-const int _SPELL_TARGETING_FLAGS_HARMS_ENEMIES             = 1;
-const int _SPELL_TARGETING_FLAGS_HARMS_ALLIES              = 2;
-const int _SPELL_TARGETING_FLAGS_HELPS_ALLIES              = 4;
-const int _SPELL_TARGETING_FLAGS_IGNORES_SELF              = 8;
-const int _SPELL_TARGETING_FLAGS_ORIGIN_ON_SELF            = 16;
-const int _SPELL_TARGETING_FLAGS_SUPPRESS_WITH_TARGET      = 32;
-
 string TargetMode_GetTargetMode(object oPlayer);
 void TargetMode_Enter(object oPlayer, string sTargetingMode, int nValidObjectTypes = OBJECT_TYPE_ALL, int nMouseCursorId = MOUSECURSOR_MAGIC, int nBadTargetCursor = MOUSECURSOR_NOMAGIC);
 
@@ -93,32 +79,19 @@ void TargetMode_Enter(object oPlayer, string sTargetingMode, int nValidObjectTyp
     EnterTargetingMode(oPlayer, nValidObjectTypes, nMouseCursorId, nBadTargetCursor);
 }
 
-void _SetEnterTargetingModeData(object oPlayer, int nShape, float fSizeX, float fSizeY, int nFlags, float fRange = 0.0f, int nSpell = -1, int nFeat = -1)
-{
-    NWNX_PushArgumentInt(nFeat);
-    NWNX_PushArgumentInt(nSpell);
-    NWNX_PushArgumentFloat(fRange);
-    NWNX_PushArgumentInt(nFlags);
-    NWNX_PushArgumentFloat(fSizeY);
-    NWNX_PushArgumentFloat(fSizeX);
-    NWNX_PushArgumentInt(nShape);
-    NWNX_PushArgumentObject(oPlayer);
-    NWNX_CallFunction("NWNX_Vault", "SetEnterTargetingModeData");
-}
-
 void TargetMode_SetSpellData(object oPlayer, int nSpellId)
 {
     int nShape = 0;
     string sShape = Get2DAString("spells", "TargetShape", nSpellId);
 
     if (sShape == "sphere")
-        nShape = _SPELL_TARGETING_SHAPE_SPHERE;
+        nShape = SPELL_TARGETING_SHAPE_SPHERE;
     else if (sShape == "rectangle")
-        nShape = _SPELL_TARGETING_SHAPE_RECT;
+        nShape = SPELL_TARGETING_SHAPE_RECT;
     else if (sShape == "cone")
-        nShape = _SPELL_TARGETING_SHAPE_CONE;
+        nShape = SPELL_TARGETING_SHAPE_CONE;
     else if (sShape == "hsphere")
-        nShape = _SPELL_TARGETING_SHAPE_HSPHERE;
+        nShape = SPELL_TARGETING_SHAPE_HSPHERE;
 
     float fSizeX = StringToFloat(Get2DAString("spells", "TargetSizeX", nSpellId));
     float fSizeY = StringToFloat(Get2DAString("spells", "TargetSizeY", nSpellId));
@@ -136,5 +109,5 @@ void TargetMode_SetSpellData(object oPlayer, int nSpellId)
     else if (sRange == "T" || sRange == "P")
         fRange = 2.25f;
 
-    _SetEnterTargetingModeData(oPlayer, nShape, fSizeX, fSizeY, nFlags, fRange, nSpellId);
+    SetEnterTargetingModeData(oPlayer, nShape, fSizeX, fSizeY, nFlags, fRange, nSpellId);
 }

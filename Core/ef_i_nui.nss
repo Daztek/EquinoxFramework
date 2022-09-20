@@ -11,6 +11,7 @@
 const string NUI_WINDOW_ROOT_GROUP          = "_window_";
 
 const string NUI_WINDOW_GEOMETRY_BIND       = "NUIWindowGeometry";
+const string NUI_WINDOW_ACCEPTS_INPUT_BIND  = "NUIWindowAcceptsInput";
 
 const string NUI_EVENT_OPEN                 = "open";
 const string NUI_EVENT_CLOSE                = "close";

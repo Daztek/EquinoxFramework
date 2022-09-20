@@ -26,7 +26,7 @@ void DestroyDataObject(string sTag);
 object GetDataObject(string sTag, int bCreateIfNotExists = TRUE);
 
 // Get an array of resrefs by type
-json GetResRefArray(int nResType, string sRegexFilter = "", int bCustomResourcesOnly = TRUE);
+json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "");
 
 // Execute a script chunk.
 // The script chunk runs immediately, same as ExecuteScript().
@@ -147,15 +147,15 @@ object GetDataObject(string sTag, int bCreateIfNotExists = TRUE)
     return GetIsObjectValid(oDataObject) ? oDataObject : bCreateIfNotExists ? CreateDataObject(sTag) : OBJECT_INVALID;
 }
 
-json GetResRefArray(int nResType, string sRegexFilter = "", int bCustomResourcesOnly = TRUE)
+json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
 {
     json jArray = JsonArray();
-    string sResRef = NWNX_Util_GetFirstResRef(nResType, sRegexFilter, bCustomResourcesOnly);
+    string sResRef;
+    int nNth;
 
-    while (sResRef != "")
+    while ((sResRef = ResManFindPrefix(sPrefix, nResType, ++nNth)) != "")
     {
         jArray = JsonArrayInsertString(jArray, sResRef);
-        sResRef = NWNX_Util_GetNextResRef();
     }
 
     return jArray;

@@ -125,7 +125,8 @@ void EFCore_InitializeSystemData()
     EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "@(CORE)\\[(EF_SYSTEM_[A-Z]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(");
     EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "@(PAD)\\[([\\w]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(json\\s[\\w]+\\)");
 
-    json jSystems = GetResRefArray(RESTYPE_NSS, EFCORE_SYSTEM_SCRIPT_PREFIX + ".*", FALSE);
+
+    json jSystems = JsonArrayTransform(GetResRefArray(EFCORE_SYSTEM_SCRIPT_PREFIX, RESTYPE_NSS) , JSON_ARRAY_SORT_ASCENDING);
     int nSystem, nNumSystems = JsonGetLength(jSystems);
     for (nSystem = 0; nSystem < nNumSystems; nSystem++)
     {

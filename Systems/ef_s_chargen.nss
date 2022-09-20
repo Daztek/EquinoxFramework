@@ -16,6 +16,7 @@ const string CG_MAIN_WINDOW_ID                          = "CG_MAIN";
 const string CG_ABILITY_WINDOW_ID                       = "CG_ABILITY";
 const string CG_SKILL_WINDOW_ID                         = "CG_SKILL";
 const string CG_FEAT_WINDOW_ID                          = "CG_FEAT";
+const string CG_DOMAIN_WINDOW_ID                        = "CG_DOMAIN";
 
 const string CG_BIND_VALUE_GENDER                       = "val_gender";
 const string CG_BIND_VALUE_RACE                         = "val_race";
@@ -35,6 +36,8 @@ const string CG_ID_BUTTON_ABILITY_WINDOW                = "btn_ability_window";
 const string CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED      = "btn_ability_window_enabled";
 const string CG_ID_BUTTON_SKILLFEAT_WINDOW              = "btn_skillfeat_window";
 const string CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED    = "btn_skillfeat_window_enabled";
+const string CG_ID_BUTTON_DOMAIN_WINDOW                 = "btn_domain_window";
+const string CG_BIND_BUTTON_DOMAIN_WINDOW_ENABLED      =  "btn_domain_window_enabled";
 
 const string CG_ID_BUTTON_OK                            = "btn_ok";
 const string CG_ID_BUTTON_OK_ENABLED                    = "btn_ok_enabled";
@@ -77,6 +80,7 @@ const string CG_CLASS_BASE_FORTITUDE_SAVING_THROW       = "ClassBaseFortitudeSav
 const string CG_CLASS_BASE_SPELL_LEVEL                  = "ClassBaseSpellLevel_";
 const string CG_CLASS_FEATS_GRANTED_ON_LEVEL1           = "ClassFeatsGrantedOnLevel1_";
 const string CG_CLASS_NUM_LEVEL_1_BONUS_FEATS           = "ClassNumLevel1BonusFeats_";
+const string CG_RACE_RACIAL_FEATS                       = "RaceRacialFeats_";
 
 void CG_LoadRaceData();
 void CG_LoadClassData();
@@ -289,8 +293,9 @@ void CG_LoadClassLevel1GrantedFeats(int nClass)
 
             jGrantedLevel1Feats = JsonArrayInsertUniqueInt(jGrantedLevel1Feats, nFeat);
 
-            sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + CG_SCRIPT_NAME + "_grantedfeats(class, id, name, icon) VALUES(@class, @id, @name, @icon)");
+            sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + CG_SCRIPT_NAME + "_grantedfeats(class, race, id, name, icon) VALUES(@class, @race, @id, @name, @icon)");
             SqlBindInt(sql, "@class", nClass);
+            SqlBindInt(sql, "@race", -1);
             SqlBindInt(sql, "@id", nFeat);
             SqlBindString(sql, "@name", Get2DAStrRefString("feat", "FEAT", nFeat));
             SqlBindString(sql, "@icon", Get2DAString("feat", "ICON", nFeat));
@@ -377,10 +382,34 @@ void CG_LoadClassFeatTable(int nClass)
     SqlCommitTransactionModule();
 }
 
+void CG_LoadRacialFeats(int nRace)
+{
+    json jRacialFeats = JsonArray();
+    string sFeatsTable = Get2DAString("racialtypes", "FeatsTable", nRace);
+    int nRow, nNumRows = Get2DARowCount(sFeatsTable);
+    for (nRow = 0; nRow < nNumRows; nRow++)
+    {
+        int nFeat = StringToInt(Get2DAString(sFeatsTable, "FeatIndex", nRow));
+
+        jRacialFeats = JsonArrayInsertUniqueInt(jRacialFeats, nFeat);
+
+        sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + CG_SCRIPT_NAME + "_grantedfeats(class, race, id, name, icon) VALUES(@class, @race, @id, @name, @icon)");
+        SqlBindInt(sql, "@class", -1);
+        SqlBindInt(sql, "@race", nRace);
+        SqlBindInt(sql, "@id", nFeat);
+        SqlBindString(sql, "@name", Get2DAStrRefString("feat", "FEAT", nFeat));
+        SqlBindString(sql, "@icon", Get2DAString("feat", "ICON", nFeat));
+        SqlStep(sql);
+    }
+
+    SetLocalJson(GetDataObject(CG_SCRIPT_NAME), CG_RACE_RACIAL_FEATS + IntToString(nRace), jRacialFeats);
+}
+
 void CG_LoadFeatData()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + CG_SCRIPT_NAME + "_grantedfeats (" +
                     "class INTEGER NOT NULL, " +
+                    "race INTEGER NOT NULL, " +
                     "id INTEGER NOT NULL, " +
                     "name TEXT NOT NULL, " +
                     "icon TEXT NOT NULL);";
@@ -408,6 +437,16 @@ void CG_LoadFeatData()
 
         // Step 3: Prepare the class feat list
         CG_LoadClassFeatTable(nClass);
+    }
+
+    // Step 4: Grab all racial feats
+    sqlquery sqlRaces = SqlPrepareQueryModule("SELECT id FROM " + CG_SCRIPT_NAME + "_races;");
+    while (SqlStep(sqlRaces))
+    {
+        int nRace = SqlGetInt(sqlRaces, 0);
+
+        // Step 4: Grab all racial feats
+        CG_LoadRacialFeats(nRace);
     }
 }
 
@@ -579,9 +618,31 @@ json CG_CreateMainWindow()
             NB_StartRow();
                 NB_AddSpacer();
                 NB_StartElement(NuiButton(JsonString("Skills & Feats")));
-                    NB_SetDimensions(250.0f, 32.0f);
+                    NB_SetDimensions(200.0f, 32.0f);
                     NB_SetId(CG_ID_BUTTON_SKILLFEAT_WINDOW);
                     NB_SetEnabled(NuiBind(CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED));
+                NB_End();
+                NB_AddSpacer();
+                NB_StartElement(NuiButton(JsonString("Spells")));
+                    NB_SetDimensions(200.0f, 32.0f);
+                    //NB_SetId(CG_ID_BUTTON_DOMAIN_WINDOW);
+                    //NB_SetEnabled(NuiBind(CG_BIND_BUTTON_DOMAIN_WINDOW_ENABLED));
+                NB_End();
+                NB_AddSpacer();
+            NB_End();
+
+            NB_StartRow();
+                NB_AddSpacer();
+                NB_StartElement(NuiButton(JsonString("Domains")));
+                    NB_SetDimensions(200.0f, 32.0f);
+                    NB_SetId(CG_ID_BUTTON_DOMAIN_WINDOW);
+                    NB_SetEnabled(NuiBind(CG_BIND_BUTTON_DOMAIN_WINDOW_ENABLED));
+                NB_End();
+                NB_AddSpacer();
+                NB_StartElement(NuiButton(JsonString("Animal Companion")));
+                    NB_SetDimensions(200.0f, 32.0f);
+                    //NB_SetId(CG_ID_BUTTON_DOMAIN_WINDOW);
+                    //NB_SetEnabled(NuiBind(CG_BIND_BUTTON_DOMAIN_WINDOW_ENABLED));
                 NB_End();
                 NB_AddSpacer();
             NB_End();
@@ -1377,9 +1438,16 @@ json CG_GetLevel1GrantedFeats(int nClass)
     return GetLocalJson(GetDataObject(CG_SCRIPT_NAME), CG_CLASS_FEATS_GRANTED_ON_LEVEL1 + IntToString(nClass));
 }
 
-int CG_GetHasFeat(int nClass, int nFeat)
+json CG_GetRacialFeats(int nRace)
 {
-    return JsonArrayContainsInt(CG_GetLevel1GrantedFeats(nClass), nFeat) || JsonArrayContainsInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS), nFeat);
+    return GetLocalJson(GetDataObject(CG_SCRIPT_NAME), CG_RACE_RACIAL_FEATS + IntToString(nRace));
+}
+
+int CG_GetHasFeat(int nRace, int nClass, int nFeat)
+{
+    return JsonArrayContainsInt(CG_GetLevel1GrantedFeats(nClass), nFeat) ||
+           JsonArrayContainsInt(CG_GetRacialFeats(nRace), nFeat) ||
+           JsonArrayContainsInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS), nFeat);
 }
 
 int CG_MeetsFeatRequirements(int nRace, int nClass, int nFeat)
@@ -1417,11 +1485,11 @@ int CG_MeetsFeatRequirements(int nRace, int nClass, int nFeat)
         return FALSE;
 
     int nPreReqFeat1 = Get2DAInt("feat", "PREREQFEAT1", nFeat);
-    if (nPreReqFeat1 != EF_UNSET_INTEGER_VALUE && !CG_GetHasFeat(nClass, nPreReqFeat1))
+    if (nPreReqFeat1 != EF_UNSET_INTEGER_VALUE && !CG_GetHasFeat(nRace, nClass, nPreReqFeat1))
         return FALSE;
 
     int nPreReqFeat2 = Get2DAInt("feat", "PREREQFEAT2", nFeat);
-    if (nPreReqFeat2 != EF_UNSET_INTEGER_VALUE && !CG_GetHasFeat(nClass, nPreReqFeat2))
+    if (nPreReqFeat2 != EF_UNSET_INTEGER_VALUE && !CG_GetHasFeat(nRace, nClass, nPreReqFeat2))
         return FALSE;
 
     int nFeatIndex, bHasOrPrereqFeat, bOrPrereqFeatAcquired;
@@ -1432,7 +1500,7 @@ int CG_MeetsFeatRequirements(int nRace, int nClass, int nFeat)
         {
             bHasOrPrereqFeat = TRUE;
 
-            if (CG_GetHasFeat(nClass, nOrPreReqFeat))
+            if (CG_GetHasFeat(nRace, nClass, nOrPreReqFeat))
                 bOrPrereqFeatAcquired = TRUE;
         }
     }
@@ -1502,8 +1570,9 @@ void CG_UpdateGrantedFeatsList()
 {
     json jNamesArray = JsonArray();
     json jIconsArray = JsonArray();
-    sqlquery sql = SqlPrepareQueryModule("SELECT name, icon FROM " + CG_SCRIPT_NAME + "_grantedfeats WHERE class = @class ORDER BY name ASC;");
+    sqlquery sql = SqlPrepareQueryModule("SELECT name, icon FROM " + CG_SCRIPT_NAME + "_grantedfeats WHERE class = @class OR race = @race ORDER BY name ASC;");
     SqlBindInt(sql, "@class", NWM_GetUserDataInt(CG_USERDATA_CLASS));
+    SqlBindInt(sql, "@race", NWM_GetUserDataInt(CG_USERDATA_RACE));
 
     while (SqlStep(sql))
     {
@@ -1539,10 +1608,7 @@ int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nTotalNumN
     if (!nTotalNumNormalFeats && !nTotalNumBonusFeats)
         return FALSE;
 
-    if (CG_GetHasFeat(nClass, nFeat))
-        return FALSE;
-
-    if (JsonArrayContainsInt(jChosenFeats, nFeat))
+    if (CG_GetHasFeat(nRace, nClass, nFeat))
         return FALSE;
 
     if (!CG_MeetsFeatRequirements(nRace, nClass, nFeat))
@@ -1653,9 +1719,7 @@ void CG_UpdateAvailableFeatsList()
     json jFeatsArray = JsonArray();
     json jNamesArray = JsonArray();
     json jIconsArray = JsonArray();
-    string sFeatArray;
-    string sNamesArray;
-    string sIconsArray;
+
     sqlquery sql = SqlPrepareQueryModule("SELECT id, list, name, icon FROM " + CG_SCRIPT_NAME + "_feats WHERE class = @class AND name LIKE @like ORDER BY name ASC;");
     SqlBindInt(sql, "@class", nClass);
     SqlBindString(sql, "@like", "%" + sSearch + "%");
@@ -1705,10 +1769,7 @@ void CG_UpdateRemainingFeatsText()
 
 void CG_CheckFeatOkButtonStatus()
 {
-    if (JsonGetLength(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS)) == CG_GetTotalNumChooseableFeats())
-        NWM_SetBindBool(CG_ID_BUTTON_OK_ENABLED, TRUE);
-    else
-        NWM_SetBindBool(CG_ID_BUTTON_OK_ENABLED, FALSE);
+    NWM_SetBindBool(CG_ID_BUTTON_OK_ENABLED, JsonGetLength(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS)) == CG_GetTotalNumChooseableFeats());
 }
 
 void CG_VerifyChosenFeats()
@@ -1830,3 +1891,5 @@ void CG_ClickClearFeatSearchButton()
 {
     NWM_SetBindString(CG_BIND_VALUE_SEARCH_TEXT, "");
 }
+
+// *** DOMAINS

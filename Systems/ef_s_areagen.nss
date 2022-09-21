@@ -856,7 +856,7 @@ void AG_GenerateArea(string sAreaID)
         string sCallback = AG_GetCallbackFunction(sAreaID);
         if (sCallback != "")
         {
-            ExecuteCachedScriptChunk(sCallback, GetModule(), FALSE);
+            ExecuteScriptChunk(sCallback, GetModule(), FALSE);
         }
     }
     else

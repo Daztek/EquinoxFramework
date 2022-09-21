@@ -398,7 +398,7 @@ void Console_ClickExecuteButton()
                 SetLocalString(oDataObject, CONSOLE_ARG_PREFIX + IntToString(nParameter), sValue);
         }
 
-        string sError = ExecuteCachedScriptChunk(sScriptChunk, oTarget, FALSE);
+        string sError = ExecuteScriptChunk(sScriptChunk, oTarget, FALSE);
         if (sError != "")
             Console_SetOutput("ERROR: failed to execute script chunk: " + sError);
     }

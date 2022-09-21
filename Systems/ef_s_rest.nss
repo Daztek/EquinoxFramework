@@ -33,7 +33,7 @@ void Rest_OnPlayerRest()
     while (SqlStep(sql))
     {
         string sScriptChunk = SqlGetString(sql, 1);
-        string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+        string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
             WriteLog(REST_LOG_TAG, "ERROR: (" + IntToString(nRestEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);

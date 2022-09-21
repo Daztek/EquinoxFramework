@@ -7,10 +7,8 @@
 
 #include "ef_i_nss"
 #include "ef_i_gff"
-#include "nwnx_util"
 
 const string EF_DATAOBJECT_TAG_PREFIX       = "EFDataObject_";
-const string EF_DEFAULT_SCRIPT_ALIAS        = "NWNX";
 const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
 
 // Write a message to the log
@@ -28,24 +26,13 @@ object GetDataObject(string sTag, int bCreateIfNotExists = TRUE);
 // Get an array of resrefs by type
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "");
 
-// Execute a script chunk.
-// The script chunk runs immediately, same as ExecuteScript().
-// The script is jitted in place and cached.
-// Note that the script chunk will run as if a separate script. This is not eval().
-// By default, the script chunk is wrapped into void main() {}. Pass in bWrapIntoMain = FALSE to override.
-// Returns "" on success, or the compilation error.
-string ExecuteCachedScriptChunk(string sScriptChunk, object oObject = OBJECT_SELF, int bWrapIntoMain = TRUE, int bFlushCachedChunk = FALSE);
-
 // Get the int value of sConstant or nErrorValue on error
 int GetConstantIntValue(string sConstant, string sInclude = "", int nErrorValue = 0);
 // Get the string value of sConstant or sErrorValue on error
 string GetConstantStringValue(string sConstant, string sInclude = "", string sErrorValue = "");
 
-// Convenience wrapper for NWNX_Util_AddScript()
-string AddScript(string sFileName, string sInclude, string sScriptChunk, string sAlias = EF_DEFAULT_SCRIPT_ALIAS);
-
 // Run sScriptChunk and return its json result
-json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject, int bFlushCachedChunk = FALSE);
+json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject);
 
 // Remove all effects with sTag from oObject
 void RemoveEffectsWithTag(object oObject, string sTag);
@@ -161,33 +148,11 @@ json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, s
     return jArray;
 }
 
-void NWNX_Optimizations_FlushCachedChunks(string sScriptChunk = "")
-{
-    NWNX_PushArgumentString(sScriptChunk);
-    NWNX_CallFunction("NWNX_Optimizations", "FlushCachedChunks");
-}
-
-string NWNX_Optimizations_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain)
-{
-    NWNX_PushArgumentInt(bWrapIntoMain);
-    NWNX_PushArgumentString(sScriptChunk);
-    NWNX_CallFunction("NWNX_Optimizations", "CacheScriptChunk");
-    return NWNX_GetReturnValueString();
-}
-
-string ExecuteCachedScriptChunk(string sScriptChunk, object oObject = OBJECT_SELF, int bWrapIntoMain = TRUE, int bFlushCachedChunk = FALSE)
-{
-    if (bFlushCachedChunk)
-        NWNX_Optimizations_FlushCachedChunks(sScriptChunk);
-
-    return ExecuteScriptChunk(sScriptChunk, oObject, bWrapIntoMain);
-}
-
 int GetConstantIntValue(string sConstant, string sInclude = "", int nErrorValue = 0)
 {
     object oModule = GetModule();
     string sScriptChunk = nssInclude(sInclude) + nssVoidMain("SetLocalInt(OBJECT_SELF, \"CONVERT_CONSTANT\", " + sConstant + ");");
-    string sError = ExecuteCachedScriptChunk(sScriptChunk, oModule, FALSE);
+    string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
     int nRet = GetLocalInt(oModule, "CONVERT_CONSTANT");
     DeleteLocalInt(oModule, "CONVERT_CONSTANT");
     return sError == "" ? nRet : nErrorValue;
@@ -197,23 +162,18 @@ string GetConstantStringValue(string sConstant, string sInclude = "", string sEr
 {
     object oModule = GetModule();
     string sScriptChunk = nssInclude(sInclude) + nssVoidMain("SetLocalString(OBJECT_SELF, \"CONVERT_CONSTANT\", " + sConstant + ");");
-    string sError = ExecuteCachedScriptChunk(sScriptChunk, oModule, FALSE);
+    string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
     string sRet = GetLocalString(oModule, "CONVERT_CONSTANT");
     DeleteLocalString(oModule, "CONVERT_CONSTANT");
     return sError == "" ? sRet : sErrorValue;
 }
 
-string AddScript(string sFileName, string sInclude, string sScriptChunk, string sAlias = EF_DEFAULT_SCRIPT_ALIAS)
-{
-    return NWNX_Util_AddScript(sFileName, nssInclude(sInclude) + nssVoidMain(sScriptChunk), FALSE, sAlias);
-}
-
-json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject, int bFlushCachedChunk = FALSE)
+json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject)
 {
     object oModule = GetModule();
     string sScript = nssInclude(sInclude) + nssVoidMain(nssJson("jReturn", sScriptChunk) +
         nssFunction("SetLocalJson", nssFunction("GetModule", "", FALSE) + ", " + nssEscape("EF_TEMP_VAR") + ", jReturn"));
-    string sResult = ExecuteCachedScriptChunk(sScript, oObject, FALSE, bFlushCachedChunk);
+    string sResult = ExecuteScriptChunk(sScript, oObject, FALSE);
     json jReturn = GetLocalJson(oModule, "EF_TEMP_VAR");
     DeleteLocalJson(oModule, "EF_TEMP_VAR");
 

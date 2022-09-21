@@ -11,6 +11,7 @@
 #include "ef_i_util"
 #include "ef_i_convert"
 #include "nwnx_admin"
+#include "nwnx_util"
 
 const string EFCORE_LOG_TAG                             = "Equinox";
 const string EFCORE_SCRIPT_NAME                         = "ef_i_core";
@@ -44,7 +45,6 @@ const string EFCORE_FUNCTION_PARAMETERS                 = "EFCoreFunctionParamet
 const string EFCORE_FUNCTION_RETURN_TYPE                = "EFCoreFunctionReturnType_";
 const string EFCORE_LAMBDA_ID                           = "EFCoreLambdaId_";
 const string EFCORE_LAMBDA_FUNCTION                     = "Lambda::";
-
 
 void EFCore_InitializeSystemData();
 void EFCore_InsertSystem(string sSystem, string sScriptData);
@@ -190,7 +190,7 @@ int EFCore_GetNumberOfAnnotations()
 
 void EFCore_ParseSystem(string sSystem)
 {
-    string sScriptData = NWNX_Util_GetNSSContents(sSystem);
+    string sScriptData = ResManGetFileContents(sSystem, RESTYPE_NSS);
 
     if (FindSubString(sScriptData, "@SKIPSYSTEM") != -1)
     {
@@ -284,7 +284,7 @@ int EFCore_ValidateSystems()
         string sSystem = SqlGetString(sql, 0);
         string sScriptData = SqlGetString(sql, 1);
 
-        string sError = ExecuteCachedScriptChunk(sScriptData + " " + nssVoidMain(""),  oModule, FALSE);
+        string sError = ExecuteScriptChunk(sScriptData + " " + nssVoidMain(""),  oModule, FALSE);
 
         if (sError != "")
         {
@@ -347,7 +347,7 @@ void EFCore_ExecuteCoreFunction(int nCoreFunctionType)
             string sSystem = JsonArrayGetString(jData, 0);
             string sFunction = JsonArrayGetString(jData, 3);
             string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
-            string sError = ExecuteCachedScriptChunk(sScriptChunk, oModule, FALSE);
+            string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
 
             if (sError != "")
                 WriteLog(EFCORE_LOG_TAG, "  > Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
@@ -375,7 +375,7 @@ void EFCore_ParseAnnotationData()
         while (SqlStep(sqlAnnotationData))
         {
             SetLocalJson(oModule, EFCORE_ANNOTATION_DATA, SqlGetJson(sqlAnnotationData, 0));
-            string sError = ExecuteCachedScriptChunk(nssInclude(sSystem) + nssVoidMain(sFunction), oModule, FALSE);
+            string sError = ExecuteScriptChunk(nssInclude(sSystem) + nssVoidMain(sFunction), oModule, FALSE);
 
             if (sError != "")
             {
@@ -392,7 +392,16 @@ void EFCore_ParseAnnotationData()
 
 string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)
 {
-    return EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING ? NWNX_Optimizations_CacheScriptChunk(sScriptChunk, bWrapIntoMain) : "";
+    string retVal;
+    if (EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING)
+    {
+        NWNX_PushArgumentInt(bWrapIntoMain);
+        NWNX_PushArgumentString(sScriptChunk);
+        NWNX_CallFunction("NWNX_Optimizations", "CacheScriptChunk");
+        retVal = NWNX_GetReturnValueString();
+    }
+
+    return retVal;
 }
 
 void EFCore_ResetScriptInstructions()
@@ -508,7 +517,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
         if (sParameters == sArgs)
         {
             nCallStackDepth = IncrementCallStackDepth(sFunction, sReturnType);
-            string sError = ExecuteCachedScriptChunk(sScriptChunk, oTarget, FALSE);
+            string sError = ExecuteScriptChunk(sScriptChunk, oTarget, FALSE);
             DecrementCallStackDepth();
 
             if (sError != "")

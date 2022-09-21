@@ -29,7 +29,7 @@ void Debug_OnResourceModified()
 
             if (sScriptChunk != "")
             {
-                string sResult = ExecuteCachedScriptChunk(sScriptChunk, GetModule(), FALSE);
+                string sResult = ExecuteScriptChunk(sScriptChunk, GetModule(), FALSE);
 
                 if (sResult != "")
                     WriteLog(DEBUG_LOG_TAG, "   > Failed to execute debug script, error: " + sResult);

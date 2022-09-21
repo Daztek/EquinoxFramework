@@ -178,7 +178,7 @@ void AIMan_HandleAIEvent(int nEventType)
 
             if (sScriptchunk != "")
             {
-                string sError = ExecuteCachedScriptChunk(sScriptchunk, oCreature, FALSE);
+                string sError = ExecuteScriptChunk(sScriptchunk, oCreature, FALSE);
 
                 if (AIMAN_DEBUG_EVENTS && sError != "")
                 {

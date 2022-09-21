@@ -76,7 +76,7 @@ void PM_OnCommandButtonClick()
     string sScriptChunk = GetStringFromLocalJsonArray(GetDataObject(PM_SCRIPT_NAME), PM_FUNCTION_ARRAY, NuiGetEventArrayIndex());
 
     if (sScriptChunk != "")
-        ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+        ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 }
 
 // @PAD[PMBUTTON]

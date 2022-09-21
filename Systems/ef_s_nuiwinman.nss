@@ -411,7 +411,7 @@ void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string s
     while (SqlStep(sql))
     {
         string sScriptChunk = SqlGetString(sql, 0);
-        string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+        string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (NWM_DEBUG_EVENTS)
         {

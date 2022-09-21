@@ -21,10 +21,13 @@ void PerAOE_AddScript(string sScript)
 {
     string sObjectSelf = nssObject("oSelf", nssFunction("GetAreaOfEffectCreator"));
     string sGetLocalString = nssFunction("GetLocalString", "oSelf, " + nssEscape(sScript), FALSE);
-    string sExecuteCachedScriptChunk = nssFunction("ExecuteCachedScriptChunk", sGetLocalString + ", OBJECT_SELF, FALSE");
-    string sScriptChunk = sObjectSelf + sExecuteCachedScriptChunk;
+    string sExecuteScriptChunk = nssFunction("ExecuteScriptChunk", sGetLocalString + ", OBJECT_SELF, FALSE");
+    string sScriptChunk = sObjectSelf + sExecuteScriptChunk;
 
-    AddScript(sScript, PERAOE_SCRIPT_NAME, sScriptChunk);
+    string sError = nssCompileScript(sScript, PERAOE_SCRIPT_NAME, sScriptChunk);
+
+    if (sError != "")
+        WriteLog(PERAOE_LOG_TAG, "WARNING: failed to compile script '" + sScript + "' with error: " + sError);
 }
 
 // @CORE[EF_SYSTEM_INIT]

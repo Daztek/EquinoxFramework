@@ -58,7 +58,7 @@ void EM_Init()
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     // :(
-    AddScript(EM_SCRIPT_NAME, EM_SCRIPT_NAME, nssFunction("EM_SignalObjectEvent"));
+    nssCompileScript(EM_SCRIPT_NAME, EM_SCRIPT_NAME, nssFunction("EM_SignalObjectEvent"));
 }
 
 // @CORE[EF_SYSTEM_LOAD]
@@ -95,7 +95,7 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
     while (SqlStep(sql))
     {
         string sScriptChunk = SqlGetString(sql, 0);
-        string sError = ExecuteCachedScriptChunk(sScriptChunk, oTarget, FALSE);
+        string sError = ExecuteScriptChunk(sScriptChunk, oTarget, FALSE);
 
         if (EM_LOG_DEBUG && sError != "")
             WriteLog(EM_LOG_TAG, "DEBUG: Failed to run scriptchunk '" + sScriptChunk + "' with error: " + sError);

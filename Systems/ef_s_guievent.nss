@@ -33,7 +33,7 @@ void GuiEvent_OnPlayerGuiEvent()
     while (SqlStep(sql))
     {
         string sScriptChunk = SqlGetString(sql, 1);
-        string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+        string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
             WriteLog(GUIEVENT_LOG_TAG, "ERROR: (" + IntToString(nGuiEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);

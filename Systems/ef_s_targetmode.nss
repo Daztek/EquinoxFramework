@@ -40,7 +40,7 @@ void TargetMode_OnPlayerTarget()
             string sScriptChunk = JsonArrayGetString(jFunctions, nFunction);
             if (sScriptChunk != "")
             {
-                string sError = ExecuteCachedScriptChunk(sScriptChunk, oPlayer, FALSE);
+                string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
                 if (sError != "")
                     WriteLog(TARGETMODE_LOG_TAG, "ERROR: ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);

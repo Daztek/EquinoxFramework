@@ -70,6 +70,7 @@ const string CG_USERDATA_CHOSEN_FEATS_LIST_TYPE         = "ChosenFeatsListType";
 const string CG_USERDATA_NUM_NORMAL_FEATS               = "NumNormalFeats";
 const string CG_USERDATA_NUM_BONUS_FEATS                = "NumBonusFeats";
 const string CG_USERDATA_AVAILABLE_FEAT_LIST            = "AvailableFeatList";
+const string CG_USERDATA_MASTER_FEAT_ID                 = "MasterFeatId";
 
 const string CG_CURRENT_STATE                           = "CurrentState";
 const int CG_STATE_BASE                                 = 1;
@@ -295,7 +296,7 @@ void CG_LoadMasterFeatList()
     {
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + CG_SCRIPT_NAME + "_masterfeats(id, name, icon) VALUES(@id, @name, @icon);");
         SqlBindInt(sql, "@id", nRow);
-        SqlBindString(sql, "@name", Get2DAStrRefString("masterfeats", "STRREF", nRow) + "...");
+        SqlBindString(sql, "@name", Get2DAStrRefString("masterfeats", "STRREF", nRow) + " ...");
         SqlBindString(sql, "@icon", Get2DAString("masterfeats", "ICON", nRow));
         SqlStep(sql);
     }
@@ -911,6 +912,36 @@ json CG_CreateFeatWindow()
                     NB_SetDimensions(200.0f, 32.0f);
                     NB_SetId(CG_ID_BUTTON_OK);
                     NB_SetEnabled(NuiBind(CG_ID_BUTTON_OK_ENABLED));
+                NB_End();
+            NB_End();
+        NB_End();
+    return NB_FinalizeWindow();
+}
+
+// @NWMWINDOW[CG_MASTERFEAT_WINDOW_ID]
+json CG_CreateMasterFeatWindow()
+{
+    NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 400.0f, 500.0f));
+    NB_SetWindowTitle(JsonString("Character Creator: Feats"));
+        NB_StartColumn();
+            NB_StartRow();
+                NB_StartList(NuiBind(CG_BIND_LIST_ICONS), 24.0f, TRUE, NUI_SCROLLBARS_Y);
+                    NB_StartListTemplateCell(24.0f, FALSE);
+                        NB_StartGroup(FALSE, NUI_SCROLLBARS_NONE);
+                            NB_StartElement(NuiImage(NuiBind(CG_BIND_LIST_ICONS), JsonInt(NUI_ASPECT_EXACTSCALED), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                                NB_SetId(CG_ID_BUTTON_LIST_ADD_FEAT);
+                            NB_End();
+                        NB_End();
+                    NB_End();
+                    NB_StartListTemplateCell(300.0f, TRUE);
+                        NB_StartElement(NuiSpacer());
+                            NB_SetId(CG_ID_BUTTON_LIST_ADD_FEAT);
+                            NB_StartDrawList(JsonBool(FALSE));
+                                NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiColor(255, 255, 255), NuiRect(0.0f, 0.0f, 300.0f, 24.0f), NuiBind(CG_BIND_LIST_NAMES), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_OFF));
+                                NB_AddDrawListItem(NuiDrawListText(JsonBool(TRUE), NuiColor(50, 150, 250), NuiRect(0.0f, 0.0f, 300.0f, 24.0f), NuiBind(CG_BIND_LIST_NAMES), NUI_DRAW_LIST_ITEM_ORDER_AFTER, NUI_DRAW_LIST_ITEM_RENDER_MOUSE_HOVER));
+                            NB_End();
+                        NB_End();
+                    NB_End();
                 NB_End();
             NB_End();
         NB_End();
@@ -1739,7 +1770,6 @@ int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nTotalNumN
 
 void CG_UpdateAvailableFeatsList()
 {
-    struct ProfilerData pd = Profiler_Start("CG_UpdateAvailableFeatsList");
     int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
     int nRace = NWM_GetUserDataInt(CG_USERDATA_RACE);
     int nTotalNumNormalFeats = NWM_GetUserDataInt(CG_USERDATA_NUM_NORMAL_FEATS);
@@ -1752,42 +1782,44 @@ void CG_UpdateAvailableFeatsList()
     json jIconsArray = JsonArray();
     json jMasterFeats = JsonArray();
 
-    sqlquery sql = SqlPrepareQueryModule("SELECT id, master, list, name, icon FROM " + CG_SCRIPT_NAME + "_feats WHERE class = @class AND name LIKE @like ORDER BY name ASC;");
-    SqlBindInt(sql, "@class", nClass);
-    SqlBindString(sql, "@like", "%" + sSearch + "%");
-    while (SqlStep(sql))
+    if (JsonGetLength(jChosenFeats) < (nTotalNumNormalFeats + nTotalNumBonusFeats))
     {
-        int nFeat = SqlGetInt(sql, 0);
-        int nMasterFeat = SqlGetInt(sql, 1);
-        int nList = SqlGetInt(sql, 2);
-
-        if (nMasterFeat != EF_UNSET_INTEGER_VALUE)
+        sqlquery sqlFeats = SqlPrepareQueryModule("SELECT id, master, list, name, icon FROM " + CG_SCRIPT_NAME + "_feats WHERE class = @class AND name LIKE @like ORDER BY name ASC;");
+        SqlBindInt(sqlFeats, "@class", nClass);
+        SqlBindString(sqlFeats, "@like", "%" + sSearch + "%");
+        while (SqlStep(sqlFeats))
         {
-            if (!JsonArrayContainsInt(jMasterFeats, nMasterFeat))
+            int nFeat = SqlGetInt(sqlFeats, 0);
+            int nMasterFeat = SqlGetInt(sqlFeats, 1);
+            int nList = SqlGetInt(sqlFeats, 2);
+
+            if (nMasterFeat != EF_UNSET_INTEGER_VALUE)
             {
-                if (CG_CanChooseFeat(nRace, nClass, nFeat, nList, nTotalNumNormalFeats, nTotalNumBonusFeats, jChosenFeats, jChosenFeatsListType))
+                if (JsonArrayContainsInt(jMasterFeats, nMasterFeat))
+                    continue;
+
+                if (!CG_CanChooseFeat(nRace, nClass, nFeat, nList, nTotalNumNormalFeats, nTotalNumBonusFeats, jChosenFeats, jChosenFeatsListType))
+                    continue;
+
+                sqlquery sqlMasterFeat = SqlPrepareQueryModule("SELECT name, icon FROM " + CG_SCRIPT_NAME + "_masterfeats WHERE id = @id;");
+                SqlBindInt(sqlMasterFeat, "@id", nMasterFeat);
+
+                if (SqlStep(sqlMasterFeat))
                 {
-                    sqlquery sqlMasterFeat = SqlPrepareQueryModule("SELECT name, icon FROM " + CG_SCRIPT_NAME + "_masterfeats WHERE id = @id;");
-                    SqlBindInt(sqlMasterFeat, "@id", nMasterFeat);
-
-                    if (SqlStep(sqlMasterFeat))
-                    {
-                        jFeatsArray = JsonArrayInsertInt(jFeatsArray, EF_UNSET_INTEGER_VALUE - nMasterFeat);
-                        jNamesArray = JsonArrayInsertString(jNamesArray, SqlGetString(sqlMasterFeat, 0));
-                        jIconsArray = JsonArrayInsertString(jIconsArray, SqlGetString(sqlMasterFeat, 1));
-                    }
-
+                    jFeatsArray = JsonArrayInsertInt(jFeatsArray, EF_UNSET_INTEGER_VALUE - nMasterFeat);
+                    jNamesArray = JsonArrayInsertString(jNamesArray, SqlGetString(sqlMasterFeat, 0));
+                    jIconsArray = JsonArrayInsertString(jIconsArray, SqlGetString(sqlMasterFeat, 1));
                     jMasterFeats = JsonArrayInsertInt(jMasterFeats, nMasterFeat);
                 }
             }
-        }
-        else
-        {
-            if (CG_CanChooseFeat(nRace, nClass, nFeat, nList, nTotalNumNormalFeats, nTotalNumBonusFeats, jChosenFeats, jChosenFeatsListType))
+            else
             {
-                jFeatsArray = JsonArrayInsertInt(jFeatsArray, nFeat);
-                jNamesArray = JsonArrayInsertString(jNamesArray, SqlGetString(sql, 3));
-                jIconsArray = JsonArrayInsertString(jIconsArray, SqlGetString(sql, 4));
+                if (CG_CanChooseFeat(nRace, nClass, nFeat, nList, nTotalNumNormalFeats, nTotalNumBonusFeats, jChosenFeats, jChosenFeatsListType))
+                {
+                    jFeatsArray = JsonArrayInsertInt(jFeatsArray, nFeat);
+                    jNamesArray = JsonArrayInsertString(jNamesArray, SqlGetString(sqlFeats, 3));
+                    jIconsArray = JsonArrayInsertString(jIconsArray, SqlGetString(sqlFeats, 4));
+                }
             }
         }
     }
@@ -1795,8 +1827,6 @@ void CG_UpdateAvailableFeatsList()
     NWM_SetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST, jFeatsArray);
     NWM_SetBind(CG_BIND_LIST_AVAILABLE_FEATS_PREFIX + CG_BIND_LIST_ICONS, jIconsArray);
     NWM_SetBind(CG_BIND_LIST_AVAILABLE_FEATS_PREFIX + CG_BIND_LIST_NAMES, jNamesArray);
-
-    Profiler_Stop(pd);
 }
 
 void CG_UpdateChosenFeatsList()
@@ -1876,29 +1906,17 @@ void CG_OpenFeatsWindow()
     }
 }
 
-void CG_AddChosenFeat(int nAvailableFeatIndex)
+void CG_AddChosenFeat(int nFeat)
 {
-    if (nAvailableFeatIndex == -1)
-        return;
+    int nList = CG_GetFeatListType(nFeat);
 
-    int nFeat = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST), nAvailableFeatIndex);
+    NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS, JsonArrayInsertInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS), nFeat));
+    NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE, JsonArrayInsertInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE), nList));
 
-    if (nFeat > EF_UNSET_INTEGER_VALUE - Get2DARowCount("masterfeats"))
-    {
-        PrintString("Clicked on a master feat: " + IntToString(EF_UNSET_INTEGER_VALUE - nFeat));
-    }
-    else
-    {
-        int nList = CG_GetFeatListType(nFeat);
-
-        NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS, JsonArrayInsertInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS), nFeat));
-        NWM_SetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE, JsonArrayInsertInt(NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE), nList));
-
-        CG_UpdateAvailableFeatsList();
-        CG_UpdateChosenFeatsList();
-        CG_UpdateRemainingFeatsText();
-        CG_CheckFeatOkButtonStatus();
-    }
+    CG_UpdateAvailableFeatsList();
+    CG_UpdateChosenFeatsList();
+    CG_UpdateRemainingFeatsText();
+    CG_CheckFeatOkButtonStatus();
 }
 
 void CG_RemoveChosenFeat(int nChosenFeatIndex)
@@ -1917,11 +1935,103 @@ void CG_RemoveChosenFeat(int nChosenFeatIndex)
     CG_CheckFeatOkButtonStatus();
 }
 
+void CG_UpdateAvailableMasterFeatsList()
+{
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
+    int nRace = NWM_GetUserDataInt(CG_USERDATA_RACE);
+    int nTotalNumNormalFeats = NWM_GetUserDataInt(CG_USERDATA_NUM_NORMAL_FEATS);
+    int nTotalNumBonusFeats = NWM_GetUserDataInt(CG_USERDATA_NUM_BONUS_FEATS);
+    json jChosenFeats = NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS);
+    json jChosenFeatsListType = NWM_GetUserData(CG_USERDATA_CHOSEN_FEATS_LIST_TYPE);
+    json jFeatsArray = JsonArray();
+    json jNamesArray = JsonArray();
+    json jIconsArray = JsonArray();
+
+    sqlquery sqlFeats = SqlPrepareQueryModule("SELECT id, list, name, icon FROM " + CG_SCRIPT_NAME + "_feats WHERE class = @class AND master = @master ORDER BY name ASC;");
+    SqlBindInt(sqlFeats, "@class", nClass);
+    SqlBindInt(sqlFeats, "@master", NWM_GetUserDataInt(CG_USERDATA_MASTER_FEAT_ID));
+    while (SqlStep(sqlFeats))
+    {
+        int nFeat = SqlGetInt(sqlFeats, 0);
+        int nList = SqlGetInt(sqlFeats, 1);
+
+        if (CG_CanChooseFeat(nRace, nClass, nFeat, nList, nTotalNumNormalFeats, nTotalNumBonusFeats, jChosenFeats, jChosenFeatsListType))
+        {
+            jFeatsArray = JsonArrayInsertInt(jFeatsArray, nFeat);
+            jNamesArray = JsonArrayInsertString(jNamesArray, SqlGetString(sqlFeats, 2));
+            jIconsArray = JsonArrayInsertString(jIconsArray, SqlGetString(sqlFeats, 3));
+        }
+    }
+
+    NWM_SetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST, jFeatsArray);
+    NWM_SetBind(CG_BIND_LIST_ICONS, jIconsArray);
+    NWM_SetBind(CG_BIND_LIST_NAMES, jNamesArray);
+}
+
+void CG_OpenMasterFeatWindow(int nMasterFeatId)
+{
+    object oPlayer = OBJECT_SELF;
+    NWM_SetBindBool(NUI_WINDOW_ACCEPTS_INPUT_BIND, FALSE);
+
+    if (NWM_OpenWindow(oPlayer, CG_MASTERFEAT_WINDOW_ID))
+    {
+        NWM_SetUserDataInt(CG_USERDATA_MASTER_FEAT_ID, nMasterFeatId);
+        NWM_CopyUserData(CG_FEAT_WINDOW_ID, CG_USERDATA_RACE);
+        NWM_CopyUserData(CG_FEAT_WINDOW_ID, CG_USERDATA_CLASS);
+        NWM_CopyUserData(CG_FEAT_WINDOW_ID, CG_USERDATA_BASE_ABILITY_SCORES);
+        NWM_CopyUserData(CG_FEAT_WINDOW_ID, CG_USERDATA_SKILLRANKS);
+        NWM_CopyUserData(CG_FEAT_WINDOW_ID, CG_USERDATA_NUM_NORMAL_FEATS);
+        NWM_CopyUserData(CG_FEAT_WINDOW_ID, CG_USERDATA_NUM_BONUS_FEATS);
+        NWM_CopyUserData(CG_FEAT_WINDOW_ID, CG_USERDATA_CHOSEN_FEATS);
+        NWM_CopyUserData(CG_FEAT_WINDOW_ID, CG_USERDATA_CHOSEN_FEATS_LIST_TYPE);
+
+        CG_UpdateAvailableMasterFeatsList();
+    }
+}
+
+// @NWMEVENT[CG_MASTERFEAT_WINDOW_ID:NUI_EVENT_CLOSE:NUI_WINDOW_ROOT_GROUP]
+void CG_OnCloseMasterFeatWindow()
+{
+    object oPlayer = OBJECT_SELF;
+    if (NWM_GetIsWindowOpen(oPlayer, CG_FEAT_WINDOW_ID, TRUE))
+    {
+        NWM_SetBindBool(NUI_WINDOW_ACCEPTS_INPUT_BIND, TRUE);
+    }
+}
+
+// @NWMEVENT[CG_MASTERFEAT_WINDOW_ID:NUI_EVENT_MOUSEUP:CG_ID_BUTTON_LIST_ADD_FEAT]
+void CG_OnMouseUpMasterFeat()
+{
+    object oPlayer = OBJECT_SELF;
+    int nAvailableFeatIndex = NuiGetEventArrayIndex();
+    if (nAvailableFeatIndex == -1)
+        return;
+
+    int nFeat = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST), nAvailableFeatIndex);
+
+    NWM_Destroy();
+
+    if (NWM_GetIsWindowOpen(oPlayer, CG_FEAT_WINDOW_ID, TRUE))
+    {
+        CG_AddChosenFeat(nFeat);
+    }
+}
+
 // @NWMEVENT[CG_FEAT_WINDOW_ID:NUI_EVENT_MOUSEUP:CG_ID_BUTTON_LIST_ADD_FEAT]
 void CG_FeatAddMouseUp()
 {
     if (NuiGetIsLeftMouseButton(NuiGetEventPayload()))
-        CG_AddChosenFeat(NuiGetEventArrayIndex());
+    {
+        int nAvailableFeatIndex = NuiGetEventArrayIndex();
+        if (nAvailableFeatIndex == -1)
+            return;
+
+        int nFeat = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST), nAvailableFeatIndex);
+        if (nFeat > EF_UNSET_INTEGER_VALUE - Get2DARowCount("masterfeats"))
+            CG_OpenMasterFeatWindow(EF_UNSET_INTEGER_VALUE - nFeat);
+        else
+            CG_AddChosenFeat(nFeat);
+    }
 }
 
 // @NWMEVENT[CG_FEAT_WINDOW_ID:NUI_EVENT_MOUSEUP:CG_ID_BUTTON_LIST_REMOVE_FEAT]

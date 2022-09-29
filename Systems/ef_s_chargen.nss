@@ -17,6 +17,8 @@ const string CG_ABILITY_WINDOW_ID                       = "CG_ABILITY";
 const string CG_SKILL_WINDOW_ID                         = "CG_SKILL";
 const string CG_FEAT_WINDOW_ID                          = "CG_FEAT";
 const string CG_MASTERFEAT_WINDOW_ID                    = "CG_MASTERFEAT";
+const string CG_SCHOOL_WINDOW_ID                        = "CG_SCHOOL";
+const string CG_SPELL_WINDOW_ID                         = "CG_SPELL";
 const string CG_DOMAIN_WINDOW_ID                        = "CG_DOMAIN";
 
 const string CG_BIND_VALUE_GENDER                       = "val_gender";
@@ -37,8 +39,11 @@ const string CG_ID_BUTTON_ABILITY_WINDOW                = "btn_ability_window";
 const string CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED      = "btn_ability_window_enabled";
 const string CG_ID_BUTTON_SKILLFEAT_WINDOW              = "btn_skillfeat_window";
 const string CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED    = "btn_skillfeat_window_enabled";
+const string CG_BUTTON_SCHOOLSPELL_TEXT                 = "btn_schoolspell_text";
+const string CG_ID_BUTTON_SCHOOLSPELL_WINDOW            = "btn_schoolspell_window";
+const string CG_BIND_BUTTON_SCHOOLSPELL_WINDOW_ENABLED  = "btn_schoolspell_window_enabled";
 const string CG_ID_BUTTON_DOMAIN_WINDOW                 = "btn_domain_window";
-const string CG_BIND_BUTTON_DOMAIN_WINDOW_ENABLED      =  "btn_domain_window_enabled";
+const string CG_BIND_BUTTON_DOMAIN_WINDOW_ENABLED       = "btn_domain_window_enabled";
 
 const string CG_ID_BUTTON_OK                            = "btn_ok";
 const string CG_ID_BUTTON_OK_ENABLED                    = "btn_ok_enabled";
@@ -84,6 +89,9 @@ const string CG_CLASS_FEATS_GRANTED_ON_LEVEL1           = "ClassFeatsGrantedOnLe
 const string CG_CLASS_NUM_LEVEL_1_BONUS_FEATS           = "ClassNumLevel1BonusFeats_";
 const string CG_RACE_RACIAL_FEATS                       = "RaceRacialFeats_";
 
+const int CG_NORMAL_FEAT_LIST                           = 0x1;
+const int CG_BONUS_FEAT_LIST                            = 0x2;
+
 void CG_LoadRaceData();
 void CG_LoadClassData();
 void CG_LoadSkillData();
@@ -111,6 +119,9 @@ void CG_SetBaseSkillValues();
 
 void CG_SetBaseFeatValues();
 void CG_OpenFeatsWindow();
+
+void CG_SetSchoolSpellButtonText();
+void CG_ToggleSchoolSpellButton();
 
 // @CORE[EF_SYSTEM_INIT]
 void CG_Init()
@@ -392,9 +403,9 @@ void CG_LoadClassFeatTable(int nClass)
 
         switch (nList)
         {
-            case 0: nList = 0x1; break;
-            case 1: nList = 0x1 | 0x2; break;
-            case 2: nList = 0x2; break;
+            case 0: nList = CG_NORMAL_FEAT_LIST; break;
+            case 1: nList = CG_NORMAL_FEAT_LIST | CG_BONUS_FEAT_LIST; break;
+            case 2: nList = CG_BONUS_FEAT_LIST; break;
         }
 
         sqlquery sql = SqlPrepareQueryModule(sQuery);
@@ -504,6 +515,8 @@ void CG_ChangeState(int nState)
             CG_CloseChildWindows();
             NWM_SetBindBool(CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED, FALSE);
             NWM_SetBindBool(CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED, FALSE);
+            NWM_SetBindBool(CG_BIND_BUTTON_SCHOOLSPELL_WINDOW_ENABLED, FALSE);
+            NWM_SetBindBool(CG_BIND_BUTTON_DOMAIN_WINDOW_ENABLED, FALSE);
             CG_SetBaseAbilityScores();
             CG_ChangeState(CG_STATE_ABILITY);
             break;
@@ -514,6 +527,8 @@ void CG_ChangeState(int nState)
             CG_CloseChildWindows(CG_ABILITY_WINDOW_ID);
             NWM_SetBindBool(CG_BIND_BUTTON_ABILITY_WINDOW_ENABLED, TRUE);
             NWM_SetBindBool(CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED, FALSE);
+            NWM_SetBindBool(CG_BIND_BUTTON_SCHOOLSPELL_WINDOW_ENABLED, FALSE);
+            NWM_SetBindBool(CG_BIND_BUTTON_DOMAIN_WINDOW_ENABLED, FALSE);
             break;
         }
 
@@ -522,6 +537,8 @@ void CG_ChangeState(int nState)
             CG_SetBaseSkillValues();
             CG_SetBaseFeatValues();
             NWM_SetBindBool(CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED, TRUE);
+            CG_ToggleSchoolSpellButton();
+            //NWM_SetBindBool(CG_BIND_BUTTON_DOMAIN_WINDOW_ENABLED, TRUE);
             break;
         }
     }
@@ -541,6 +558,9 @@ void CG_CloseChildWindows(string sWindowIdToSkip = "")
 
     if (sWindowIdToSkip != CG_FEAT_WINDOW_ID)
         NWM_CloseWindow(oPlayer, CG_FEAT_WINDOW_ID);
+
+    if (sWindowIdToSkip != CG_MASTERFEAT_WINDOW_ID)
+        NWM_CloseWindow(oPlayer, CG_MASTERFEAT_WINDOW_ID);
 }
 
 // @NWMEVENT[CG_MAIN_WINDOW_ID:NUI_EVENT_CLOSE:NUI_WINDOW_ROOT_GROUP]
@@ -654,10 +674,10 @@ json CG_CreateMainWindow()
                     NB_SetEnabled(NuiBind(CG_BIND_BUTTON_SKILLFEAT_WINDOW_ENABLED));
                 NB_End();
                 NB_AddSpacer();
-                NB_StartElement(NuiButton(JsonString("Spells")));
+                NB_StartElement(NuiButton(NuiBind(CG_BUTTON_SCHOOLSPELL_TEXT)));
                     NB_SetDimensions(200.0f, 32.0f);
-                    //NB_SetId(CG_ID_BUTTON_DOMAIN_WINDOW);
-                    //NB_SetEnabled(NuiBind(CG_BIND_BUTTON_DOMAIN_WINDOW_ENABLED));
+                    NB_SetId(CG_ID_BUTTON_SCHOOLSPELL_WINDOW);
+                    NB_SetEnabled(NuiBind(CG_BIND_BUTTON_SCHOOLSPELL_WINDOW_ENABLED));
                 NB_End();
                 NB_AddSpacer();
             NB_End();
@@ -723,8 +743,11 @@ json CG_CreateAbilityWindow()
                 NB_End();
             NB_End();
             NB_StartRow();
-                NB_StartElement(NuiLabel(NuiBind(CG_BIND_TEXT_POINTS_REMAINING), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
+                NB_StartGroup(TRUE, NUI_SCROLLBARS_NONE);
                     NB_SetDimensions(150.0f, 32.0f);
+                    NB_StartElement(NuiLabel(NuiBind(CG_BIND_TEXT_POINTS_REMAINING), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                        NB_SetDimensions(142.0f, 22.0f);
+                    NB_End();
                 NB_End();
                 NB_AddSpacer();
                 NB_StartElement(NuiButton(JsonString("OK")));
@@ -782,8 +805,11 @@ json CG_CreateSkillWindow()
                 NB_End();
             NB_End();
             NB_StartRow();
-                NB_StartElement(NuiLabel(NuiBind(CG_BIND_TEXT_POINTS_REMAINING), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
-                    NB_SetDimensions(170.0f, 32.0f);
+                NB_StartGroup(TRUE, NUI_SCROLLBARS_NONE);
+                    NB_SetDimensions(324.0f, 32.0f);
+                    NB_StartElement(NuiLabel(NuiBind(CG_BIND_TEXT_POINTS_REMAINING), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                        NB_SetDimensions(316.0f, 22.0f);
+                    NB_End();
                 NB_End();
                 NB_AddSpacer();
                 NB_StartElement(NuiButton(JsonString("OK")));
@@ -1049,6 +1075,7 @@ void CG_WatchClassBind()
     NWM_SetUserData(CG_USERDATA_CLASS, NWM_GetBind(CG_BIND_VALUE_CLASS));
     CG_ChangeState(CG_STATE_BASE);
     CG_UpdateAlignmentComboBox();
+    CG_SetSchoolSpellButtonText();
 }
 
 // *** ALIGNMENT
@@ -1657,12 +1684,12 @@ int CG_GetFeatListType(int nFeat)
 
 int CG_IsNormalFeat(int nFeat, int nList)
 {
-    return (nList & 0x1) || StringToInt(Get2DAString("feat", "ALLCLASSESCANUSE", nFeat));
+    return (nList & CG_NORMAL_FEAT_LIST) || StringToInt(Get2DAString("feat", "ALLCLASSESCANUSE", nFeat));
 }
 
-int CG_IsBonusFeat(int nFeat, int nList)
+int CG_IsBonusFeat(int nList)
 {
-    return (nList & 0x2);
+    return (nList & CG_BONUS_FEAT_LIST);
 }
 
 int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nTotalNumNormalFeats, int nTotalNumBonusFeats, json jChosenFeats, json jChosenFeatsListType)
@@ -1677,7 +1704,7 @@ int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nTotalNumN
         return FALSE;
 
     int bIsNormalListFeat = CG_IsNormalFeat(nFeat, nList);
-    int bIsBonusListFeat = CG_IsBonusFeat(nFeat, nList);
+    int bIsBonusListFeat = CG_IsBonusFeat(nList);
 
     if (!bIsNormalListFeat && !bIsBonusListFeat)
         return FALSE;
@@ -1692,7 +1719,7 @@ int CG_CanChooseFeat(int nRace, int nClass, int nFeat, int nList, int nTotalNumN
         int nChosenFeat = JsonArrayGetInt(jChosenFeats, nChosenFeatIndex);
         int nChosenFeatListType = JsonArrayGetInt(jChosenFeatsListType, nChosenFeatIndex);
         int bChosenFeatIsNormalFeat = CG_IsNormalFeat(nChosenFeat, nChosenFeatListType);
-        int bChosenFeatIsBonusFeat = CG_IsBonusFeat(nChosenFeat, nChosenFeatListType);
+        int bChosenFeatIsBonusFeat = CG_IsBonusFeat(nChosenFeatListType);
 
         if (bChosenFeatIsNormalFeat && !bChosenFeatIsBonusFeat)
         {
@@ -2003,17 +2030,17 @@ void CG_OnCloseMasterFeatWindow()
 void CG_OnMouseUpMasterFeat()
 {
     object oPlayer = OBJECT_SELF;
-    int nAvailableFeatIndex = NuiGetEventArrayIndex();
-    if (nAvailableFeatIndex == -1)
-        return;
+        int nAvailableFeatIndex = NuiGetEventArrayIndex();
+        if (nAvailableFeatIndex == -1)
+            return;
 
-    int nFeat = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST), nAvailableFeatIndex);
+        int nFeat = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST), nAvailableFeatIndex);
 
-    NWM_Destroy();
+        NWM_Destroy();
 
     if (NWM_GetIsWindowOpen(oPlayer, CG_FEAT_WINDOW_ID, TRUE))
-    {
-        CG_AddChosenFeat(nFeat);
+        {
+            CG_AddChosenFeat(nFeat);
     }
 }
 
@@ -2067,4 +2094,25 @@ void CG_ClickClearFeatSearchButton()
     NWM_SetBindString(CG_BIND_VALUE_SEARCH_TEXT, "");
 }
 
-// *** DOMAINS
+// *** SCHOOL & SPELLS
+
+void CG_SetSchoolSpellButtonText()
+{
+    if (StringToInt(Get2DAString("classes", "PickSchool", NWM_GetUserDataInt(CG_USERDATA_CLASS))))
+        NWM_SetBindString(CG_BUTTON_SCHOOLSPELL_TEXT, "School & Spells");
+    else
+        NWM_SetBindString(CG_BUTTON_SCHOOLSPELL_TEXT, "Spells");
+}
+
+void CG_ToggleSchoolSpellButton()
+{
+    int nClass = NWM_GetUserDataInt(CG_USERDATA_CLASS);
+    int bSpellCaster = StringToInt(Get2DAString("classes", "SpellCaster", nClass));
+    int bSpellbookRestricted = StringToInt(Get2DAString("classes", "SpellbookRestricted", nClass));
+    int bPickSchool = StringToInt(Get2DAString("classes", "PickSchool", nClass));
+
+    if (bSpellCaster && (bSpellbookRestricted || bPickSchool))
+        NWM_SetBindBool(CG_BIND_BUTTON_SCHOOLSPELL_WINDOW_ENABLED, TRUE);
+    else
+        NWM_SetBindBool(CG_BIND_BUTTON_SCHOOLSPELL_WINDOW_ENABLED, FALSE);
+}

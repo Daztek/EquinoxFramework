@@ -25,7 +25,7 @@ void Debug_OnResourceModified()
         {
             WriteLog(DEBUG_LOG_TAG, "* Changes detected, executing debug script");
 
-            string sScriptChunk = NWNX_Util_GetNSSContents(DEBUG_DEBUG_SCRIPT_NAME);
+            string sScriptChunk = ResManGetFileContents(DEBUG_DEBUG_SCRIPT_NAME, RESTYPE_NSS);
 
             if (sScriptChunk != "")
             {

@@ -29,6 +29,7 @@ void AIB_WanderFlee_OnSpawn()
 {
     PerAOE_Apply(OBJECT_SELF, 7.5f, AIB_BEHAVIOR_WANDERFLEE, AIB_SCRIPT_NAME, "AIB_WanderFlee_OnEnterAoE");
     AIMan_ApplyCutsceneGhost();
+    AIMan_SetIsAmbientNPC();
     ActionRandomWalk();
 }
 
@@ -71,6 +72,7 @@ void AIB_ChargeFlee_OnSpawn()
 {
     PerAOE_Apply(OBJECT_SELF, 12.5f, AIB_BEHAVIOR_CHARGEFLEE, AIB_SCRIPT_NAME, "AIB_ChargeFlee_OnEnterAoE");
     AIMan_ApplyCutsceneGhost();
+    AIMan_SetIsAmbientNPC();
     ActionRandomWalk();
 }
 

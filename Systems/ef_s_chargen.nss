@@ -2030,13 +2030,13 @@ void CG_OnCloseMasterFeatWindow()
 void CG_OnMouseUpMasterFeat()
 {
     object oPlayer = OBJECT_SELF;
-        int nAvailableFeatIndex = NuiGetEventArrayIndex();
-        if (nAvailableFeatIndex == -1)
-            return;
+    int nAvailableFeatIndex = NuiGetEventArrayIndex();
+    if (nAvailableFeatIndex == -1)
+        return;
 
-        int nFeat = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST), nAvailableFeatIndex);
+    int nFeat = JsonArrayGetInt(NWM_GetUserData(CG_USERDATA_AVAILABLE_FEAT_LIST), nAvailableFeatIndex);
 
-        NWM_Destroy();
+    NWM_Destroy();
 
     if (NWM_GetIsWindowOpen(oPlayer, CG_FEAT_WINDOW_ID, TRUE))
         {

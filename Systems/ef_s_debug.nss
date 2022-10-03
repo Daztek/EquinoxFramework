@@ -37,29 +37,3 @@ void Debug_OnResourceModified()
         }
     }
 }
-
-int MyRandom(int i)
-{
-    return Random(i) + Random(i);
-}
-
-// @CORE[EF_SYSTEM_POST]
-void Debug_Init()
-{
-    string sLambda1 = Lambda("{ return MyRandom(arg1); }", "i", "i", "ef_s_debug");
-    string sLambda2 = Lambda("{ return RetInt(Call(arg2, IntArg(arg1))); }", "is", "i");
-    int a = 100;
-
-    a = RetInt(Call(sLambda2, IntArg(a) + StringArg(sLambda1)));
-    PrintString(IntToString(a));
-
-    struct ProfilerData pd = Profiler_Start("NestedLambda");
-    a = RetInt(Call(sLambda2, IntArg(a) + StringArg(sLambda1)));
-    Profiler_Stop(pd);
-    PrintString(IntToString(a));
-
-    pd = Profiler_Start("NestedLambda");
-    a = RetInt(Call(sLambda2, IntArg(a) + StringArg(sLambda1)));
-    Profiler_Stop(pd);
-    PrintString(IntToString(a));
-}

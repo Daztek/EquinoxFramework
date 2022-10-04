@@ -106,6 +106,8 @@ void AV_ClickGenerateButton()
     AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "WALL");
     AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "BRIDGE");
     AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "STREET");
+    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "MOUNTAIN");
+    //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "TREES");
 
     AG_AddEdgeTerrain(AV_AREA_ID, "WATER");
     AG_AddEdgeTerrain(AV_AREA_ID, "MOUNTAIN");

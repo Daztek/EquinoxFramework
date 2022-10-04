@@ -34,7 +34,7 @@ const int EP_AREA_STREAM_CHANCE                 = 30;
 const int EP_AREA_RIDGE_CHANCE                  = 25;
 const int EP_AREA_ROAD_CHANCE                   = 25;
 const int EP_AREA_GRASS2_CHANCE                 = 25;
-const int EP_AREA_WALL_CHANCE                   = 5;
+const int EP_AREA_WALL_CHANCE                   = 1;
 
 const int EP_AREA_SINGLE_GROUP_TILE_CHANCE      = 5;
 

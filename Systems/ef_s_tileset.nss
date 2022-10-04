@@ -589,23 +589,23 @@ void TS_ProcessTile(string sTileset, int nTileID)
         str = TS_RotateTileStruct(str);
     }
 
-    /*
     if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
     {
         str = TS_GetTileEdgesAndCorners(sTileset, nTileID);
 
-        if (TS_GetTerrainIsType(str, "GRASS") || TS_GetTerrainIsType(str, "MOUNTAIN"))
+        if (FindSubString(TS_GetCornersAndEdgesAsString(str), "+") == -1 && (TS_GetTerrainIsType(str, "GRASS") || TS_GetTerrainIsType(str, "MOUNTAIN")))
         {
             str = TS_ReplaceTerrainOrCrosser(str, "GRASS", "GRASS+");
             str = TS_ReplaceTerrainOrCrosser(str, "MOUNTAIN", "MOUNTAIN+");
 
-            TS_InsertTile(sTileset, nTileID, nOrientation, 1, str);
-            str = TS_RotateTileStruct(str);
+            for (nOrientation = 0; nOrientation < 4; nOrientation++)
+            {
+                TS_InsertTile(sTileset, nTileID, nOrientation, 1, str);
+                str = TS_RotateTileStruct(str);
+            }
         }
     }
-    */
 }
-
 
 void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, struct TS_TileStruct str)
 {

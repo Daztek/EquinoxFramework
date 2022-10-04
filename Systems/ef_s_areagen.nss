@@ -16,7 +16,7 @@ const string AG_SCRIPT_NAME                                     = "ef_s_areagen"
 const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject";
 
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
-const float AG_GENERATION_DELAY                                 = 0.25f;
+const float AG_GENERATION_DELAY                                 = 0.125f;
 const int AG_GENERATION_TILE_FAILURE_RESET_CHANCE               = 90;
 const int AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE              = 75;
 const int AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE                 = 25;
@@ -535,9 +535,16 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
     {
         int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nNeighborTile);
         int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nNeighborTile);
+        int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nNeighborTile);
 
         if (nTileID != AG_INVALID_TILE_ID)
             str = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
+
+        if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2 && nHeight)
+        {
+            str = TS_ReplaceTerrainOrCrosser(str, "GRASS", "GRASS+");
+            str = TS_ReplaceTerrainOrCrosser(str, "MOUNTAIN", "MOUNTAIN+");
+        }
 
         if (AG_GetHasTileOverride(sAreaID, nNeighborTile))
         {

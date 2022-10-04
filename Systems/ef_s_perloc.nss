@@ -15,7 +15,6 @@ const string PERLOC_AREA_DISABLED       = "EFPersistentLocationDisabled";
 int PerLoc_GetAreaDisabled(object oArea);
 void PerLoc_SetAreaDisabled(object oArea);
 
-// @NWNX[NWNX_ON_CLIENT_DISCONNECT_BEFORE]
 void PerLoc_SaveLocation()
 {
     object oPlayer = OBJECT_SELF;
@@ -28,6 +27,18 @@ void PerLoc_SaveLocation()
 
     if (!PerLoc_GetAreaDisabled(GetArea(oPlayer)))
         PlayerDB_SetLocation(oPlayer, PERLOC_SCRIPT_NAME, "Location", GetLocation(oPlayer));
+}
+
+// @NWNX[NWNX_ON_CLIENT_DISCONNECT_BEFORE]
+void PerLoc_OnClientDisconnectBefore()
+{
+    PerLoc_SaveLocation();
+}
+
+// @GUIEVENT[GUIEVENT_AREA_LOADSCREEN_FINISHED]
+void PerLoc_AreaLoadScreenFinished()
+{
+    PerLoc_SaveLocation();
 }
 
 // @NWNX[NWNX_ON_ELC_VALIDATE_CHARACTER_AFTER]

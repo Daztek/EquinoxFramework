@@ -770,7 +770,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
         if (sTOC == sRoadCrosser && bHasRoad)
             continue;
 
-        SqlBindString(sql, "@" + sTOC, "%" + sTOC + "%");
+        SqlBindString(sql, "@" + sTOC, "%|" + sTOC + "|%");
     }
 
     if (SqlStep(sql))

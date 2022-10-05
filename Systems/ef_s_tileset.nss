@@ -175,7 +175,7 @@ void TS_CreateTilesetTables(string sTileset)
 // TILE STRUCT FUNCTIONS
 string TS_GetCornersAndEdgesAsString(struct TS_TileStruct str)
 {
-    return str.sTL + str.sT + str.sTR + str.sR + str.sBR + str.sB + str.sBL + str.sL;
+    return "|" + str.sTL + "|" + str.sT + "|" +  str.sTR + "|" + str.sR + "|" + str.sBR + "|" + str.sB + "|" + str.sBL + "|" + str.sL + "|";
 }
 
 struct TS_TileStruct TS_RotateTileStruct(struct TS_TileStruct strTile)

@@ -10,7 +10,7 @@ const string WB_LOG_TAG         = "WelcomeBear";
 const string WB_SCRIPT_NAME     = "ef_s_welcomebear";
 const int WB_SPAWN_CHANCE       = 1;
 
-// @NWNX[EP_AREA_POST_PROCESS_FINISHED]
+// @NWNX[EP_EVENT_AREA_POST_PROCESS_FINISHED]
 void WB_OnAreaPostProcessed()
 {
     if (Random(100) < WB_SPAWN_CHANCE)

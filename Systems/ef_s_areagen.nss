@@ -735,7 +735,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
         sQuery = "SELECT tile_id, orientation, height FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " WHERE is_group_tile=0 ";
 
     if (bHeightFirst)
-        sQuery += " AND height=1 ";
+        sQuery += "AND height=1 ";
 
     sQuery += AG_SqlConstructCAEClause(strQuery);
 

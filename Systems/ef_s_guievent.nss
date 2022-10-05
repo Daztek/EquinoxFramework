@@ -10,6 +10,7 @@
 
 const string GUIEVENT_LOG_TAG           = "GuiEvent";
 const string GUIEVENT_SCRIPT_NAME       = "ef_s_guievent";
+const int GUIEVENT_DEBUG_EVENTS         = FALSE;
 
 // @CORE[EF_SYSTEM_INIT]
 void GuiEvent_Init()
@@ -26,6 +27,11 @@ void GuiEvent_OnPlayerGuiEvent()
 {
     object oPlayer = GetLastGuiEventPlayer();
     int nGuiEventType = GetLastGuiEventType();
+
+    if (GUIEVENT_DEBUG_EVENTS)
+    {
+        WriteLog(GUIEVENT_LOG_TAG, "DEBUG: Event=" + IntToString(nGuiEventType) + ", Int=" + IntToString(GetLastGuiEventInteger()) + ", Object=" + ObjectToString(GetLastGuiEventObject()));
+    }
 
     sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptchunk FROM " + GUIEVENT_SCRIPT_NAME + " WHERE guieventtype = @guieventtype;");
     SqlBindInt(sql, "@guieventtype", nGuiEventType);

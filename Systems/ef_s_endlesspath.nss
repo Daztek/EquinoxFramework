@@ -8,35 +8,35 @@
 #include "ef_s_eventman"
 #include "ef_s_profiler"
 
-const string EP_LOG_TAG                         = "EndlessPath";
-const string EP_SCRIPT_NAME                     = "ef_s_endlesspath";
-const int EP_DEBUG_LOG                          = FALSE;
+const string EP_LOG_TAG                             = "EndlessPath";
+const string EP_SCRIPT_NAME                         = "ef_s_endlesspath";
+const int EP_DEBUG_LOG                              = FALSE;
 
-const string EP_TEMPLATE_AREA_JSON              = "TemplateArea";
-const string EP_DOOR_TAG_PREFIX                 = "EP_DOOR_";
-const string EP_AREA_TAG_PREFIX                 = "AR_EP_";
+const string EP_TEMPLATE_AREA_JSON                  = "TemplateArea";
+const string EP_DOOR_TAG_PREFIX                     = "EP_DOOR_";
+const string EP_AREA_TAG_PREFIX                     = "AR_EP_";
 
-const float EP_POSTPROCESS_DELAY                = 0.1f;
-const int EP_POSTPROCESS_TILE_BATCH             = 8;
-const string EP_AREA_POST_PROCESS_FINISHED      = "EP_AREA_POST_PROCESS_FINISHED";
+const float EP_POSTPROCESS_DELAY                    = 0.1f;
+const int EP_POSTPROCESS_TILE_BATCH                 = 8;
+const string EP_EVENT_AREA_POST_PROCESS_FINISHED    = "EP_EVENT_AREA_POST_PROCESS_FINISHED";
 
-const string EP_AREA_TILESET                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
-const int EP_MAX_ITERATIONS                     = 25;
-const string EP_AREA_DEFAULT_EDGE_TERRAIN       = "TREES";
-const int EP_AREA_MINIMUM_LENGTH                = 4;
-const int EP_AREA_RANDOM_LENGTH                 = 13;
+const string EP_AREA_TILESET                        = TILESET_RESREF_MEDIEVAL_RURAL_2;
+const int EP_MAX_ITERATIONS                         = 25;
+const string EP_AREA_DEFAULT_EDGE_TERRAIN           = "TREES";
+const int EP_AREA_MINIMUM_LENGTH                    = 8;
+const int EP_AREA_RANDOM_LENGTH                     = 12;
 
-const int EP_AREA_PATH_NO_ROAD_CHANCE           = 10;
-const int EP_AREA_SAND_CHANCE                   = 30;
-const int EP_AREA_WATER_CHANCE                  = 35;
-const int EP_AREA_MOUNTAIN_CHANCE               = 25;
-const int EP_AREA_STREAM_CHANCE                 = 30;
-const int EP_AREA_RIDGE_CHANCE                  = 25;
-const int EP_AREA_ROAD_CHANCE                   = 25;
-const int EP_AREA_GRASS2_CHANCE                 = 25;
-const int EP_AREA_WALL_CHANCE                   = 1;
+const int EP_AREA_PATH_NO_ROAD_CHANCE               = 10;
+const int EP_AREA_SAND_CHANCE                       = 30;
+const int EP_AREA_WATER_CHANCE                      = 35;
+const int EP_AREA_MOUNTAIN_CHANCE                   = 25;
+const int EP_AREA_STREAM_CHANCE                     = 30;
+const int EP_AREA_RIDGE_CHANCE                      = 25;
+const int EP_AREA_ROAD_CHANCE                       = 25;
+const int EP_AREA_GRASS2_CHANCE                     = 25;
+const int EP_AREA_WALL_CHANCE                       = 1;
 
-const int EP_AREA_SINGLE_GROUP_TILE_CHANCE      = 5;
+const int EP_AREA_SINGLE_GROUP_TILE_CHANCE          = 5;
 
 string EP_GetTilesTable();
 string EP_GetLastAreaID();
@@ -76,7 +76,7 @@ void EP_Load()
 {
     object oStartingArea = GetArea(GetObjectByTag(EP_GetLastDoorID()));
     int nAreaWidth = GetAreaSize(AREA_WIDTH, oStartingArea);
-    int nAreaHeight = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH);
+    int nAreaHeight = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH + 1);
     string sAreaID = EP_GetNextAreaID();
 
     EP_GenerateArea(sAreaID, oStartingArea, AG_AREA_EDGE_TOP, nAreaWidth, nAreaHeight);
@@ -102,11 +102,11 @@ void EP_OnAreaEnter()
             if (nExitEdge == AG_AREA_EDGE_TOP || nExitEdge == AG_AREA_EDGE_BOTTOM)
             {
                 nAreaWidth = GetAreaSize(AREA_WIDTH, oPreviousArea);
-                nAreaHeight = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH);
+                nAreaHeight = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH + 1);
             }
             else if (nExitEdge == AG_AREA_EDGE_LEFT || nExitEdge == AG_AREA_EDGE_RIGHT)
             {
-                nAreaWidth = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH);
+                nAreaWidth = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH + 1);
                 nAreaHeight = GetAreaSize(AREA_HEIGHT, oPreviousArea);
             }
 
@@ -308,7 +308,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
 
     if (nCurrentTile == nNumTiles)
     {
-        EM_SignalNWNXEvent(EP_AREA_POST_PROCESS_FINISHED, oArea);
+        EM_SignalNWNXEvent(EP_EVENT_AREA_POST_PROCESS_FINISHED, oArea);
         return;
     }
 
@@ -404,5 +404,6 @@ string EP_TileInfo()
             "GridX: " + IntToString(str.nGridX) + ", GridY: " + IntToString(str.nGridY) + "\n" +
             "Height: " + IntToString(str.nHeight) + "\n" +
             "Orientation: " + IntToString(str.nOrientation) + "\n" +
-            "Surface Material: " + Get2DAString("surfacemat", "Label", nSurfaceMaterial) +  " (" + IntToString(nSurfaceMaterial) + ")";
+            "Surface Material: " + Get2DAString("surfacemat", "Label", nSurfaceMaterial) +  " (" + IntToString(nSurfaceMaterial) + ")\n\n" +
+            TS_GetTileStructAsString(GetTilesetResRef(oArea), str.nID);
 }

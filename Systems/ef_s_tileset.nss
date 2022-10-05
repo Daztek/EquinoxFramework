@@ -58,7 +58,8 @@ int TS_GetNumOfTerrainOrCrosser(struct TS_TileStruct str, string sType);
 struct TS_TileStruct TS_ReplaceTerrainOrCrosser(struct TS_TileStruct str, string sOld, string sNew);
 struct TS_TileStruct TS_ReplaceTerrain(struct TS_TileStruct str, string sOld, string sNew);
 struct TS_TileStruct TS_SetTerrain(struct TS_TileStruct str, string sTerrain);
-int TS_GetTerrainIsType(struct TS_TileStruct str, string sTerrain);
+int TS_GetTerrainIsOfType(struct TS_TileStruct str, string sTerrain);
+int TS_GetTerrainIsOfTypes(struct TS_TileStruct str, string sTerrain1, string sTerrain2);
 
 int TS_GetTilesetNumTiles(string sTileset);
 float TS_GetTilesetHeightTransition(string sTileset);
@@ -78,7 +79,7 @@ void TS_ProcessTilesetGroups(string sTileset);
 void TS_ProcessTileDoors(string sTileset, int nTileID);
 void TS_InsertTile(string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str);
 void TS_ProcessTile(string sTileset, int nTileID);
-void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, struct TS_TileStruct str);
+void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str);
 void TS_ProcessSingleGroupTile(string sTileset, int nTileID);
 
 vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical);
@@ -156,6 +157,7 @@ void TS_CreateTilesetTables(string sTileset)
     sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (" +
              "tile_id INTEGER NOT NULL, " +
              "orientation INTEGER NOT NULL, " +
+             "height INTEGER NOT NULL, " +
              "tl TEXT NOT NULL, " +
              "t TEXT NOT NULL, " +
              "tr TEXT NOT NULL, " +
@@ -165,7 +167,7 @@ void TS_CreateTilesetTables(string sTileset)
              "bl TEXT NOT NULL, " +
              "l TEXT NOT NULL, " +
              "corners_and_edges TEXT NOT NULL, " +
-             "PRIMARY KEY(tile_id, orientation));";
+             "PRIMARY KEY(tile_id, orientation, height));";
     SqlStep(SqlPrepareQueryModule(sQuery));
 }
 
@@ -306,10 +308,16 @@ struct TS_TileStruct TS_SetTerrain(struct TS_TileStruct str, string sTerrain)
     return str;
 }
 
-int TS_GetTerrainIsType(struct TS_TileStruct str, string sTerrain)
+int TS_GetTerrainIsOfType(struct TS_TileStruct str, string sTerrain)
 {
     return (str.sTL == sTerrain) && (str.sTR == sTerrain) &&
            (str.sBR == sTerrain) && (str.sBL == sTerrain);
+}
+
+int TS_GetTerrainIsOfTypes(struct TS_TileStruct str, string sTerrain1, string sTerrain2)
+{
+    return (str.sTL == sTerrain1 || str.sTL == sTerrain2) && (str.sTR == sTerrain1 || str.sTR == sTerrain2) &&
+           (str.sBR == sTerrain1 || str.sBR == sTerrain2) && (str.sBL == sTerrain1 || str.sBL == sTerrain2);
 }
 
 // TILESET DATA
@@ -593,7 +601,7 @@ void TS_ProcessTile(string sTileset, int nTileID)
     {
         str = TS_GetTileEdgesAndCorners(sTileset, nTileID);
 
-        if (FindSubString(TS_GetCornersAndEdgesAsString(str), "+") == -1 && (TS_GetTerrainIsType(str, "GRASS") || TS_GetTerrainIsType(str, "MOUNTAIN")))
+        if (FindSubString(TS_GetCornersAndEdgesAsString(str), "+") == -1 && TS_GetTerrainIsOfTypes(str, "GRASS", "MOUNTAIN"))
         {
             str = TS_ReplaceTerrainOrCrosser(str, "GRASS", "GRASS+");
             str = TS_ReplaceTerrainOrCrosser(str, "MOUNTAIN", "MOUNTAIN+");
@@ -607,13 +615,14 @@ void TS_ProcessTile(string sTileset, int nTileID)
     }
 }
 
-void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, struct TS_TileStruct str)
+void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str)
 {
-    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (tile_id, orientation, tl, t, tr, r, br, b, bl, l, corners_and_edges) " +
-                    "VALUES(@tile_id, @orientation, @tl, @t, @tr, @r, @br, @b, @bl, @l, @corners_and_edges);";
+    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (tile_id, orientation, height, tl, t, tr, r, br, b, bl, l, corners_and_edges) " +
+                    "VALUES(@tile_id, @orientation, @height, @tl, @t, @tr, @r, @br, @b, @bl, @l, @corners_and_edges);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@tile_id", nTileID);
     SqlBindInt(sql, "@orientation", nOrientation);
+    SqlBindInt(sql, "@height", nHeight);
     SqlBindString(sql, "@tl", str.sTL);
     SqlBindString(sql, "@t", str.sT);
     SqlBindString(sql, "@tr", str.sTR);
@@ -645,8 +654,25 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
     int nOrientation;
     for (nOrientation = 0; nOrientation < 4; nOrientation++)
     {
-        TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, str);
+        TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, 0, str);
         str = TS_RotateTileStruct(str);
+    }
+
+    if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
+    {
+        str = TS_GetTileEdgesAndCorners(sTileset, nTileID);
+
+        if (FindSubString(TS_GetCornersAndEdgesAsString(str), "+") == -1 && TS_GetTerrainIsOfTypes(str, "GRASS", "MOUNTAIN"))
+        {
+            str = TS_ReplaceTerrainOrCrosser(str, "GRASS", "GRASS+");
+            str = TS_ReplaceTerrainOrCrosser(str, "MOUNTAIN", "MOUNTAIN+");
+
+            for (nOrientation = 0; nOrientation < 4; nOrientation++)
+            {
+                TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, 1, str);
+                str = TS_RotateTileStruct(str);
+            }
+        }
     }
 }
 

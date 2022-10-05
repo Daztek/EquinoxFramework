@@ -17,8 +17,8 @@ const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject"
 
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
 const float AG_GENERATION_DELAY                                 = 0.125f;
-const int AG_GENERATION_TILE_FAILURE_RESET_CHANCE               = 90;
-const int AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE              = 75;
+const int AG_GENERATION_TILE_FAILURE_RESET_CHANCE               = 100;//90;
+const int AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE              = 100;//75;
 const int AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE                 = 25;
 
 const int AG_INVALID_TILE_ID                                    = -1;
@@ -52,6 +52,7 @@ const string AG_DATA_KEY_GENERATION_FAILED                      = "GenerationFai
 const string AG_DATA_KEY_GENERATION_CALLBACK                    = "GenerationCallback";
 const string AG_DATA_KEY_GENERATION_LOG_STATUS                  = "GenerationLogStatus";
 const string AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE    = "GenerationSingleGroupTileChance";
+const string AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE         = "GenerationHeightFirstChance";
 
 const string AG_DATA_KEY_TILE_ID                                = "TileID";
 const string AG_DATA_KEY_TILE_LOCKED                            = "Locked";
@@ -145,7 +146,7 @@ void AG_ResetNeighborTiles(string sAreaID, int nTile);
 struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDirection);
 string AG_ResolveCorner(string sCorner1, string sCorner2);
 string AG_SqlConstructCAEClause(struct TS_TileStruct str);
-struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile);
+struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile, int bHeightFirst);
 void AG_ProcessTile(string sAreaID, int nWidth, int nX, int nY);
 int AG_GenerateRandom(string sAreaID);
 void AG_GenerateArea(string sAreaID);
@@ -702,7 +703,7 @@ string AG_SqlConstructCAEClause(struct TS_TileStruct str)
     return sWhere;
 }
 
-struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile)
+struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile, int bHeightFirst)
 {
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
     struct AG_Tile tile;
@@ -729,9 +730,14 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     string sQuery;
 
     if (bSingleGroupTile)
-        sQuery = "SELECT tile_id, orientation FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " WHERE 1=1 " + AG_SqlConstructCAEClause(strQuery);
+        sQuery = "SELECT tile_id, orientation, height FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " WHERE 1=1 ";
     else
-        sQuery = "SELECT tile_id, orientation, height FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " WHERE is_group_tile=0 " + AG_SqlConstructCAEClause(strQuery);
+        sQuery = "SELECT tile_id, orientation, height FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " WHERE is_group_tile=0 ";
+
+    if (bHeightFirst)
+        sQuery += " AND height=1 ";
+
+    sQuery += AG_SqlConstructCAEClause(strQuery);
 
     int nTOC, nNumTOC = StringArray_Size(oAreaDataObject, AG_IGNORE_TOC_ARRAY);
     for (nTOC = 0; nTOC < nNumTOC; nTOC++)
@@ -771,7 +777,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     {
         tile.nTileID = SqlGetInt(sql, 0);
         tile.nOrientation = SqlGetInt(sql, 1);
-        tile.nHeight = bSingleGroupTile ? 0 : SqlGetInt(sql, 2);
+        tile.nHeight = SqlGetInt(sql, 2);
     }
     else
     {
@@ -791,10 +797,13 @@ void AG_ProcessTile(string sAreaID, int nWidth, int nX, int nY)
         return;
 
     int bTrySingleGroupTile = Random(100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE);
-    struct AG_Tile tile = AG_GetRandomMatchingTile(sAreaID, nTile, bTrySingleGroupTile);
+    int bHeightFirst = Random(100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE);
 
+    struct AG_Tile tile = AG_GetRandomMatchingTile(sAreaID, nTile, bTrySingleGroupTile, bHeightFirst);
     if (tile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
-        tile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE);
+        tile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE, bHeightFirst);
+    if (tile.nTileID == AG_INVALID_TILE_ID && bHeightFirst)
+        tile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE, FALSE);
 
     if (tile.nTileID != AG_INVALID_TILE_ID)
         AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, tile.nTileID, tile.nOrientation, tile.nHeight);

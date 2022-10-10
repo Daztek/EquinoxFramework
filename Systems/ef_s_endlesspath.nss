@@ -240,6 +240,14 @@ object EP_CreateArea(string sAreaID)
     return JsonToObject(jArea, GetStartingLocation());
 }
 
+void EP_SetAreaModifiers(object oArea)
+{
+    // Don't persist player locations in EP areas
+    Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oArea));
+    // Setup dynamic lighting
+    Call(Function("ef_s_dynlight", "DynLight_InitArea"), ObjectArg(oArea));
+}
+
 void EP_OnAreaGenerated(string sAreaID)
 {
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
@@ -261,8 +269,7 @@ void EP_OnAreaGenerated(string sAreaID)
         EM_SetAreaEventScripts(oArea);
         EM_ObjectDispatchListInsert(oArea, EM_GetObjectDispatchListId(EP_SCRIPT_NAME, EVENT_SCRIPT_AREA_ON_ENTER));
 
-        // Don't persist player locations in EP areas
-        Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oArea));
+        EP_SetAreaModifiers(oArea);
 
         object oPreviousDoor = GetObjectByTag(EP_GetLastDoorID());
         object oEntranceDoor = AG_CreateDoor(sAreaID, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX), EP_GetNextDoorID());

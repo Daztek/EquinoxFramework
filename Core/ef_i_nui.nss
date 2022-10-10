@@ -31,6 +31,7 @@ json NuiGetAdjustedWindowGeometryRect(object oPlayer, json jRect);
 float NuiGetMouseScrollDelta(json jPayload);
 int NuiGetMouseButton(json jPayload);
 int NuiGetIsLeftMouseButton(json jPayload);
+int NuiGetIsRightMouseButton(json jPayload);
 float NuiGetMouseX(json jPayload);
 float NuiGetMouseY(json jPayload);
 void NuiSetClickthroughProtection(object oPlayer = OBJECT_SELF, float fSeconds = 0.5f);
@@ -74,6 +75,11 @@ int NuiGetMouseButton(json jPayload)
 int NuiGetIsLeftMouseButton(json jPayload)
 {
     return NuiGetMouseButton(jPayload) == NUI_MOUSE_BUTTON_LEFT;
+}
+
+int NuiGetIsRightMouseButton(json jPayload)
+{
+    return NuiGetMouseButton(jPayload) == NUI_MOUSE_BUTTON_RIGHT;
 }
 
 float NuiGetMouseX(json jPayload)

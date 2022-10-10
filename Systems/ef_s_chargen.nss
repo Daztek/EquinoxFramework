@@ -1330,7 +1330,7 @@ void CG_ClickAbilitiesButton()
 void CG_AbilityAdjustmentButtonMouseUp()
 {
     json jPayload = NuiGetEventPayload();
-    if (NuiGetIsLeftMouseButton(NuiGetEventPayload()))
+    if (NuiGetIsLeftMouseButton(jPayload))
         CG_AdjustAbility(NuiGetEventArrayIndex(), NuiGetMouseY(jPayload) <= 14.0f);
 }
 
@@ -1500,7 +1500,7 @@ void CG_ClickSkillsFeatsButton()
 void CG_SkillAdjustmentButtonMouseUp()
 {
     json jPayload = NuiGetEventPayload();
-    if (NuiGetIsLeftMouseButton(NuiGetEventPayload()))
+    if (NuiGetIsLeftMouseButton(jPayload))
         CG_AdjustSkill(NuiGetEventArrayIndex(), NuiGetMouseY(jPayload) <= 16.0f);
 }
 

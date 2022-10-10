@@ -62,26 +62,23 @@ void DynLight_UpdateAreaLight(object oArea, float fFadeTime= 0.0f)
 
 void DynLight_IntervalHandler()
 {
-    object oDataObject = GetDataObject("DynLightHandler");
+    object oDataObject = CreateDataObject(DYNLIGHT_SCRIPT_NAME);
 
     object oPlayer = GetFirstPC();
     while (oPlayer != OBJECT_INVALID)
     {
         object oArea = GetArea(oPlayer);
-        string sAreaID = ObjectToString(oArea);
 
         if (GetIsObjectValid(oArea) &&
             GetLocalInt(oArea, DYNLIGHT_AREA_DYNAMIC_LIGHTING_ENABLED) &&
-            !GetLocalInt(oDataObject, sAreaID))
+            !GetLocalInt(oDataObject, ObjectToString(oArea)))
         {
             DynLight_UpdateAreaLight(oArea, DYNLIGHT_UPDATE_INTERVAL);
-            SetLocalInt(oDataObject, sAreaID, TRUE);
+            SetLocalInt(oDataObject, ObjectToString(oArea), TRUE);
         }
 
         oPlayer = GetNextPC();
     }
-
-    DestroyDataObject("DynLightHandler");
 
     DelayCommand(DYNLIGHT_UPDATE_INTERVAL, DynLight_IntervalHandler());
 }
@@ -89,9 +86,12 @@ void DynLight_IntervalHandler()
 // @EVENT[EVENT_SCRIPT_AREA_ON_ENTER:DL]
 void DynLight_OnAreaEnter()
 {
-    object oPlayer = GetEnteringObject();
     object oArea = OBJECT_SELF;
 
-    if (DYNLIGHT_ENABLE_DYNAMIC_LIGHTING && GetIsPC(oPlayer) && NWNX_Area_GetNumberOfPlayersInArea(oArea) == 1)
+    if (GetIsPC(GetEnteringObject()) &&
+        GetLocalInt(oArea, DYNLIGHT_AREA_DYNAMIC_LIGHTING_ENABLED) &&
+        NWNX_Area_GetNumberOfPlayersInArea(oArea) == 1)
+    {
         DynLight_UpdateAreaLight(oArea, 0.0f);
+    }
 }

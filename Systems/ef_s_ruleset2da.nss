@@ -5,7 +5,6 @@
 
 #include "ef_i_core"
 
-const string RS2DA_LOG_TAG                             = "Ruleset.2da";
 const string RS2DA_SCRIPT_NAME                         = "ef_s_ruleset2da";
 
 int RS2DA_GetIntEntry(string sEntry);

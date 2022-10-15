@@ -8,7 +8,6 @@
 #include "ef_s_endlesspath"
 #include "ef_s_aibehaviors"
 
-const string ED_LOG_TAG                 = "EndlessDeer";
 const string ED_SCRIPT_NAME             = "ef_s_endlessdeer";
 
 const int ED_ENTRANCE_DISTANCE          = 3;
@@ -60,7 +59,7 @@ void ED_OnAreaPostProcessed()
 
     int nLimit = nMax / 10;
 
-    WriteLog(ED_LOG_TAG, "* Spawning Deer for Area: " + sAreaID + " -> Tiles: " + IntToString(nMax) + ", Spawning: " + IntToString(nLimit));
+    WriteLog("* Spawning Deer for Area: " + sAreaID + " -> Tiles: " + IntToString(nMax) + ", Spawning: " + IntToString(nLimit));
 
     if (!nLimit)
         return;

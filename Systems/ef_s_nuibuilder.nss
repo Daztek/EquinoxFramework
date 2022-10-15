@@ -7,7 +7,6 @@
 
 #include "ef_i_core"
 
-const string NB_LOG_TAG                 = "NuiBuilder";
 const string NB_SCRIPT_NAME             = "ef_s_nuibuilder";
 
 const int NB_LOG_DEBUG                  = FALSE;
@@ -97,13 +96,13 @@ json NB_FinalizeWindow();
 void NB_LogDebug(string sDebug)
 {
     if (NB_LOG_DEBUG)
-        WriteLog(NB_LOG_TAG, "DEBUG: " + sDebug);
+        WriteLog("DEBUG: " + sDebug);
 }
 
 void NB_LogWarning(string sWarning)
 {
     if (NB_LOG_WARNINGS)
-        WriteLog(NB_LOG_TAG, "WARNING: " + sWarning);
+        WriteLog("WARNING: " + sWarning);
 }
 
 int NB_GetDepth()

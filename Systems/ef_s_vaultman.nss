@@ -52,7 +52,6 @@
 #include "nwnx_player"
 #include "nwnx_vault"
 
-const string VMAN_LOG_TAG                                   = "VaultManager";
 const string VMAN_SCRIPT_NAME                               = "ef_s_vaultman";
 
 const string VMAN_DATABASE_NAME                             = "servervault";

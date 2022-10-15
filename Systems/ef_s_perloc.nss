@@ -7,7 +7,6 @@
 #include "ef_s_playerdb"
 #include "nwnx_player"
 
-const string PERLOC_LOG_TAG             = "PersistentLocation";
 const string PERLOC_SCRIPT_NAME         = "ef_s_perloc";
 
 const string PERLOC_AREA_DISABLED       = "EFPersistentLocationDisabled";

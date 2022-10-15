@@ -11,8 +11,15 @@
 const string EF_DATAOBJECT_TAG_PREFIX       = "EFDataObject_";
 const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
 
+struct VMFrame
+{
+    string sFile;
+    string sFunction;
+    int nLine;
+};
+
 // Write a message to the log
-void WriteLog(string sName, string sMessage);
+void WriteLog(string sMessage);
 
 // Create a waypoint at locLocation with sTag
 object CreateWaypoint(location locLocation, string sTag);
@@ -96,9 +103,15 @@ int GetIsLocationValid(location locLocation);
 // Get an integer from a 2da, returns EF_UNSET_INTEGER_VALUE if not set.
 int Get2DAInt(string s2DA, string sColumn, int nRow);
 
-void WriteLog(string sName, string sMessage)
+// Get a VM frame at nDepth
+// nDepth == 0: Current Function
+// nDepth == 1: Calling Function
+struct VMFrame GetVMFrame(int nDepth = 0);
+
+void WriteLog(string sMessage)
 {
-    WriteTimestampedLogEntry("[" + sName + "] " + sMessage);
+    struct VMFrame str = GetVMFrame(1);
+    PrintString("[" + str.sFile + ":" + IntToString(str.nLine) + "] " + sMessage);
 }
 
 object CreateWaypoint(location locLocation, string sTag)
@@ -178,7 +191,7 @@ json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, objec
     DeleteLocalJson(oModule, "EF_TEMP_VAR");
 
     if (sResult != "")
-        WriteLog("WARNING", "ExecuteScriptChunkAndReturnJson() failed with error: " + sResult);
+        WriteLog("ExecuteScriptChunkAndReturnJson() failed with error: " + sResult);
 
 
     return jReturn;
@@ -412,4 +425,14 @@ int Get2DAInt(string s2DA, string sColumn, int nRow)
 {
     string sValue = Get2DAString(s2DA, sColumn, nRow);
     return sValue == "" ? EF_UNSET_INTEGER_VALUE : StringToInt(sValue);
+}
+
+struct VMFrame GetVMFrame(int nDepth = 0)
+{
+    json jFrame = JsonArrayGet(JsonObjectGet(GetScriptBacktrace(FALSE), "frames"), 1 + nDepth);
+    struct VMFrame str;
+    str.sFile = JsonObjectGetString(jFrame, "file");
+    str.sFunction = JsonObjectGetString(jFrame, "function");
+    str.nLine = JsonObjectGetInt(jFrame, "line");
+    return str;
 }

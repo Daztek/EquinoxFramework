@@ -6,7 +6,6 @@
 #include "ef_i_core"
 #include "nwnx_area"
 
-const string MODINIT_LOG_TAG            = "ModuleInit";
 const string MODINIT_SCRIPT_NAME        = "ef_s_modinit";
 
 // @CORE[EF_SYSTEM_INIT]

@@ -9,7 +9,6 @@
 #include "ef_s_ruleset2da"
 #include "ef_s_profiler"
 
-const string CG_LOG_TAG                                 = "CharacterGemeration";
 const string CG_SCRIPT_NAME                             = "ef_s_chargen";
 
 const string CG_MAIN_WINDOW_ID                          = "CG_MAIN";

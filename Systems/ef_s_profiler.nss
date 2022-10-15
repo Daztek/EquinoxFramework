@@ -7,7 +7,6 @@
 
 #include "ef_i_core"
 
-const string PROFILER_LOG_TAG                           = "Profiler";
 const string PROFILER_SCRIPT_NAME                       = "ef_s_profiler";
 
 const int PROFILER_OVERHEAD_COMPENSATION_ITERATIONS     = 1000;
@@ -31,7 +30,7 @@ int Profiler_Calibrate(int nIterations);
 void Profiler_Init()
 {
     int nOverhead = Profiler_Calibrate(PROFILER_OVERHEAD_COMPENSATION_ITERATIONS);
-    WriteLog(PROFILER_LOG_TAG, "* Overhead Compensation: " + IntToString(nOverhead) + "us");
+    WriteLog("* Overhead Compensation: " + IntToString(nOverhead) + "us");
     Profiler_SetOverheadCompensation(nOverhead);
 }
 
@@ -115,7 +114,7 @@ int Profiler_Stop(struct ProfilerData strData)
             nLength++;
         }
 
-        WriteLog(PROFILER_LOG_TAG, "[" + strData.sName + "] " + IntToString(nTotalSeconds) + "." + sZeroPadding + IntToString(nTotalMicroSeconds) + " seconds" + sStats);
+        WriteLog("[" + strData.sName + "] " + IntToString(nTotalSeconds) + "." + sZeroPadding + IntToString(nTotalMicroSeconds) + " seconds" + sStats);
     }
 
     return nTotalMicroSeconds;

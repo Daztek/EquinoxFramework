@@ -7,7 +7,6 @@
 
 #include "ef_i_core"
 
-const string POSTSTRING_LOG_TAG         = "PostString";
 const string POSTSTRING_SCRIPT_NAME     = "ef_s_poststring";
 
 const int POSTSTRING_ID_START           = 1000;
@@ -71,7 +70,7 @@ void PostString_ReserveIDs(string sSystem, int nAmount)
         SetLocalInt(oDataObject, sSystem + "_StartID", nStart);
         SetLocalInt(oDataObject, sSystem + "_EndID", nEnd);
 
-        WriteLog(POSTSTRING_LOG_TAG, "System '" + sSystem + "' reserved '" + IntToString(nAmount) + "' IDs -> " + IntToString(nStart) + " - " + IntToString(nEnd));
+        WriteLog("System '" + sSystem + "' reserved '" + IntToString(nAmount) + "' IDs -> " + IntToString(nStart) + " - " + IntToString(nEnd));
     }
 }
 

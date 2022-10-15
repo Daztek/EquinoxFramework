@@ -10,7 +10,6 @@
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
 
-const string PM_LOG_TAG             = "PlayerMenu";
 const string PM_SCRIPT_NAME         = "ef_s_playermenu";
 
 const string PM_WINDOW_ID           = "PLAYER_MENU";
@@ -94,5 +93,5 @@ void PM_RegisterButton(json jButton)
     InsertStringToLocalJsonArray(oDataObject, PM_FUNCTION_ARRAY, sScriptChunk);
     EFCore_CacheScriptChunk(sScriptChunk);
 
-    WriteLog(PM_LOG_TAG, "* System '" + sSystem + "' registered player menu button '" + sButton + "' with tooltip: \""  + sTooltip + "\"");
+    WriteLog("* System '" + sSystem + "' registered player menu button '" + sButton + "' with tooltip: \""  + sTooltip + "\"");
 }

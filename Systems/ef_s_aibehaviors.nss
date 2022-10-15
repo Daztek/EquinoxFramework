@@ -7,7 +7,6 @@
 #include "ef_s_aiman"
 #include "ef_s_peraoe"
 
-const string AIB_LOG_TAG                        = "AIBehaviors";
 const string AIB_SCRIPT_NAME                    = "ef_s_aibehaviors";
 
 const string AIB_BEHAVIOR_WANDERFLEE            = "AIBWanderFlee";

@@ -9,7 +9,6 @@
 #include "ef_s_eventman"
 #include "nwnx_object"
 
-const string CLOSEDOOR_LOG_TAG          = "CloseDoor";
 const string CLOSEDOOR_SCRIPT_NAME      = "ef_s_closedoor";
 const int CLOSEDOOR_EVENT_PRIORITY      = 10;
 

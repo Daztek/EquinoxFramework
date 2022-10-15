@@ -5,7 +5,6 @@
 
 #include "ef_i_core"
 
-const string AMNPC_LOG_TAG                  = "AmbientNPC";
 const string AMNPC_SCRIPT_NAME              = "ef_s_ambientnpc";
 
 const string AMNPC_NPC_TEMPLATE             = "AmNPCTemplate";

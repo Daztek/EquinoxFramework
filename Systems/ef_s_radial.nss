@@ -9,7 +9,6 @@
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
 
-const string RAD_LOG_TAG                = "RadialMenu";
 const string RAD_SCRIPT_NAME            = "ef_s_radial";
 
 const string RAD_PLACEABLE_WINDOW_ID    = "RAD_PLACEABLE";

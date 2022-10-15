@@ -8,7 +8,6 @@
 
 #include "ef_i_core"
 
-const string GUIEVENT_LOG_TAG           = "GuiEvent";
 const string GUIEVENT_SCRIPT_NAME       = "ef_s_guievent";
 const int GUIEVENT_DEBUG_EVENTS         = FALSE;
 
@@ -30,7 +29,7 @@ void GuiEvent_OnPlayerGuiEvent()
 
     if (GUIEVENT_DEBUG_EVENTS)
     {
-        WriteLog(GUIEVENT_LOG_TAG, "DEBUG: Event=" + IntToString(nGuiEventType) + ", Int=" + IntToString(GetLastGuiEventInteger()) + ", Object=" + ObjectToString(GetLastGuiEventObject()));
+        WriteLog("DEBUG: Event=" + IntToString(nGuiEventType) + ", Int=" + IntToString(GetLastGuiEventInteger()) + ", Object=" + ObjectToString(GetLastGuiEventObject()));
     }
 
     sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptchunk FROM " + GUIEVENT_SCRIPT_NAME + " WHERE guieventtype = @guieventtype;");
@@ -42,7 +41,7 @@ void GuiEvent_OnPlayerGuiEvent()
         string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
-            WriteLog(GUIEVENT_LOG_TAG, "ERROR: (" + IntToString(nGuiEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+            WriteLog("ERROR: (" + IntToString(nGuiEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
     }
 }
 
@@ -56,7 +55,7 @@ void GuiEvent_RegisterFunction(json jGuiEvent)
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
     if (nGuiEventType == -1)
-        WriteLog(GUIEVENT_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid gui event: " + sGuiEventType);
+        WriteLog("* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid gui event: " + sGuiEventType);
     else
     {
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + GUIEVENT_SCRIPT_NAME + " (guieventtype, system, scriptchunk) VALUES(@guieventtype, @system, @scriptchunk);");
@@ -67,6 +66,6 @@ void GuiEvent_RegisterFunction(json jGuiEvent)
 
         EFCore_CacheScriptChunk(sScriptChunk);
 
-        WriteLog(GUIEVENT_LOG_TAG, "* System '" + sSystem + "' registered '" + sFunction + "' for gui event '" + sGuiEventType + "'");
+        WriteLog("* System '" + sSystem + "' registered '" + sFunction + "' for gui event '" + sGuiEventType + "'");
     }
 }

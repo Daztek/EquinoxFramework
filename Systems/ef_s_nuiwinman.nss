@@ -12,7 +12,6 @@
 #include "ef_i_core"
 #include "ef_s_playerdb"
 
-const string NWM_LOG_TAG            = "NuiWindowManager";
 const string NWM_SCRIPT_NAME        = "ef_s_nuiwinman";
 const int NWM_DEBUG_EVENTS          = FALSE;
 
@@ -81,16 +80,16 @@ void NWM_RegisterWindow(json jNWMWindow)
     json jWindow = ExecuteScriptChunkAndReturnJson(sSystem, nssFunction(sFunction), GetModule());
 
     if (!JsonGetType(jWindow))
-        WriteLog(NWM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register window with no data!");
+        WriteLog("* WARNING: System '" + sSystem + "' tried to register window with no data!");
     else if (JsonGetType(NWM_GetWindowJson(sWindowId)))
-        WriteLog(NWM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register already registered window: " + sWindowId);
+        WriteLog("* WARNING: System '" + sSystem + "' tried to register already registered window: " + sWindowId);
     else
     {
         object oDataObject = GetDataObject(NWM_SCRIPT_NAME);
         json jGeometry = JsonObjectGet(jWindow, NUI_DEFAULT_GEOMETRY_NAME);
         SetLocalJson(oDataObject, NWM_REGISTERED_WINDOW + sWindowId, jWindow);
         SetLocalJson(oDataObject, NWM_WINDOW_GEOMETRY + sWindowId, jGeometry);
-        WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered window: " + sWindowId);
+        WriteLog("* System '" + sSystem + "' registered window: " + sWindowId);
     }
 }
 
@@ -123,11 +122,11 @@ void NWM_RegisterEvent(json jNWMEvent)
 
         EFCore_CacheScriptChunk(sScriptChunk);
 
-        WriteLog(NWM_LOG_TAG, "* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
+        WriteLog("* System '" + sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + sFunction + "' for window: " + sWindowId);
     }
     else
     {
-        WriteLog(NWM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register event for a window that does not exist: " + sWindowId);
+        WriteLog("* WARNING: System '" + sSystem + "' tried to register event for a window that does not exist: " + sWindowId);
     }
 }
 
@@ -141,7 +140,7 @@ void NWM_NuiEvent()
     if (sWindowId == "" || !JsonGetType(NWM_GetWindowJson(sWindowId)))
     {
         if (NWM_DEBUG_EVENTS)
-            WriteLog(NWM_LOG_TAG, "DEBUG: Unknown or Anonymous Window: (" + sWindowId + ") Event: " + NuiGetEventType() + ", Element: " + NuiGetEventElement());
+            WriteLog("DEBUG: Unknown or Anonymous Window: (" + sWindowId + ") Event: " + NuiGetEventType() + ", Element: " + NuiGetEventElement());
         return;
     }
 
@@ -153,11 +152,11 @@ void NWM_NuiEvent()
         json jGeometry = NuiGetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND);
 
         if (NWM_DEBUG_EVENTS)
-            WriteLog(NWM_LOG_TAG, "DEBUG: (" + IntToString(nToken) + ":" + sWindowId +
-                                  ") Geometry Update: x=" + FloatToString(JsonObjectGetFloat(jGeometry, "x"), 0, 0) +
-                                  ", y=" + FloatToString(JsonObjectGetFloat(jGeometry, "y"), 0, 0) +
-                                  ", w=" + FloatToString(JsonObjectGetFloat(jGeometry, "w"), 0, 0) +
-                                  ", h=" + FloatToString(JsonObjectGetFloat(jGeometry, "h"), 0, 0));
+            WriteLog("DEBUG: (" + IntToString(nToken) + ":" + sWindowId +
+                     ") Geometry Update: x=" + FloatToString(JsonObjectGetFloat(jGeometry, "x"), 0, 0) +
+                     ", y=" + FloatToString(JsonObjectGetFloat(jGeometry, "y"), 0, 0) +
+                     ", w=" + FloatToString(JsonObjectGetFloat(jGeometry, "w"), 0, 0) +
+                     ", h=" + FloatToString(JsonObjectGetFloat(jGeometry, "h"), 0, 0));
 
         if (!GetIsDefaultNuiRect(jGeometry))
         {
@@ -170,7 +169,7 @@ void NWM_NuiEvent()
         int nArrayIndex = NuiGetEventArrayIndex();
         json jPayload = NuiGetEventPayload();
 
-        WriteLog(NWM_LOG_TAG, "DEBUG: (" + IntToString(nToken) + ":" + sWindowId + ") T: " + sEventType + ", E: " + sElement + ", AI: " + IntToString(nArrayIndex) + ", P: " + JsonDump(jPayload));
+        WriteLog("DEBUG: (" + IntToString(nToken) + ":" + sWindowId + ") T: " + sEventType + ", E: " + sElement + ", AI: " + IntToString(nArrayIndex) + ", P: " + JsonDump(jPayload));
     }
 
     NWM_SetPlayer(oPlayer);
@@ -409,7 +408,7 @@ void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string s
     }
 
     if (NWM_DEBUG_EVENTS)
-        WriteLog(NWM_LOG_TAG, "DEBUG: (" + sWindowId + ") Running Event '" + sEventType + "' for Element '" + sElement + "'");
+        WriteLog("DEBUG: (" + sWindowId + ") Running Event '" + sEventType + "' for Element '" + sElement + "'");
 
     sqlquery sql = SqlPrepareQueryModule("SELECT scriptchunk FROM " + NWM_SCRIPT_NAME + " WHERE windowid = @windowid AND eventtype = @eventtype AND element = @element;");
     SqlBindString(sql, "@windowid", sWindowId);
@@ -424,7 +423,7 @@ void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string s
         if (NWM_DEBUG_EVENTS)
         {
             if (sError != "")
-                WriteLog(NWM_LOG_TAG, "DEBUG: Event Chunk '" + sScriptChunk + "' failed with error: " + sError);
+                WriteLog("DEBUG: Event Chunk '" + sScriptChunk + "' failed with error: " + sError);
         }
     }
 }

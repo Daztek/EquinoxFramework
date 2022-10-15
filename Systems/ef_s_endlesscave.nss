@@ -8,7 +8,6 @@
 #include "ef_s_endlesspath"
 #include "nwnx_object"
 
-const string EC_LOG_TAG                         = "EndlessCave";
 const string EC_SCRIPT_NAME                     = "ef_s_endlesscave";
 const int EC_DEBUG_LOG                          = FALSE;
 
@@ -91,16 +90,16 @@ void EC_OnAreaPostProcessed()
     int nCave, nNumCaves = JsonGetLength(jCaves);
     if (nNumCaves)
     {
-        WriteLog(EC_LOG_TAG, "* Generating Caves for Area: " + sParentAreaID + " -> Amount: " + IntToString(nNumCaves));
+        WriteLog("* Generating Caves for Area: " + sParentAreaID + " -> Amount: " + IntToString(nNumCaves));
 
         for (nCave = 0; nCave < nNumCaves; nCave++)
         {
             json jCave = JsonArrayGet(jCaves, nCave);
 
-            WriteLog(EC_LOG_TAG, "  > Tile: " + IntToString(JsonObjectGetInt(jCave, "exit_index")) +
-                                 ", Type: " + IntToString(JsonObjectGetInt(jCave, "type")) +
-                                 ", ID: " + JsonObjectGetString(jCave, "area_id") +
-                                 ", Lighting: " + Get2DAString("environment", "LABEL", JsonObjectGetInt(jCave, "lighting_scheme")));
+            WriteLog("  > Tile: " + IntToString(JsonObjectGetInt(jCave, "exit_index")) +
+                     ", Type: " + IntToString(JsonObjectGetInt(jCave, "type")) +
+                     ", ID: " + JsonObjectGetString(jCave, "area_id") +
+                     ", Lighting: " + Get2DAString("environment", "LABEL", JsonObjectGetInt(jCave, "lighting_scheme")));
 
             DelayCommand(EC_CAVE_GENERATION_DELAY * (nCave + 1), EC_GenerateCave(jCave));
         }

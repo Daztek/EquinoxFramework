@@ -6,7 +6,6 @@
 #include "ef_i_core"
 #include "ef_s_endlesspath"
 
-const string WB_LOG_TAG         = "WelcomeBear";
 const string WB_SCRIPT_NAME     = "ef_s_welcomebear";
 const int WB_SPAWN_CHANCE       = 1;
 
@@ -26,7 +25,7 @@ void WB_OnAreaPostProcessed()
 
         if (SqlStep(sql))
         {
-            WriteLog(WB_LOG_TAG, "* Spawning a friendly welcome bear! :D");
+            WriteLog("* Spawning a friendly welcome bear! :D");
 
             location locTile = Location(oArea, GetTilePosition(SqlGetInt(sql, 0), SqlGetInt(sql, 1)), IntToFloat(Random(360)));
             object oBear = CreateObject(OBJECT_TYPE_CREATURE, "nw_bearbrwn", locTile);
@@ -34,7 +33,7 @@ void WB_OnAreaPostProcessed()
         }
         else
         {
-            WriteLog(WB_LOG_TAG, "* No suitable tile for a friendly welcome bear! :(");
+            WriteLog("* No suitable tile for a friendly welcome bear! :(");
         }
     }
 }

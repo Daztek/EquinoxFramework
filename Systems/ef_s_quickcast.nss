@@ -18,7 +18,6 @@
 #include "nwnx_creature"
 #include "nwnx_object"
 
-const string QC_LOG_TAG                             = "QuickCast";
 const string QC_SCRIPT_NAME                         = "ef_s_quickcast";
 
 const string QC_SPELLS_2DA_NAME                     = "spells";
@@ -974,7 +973,7 @@ void QC_InitializeSpellData()
         SqlBindString(sql, "@spelltable", sSpellTable);
 
         if (SqlStep(sql))
-            WriteLog(QC_LOG_TAG, "* SpellTable: " + sSpellTable + " -> " + IntToString(SqlGetInt(sql, 0)) + " spells");
+            WriteLog("* SpellTable: " + sSpellTable + " -> " + IntToString(SqlGetInt(sql, 0)) + " spells");
     }
 }
 

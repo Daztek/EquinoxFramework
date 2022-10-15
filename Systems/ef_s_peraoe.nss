@@ -6,7 +6,6 @@
 #include "ef_i_core"
 #include "nwnx_object"
 
-const string PERAOE_LOG_TAG                         = "PersistentAoE";
 const string PERAOE_SCRIPT_NAME                     = "ef_s_peraoe";
 
 const int AOE_MOB_CUSTOM                            = 37;
@@ -27,7 +26,7 @@ void PerAOE_AddScript(string sScript)
     string sError = nssCompileScript(sScript, PERAOE_SCRIPT_NAME, sScriptChunk);
 
     if (sError != "")
-        WriteLog(PERAOE_LOG_TAG, "WARNING: failed to compile script '" + sScript + "' with error: " + sError);
+        WriteLog("WARNING: failed to compile script '" + sScript + "' with error: " + sError);
 }
 
 // @CORE[EF_SYSTEM_INIT]

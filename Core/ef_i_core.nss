@@ -13,7 +13,6 @@
 #include "nwnx_admin"
 #include "nwnx_util"
 
-const string EFCORE_LOG_TAG                             = "Equinox";
 const string EFCORE_SCRIPT_NAME                         = "ef_i_core";
 
 const int EFCORE_DISABLE_DEBUG_FAST_START               = TRUE;
@@ -63,7 +62,7 @@ void EFCore_ResetScriptInstructions();
 
 void EFCore_Initialize()
 {
-    WriteLog(EFCORE_LOG_TAG, "* Starting Equinox Framework...");
+    WriteLog("* Starting Equinox Framework...");
 
     NWNX_Administration_SetPlayerPassword(GetRandomUUID());
     NWNX_Util_SetInstructionLimit(NWNX_Util_GetInstructionLimit() * 64);
@@ -72,7 +71,7 @@ void EFCore_Initialize()
 
     if (EFCORE_VALIDATE_SYSTEMS && !EFCore_ValidateSystems())
     {
-        WriteLog(EFCORE_LOG_TAG, "* ERROR: System Validation Failure!");
+        WriteLog("* ERROR: System Validation Failure!");
 
         if (EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE)
             NWNX_Administration_ShutdownServer();
@@ -82,13 +81,13 @@ void EFCore_Initialize()
 
     EFCore_ParseSystemsForAnnotationData();
 
-    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Init' Functions...");
+    WriteLog("* Executing System 'Init' Functions...");
     EFCore_ExecuteCoreFunction(EF_SYSTEM_INIT);
-    WriteLog(EFCORE_LOG_TAG, "* Parsing Annotation Data...");
+    WriteLog("* Parsing Annotation Data...");
     EFCore_ParseAnnotationData();
-    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Load' Functions...");
+    WriteLog("* Executing System 'Load' Functions...");
     EFCore_ExecuteCoreFunction(EF_SYSTEM_LOAD);
-    WriteLog(EFCORE_LOG_TAG, "* Executing System 'Post' Functions...");
+    WriteLog("* Executing System 'Post' Functions...");
     EFCore_ExecuteCoreFunction(EF_SYSTEM_POST);
 
     NWNX_Administration_SetPlayerPassword("");
@@ -97,7 +96,7 @@ void EFCore_Initialize()
 
 void EFCore_InitializeSystemData()
 {
-    WriteLog(EFCORE_LOG_TAG, "* Initializing System Data...");
+    WriteLog("* Initializing System Data...");
 
     string sQuery = "CREATE TABLE IF NOT EXISTS " + EFCORE_SCRIPT_NAME + "_systems (" +
                     "system TEXT NOT NULL, " +
@@ -133,7 +132,7 @@ void EFCore_InitializeSystemData()
         EFCore_ParseSystem(JsonArrayGetString(jSystems, nSystem));
     }
 
-    WriteLog(EFCORE_LOG_TAG, "* Found " + IntToString(EFCore_GetNumberOfSystems()) + " Systems...");
+    WriteLog("* Found " + IntToString(EFCore_GetNumberOfSystems()) + " Systems...");
 }
 
 void EFCore_InsertSystem(string sSystem, string sScriptData)
@@ -194,7 +193,7 @@ void EFCore_ParseSystem(string sSystem)
 
     if (FindSubString(sScriptData, "@SKIPSYSTEM") != -1)
     {
-        WriteLog(EFCORE_LOG_TAG, "  > Skipping System: " + sSystem);
+        WriteLog("  > Skipping System: " + sSystem);
         return;
     }
 
@@ -276,7 +275,7 @@ int EFCore_ValidateSystems()
     object oModule = GetModule();
     int bValidated = TRUE;
 
-    WriteLog(EFCORE_LOG_TAG, "* Validating System Data...");
+    WriteLog("* Validating System Data...");
 
     sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptdata FROM " + EFCORE_SCRIPT_NAME + "_systems;");
     while (SqlStep(sql))
@@ -289,7 +288,7 @@ int EFCore_ValidateSystems()
         if (sError != "")
         {
             bValidated = FALSE;
-            WriteLog(EFCORE_LOG_TAG, "  > System '" + sSystem + "' failed to validate with error: " + sError);
+            WriteLog("  > System '" + sSystem + "' failed to validate with error: " + sError);
         }
     }
 
@@ -300,7 +299,7 @@ int EFCore_ValidateSystems()
 
 void EFCore_ParseSystemsForAnnotationData()
 {
-    WriteLog(EFCORE_LOG_TAG, "* Parsing Systems for " + IntToString(EFCore_GetNumberOfAnnotations()) + " Annotations...");
+    WriteLog("* Parsing Systems for " + IntToString(EFCore_GetNumberOfAnnotations()) + " Annotations...");
 
     SqlBeginTransactionModule();
 
@@ -350,7 +349,7 @@ void EFCore_ExecuteCoreFunction(int nCoreFunctionType)
             string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
 
             if (sError != "")
-                WriteLog(EFCORE_LOG_TAG, "  > Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
+                WriteLog("  > Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
 
             EFCore_ResetScriptInstructions();
         }
@@ -378,10 +377,7 @@ void EFCore_ParseAnnotationData()
             string sError = ExecuteScriptChunk(nssInclude(sSystem) + nssVoidMain(sFunction), oModule, FALSE);
 
             if (sError != "")
-            {
-                WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + sFunction + "' for '" +
-                                        sSystem + "' failed with error: " + sError);
-            }
+                WriteLog("WARNING: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
 
             EFCore_ResetScriptInstructions();
         }
@@ -501,7 +497,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 
     if (!EFCORE_PARSE_SYSTEM_FUNCTIONS && !nLambdaId)
     {
-        WriteLog(EFCORE_LOG_TAG, "WARNING: EFCore::Call() Function Parsing Disabled: could not execute '" + sFunction + "'");
+        WriteLog("WARNING: EFCore::Call() Function Parsing Disabled: could not execute '" + sFunction + "'");
         return nCallStackDepth;
     }
 
@@ -521,17 +517,16 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
             DecrementCallStackDepth();
 
             if (sError != "")
-                WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Failed to execute '" + sFunction + "' with error: " + sError);
+                WriteLog("ERROR: EFCore::Call() Failed to execute '" + sFunction + "' with error: " + sError);
         }
         else
         {
-            WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Parameter Mismatch: EXPECTED: '" + sFunction + "(" + sParameters +
-                                     ")' -> GOT: '"  + sFunction + "(" + sArgs + ")'");
+            WriteLog("ERROR: EFCore::Call() Parameter Mismatch: EXPECTED: '" + sFunction + "(" + sParameters + ")' -> GOT: '"  + sFunction + "(" + sArgs + ")'");
         }
     }
     else
     {
-        WriteLog(EFCORE_LOG_TAG, "ERROR: EFCore::Call() Function '" + sFunction + "' does not exist");
+        WriteLog("ERROR: EFCore::Call() Function '" + sFunction + "' does not exist");
     }
 
     return nCallStackDepth;
@@ -662,15 +657,15 @@ int ValidateReturnType(int nCallStackDepth, string sRequestedType)
 {
     if (nCallStackDepth == 0)
     {
-        WriteLog(EFCORE_LOG_TAG, "WARNING: (" + NWNX_Util_GetCurrentScriptName() + ") Tried to get return value for an invalid call stack depth");
+        WriteLog("WARNING: (" + NWNX_Util_GetCurrentScriptName() + ") Tried to get return value for an invalid call stack depth");
         return FALSE;
     }
 
     string sReturnType = GetCallStackReturnType(nCallStackDepth);
     if (sReturnType != sRequestedType)
     {
-        WriteLog(EFCORE_LOG_TAG, "WARNING: (" + NWNX_Util_GetCurrentScriptName() + ") Tried to get return type '" + sRequestedType + "' for function '" +
-                                 GetCallStackFunction(nCallStackDepth) + "' with return type: " + sReturnType);
+        WriteLog("WARNING: (" + NWNX_Util_GetCurrentScriptName() + ") Tried to get return type '" + sRequestedType + "' for function '" +
+                 GetCallStackFunction(nCallStackDepth) + "' with return type: " + sReturnType);
         return FALSE;
     }
 

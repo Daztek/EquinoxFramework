@@ -8,7 +8,6 @@
 #include "ef_i_core"
 #include "ef_s_eventman"
 
-const string GFFTOOLS_LOG_TAG                           = "GffTools";
 const string GFFTOOLS_SCRIPT_NAME                       = "ef_s_gfftools";
 
 const string GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF       = "plc_invisobj";

@@ -8,7 +8,6 @@
 
 #include "ef_i_core"
 
-const string REST_LOG_TAG                   = "Rest";
 const string REST_SCRIPT_NAME               = "ef_s_rest";
 
 // @CORE[EF_SYSTEM_INIT]
@@ -36,7 +35,7 @@ void Rest_OnPlayerRest()
         string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
-            WriteLog(REST_LOG_TAG, "ERROR: (" + IntToString(nRestEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+            WriteLog("ERROR: (" + IntToString(nRestEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
     }
 }
 
@@ -57,5 +56,5 @@ void Rest_RegisterFunction(json jRestFunction)
 
     EFCore_CacheScriptChunk(sScriptChunk);
 
-    WriteLog(REST_LOG_TAG, "* System '" + sSystem + "' registered function '" + sFunction + "' for rest event type: " + sRestEventTypeConstant);
+    WriteLog("* System '" + sSystem + "' registered function '" + sFunction + "' for rest event type: " + sRestEventTypeConstant);
 }

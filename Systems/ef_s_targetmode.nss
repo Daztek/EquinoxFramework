@@ -8,7 +8,6 @@
 
 #include "ef_i_core"
 
-const string TARGETMODE_LOG_TAG                 = "TargetMode";
 const string TARGETMODE_SCRIPT_NAME             = "ef_s_targetmode";
 const string TARGETMODE_FUNCTIONS_ARRAY_PREFIX  = "FunctionsArray_";
 const string TARGETMODE_CURRENT_TARGET_MODE     = "CurrentTargetMode_";
@@ -43,7 +42,7 @@ void TargetMode_OnPlayerTarget()
                 string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
                 if (sError != "")
-                    WriteLog(TARGETMODE_LOG_TAG, "ERROR: ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+                    WriteLog("ERROR: ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
             }
         }
     }
@@ -59,12 +58,12 @@ void TargetMode_RegisterFunction(json jTargetModeFunction)
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
     if (sTargetModeId == "")
-        WriteLog(TARGETMODE_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register function '" + sFunction + "' with an invalid target mode id");
+        WriteLog("* WARNING: System '" + sSystem + "' tried to register function '" + sFunction + "' with an invalid target mode id");
     else
     {
         EFCore_CacheScriptChunk(sScriptChunk);
         InsertStringToLocalJsonArray(GetDataObject(TARGETMODE_SCRIPT_NAME), TARGETMODE_FUNCTIONS_ARRAY_PREFIX + sTargetModeId, sScriptChunk);
-        WriteLog(TARGETMODE_LOG_TAG, "* System '" + sSystem + "' registered function '" + sFunction + "' for target mode id: " + sTargetModeId);
+        WriteLog("* System '" + sSystem + "' registered function '" + sFunction + "' for target mode id: " + sTargetModeId);
     }
 }
 

@@ -13,7 +13,6 @@
 #include "ef_s_eventman"
 
 const string TRAVEL_SCRIPT_NAME                 = "ef_s_travel";
-const string TRAVEL_LOG_TAG                     = "Travel";
 
 const string TRAVEL_EFFECT_TAG                  = "TravelEffectTag";
 const float  TRAVEL_EFFECT_DURATION             = 300.0f;

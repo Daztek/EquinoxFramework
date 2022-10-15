@@ -7,7 +7,6 @@
 #include "ef_s_eventman"
 #include "ef_s_profiler"
 
-const string DEBUG_LOG_TAG              = "Debug";
 const string DEBUG_SCRIPT_NAME          = "ef_s_debug";
 const string DEBUG_DEBUG_SCRIPT_NAME    = "ef_debug";
 
@@ -23,7 +22,7 @@ void Debug_OnResourceModified()
 
         if (sScriptName == DEBUG_DEBUG_SCRIPT_NAME)
         {
-            WriteLog(DEBUG_LOG_TAG, "* Changes detected, executing debug script");
+            WriteLog("* Changes detected, executing debug script");
 
             string sScriptChunk = ResManGetFileContents(DEBUG_DEBUG_SCRIPT_NAME, RESTYPE_NSS);
 
@@ -32,7 +31,7 @@ void Debug_OnResourceModified()
                 string sResult = ExecuteScriptChunk(sScriptChunk, GetModule(), FALSE);
 
                 if (sResult != "")
-                    WriteLog(DEBUG_LOG_TAG, "   > Failed to execute debug script, error: " + sResult);
+                    WriteLog("   > Failed to execute debug script, error: " + sResult);
             }
         }
     }

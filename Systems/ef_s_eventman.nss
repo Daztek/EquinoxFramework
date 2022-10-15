@@ -13,16 +13,15 @@
 #include "nwnx_events"
 
 const string EM_SCRIPT_NAME                     = "ef_s_eventman";
-const string EM_LOG_TAG                         = "EventManager";
 const int EM_LOG_DEBUG                          = FALSE;
 const int EM_HOOK_AREA_HEARTBEAT                = FALSE;
-const string EM_OLD_EVENT_SCRIPT_PREFIX         = "EMOldEventScript_";
+const string EM_ORIGINAL_EVENT_SCRIPT_PREFIX    = "EMOriginalEventScript_";
 
 string EM_GetObjectEventScript();
 int EM_GetObjectDispatchListId(string sSystem, int nEventType, int nPriority = 0);
 void EM_ObjectDispatchListInsert(object oObject, int nObjectDispatchListId);
 void EM_ObjectDispatchListRemove(object oObject, int nObjectDispatchListId);
-void EM_SetObjectEventScript(object oObject, int nEvent, int bStoreOldEvent = TRUE);
+void EM_SetObjectEventScript(object oObject, int nEvent, int bStoreOriginalEvent = TRUE);
 void EM_SetModuleEventScripts();
 void EM_SetAreaEventScripts(object oArea, int bSetHeartbeat = EM_HOOK_AREA_HEARTBEAT);
 void EM_ClearObjectEventScripts(object oObject);
@@ -79,7 +78,7 @@ void EM_Load()
 void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
 {
     int nEventType = GetCurrentlyRunningEvent(FALSE);
-    string sScript = GetLocalString(oTarget, EM_OLD_EVENT_SCRIPT_PREFIX + IntToString(nEventType));
+    string sScript = GetLocalString(oTarget, EM_ORIGINAL_EVENT_SCRIPT_PREFIX + IntToString(nEventType));
     if (sScript != "")
         ExecuteScript(sScript, oTarget);
 
@@ -98,7 +97,7 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
         string sError = ExecuteScriptChunk(sScriptChunk, oTarget, FALSE);
 
         if (EM_LOG_DEBUG && sError != "")
-            WriteLog(EM_LOG_TAG, "DEBUG: Failed to run scriptchunk '" + sScriptChunk + "' with error: " + sError);
+            WriteLog("DEBUG: Failed to run scriptchunk '" + sScriptChunk + "' with error: " + sError);
     }
 }
 
@@ -114,7 +113,7 @@ void EM_InsertObjectEventAnnotations(json jObjectEvent)
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
     if (nEventType == -1)
-        WriteLog(EM_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid object event: " + sEventType);
+        WriteLog("* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid object event: " + sEventType);
     else
     {
         string sQuery = "INSERT INTO " + EM_SCRIPT_NAME + "_events(system, eventtype, scriptchunk, priority, dispatchlist) " +
@@ -133,11 +132,11 @@ void EM_InsertObjectEventAnnotations(json jObjectEvent)
         {
             string sError = SqlGetError(sql);
             if (sError != "")
-                WriteLog(EM_LOG_TAG, "DEBUG: Failed to insert event: " + sError);
+                WriteLog("DEBUG: Failed to insert event: " + sError);
         }
 
-        WriteLog(EM_LOG_TAG, "* System '" + sSystem + "' subscribed to object event '" + IntToString(nEventType) +
-                            "' with priority '" + IntToString(nPriority) + "', DL=" + IntToString(bDispatchListMode));
+        WriteLog("* System '" + sSystem + "' subscribed to object event '" + IntToString(nEventType) +
+                 "' with priority '" + IntToString(nPriority) + "', DL=" + IntToString(bDispatchListMode));
     }
 }
 
@@ -182,17 +181,17 @@ void EM_ObjectDispatchListRemove(object oObject, int nObjectDispatchListId)
     }
 }
 
-void EM_SetObjectEventScript(object oObject, int nEvent, int bStoreOldEvent = TRUE)
+void EM_SetObjectEventScript(object oObject, int nEvent, int bStoreOriginalEvent = TRUE)
 {
     string sEvent = IntToString(nEvent);
-    string sNewScript = EM_GetObjectEventScript();
-    string sOldScript = GetEventScript(oObject, nEvent);
-    int bSet = SetEventScript(oObject, nEvent, sNewScript);
+    string sEventScript = EM_GetObjectEventScript();
+    string sOriginalScript = GetEventScript(oObject, nEvent);
+    int bSet = SetEventScript(oObject, nEvent, sEventScript);
 
     if (!bSet)
-        WriteLog(EM_SCRIPT_NAME, "WARNING: EM_SetObjectEventScript failed: " + GetName(oObject) + "(" + sEvent + ")");
-    else if (bStoreOldEvent && sOldScript != "" && sOldScript != sNewScript)
-        SetLocalString(oObject, EM_OLD_EVENT_SCRIPT_PREFIX + sEvent, sOldScript);
+        WriteLog("WARNING: EM_SetObjectEventScript failed: " + GetName(oObject) + "(" + sEvent + ")");
+    else if (bStoreOriginalEvent && sOriginalScript != "" && sOriginalScript != sEventScript)
+        SetLocalString(oObject, EM_ORIGINAL_EVENT_SCRIPT_PREFIX + sEvent, sOriginalScript);
 }
 
 void EM_SetModuleEventScripts()
@@ -307,7 +306,7 @@ void EM_SubscribeNWNXAnnotations(json jNWNXEvent)
 
 void EM_SubscribeNWNXEvent(string sSystem, string sEvent, string sScriptChunk, int bDispatchListMode = FALSE, int bWrapIntoMain = FALSE)
 {
-    WriteLog(EM_LOG_TAG, "* System '" + sSystem + "' subscribed to NWNX event '" + sEvent + "', DL=" + IntToString(bDispatchListMode));
+    WriteLog("* System '" + sSystem + "' subscribed to NWNX event '" + sEvent + "', DL=" + IntToString(bDispatchListMode));
 
     NWNX_Events_SubscribeEventScriptChunk(sEvent, sScriptChunk, bWrapIntoMain);
     if (bDispatchListMode)

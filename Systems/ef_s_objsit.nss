@@ -9,7 +9,6 @@
 #include "ef_s_eventman"
 #include "ef_s_gfftools"
 
-const string OBJSIT_LOG_TAG             = "ObjectSit";
 const string OBJSIT_SCRIPT_NAME         = "ef_s_objsit";
 
 const string OBJSIT_SINGLE_SPAWN_TAG    = "OBJSIT_SINGLE";
@@ -41,7 +40,7 @@ void ObjSit_Load()
         object oChair = GffTools_CreatePlaceable(jChair, GetLocation(oSpawnpoint));
         EM_ObjectDispatchListInsert(oChair, nObjectDispatchListId);
     }
-    WriteLog(OBJSIT_LOG_TAG, "* Created '" + IntToString(--nNth) + "' Single Sitting Objects");
+    WriteLog("* Created '" + IntToString(--nNth) + "' Single Sitting Objects");
 
     struct GffTools_PlaceableData pdDouble;
     pdDouble.nModel = 178;
@@ -59,7 +58,7 @@ void ObjSit_Load()
         object oBench = GffTools_CreatePlaceable(jBench, GetLocation(oSpawnpoint));
         EM_ObjectDispatchListInsert(oBench, nObjectDispatchListId);
     }
-    WriteLog(OBJSIT_LOG_TAG, "* Created '" + IntToString(--nNth) + "' Double Sitting Objects");
+    WriteLog("* Created '" + IntToString(--nNth) + "' Double Sitting Objects");
 }
 
 // @EVENT[DL:EVENT_SCRIPT_PLACEABLE_ON_USED]

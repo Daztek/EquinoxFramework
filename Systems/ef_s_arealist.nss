@@ -9,7 +9,6 @@
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
 
-const string AL_LOG_TAG                 = "AreaList";
 const string AL_SCRIPT_NAME             = "ef_s_arealist";
 
 const string AL_WINDOW_ID               = "AREA_LIST";

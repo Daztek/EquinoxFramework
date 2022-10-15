@@ -8,13 +8,12 @@
 #include "nw_inc_dynlight"
 #include "nwnx_area"
 
-const string DYNLIGHT_LOG_TAG                           = "DynamicLighting";
 const string DYNLIGHT_SCRIPT_NAME                       = "ef_s_dynlight";
 
 const int DYNLIGHT_ENABLE_DYNAMIC_LIGHTING              = TRUE;
 
 const string DYNLIGHT_AREA_DYNAMIC_LIGHTING_ENABLED     = "DynLightAreaDynamicLightingEnabled";
-const float DYNLIGHT_UPDATE_INTERVAL                    = 10.0f;
+const float DYNLIGHT_UPDATE_INTERVAL                    = 15.0f;
 
 void DynLight_InitArea(object oArea);
 void DynLight_IntervalHandler();
@@ -47,7 +46,7 @@ void DynLight_InitArea(object oArea)
     }
 }
 
-void DynLight_UpdateAreaLight(object oArea, float fFadeTime= 0.0f)
+void DynLight_UpdateAreaLight(object oArea, float fFadeTime = 0.0f)
 {
     if (fFadeTime > 0.0f)
         fFadeTime += NW_DYNAMIC_LIGHT_FADE_TIME_OVERLAP;
@@ -62,8 +61,7 @@ void DynLight_UpdateAreaLight(object oArea, float fFadeTime= 0.0f)
 
 void DynLight_IntervalHandler()
 {
-    object oDataObject = CreateDataObject(DYNLIGHT_SCRIPT_NAME);
-
+    json jUpdatedAreas = JsonArray();
     object oPlayer = GetFirstPC();
     while (oPlayer != OBJECT_INVALID)
     {
@@ -71,10 +69,10 @@ void DynLight_IntervalHandler()
 
         if (GetIsObjectValid(oArea) &&
             GetLocalInt(oArea, DYNLIGHT_AREA_DYNAMIC_LIGHTING_ENABLED) &&
-            !GetLocalInt(oDataObject, ObjectToString(oArea)))
+            !JsonArrayContainsString(jUpdatedAreas, ObjectToString(oArea)))
         {
             DynLight_UpdateAreaLight(oArea, DYNLIGHT_UPDATE_INTERVAL);
-            SetLocalInt(oDataObject, ObjectToString(oArea), TRUE);
+            jUpdatedAreas = JsonArrayInsertString(jUpdatedAreas, ObjectToString(oArea));
         }
 
         oPlayer = GetNextPC();
@@ -92,6 +90,6 @@ void DynLight_OnAreaEnter()
         GetLocalInt(oArea, DYNLIGHT_AREA_DYNAMIC_LIGHTING_ENABLED) &&
         NWNX_Area_GetNumberOfPlayersInArea(oArea) == 1)
     {
-        DynLight_UpdateAreaLight(oArea, 0.0f);
+        DynLight_UpdateAreaLight(oArea);
     }
 }

@@ -8,7 +8,6 @@
 #include "ef_s_eventman"
 #include "ef_s_profiler"
 
-const string EP_LOG_TAG                             = "EndlessPath";
 const string EP_SCRIPT_NAME                         = "ef_s_endlesspath";
 const int EP_DEBUG_LOG                              = FALSE;
 
@@ -253,7 +252,7 @@ void EP_OnAreaGenerated(string sAreaID)
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
     {
         if (EP_DEBUG_LOG)
-            WriteLog(EP_LOG_TAG, "* Area Generation Failure: " + sAreaID + ", retrying...");
+            WriteLog("* Area Generation Failure: " + sAreaID + ", retrying...");
 
         object oDataObject = GetDataObject(EP_SCRIPT_NAME);
         object oArea = GetLocalObject(oDataObject, "LAST_AREA");

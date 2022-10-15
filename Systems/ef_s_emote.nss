@@ -9,7 +9,6 @@
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
 
-const string EMOTE_LOG_TAG              = "Emote";
 const string EMOTE_SCRIPT_NAME          = "ef_s_emote";
 
 const string EMOTE_WINDOW_ID            = "EMOTES";

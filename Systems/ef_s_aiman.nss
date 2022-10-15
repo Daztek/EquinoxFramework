@@ -10,7 +10,6 @@
 #include "ef_s_eventman"
 #include "ef_s_profiler"
 
-const string AIMAN_LOG_TAG                      = "AIManager";
 const string AIMAN_SCRIPT_NAME                  = "ef_s_aiman";
 const int AIMAN_DEBUG_EVENTS                    = FALSE;
 
@@ -46,7 +45,7 @@ void AIMan_RegisterAIBehaviorEvent(json jAIEventData)
     string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
 
     if (nEventType == -1)
-        WriteLog(AIMAN_LOG_TAG, "* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);
+        WriteLog("* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);
     else
     {
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + AIMAN_SCRIPT_NAME + "(behavior, eventtype, scriptchunk) VALUES(@behavior, @eventtype, @scriptchunk);");
@@ -57,7 +56,7 @@ void AIMan_RegisterAIBehaviorEvent(json jAIEventData)
 
         EFCore_CacheScriptChunk(sScriptChunk);
 
-        WriteLog(AIMAN_LOG_TAG, "* System '" + sSystem + "' registered '" + sFunction + "' for behavior '" + sBehavior + "' and event '" + sEventType + "'");
+        WriteLog("* System '" + sSystem + "' registered '" + sFunction + "' for behavior '" + sBehavior + "' and event '" + sEventType + "'");
     }
 }
 
@@ -188,7 +187,7 @@ void AIMan_HandleAIEvent(int nEventType)
 
                 if (AIMAN_DEBUG_EVENTS && sError != "")
                 {
-                    WriteLog(AIMAN_LOG_TAG, "DEBUG: '" + GetName(oCreature) + "' failed event '" + IntToString(nEventType) + "' for behavior '" + sBehavior + "' with error: " + sError);
+                    WriteLog("DEBUG: '" + GetName(oCreature) + "' failed event '" + IntToString(nEventType) + "' for behavior '" + sBehavior + "' with error: " + sError);
                 }
             }
         }

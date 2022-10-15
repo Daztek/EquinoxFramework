@@ -12,7 +12,6 @@
 #include "ef_s_targetmode"
 #include "nwnx_player"
 
-const string CONSOLE_LOG_TAG                        = "Console";
 const string CONSOLE_SCRIPT_NAME                    = "ef_s_console";
 
 const string CONSOLE_TARGET_MODE_ID                 = "ConsoleTargetMode";
@@ -509,5 +508,5 @@ void Console_RegisterCommand(json jCommand)
 
     EFCore_CacheScriptChunk(sScriptChunk);
 
-    WriteLog(CONSOLE_LOG_TAG, "* System '" + sSystem + "' registered command '" + sName + "' with '" + IntToString(nNumArguments) + "' parameters");
+    WriteLog("* System '" + sSystem + "' registered command '" + sName + "' with '" + IntToString(nNumArguments) + "' parameters");
 }

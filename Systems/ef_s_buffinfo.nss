@@ -9,7 +9,6 @@
 #include "ef_s_playerdb"
 #include "ef_s_poststring"
 
-const string BUFFINFO_LOG_TAG                   = "BuffInfo";
 const string BUFFINFO_SCRIPT_NAME               = "ef_s_buffinfo";
 
 const string BUFFINFO_LAST_NUM_LINES            = "LastNumLines";

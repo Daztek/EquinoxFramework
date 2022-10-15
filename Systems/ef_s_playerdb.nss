@@ -7,7 +7,6 @@
 
 #include "ef_i_core"
 
-const string PLAYERDB_LOG_TAG               = "PlayerDB";
 const string PLAYERDB_SCRIPT_NAME           = "ef_s_playerdb";
 const string PLAYERDB_DATABASE_NAME         = "EFPlayerDB";
 const string PLAYERDB_SESSION_DATA          = "PDBSessionData_";

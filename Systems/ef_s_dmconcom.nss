@@ -6,7 +6,6 @@
 #include "ef_i_core"
 #include "nwnx_object"
 
-const string DMCONCOM_LOG_TAG           = "DMConsoleCommands";
 const string DMCONCOM_SCRIPT_NAME       = "ef_s_dmconcom";
 
 // @CONSOLE[DumpLocals:isk_search:Dump local variables of an object]

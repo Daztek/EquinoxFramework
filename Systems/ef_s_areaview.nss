@@ -13,7 +13,6 @@
 #include "ef_s_profiler"
 #include "nwnx_player"
 
-const string AV_LOG_TAG                         = "AreaView";
 const string AV_SCRIPT_NAME                     = "ef_s_areaview";
 
 const string AV_WINDOW_ID                       = "AREAVIEW";

@@ -11,7 +11,6 @@
 #include "ef_s_eventman"
 #include "nwnx_player"
 
-const string PC_LOG_TAG                     = "PersistentChest";
 const string PC_SCRIPT_NAME                 = "ef_s_perchest";
 
 const string PC_TABLE_NAME                  = "PC_ITEMS";

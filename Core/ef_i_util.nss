@@ -108,6 +108,9 @@ int Get2DAInt(string s2DA, string sColumn, int nRow);
 // nDepth == 1: Calling Function
 struct VMFrame GetVMFrame(int nDepth = 0);
 
+// Get script name of the current frame
+string GetVMFrameScript(int nDepth = 0);
+
 void WriteLog(string sMessage)
 {
     struct VMFrame str = GetVMFrame(1);
@@ -145,6 +148,11 @@ object GetDataObject(string sTag, int bCreateIfNotExists = TRUE)
 {
     object oDataObject = GetLocalObject(GetModule(), EF_DATAOBJECT_TAG_PREFIX + sTag);
     return GetIsObjectValid(oDataObject) ? oDataObject : bCreateIfNotExists ? CreateDataObject(sTag) : OBJECT_INVALID;
+}
+
+object GetSystemDataObject()
+{
+    return GetDataObject(GetVMFrameScript(1));
 }
 
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
@@ -435,4 +443,9 @@ struct VMFrame GetVMFrame(int nDepth = 0)
     str.sFunction = JsonObjectGetString(jFrame, "function");
     str.nLine = JsonObjectGetInt(jFrame, "line");
     return str;
+}
+
+string GetVMFrameScript(int nDepth = 0)
+{
+    return JsonObjectGetString(JsonArrayGet(JsonObjectGet(GetScriptBacktrace(FALSE), "frames"), 1 + nDepth), "file");
 }

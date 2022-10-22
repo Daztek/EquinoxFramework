@@ -81,7 +81,7 @@ void DynLight_IntervalHandler()
     DelayCommand(DYNLIGHT_UPDATE_INTERVAL, DynLight_IntervalHandler());
 }
 
-// @EVENT[EVENT_SCRIPT_AREA_ON_ENTER:DL]
+// @EVENT[DL:EVENT_SCRIPT_AREA_ON_ENTER]
 void DynLight_OnAreaEnter()
 {
     object oArea = OBJECT_SELF;

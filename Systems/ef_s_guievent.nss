@@ -47,7 +47,7 @@ void GuiEvent_OnPlayerGuiEvent()
 // @PAD[GUIEVENT]
 void GuiEvent_RegisterFunction(struct AnnotationData str)
 {
-    string sGuiEventType = JsonArrayGetString(str.jTokens, 0);
+    string sGuiEventType = JsonArrayGetString(str.jArguments, 0);
     int nGuiEventType = GetConstantIntValue(sGuiEventType, "", -1);
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 

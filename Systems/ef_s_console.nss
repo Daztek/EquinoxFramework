@@ -444,9 +444,9 @@ void Console_ToggleWindow()
 // @PAD[CONSOLE]
 void Console_RegisterCommand(struct AnnotationData str)
 {
-    string sName = JsonArrayGetString(str.jTokens, 0);
-    string sIcon = JsonArrayGetString(str.jTokens, 1);
-    string sDescription = JsonArrayGetString(str.jTokens, 2);
+    string sName = JsonArrayGetString(str.jArguments, 0);
+    string sIcon = JsonArrayGetString(str.jArguments, 1);
+    string sDescription = JsonArrayGetString(str.jArguments, 2);
     string sParameterTypes;
 
     json jParameters = JsonArray();

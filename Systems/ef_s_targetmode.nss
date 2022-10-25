@@ -50,7 +50,7 @@ void TargetMode_OnPlayerTarget()
 // @PAD[TARGETMODE]
 void TargetMode_RegisterFunction(struct AnnotationData str)
 {
-    string sTargetModeIdConstant = JsonArrayGetString(str.jTokens, 0);
+    string sTargetModeIdConstant = JsonArrayGetString(str.jArguments, 0);
     string sTargetModeId = GetConstantStringValue(sTargetModeIdConstant, str.sSystem, sTargetModeIdConstant);
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 

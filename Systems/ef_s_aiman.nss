@@ -35,9 +35,9 @@ void AIMan_Init()
 // @PAD[AIMANEVENT]
 void AIMan_RegisterAIBehaviorEvent(struct AnnotationData str)
 {
-    string sBehavior = JsonArrayGetString(str.jTokens, 0);
+    string sBehavior = JsonArrayGetString(str.jArguments, 0);
            sBehavior = GetConstantStringValue(sBehavior, str.sSystem, sBehavior);
-    string sEventType = JsonArrayGetString(str.jTokens, 1);
+    string sEventType = JsonArrayGetString(str.jArguments, 1);
     int nEventType = GetConstantIntValue(sEventType, "", -1);
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 

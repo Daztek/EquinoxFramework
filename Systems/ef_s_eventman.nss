@@ -101,10 +101,10 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
 // @PAD[EVENT]
 void EM_InsertObjectEventAnnotations(struct AnnotationData str)
 {
-    string sEventType = JsonArrayGetString(str.jTokens, 0);
+    string sEventType = JsonArrayGetString(str.jArguments, 0);
     int nEventType = GetConstantIntValue(sEventType, "", -1);
-    int bDispatchListMode = JsonArrayGetString(str.jTokens, 1) == "DL";
-    int nPriority = GetConstantIntValue(JsonArrayGetString(str.jTokens, 2), str.sSystem, StringToInt(JsonArrayGetString(str.jTokens, 2)));
+    int bDispatchListMode = JsonArrayGetString(str.jArguments, 1) == "DL";
+    int nPriority = GetConstantIntValue(JsonArrayGetString(str.jArguments, 2), str.sSystem, StringToInt(JsonArrayGetString(str.jArguments, 2)));
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     if (nEventType == -1)
@@ -288,8 +288,8 @@ string EM_GetNWNXEventScriptChunk(string sSystem, string sEvent)
 // @PAD[NWNX]
 void EM_SubscribeNWNXAnnotations(struct AnnotationData str)
 {
-    string sEvent = JsonArrayGetString(str.jTokens, 0);
-    int bDispatchListMode = JsonArrayGetString(str.jTokens, 1) == "DL";
+    string sEvent = JsonArrayGetString(str.jArguments, 0);
+    int bDispatchListMode = JsonArrayGetString(str.jArguments, 1) == "DL";
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     EFCore_CacheScriptChunk(sScriptChunk);

@@ -80,8 +80,8 @@ void PM_OnCommandButtonClick()
 // @PAD[PMBUTTON]
 void PM_RegisterButton(struct AnnotationData str)
 {
-    string sButton = JsonArrayGetString(str.jTokens, 0);
-    string sTooltip = JsonArrayGetString(str.jTokens, 1);
+    string sButton = JsonArrayGetString(str.jArguments, 0);
+    string sTooltip = JsonArrayGetString(str.jArguments, 1);
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     object oDataObject = GetDataObject(PM_SCRIPT_NAME);

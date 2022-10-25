@@ -41,7 +41,7 @@ void Rest_OnPlayerRest()
 // @PAD[REST]
 void Rest_RegisterFunction(struct AnnotationData str)
 {
-    string sRestEventTypeConstant = JsonArrayGetString(str.jTokens, 0);
+    string sRestEventTypeConstant = JsonArrayGetString(str.jArguments, 0);
     int nRestEventType = GetConstantIntValue(sRestEventTypeConstant);
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 

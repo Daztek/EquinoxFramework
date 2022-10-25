@@ -50,7 +50,7 @@ struct AnnotationData
 {
     string sSystem;
     string sAnnotation;
-    json jTokens;
+    json jArguments;
     string sReturnType;
     string sFunction;
     string sParameters;
@@ -341,7 +341,7 @@ void EFCore_ExecuteCoreFunction(int nCoreFunctionType)
     while (SqlStep(sql))
     {
         struct AnnotationData str = EFCore_GetAnnotationDataStruct(SqlGetJson(sql, 0));
-        if (GetConstantIntValue(JsonArrayGetString(str.jTokens, 0), EFCORE_SCRIPT_NAME) == nCoreFunctionType)
+        if (GetConstantIntValue(JsonArrayGetString(str.jArguments, 0), EFCORE_SCRIPT_NAME) == nCoreFunctionType)
         {
             string sError = ExecuteScriptChunk(nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction)), oModule, FALSE);
 
@@ -361,7 +361,7 @@ void EFCore_ParseAnnotationData()
     while (SqlStep(sqlParseFunction))
     {
         struct AnnotationData str = EFCore_GetAnnotationDataStruct(SqlGetJson(sqlParseFunction, 0));
-        string sAnnotation = JsonArrayGetString(str.jTokens, 0);
+        string sAnnotation = JsonArrayGetString(str.jArguments, 0);
         string sFunction = nssFunction(str.sFunction,
                                nssFunction("EFCore_GetAnnotationDataStruct",
                                    nssFunction("GetLocalJson", "GetModule(), " + nssEscape(EFCORE_ANNOTATION_DATA), FALSE), FALSE));
@@ -389,7 +389,7 @@ struct AnnotationData EFCore_GetAnnotationDataStruct(json jAnnotationData)
     struct AnnotationData str;
     str.sSystem = JsonArrayGetString(jAnnotationData, 0);
     str.sAnnotation = JsonArrayGetString(jAnnotationData, 1);
-    str.jTokens = JsonArrayGet(jAnnotationData, 2);
+    str.jArguments = JsonArrayGet(jAnnotationData, 2);
     str.sReturnType = JsonArrayGetString(jAnnotationData, 3);
     str.sFunction = JsonArrayGetString(jAnnotationData, 4);
     str.sParameters = JsonArrayGetString(jAnnotationData, 5);

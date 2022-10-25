@@ -81,7 +81,7 @@ void EP_Load()
     EP_GenerateArea(sAreaID, oStartingArea, AG_AREA_EDGE_TOP, nAreaWidth, nAreaHeight);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_AREA_ON_ENTER]
+// @EVENT[EVENT_SCRIPT_AREA_ON_ENTER:DL]
 void EP_OnAreaEnter()
 {
     object oPlayer = GetEnteringObject();

@@ -61,7 +61,7 @@ void ObjSit_Load()
     WriteLog("* Created '" + IntToString(--nNth) + "' Double Sitting Objects");
 }
 
-// @EVENT[DL:EVENT_SCRIPT_PLACEABLE_ON_USED]
+// @EVENT[EVENT_SCRIPT_PLACEABLE_ON_USED:DL]
 void ObjSit_OnPlaceableUsed()
 {
     object oPlayer = GetLastUsedBy();

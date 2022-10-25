@@ -31,7 +31,7 @@ void CloseDoor_Load()
     }
 }
 
-// @EVENT[DL:EVENT_SCRIPT_DOOR_ON_OPEN:CLOSEDOOR_EVENT_PRIORITY]
+// @EVENT[EVENT_SCRIPT_DOOR_ON_OPEN:DL:CLOSEDOOR_EVENT_PRIORITY]
 void CloseDoor_OnOpen()
 {
     ClearAllActions();

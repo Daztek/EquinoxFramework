@@ -3,7 +3,7 @@
     Author: Daz
 
     // @ PMBUTTON[Button Name:Tooltip Text]
-    @ANNOTATION[@(PMBUTTON)\[([\w\s]+)(?:\:?([\w\s]*))\][\n|\r]+[a-z]+\s([\w]+)\(]
+    @ANNOTATION[PMBUTTON]
 */
 
 #include "ef_i_core"
@@ -79,13 +79,11 @@ void PM_OnCommandButtonClick()
 }
 
 // @PAD[PMBUTTON]
-void PM_RegisterButton(json jButton)
+void PM_RegisterButton(struct AnnotationData str)
 {
-    string sSystem = JsonArrayGetString(jButton, 0);
-    string sButton = JsonArrayGetString(jButton, 2);
-    string sTooltip = JsonArrayGetString(jButton, 3);
-    string sFunction = JsonArrayGetString(jButton, 4);
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+    string sButton = JsonArrayGetString(str.jTokens, 0);
+    string sTooltip = JsonArrayGetString(str.jTokens, 1);
+    string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     object oDataObject = GetDataObject(PM_SCRIPT_NAME);
     InsertStringToLocalJsonArray(oDataObject, PM_BUTTON_ARRAY, sButton);
@@ -93,5 +91,5 @@ void PM_RegisterButton(json jButton)
     InsertStringToLocalJsonArray(oDataObject, PM_FUNCTION_ARRAY, sScriptChunk);
     EFCore_CacheScriptChunk(sScriptChunk);
 
-    WriteLog("* System '" + sSystem + "' registered player menu button '" + sButton + "' with tooltip: \""  + sTooltip + "\"");
+    WriteLog("* System '" + str.sSystem + "' registered player menu button '" + sButton + "' with tooltip: \""  + sTooltip + "\"");
 }

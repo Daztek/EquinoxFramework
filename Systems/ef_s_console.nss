@@ -3,7 +3,7 @@
     Author: Daz
 
     // @ CONSOLE[command_name:icon:Description]
-    @ANNOTATION[@(CONSOLE)\[([\w]+)\:([\w]*)\:([\w\s]*)\][\n|\r]+(void|string+)\s([\w]+)\((.*)\)]
+    @ANNOTATION[CONSOLE]
 */
 
 #include "ef_i_core"
@@ -443,20 +443,17 @@ void Console_ToggleWindow()
 }
 
 // @PAD[CONSOLE]
-void Console_RegisterCommand(json jCommand)
+void Console_RegisterCommand(struct AnnotationData str)
 {
-    string sSystem = JsonArrayGetString(jCommand, 0);
-    string sName = JsonArrayGetString(jCommand, 2);
-    string sIcon = JsonArrayGetString(jCommand, 3);
-    string sDescription = JsonArrayGetString(jCommand, 4);
-    string sReturnType = JsonArrayGetString(jCommand, 5);
-    string sFunction = JsonArrayGetString(jCommand, 6);
-    string sParameters = JsonArrayGetString(jCommand, 7), sParameterTypes;
+    string sName = JsonArrayGetString(str.jTokens, 0);
+    string sIcon = JsonArrayGetString(str.jTokens, 1);
+    string sDescription = JsonArrayGetString(str.jTokens, 2);
+    string sParameterTypes;
 
     json jParameters = JsonArray();
-    if (sParameters != "")
+    if (str.sParameters != "")
     {
-        json jMatches = RegExpIterate("(int|float|string)\\s(\\w+)(?:\\s=\\s)?(-?\\d+|-?\\d+\\.\\d+f?|\".*\")?(?:,|$)", sParameters);
+        json jMatches = RegExpIterate("(int|float|string)\\s(\\w+)(?:\\s=\\s)?(-?\\d+|-?\\d+\\.\\d+f?|\".*\")?(?:,|$)", str.sParameters);
         int nMatch, nNumMatches = JsonGetLength(jMatches);
         for(nMatch = 0; nMatch < nNumMatches; nMatch++)
         {
@@ -487,26 +484,26 @@ void Console_RegisterCommand(json jCommand)
         sArguments += (!nArgument ? "" : ", ") + nssFunction("GetLocal" + nssConvertShortType(GetSubString(sParameterTypes, nArgument, 1)), "oDataObject, " + nssEscape(CONSOLE_ARG_PREFIX + IntToString(nArgument)), FALSE);
     }
 
-    if (sReturnType == "string")
-        sFunctionBody += nssFunction("Console_SetOutput", nssFunction(sFunction, sArguments, FALSE));
+    if (str.sReturnType == "string")
+        sFunctionBody += nssFunction("Console_SetOutput", nssFunction(str.sFunction, sArguments, FALSE));
     else
-        sFunctionBody += nssFunction(sFunction, sArguments);
+        sFunctionBody += nssFunction(str.sFunction, sArguments);
 
-    string sScriptChunk = (sSystem == CONSOLE_SCRIPT_NAME ? "" : nssInclude(CONSOLE_SCRIPT_NAME)) + nssInclude(sSystem) + nssVoidMain(sFunctionBody);
+    string sScriptChunk = (str.sSystem == CONSOLE_SCRIPT_NAME ? "" : nssInclude(CONSOLE_SCRIPT_NAME)) + nssInclude(str.sSystem) + nssVoidMain(sFunctionBody);
 
     string sQuery = "INSERT INTO " + CONSOLE_SCRIPT_NAME + "(system, name, icon, description, parameters, function, script_chunk) " +
                     "VALUES(@system, @name, @icon, @description, @parameters, @function, @script_chunk);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
-    SqlBindString(sql, "@system", sSystem);
+    SqlBindString(sql, "@system", str.sSystem);
     SqlBindString(sql, "@name", sName);
     SqlBindString(sql, "@icon", sIcon == "" ? CONSOLE_DEFAULT_ICON : sIcon);
     SqlBindString(sql, "@description", sDescription);
     SqlBindJson(sql, "@parameters", jParameters);
-    SqlBindString(sql, "@function", sFunction);
+    SqlBindString(sql, "@function", str.sFunction);
     SqlBindString(sql, "@script_chunk", sScriptChunk);
     SqlStep(sql);
 
     EFCore_CacheScriptChunk(sScriptChunk);
 
-    WriteLog("* System '" + sSystem + "' registered command '" + sName + "' with '" + IntToString(nNumArguments) + "' parameters");
+    WriteLog("* System '" + str.sSystem + "' registered command '" + sName + "' with '" + IntToString(nNumArguments) + "' parameters");
 }

@@ -121,6 +121,8 @@ string StringJsonArrayElementString(string sValue);
 json StringJsonArrayElementsToJsonArray(string sValues);
 // Get a JsonArray() of nSize with jDefaultValue
 json GetJsonArrayOfSize(int nSize, json jDefaultValue);
+// Convert tokenized string sTokens with sDelimiter into a json array
+json GetJsonArrayFromTokenizedString(string sTokens, string sDelimiter = ":");
 
 json VectorToJson(vector vVector)
 {
@@ -368,4 +370,22 @@ json GetJsonArrayOfSize(int nSize, json jDefaultValue)
         jArray = JsonArrayInsert(jArray, jDefaultValue);
     }
     return jArray;
+}
+
+json GetJsonArrayFromTokenizedString(string sTokens, string sDelimiter = ":")
+{
+    json jArray = JsonArray();
+	int nStart, nEnd;
+
+	while ((nEnd = FindSubString(sTokens, sDelimiter, nStart)) != -1)
+	{
+		jArray = JsonArrayInsertString(jArray, GetSubString(sTokens, nStart, nEnd - nStart));
+		nStart = nEnd + 1;
+	}
+
+	nEnd = GetStringLength(sTokens);
+	if (nEnd >= nStart)
+		jArray = JsonArrayInsertString(jArray, GetSubString(sTokens, nStart, nEnd - nStart));
+
+	return jArray;
 }

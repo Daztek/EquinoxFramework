@@ -68,7 +68,7 @@ void PlayerDB_OnELCValidateCharacterBefore()
     ExportSingleCharacter(oPlayer);
 }
 
-// @EVENT[EVENT_SCRIPT_MODULE_ON_CLIENT_EXIT:PLAYERDB_ONCLIENTEXIT_PRIORITY]
+// @EVENT[EVENT_SCRIPT_MODULE_ON_CLIENT_EXIT::PLAYERDB_ONCLIENTEXIT_PRIORITY]
 void PlayerDB_DestroySessionDataObjectOnClientExit()
 {
     DestroyDataObject(PLAYERDB_SESSION_DATA + GetObjectUUID(GetExitingObject()));

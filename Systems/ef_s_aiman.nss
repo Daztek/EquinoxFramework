@@ -3,7 +3,7 @@
     Author: Daz
 
     // @ AIMANEVENT[Behavior:EVENT_SCRIPT_CREATURE_*]
-    @ANNOTATION[@(AIMANEVENT)\[([\w]+):(EVENT_SCRIPT_CREATURE_[\w]+)\][\n|\r]+[a-z]+\s([\w]+)\(]
+    @ANNOTATION[AIMANEVENT]
 */
 
 #include "ef_i_core"
@@ -34,18 +34,16 @@ void AIMan_Init()
 }
 
 // @PAD[AIMANEVENT]
-void AIMan_RegisterAIBehaviorEvent(json jAIEventData)
+void AIMan_RegisterAIBehaviorEvent(struct AnnotationData str)
 {
-    string sSystem = JsonArrayGetString(jAIEventData, 0);
-    string sBehavior = JsonArrayGetString(jAIEventData, 2);
-           sBehavior = GetConstantStringValue(sBehavior, sSystem, sBehavior);
-    string sEventType = JsonArrayGetString(jAIEventData, 3);
-    string sFunction = JsonArrayGetString(jAIEventData, 4);
+    string sBehavior = JsonArrayGetString(str.jTokens, 0);
+           sBehavior = GetConstantStringValue(sBehavior, str.sSystem, sBehavior);
+    string sEventType = JsonArrayGetString(str.jTokens, 1);
     int nEventType = GetConstantIntValue(sEventType, "", -1);
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+    string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     if (nEventType == -1)
-        WriteLog("* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);
+        WriteLog("* WARNING: System '" + str.sSystem + "' tried to register '" + str.sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);
     else
     {
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + AIMAN_SCRIPT_NAME + "(behavior, eventtype, scriptchunk) VALUES(@behavior, @eventtype, @scriptchunk);");
@@ -56,7 +54,7 @@ void AIMan_RegisterAIBehaviorEvent(json jAIEventData)
 
         EFCore_CacheScriptChunk(sScriptChunk);
 
-        WriteLog("* System '" + sSystem + "' registered '" + sFunction + "' for behavior '" + sBehavior + "' and event '" + sEventType + "'");
+        WriteLog("* System '" + str.sSystem + "' registered '" + str.sFunction + "' for behavior '" + sBehavior + "' and event '" + sEventType + "'");
     }
 }
 
@@ -196,67 +194,67 @@ void AIMan_HandleAIEvent(int nEventType)
     //Profiler_Stop(pd);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_HEARTBEAT]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_HEARTBEAT:DL]
 void AIMan_OnHeartBeat()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_HEARTBEAT);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_NOTICE]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_NOTICE:DL]
 void AIMan_OnPerception()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_NOTICE);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_SPELLCASTAT]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_SPELLCASTAT:DL]
 void AIMan_OnSpellCastAt()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_SPELLCASTAT);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_MELEE_ATTACKED]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_MELEE_ATTACKED:DL]
 void AIMan_OnPhysicalAttacked()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_MELEE_ATTACKED);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_DAMAGED]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_DAMAGED:DL]
 void AIMan_OnDamaged()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DAMAGED);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_DISTURBED]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_DISTURBED:DL]
 void AIMan_OnDisturbed()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DISTURBED);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_END_COMBATROUND]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_END_COMBATROUND:DL]
 void AIMan_OnCombatRoundEnd()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_END_COMBATROUND);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_DIALOGUE]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_DIALOGUE:DL]
 void AIMan_OnConversation()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DIALOGUE);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_SPAWN_IN]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_SPAWN_IN:DL]
 void AIMan_OnSpawn()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_SPAWN_IN);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_RESTED]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_RESTED:DL]
 void AIMan_OnRested()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_RESTED);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_DEATH]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_DEATH:DL]
 void AIMan_OnDeath()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DEATH);
@@ -264,13 +262,13 @@ void AIMan_OnDeath()
     AIMan_UnsetBehavior(OBJECT_SELF);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_USER_DEFINED_EVENT]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_USER_DEFINED_EVENT:DL]
 void AIMan_OnUserDefined()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_USER_DEFINED_EVENT);
 }
 
-// @EVENT[DL:EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR:DL]
 void AIMan_OnBlocked()
 {
     AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR);

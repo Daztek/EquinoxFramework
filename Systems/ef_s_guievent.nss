@@ -3,7 +3,7 @@
     Author: Daz
 
     // @ GUIEVENT[GUIEVENT_*]
-    @ANNOTATION[@(GUIEVENT)\[([\w]+)\][\n|\r]+[a-z]+\s([\w]+)\(]
+    @ANNOTATION[GUIEVENT]
 */
 
 #include "ef_i_core"
@@ -46,26 +46,24 @@ void GuiEvent_OnPlayerGuiEvent()
 }
 
 // @PAD[GUIEVENT]
-void GuiEvent_RegisterFunction(json jGuiEvent)
+void GuiEvent_RegisterFunction(struct AnnotationData str)
 {
-    string sSystem = JsonArrayGetString(jGuiEvent, 0);
-    string sGuiEventType = JsonArrayGetString(jGuiEvent, 2);
+    string sGuiEventType = JsonArrayGetString(str.jTokens, 0);
     int nGuiEventType = GetConstantIntValue(sGuiEventType, "", -1);
-    string sFunction = JsonArrayGetString(jGuiEvent, 3);
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+    string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     if (nGuiEventType == -1)
-        WriteLog("* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid gui event: " + sGuiEventType);
+        WriteLog("* WARNING: System '" + str.sSystem + "' tried to register '" + str.sFunction + "' for an invalid gui event: " + sGuiEventType);
     else
     {
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + GUIEVENT_SCRIPT_NAME + " (guieventtype, system, scriptchunk) VALUES(@guieventtype, @system, @scriptchunk);");
         SqlBindInt(sql, "@guieventtype", nGuiEventType);
-        SqlBindString(sql, "@system", sSystem);
+        SqlBindString(sql, "@system", str.sSystem);
         SqlBindString(sql, "@scriptchunk", sScriptChunk);
         SqlStep(sql);
 
         EFCore_CacheScriptChunk(sScriptChunk);
 
-        WriteLog("* System '" + sSystem + "' registered '" + sFunction + "' for gui event '" + sGuiEventType + "'");
+        WriteLog("* System '" + str.sSystem + "' registered '" + str.sFunction + "' for gui event '" + sGuiEventType + "'");
     }
 }

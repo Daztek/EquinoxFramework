@@ -54,7 +54,7 @@ void PC_Init()
     SqlStep(sql);
 }
 
-// @NWNX[DL:NWNX_ON_INPUT_DROP_ITEM_BEFORE]
+// @NWNX[NWNX_ON_INPUT_DROP_ITEM_BEFORE:DL]
 void PC_DropItem()
 {
     object oPlayer = OBJECT_SELF;

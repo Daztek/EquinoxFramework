@@ -3,7 +3,7 @@
     Author: Daz
 
     // @ TARGETMODE[TARGET_MODE_ID]
-    @ANNOTATION[@(TARGETMODE)\[([\w]+)\][\n|\r]+[a-z]+\s([\w]+)\(]
+    @ANNOTATION[TARGETMODE]
 */
 
 #include "ef_i_core"
@@ -49,21 +49,19 @@ void TargetMode_OnPlayerTarget()
 }
 
 // @PAD[TARGETMODE]
-void TargetMode_RegisterFunction(json jTargetModeFunction)
+void TargetMode_RegisterFunction(struct AnnotationData str)
 {
-    string sSystem = JsonArrayGetString(jTargetModeFunction, 0);
-    string sTargetModeIdConstant = JsonArrayGetString(jTargetModeFunction, 2);
-    string sTargetModeId = GetConstantStringValue(sTargetModeIdConstant, sSystem, sTargetModeIdConstant);
-    string sFunction = JsonArrayGetString(jTargetModeFunction, 3);
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+    string sTargetModeIdConstant = JsonArrayGetString(str.jTokens, 0);
+    string sTargetModeId = GetConstantStringValue(sTargetModeIdConstant, str.sSystem, sTargetModeIdConstant);
+    string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     if (sTargetModeId == "")
-        WriteLog("* WARNING: System '" + sSystem + "' tried to register function '" + sFunction + "' with an invalid target mode id");
+        WriteLog("* WARNING: System '" + str.sSystem + "' tried to register function '" + str.sFunction + "' with an invalid target mode id");
     else
     {
         EFCore_CacheScriptChunk(sScriptChunk);
         InsertStringToLocalJsonArray(GetDataObject(TARGETMODE_SCRIPT_NAME), TARGETMODE_FUNCTIONS_ARRAY_PREFIX + sTargetModeId, sScriptChunk);
-        WriteLog("* System '" + sSystem + "' registered function '" + sFunction + "' for target mode id: " + sTargetModeId);
+        WriteLog("* System '" + str.sSystem + "' registered function '" + str.sFunction + "' for target mode id: " + sTargetModeId);
     }
 }
 

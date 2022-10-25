@@ -3,10 +3,10 @@
     Author: Daz
 
     // @ EVENT[DL:EVENT_SCRIPT_*:1234]
-    @ANNOTATION[@(EVENT)\[(DL)?:?(EVENT_SCRIPT_[A-Z_]+):?(-?\w+)?\][\n|\r]+[a-z]+\s([\w]+)\(]
+    @ANNOTATION[EVENT]
 
     // @ NWNX[DL:SOME_EVENT]
-    @ANNOTATION[@(NWNX)\[(DL)?:?([A-Z_]+)\][\n|\r]+[a-z]+\s([\w]+)\(]
+    @ANNOTATION[NWNX]
 */
 
 #include "ef_i_core"
@@ -102,24 +102,22 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
 }
 
 // @PAD[EVENT]
-void EM_InsertObjectEventAnnotations(json jObjectEvent)
+void EM_InsertObjectEventAnnotations(struct AnnotationData str)
 {
-    string sSystem = JsonArrayGetString(jObjectEvent, 0);
-    int bDispatchListMode = JsonArrayGetString(jObjectEvent, 2) == "DL";
-    string sEventType = JsonArrayGetString(jObjectEvent, 3);
+    string sEventType = JsonArrayGetString(str.jTokens, 0);
     int nEventType = GetConstantIntValue(sEventType, "", -1);
-    int nPriority = GetConstantIntValue(JsonArrayGetString(jObjectEvent, 4), sSystem, StringToInt(JsonArrayGetString(jObjectEvent, 4)));
-    string sFunction = JsonArrayGetString(jObjectEvent, 5);
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+    int bDispatchListMode = JsonArrayGetString(str.jTokens, 1) == "DL";
+    int nPriority = GetConstantIntValue(JsonArrayGetString(str.jTokens, 2), str.sSystem, StringToInt(JsonArrayGetString(str.jTokens, 2)));
+    string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     if (nEventType == -1)
-        WriteLog("* WARNING: System '" + sSystem + "' tried to register '" + sFunction + "' for an invalid object event: " + sEventType);
+        WriteLog("* WARNING: System '" + str.sSystem + "' tried to register '" + str.sFunction + "' for an invalid object event: " + sEventType);
     else
     {
         string sQuery = "INSERT INTO " + EM_SCRIPT_NAME + "_events(system, eventtype, scriptchunk, priority, dispatchlist) " +
                         "VALUES(@system, @eventtype, @scriptchunk, @priority, @dispatchlist);";
         sqlquery sql = SqlPrepareQueryModule(sQuery);
-        SqlBindString(sql, "@system", sSystem);
+        SqlBindString(sql, "@system", str.sSystem);
         SqlBindInt(sql, "@eventtype", nEventType);
         SqlBindString(sql, "@scriptchunk", sScriptChunk);
         SqlBindInt(sql, "@priority", nPriority);
@@ -135,7 +133,7 @@ void EM_InsertObjectEventAnnotations(json jObjectEvent)
                 WriteLog("DEBUG: Failed to insert event: " + sError);
         }
 
-        WriteLog("* System '" + sSystem + "' subscribed to object event '" + IntToString(nEventType) +
+        WriteLog("* System '" + str.sSystem + "' subscribed to object event '" + IntToString(nEventType) +
                  "' with priority '" + IntToString(nPriority) + "', DL=" + IntToString(bDispatchListMode));
     }
 }
@@ -291,17 +289,15 @@ string EM_GetNWNXEventScriptChunk(string sSystem, string sEvent)
 }
 
 // @PAD[NWNX]
-void EM_SubscribeNWNXAnnotations(json jNWNXEvent)
+void EM_SubscribeNWNXAnnotations(struct AnnotationData str)
 {
-    string sSystem = JsonArrayGetString(jNWNXEvent, 0);
-    int bDispatchListMode = JsonArrayGetString(jNWNXEvent, 2) == "DL";
-    string sEvent = JsonArrayGetString(jNWNXEvent, 3);
-    string sFunction = JsonArrayGetString(jNWNXEvent, 4);
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+    string sEvent = JsonArrayGetString(str.jTokens, 0);
+    int bDispatchListMode = JsonArrayGetString(str.jTokens, 1) == "DL";
+    string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     EFCore_CacheScriptChunk(sScriptChunk);
-    EM_SetNWNXEventScriptChunk(sSystem, sEvent, sScriptChunk);
-    EM_SubscribeNWNXEvent(sSystem, sEvent, sScriptChunk, bDispatchListMode);
+    EM_SetNWNXEventScriptChunk(str.sSystem, sEvent, sScriptChunk);
+    EM_SubscribeNWNXEvent(str.sSystem, sEvent, sScriptChunk, bDispatchListMode);
 }
 
 void EM_SubscribeNWNXEvent(string sSystem, string sEvent, string sScriptChunk, int bDispatchListMode = FALSE, int bWrapIntoMain = FALSE)

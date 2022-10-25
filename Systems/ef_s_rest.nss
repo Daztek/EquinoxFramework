@@ -3,7 +3,7 @@
     Author: Daz
 
     // @ REST[REST_EVENTTYPE_REST_*]
-    @ANNOTATION[@(REST)\[(REST_EVENTTYPE_REST_STARTED|REST_EVENTTYPE_REST_FINISHED|REST_EVENTTYPE_REST_CANCELLED)\][\n|\r]+[a-z]+\s([\w]+)\(]
+    @ANNOTATION[REST]
 */
 
 #include "ef_i_core"
@@ -40,21 +40,19 @@ void Rest_OnPlayerRest()
 }
 
 // @PAD[REST]
-void Rest_RegisterFunction(json jRestFunction)
+void Rest_RegisterFunction(struct AnnotationData str)
 {
-    string sSystem = JsonArrayGetString(jRestFunction, 0);
-    string sRestEventTypeConstant = JsonArrayGetString(jRestFunction, 2);
+    string sRestEventTypeConstant = JsonArrayGetString(str.jTokens, 0);
     int nRestEventType = GetConstantIntValue(sRestEventTypeConstant);
-    string sFunction = JsonArrayGetString(jRestFunction, 3);
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+    string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + REST_SCRIPT_NAME + " (resteventtype, system, scriptchunk) VALUES(@resteventtype, @system, @scriptchunk);");
     SqlBindInt(sql, "@resteventtype", nRestEventType);
-    SqlBindString(sql, "@system", sSystem);
+    SqlBindString(sql, "@system", str.sSystem);
     SqlBindString(sql, "@scriptchunk", sScriptChunk);
     SqlStep(sql);
 
     EFCore_CacheScriptChunk(sScriptChunk);
 
-    WriteLog("* System '" + sSystem + "' registered function '" + sFunction + "' for rest event type: " + sRestEventTypeConstant);
+    WriteLog("* System '" + str.sSystem + "' registered function '" + str.sFunction + "' for rest event type: " + sRestEventTypeConstant);
 }

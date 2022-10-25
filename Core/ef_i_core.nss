@@ -132,8 +132,8 @@ void EFCore_InitializeSystemData()
              "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
-    EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "CORE");//"@(CORE)\\[(EF_SYSTEM_[A-Z]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(");
-    EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "PAD");//"@(PAD)\\[([\\w]+)\\][\\n|\\r]+[a-z]+\\s([\\w]+)\\(json\\s[\\w]+\\)");
+    EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "CORE");
+    EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "PAD");
 
     json jSystems = JsonArrayTransform(GetResRefArray(EFCORE_SYSTEM_SCRIPT_PREFIX, RESTYPE_NSS) , JSON_ARRAY_SORT_ASCENDING);
     int nSystem, nNumSystems = JsonGetLength(jSystems);
@@ -329,10 +329,8 @@ void EFCore_ParseSystemsForAnnotationData()
             for(nMatch = 0; nMatch < nNumMatches; nMatch++)
             {
                 json jMatch = JsonArrayGet(jMatches, nMatch);
-                // Replace the full match with the system name
-                jMatch = JsonArraySetString(jMatch, 0, sSystem);
-                // Replace tokenized string with array
-                jMatch = JsonArraySet(jMatch, 2, GetJsonArrayFromTokenizedString(JsonArrayGetString(jMatch, 2)));
+                     jMatch = JsonArraySetString(jMatch, 0, sSystem);
+                     jMatch = JsonArraySet(jMatch, 2, GetJsonArrayFromTokenizedString(JsonArrayGetString(jMatch, 2)));
 
                 EFCore_InsertAnnotationData(JsonArrayGetString(jMatch, 1), jMatch);
             }
@@ -352,16 +350,12 @@ void EFCore_ExecuteCoreFunction(int nCoreFunctionType)
     while (SqlStep(sql))
     {
         struct AnnotationData str = EFCore_GetAnnotationDataStruct(SqlGetJson(sql, 0));
-
         if (GetConstantIntValue(JsonArrayGetString(str.jTokens, 0), EFCORE_SCRIPT_NAME) == nCoreFunctionType)
         {
-            string sSystem = str.sSystem;
-            string sFunction = str.sFunction;
-            string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
-            string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
+            string sError = ExecuteScriptChunk(nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction)), oModule, FALSE);
 
             if (sError != "")
-                WriteLog("  > Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
+                WriteLog("  > Function '" + str.sFunction + "' for '" + str.sSystem + "' failed with error: " + sError);
 
             EFCore_ResetScriptInstructions();
         }
@@ -375,10 +369,9 @@ void EFCore_ParseAnnotationData()
     SqlBindString(sqlParseFunction, "@annotation", "PAD");
     while (SqlStep(sqlParseFunction))
     {
-        json jData = SqlGetJson(sqlParseFunction, 0);
-        string sSystem = JsonArrayGetString(jData, 0);
-        string sAnnotation = JsonArrayGetString(JsonArrayGet(jData, 2), 0);
-        string sFunction = nssFunction(JsonArrayGetString(jData, 4),
+        struct AnnotationData str = EFCore_GetAnnotationDataStruct(SqlGetJson(sqlParseFunction, 0));
+        string sAnnotation = JsonArrayGetString(str.jTokens, 0);
+        string sFunction = nssFunction(str.sFunction,
                                nssFunction("EFCore_GetAnnotationDataStruct",
                                    nssFunction("GetLocalJson", "GetModule(), " + nssEscape(EFCORE_ANNOTATION_DATA), FALSE), FALSE));
 
@@ -388,10 +381,10 @@ void EFCore_ParseAnnotationData()
         while (SqlStep(sqlAnnotationData))
         {
             SetLocalJson(oModule, EFCORE_ANNOTATION_DATA, SqlGetJson(sqlAnnotationData, 0));
-            string sError = ExecuteScriptChunk(nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sFunction), oModule, FALSE);
+            string sError = ExecuteScriptChunk(nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(str.sSystem) + nssVoidMain(sFunction), oModule, FALSE);
 
             if (sError != "")
-                WriteLog("WARNING: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
+                WriteLog("WARNING: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + sFunction + "' for '" + str.sSystem + "' failed with error: " + sError);
 
             EFCore_ResetScriptInstructions();
         }

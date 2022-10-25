@@ -2,8 +2,7 @@
     Script: ef_s_guievent
     Author: Daz
 
-    // @ GUIEVENT[GUIEVENT_*]
-    @ANNOTATION[GUIEVENT]
+    @GUIEVENT[GUIEVENT_*]
 */
 
 #include "ef_i_core"

@@ -30,6 +30,7 @@ const int EF_SYSTEM_LOAD                                = 2;
 const int EF_SYSTEM_POST                                = 3;
 
 const string EFCORE_SYSTEM_SCRIPT_PREFIX                = "ef_s_";
+const string EFCORE_ANNOTATIONS_ARRAY                   = "EFCoreAnnotationsArray";
 const string EFCORE_ANNOTATION_DATA                     = "EFCoreAnnotationData";
 
 const string EFCORE_INVALID_FUNCTION                    = "EFCoreInvalidFunction";
@@ -57,11 +58,11 @@ struct AnnotationData
 
 void EFCore_InitializeSystemData();
 void EFCore_InsertSystem(string sSystem, string sScriptData);
-void EFCore_InsertAnnotation(string sSystem, string sAnnotation);
+void EFCore_InsertAnnotation(string sAnnotation);
 void EFCore_InsertFunction(string sSystem, string sFunction, string sReturnType, string sParameters, string sScriptChunk);
 void EFCore_InsertAnnotationData(string sAnnotation, json jData);
 int EFCore_GetNumberOfSystems();
-int EFCore_GetNumberOfAnnotations();
+json EFCore_GetAnnotationsArray();
 void EFCore_ParseSystem(string sSystem);
 int EFCore_ValidateSystems();
 void EFCore_ParseSystemsForAnnotationData();
@@ -114,11 +115,6 @@ void EFCore_InitializeSystemData()
                     "scriptdata TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
-    sQuery = "CREATE TABLE IF NOT EXISTS " + EFCORE_SCRIPT_NAME + "_annotations (" +
-             "system TEXT NOT NULL, " +
-             "annotation TEXT NOT NULL);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
-
     sQuery = "CREATE TABLE IF NOT EXISTS " + EFCORE_SCRIPT_NAME + "_annotationdata (" +
              "annotation TEXT NOT NULL, " +
              "data TEXT NOT NULL);";
@@ -131,9 +127,6 @@ void EFCore_InitializeSystemData()
              "parameters TEXT NOT NULL, " +
              "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
-
-    EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "CORE");
-    EFCore_InsertAnnotation(EFCORE_SCRIPT_NAME, "PAD");
 
     json jSystems = JsonArrayTransform(GetResRefArray(EFCORE_SYSTEM_SCRIPT_PREFIX, RESTYPE_NSS) , JSON_ARRAY_SORT_ASCENDING);
     int nSystem, nNumSystems = JsonGetLength(jSystems);
@@ -154,13 +147,11 @@ void EFCore_InsertSystem(string sSystem, string sScriptData)
     SqlStep(sql);
 }
 
-void EFCore_InsertAnnotation(string sSystem, string sAnnotation)
+void EFCore_InsertAnnotation(string sAnnotation)
 {
-    string sQuery = "INSERT INTO " + EFCORE_SCRIPT_NAME + "_annotations(system, annotation) VALUES(@system, @annotation);";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
-    SqlBindString(sql, "@system", sSystem);
-    SqlBindString(sql, "@annotation", "@(" + sAnnotation + ")\\[(.*)\\][\\n|\\r]+([a-z]+)\\s([\\w]+)\\((.*)\\)");
-    SqlStep(sql);
+    SetLocalJson(GetSystemDataObject(), EFCORE_ANNOTATIONS_ARRAY,
+        JsonArrayInsertUniqueString(EFCore_GetAnnotationsArray(),
+            "@(" + sAnnotation + ")\\[(.*)\\][\\n|\\r]+([a-z]+)\\s([\\w]+)\\((.*)\\)"));
 }
 
 void EFCore_InsertFunction(string sSystem, string sFunction, string sReturnType, string sParameters, string sScriptChunk)
@@ -191,10 +182,9 @@ int EFCore_GetNumberOfSystems()
     return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
 }
 
-int EFCore_GetNumberOfAnnotations()
+json EFCore_GetAnnotationsArray()
 {
-    sqlquery sql = SqlPrepareQueryModule("SELECT COUNT(system) FROM " + EFCORE_SCRIPT_NAME + "_annotations;");
-    return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
+    return GetLocalJsonOrDefault(GetSystemDataObject(), EFCORE_ANNOTATIONS_ARRAY, JsonArray());
 }
 
 void EFCore_ParseSystem(string sSystem)
@@ -212,13 +202,12 @@ void EFCore_ParseSystem(string sSystem)
     EFCore_InsertSystem(sSystem, sScriptData);
 
     // Get annotations
-    string sRegex = "@ANNOTATION\\[([\\S]+)\\]";
-    json jAnnotations = JsonArray();
+    string sRegex = "(?://\\s@)(\\w+)(?:\\[.*\\])";
     json jMatches = RegExpIterate(sRegex, sScriptData);
     int nMatch, nNumMatches = JsonGetLength(jMatches);
     for(nMatch = 0; nMatch < nNumMatches; nMatch++)
     {
-        EFCore_InsertAnnotation(sSystem, JsonArrayGetString(JsonArrayGet(jMatches, nMatch), 1));
+        EFCore_InsertAnnotation(JsonArrayGetString(JsonArrayGet(jMatches, nMatch), 1));
     }
 
     if (EFCORE_PARSE_SYSTEM_FUNCTIONS)
@@ -309,7 +298,9 @@ int EFCore_ValidateSystems()
 
 void EFCore_ParseSystemsForAnnotationData()
 {
-    WriteLog("* Parsing Systems for " + IntToString(EFCore_GetNumberOfAnnotations()) + " Annotations...");
+    json jAnnotations = EFCore_GetAnnotationsArray();
+    int nNumAnnotations = JsonGetLength(jAnnotations);
+    WriteLog("* Parsing Systems for " + IntToString(nNumAnnotations) + " Annotations...");
 
     SqlBeginTransactionModule();
 
@@ -319,10 +310,10 @@ void EFCore_ParseSystemsForAnnotationData()
         string sSystem = SqlGetString(sqlSystems, 0);
         string sScriptData = SqlGetString(sqlSystems, 1);
 
-        sqlquery sqlAnnotations = SqlPrepareQueryModule("SELECT annotation FROM " + EFCORE_SCRIPT_NAME + "_annotations;");
-        while (SqlStep(sqlAnnotations))
+        int nAnnotation;
+        for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
         {
-            string sAnnotation = SqlGetString(sqlAnnotations, 0);
+            string sAnnotation = JsonArrayGetString(jAnnotations, nAnnotation);
             json jMatches = RegExpIterate(sAnnotation, sScriptData);
 
             int nMatch, nNumMatches = JsonGetLength(jMatches);
@@ -676,14 +667,14 @@ int ValidateReturnType(int nCallStackDepth, string sRequestedType)
 {
     if (nCallStackDepth == 0)
     {
-        WriteLog("WARNING: (" + NWNX_Util_GetCurrentScriptName() + ") Tried to get return value for an invalid call stack depth");
+        WriteLog("WARNING: Tried to get return value for an invalid call stack depth");
         return FALSE;
     }
 
     string sReturnType = GetCallStackReturnType(nCallStackDepth);
     if (sReturnType != sRequestedType)
     {
-        WriteLog("WARNING: (" + NWNX_Util_GetCurrentScriptName() + ") Tried to get return type '" + sRequestedType + "' for function '" +
+        WriteLog("WARNING: Tried to get return type '" + sRequestedType + "' for function '" +
                  GetCallStackFunction(nCallStackDepth) + "' with return type: " + sReturnType);
         return FALSE;
     }

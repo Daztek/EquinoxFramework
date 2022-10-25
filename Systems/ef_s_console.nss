@@ -2,8 +2,7 @@
     Script: ef_s_console
     Author: Daz
 
-    // @ CONSOLE[command_name:icon:Description]
-    @ANNOTATION[CONSOLE]
+    @CONSOLE[command_name:icon:Description]
 */
 
 #include "ef_i_core"

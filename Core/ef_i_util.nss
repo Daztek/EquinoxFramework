@@ -29,6 +29,8 @@ object CreateDataObject(string sTag, int bDestroyExisting = TRUE);
 void DestroyDataObject(string sTag);
 // Get a data object with sTag
 object GetDataObject(string sTag, int bCreateIfNotExists = TRUE);
+// Get the data object for the calling system
+object GetSystemDataObject();
 
 // Get an array of resrefs by type
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "");

@@ -46,6 +46,13 @@ string JsonArrayGetString(json jArray, int nIndex);
 // Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
 // Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
 json JsonArrayInsertString(json jArray, string sValue, int nIndex = -1);
+// Returns a modified copy of jArray with sValue inserted as JsonString() at position nIndex, if jArray does not already contain sValue
+// All succeeding objects in the array will move by one.
+// By default (-1), inserts objects at the end of the array ("push").
+// nIndex = 0 inserts at the beginning of the array.
+// Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
+// Returns a json null value if nIndex is not 0 or -1 and out of bounds, with JsonGetError() filled in.
+json JsonArrayInsertUniqueString(json jArray, string sValue, int nIndex = -1);
 // Returns a modified copy of jArray with position nIndex set to sValue as JsonString.
 // Returns a json null value if jArray is not actually an array, with JsonGetError() filled in.
 // Returns a json null value if nIndex is out of bounds, with JsonGetError() filled in.
@@ -239,6 +246,14 @@ json JsonArrayInsertString(json jArray, string sValue, int nIndex = -1)
     return JsonArrayInsert(jArray, JsonString(sValue), nIndex);
 }
 
+json JsonArrayInsertUniqueString(json jArray, string sValue, int nIndex = -1)
+{
+    if (!JsonArrayContainsString(jArray, sValue))
+        return JsonArrayInsertString(jArray, sValue, nIndex);
+    else
+        return jArray;
+}
+
 json JsonArraySetString(json jArray, int nIndex, string sValue)
 {
     return JsonArraySet(jArray, nIndex, JsonString(sValue));
@@ -257,7 +272,7 @@ json JsonArrayInsertInt(json jArray, int nValue, int nIndex = -1)
 json JsonArrayInsertUniqueInt(json jArray, int nValue, int nIndex = -1)
 {
     if (!JsonArrayContainsInt(jArray, nValue))
-        return JsonArrayInsert(jArray, JsonInt(nValue), nIndex);
+        return JsonArrayInsertInt(jArray, nValue, nIndex);
     else
         return jArray;
 }

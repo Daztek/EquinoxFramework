@@ -2,8 +2,7 @@
     Script: ef_s_targetmode
     Author: Daz
 
-    // @ TARGETMODE[TARGET_MODE_ID]
-    @ANNOTATION[TARGETMODE]
+    @TARGETMODE[TARGET_MODE_ID]
 */
 
 #include "ef_i_core"

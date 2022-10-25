@@ -2,8 +2,7 @@
     Script: ef_s_aiman
     Author: Daz
 
-    // @ AIMANEVENT[Behavior:EVENT_SCRIPT_CREATURE_*]
-    @ANNOTATION[AIMANEVENT]
+    @AIMANEVENT[Behavior:EVENT_SCRIPT_CREATURE_*]
 */
 
 #include "ef_i_core"

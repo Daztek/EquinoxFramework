@@ -2,11 +2,8 @@
     Script: ef_s_eventman
     Author: Daz
 
-    // @ EVENT[DL:EVENT_SCRIPT_*:1234]
-    @ANNOTATION[EVENT]
-
-    // @ NWNX[DL:SOME_EVENT]
-    @ANNOTATION[NWNX]
+    @EVENT[EVENT_SCRIPT_*:DL:1234]
+    @NWNX[SOME_EVENT:DL]
 */
 
 #include "ef_i_core"

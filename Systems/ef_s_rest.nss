@@ -2,8 +2,7 @@
     Script: ef_s_rest
     Author: Daz
 
-    // @ REST[REST_EVENTTYPE_REST_*]
-    @ANNOTATION[REST]
+    @REST[REST_EVENTTYPE_REST_*]
 */
 
 #include "ef_i_core"

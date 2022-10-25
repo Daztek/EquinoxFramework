@@ -2,11 +2,8 @@
     Script: ef_s_nuiwinman
     Author: Daz
 
-    // @ NWMWINDOW[WINDOW_ID]
-    @ANNOTATION[NWMWINDOW]
-
-    // @ NWMEVENT[WINDOW_ID:NUI_EVENT_*:element]
-    @ANNOTATION[NWMEVENT]
+    @NWMWINDOW[WINDOW_ID]
+    @NWMEVENT[WINDOW_ID:NUI_EVENT_*:element]
 */
 
 #include "ef_i_core"

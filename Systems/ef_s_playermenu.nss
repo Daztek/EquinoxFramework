@@ -2,8 +2,7 @@
     Script: ef_s_playermenu
     Author: Daz
 
-    // @ PMBUTTON[Button Name:Tooltip Text]
-    @ANNOTATION[PMBUTTON]
+    @PMBUTTON[Button Name:Tooltip Text]
 */
 
 #include "ef_i_core"

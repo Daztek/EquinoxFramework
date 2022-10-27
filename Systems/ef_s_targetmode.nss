@@ -41,7 +41,7 @@ void TargetMode_OnPlayerTarget()
                 string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
                 if (sError != "")
-                    WriteLog("ERROR: ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+                    WriteLog("* ERROR: ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
             }
         }
     }

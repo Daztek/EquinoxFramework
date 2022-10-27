@@ -116,7 +116,7 @@ string GetVMFrameScript(int nDepth = 0);
 void WriteLog(string sMessage)
 {
     struct VMFrame str = GetVMFrame(1);
-    PrintString("[" + str.sFile + ":" + IntToString(str.nLine) + "] " + sMessage);
+    PrintString("[" + str.sFile + ":" + str.sFunction + ":" + IntToString(str.nLine) + "] " + sMessage);
 }
 
 object CreateWaypoint(location locLocation, string sTag)
@@ -201,8 +201,7 @@ json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, objec
     DeleteLocalJson(oModule, "EF_TEMP_VAR");
 
     if (sResult != "")
-        WriteLog("ExecuteScriptChunkAndReturnJson() failed with error: " + sResult);
-
+        WriteLog("* ERROR: ExecuteScriptChunkAndReturnJson() failed with error: " + sResult);
 
     return jReturn;
 }

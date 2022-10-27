@@ -865,8 +865,8 @@ void AG_GenerateArea(string sAreaID)
         if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
         {
             WriteLog("* Finished Generating Area: " + sAreaID);
-            WriteLog("  > Result: " + (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED) ? "Failure" : "Success") +
-                     ", Iterations: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS)));
+            WriteLog("> Result: " + (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED) ? "Failure" : "Success") +
+                     "> Iterations: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS)));
         }
         string sCallback = AG_GetCallbackFunction(sAreaID);
         if (sCallback != "")
@@ -883,9 +883,9 @@ void AG_GenerateArea(string sAreaID)
             if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
             {
                 WriteLog("* Generating Area: " + sAreaID);
-                WriteLog("  > Tileset: " + AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET) +
-                         ", Width: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH)) +
-                         ", Height: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT)));
+                WriteLog("> Tileset: " + AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET) +
+                         "> Width: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH)) +
+                         "> Height: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT)));
             }
 
             object oAreaDataObject = AG_GetAreaDataObject(sAreaID);

@@ -31,7 +31,7 @@ void Debug_OnResourceModified()
                 string sResult = ExecuteScriptChunk(sScriptChunk, GetModule(), FALSE);
 
                 if (sResult != "")
-                    WriteLog("   > Failed to execute debug script, error: " + sResult);
+                    WriteLog("> Failed to execute debug script, error: " + sResult);
             }
         }
     }

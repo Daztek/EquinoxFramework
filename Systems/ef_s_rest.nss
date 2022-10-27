@@ -34,7 +34,7 @@ void Rest_OnPlayerRest()
         string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
-            WriteLog("ERROR: (" + IntToString(nRestEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+            WriteLog("* ERROR: (" + IntToString(nRestEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
     }
 }
 

@@ -184,7 +184,7 @@ void AIMan_HandleAIEvent(int nEventType)
 
                 if (AIMAN_DEBUG_EVENTS && sError != "")
                 {
-                    WriteLog("DEBUG: '" + GetName(oCreature) + "' failed event '" + IntToString(nEventType) + "' for behavior '" + sBehavior + "' with error: " + sError);
+                    WriteLog("* DEBUG: '" + GetName(oCreature) + "' failed event '" + IntToString(nEventType) + "' for behavior '" + sBehavior + "' with error: " + sError);
                 }
             }
         }

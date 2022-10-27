@@ -96,7 +96,7 @@ void EC_OnAreaPostProcessed()
         {
             json jCave = JsonArrayGet(jCaves, nCave);
 
-            WriteLog("  > Tile: " + IntToString(JsonObjectGetInt(jCave, "exit_index")) +
+            WriteLog("> Tile: " + IntToString(JsonObjectGetInt(jCave, "exit_index")) +
                      ", Type: " + IntToString(JsonObjectGetInt(jCave, "type")) +
                      ", ID: " + JsonObjectGetString(jCave, "area_id") +
                      ", Lighting: " + Get2DAString("environment", "LABEL", JsonObjectGetInt(jCave, "lighting_scheme")));

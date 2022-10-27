@@ -28,7 +28,7 @@ void GuiEvent_OnPlayerGuiEvent()
 
     if (GUIEVENT_DEBUG_EVENTS)
     {
-        WriteLog("DEBUG: Event=" + IntToString(nGuiEventType) + ", Int=" + IntToString(GetLastGuiEventInteger()) + ", Object=" + ObjectToString(GetLastGuiEventObject()));
+        WriteLog("* DEBUG: Event=" + IntToString(nGuiEventType) + ", Int=" + IntToString(GetLastGuiEventInteger()) + ", Object=" + ObjectToString(GetLastGuiEventObject()));
     }
 
     sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptchunk FROM " + GUIEVENT_SCRIPT_NAME + " WHERE guieventtype = @guieventtype;");
@@ -40,7 +40,7 @@ void GuiEvent_OnPlayerGuiEvent()
         string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
-            WriteLog("ERROR: (" + IntToString(nGuiEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+            WriteLog("* ERROR: (" + IntToString(nGuiEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
     }
 }
 

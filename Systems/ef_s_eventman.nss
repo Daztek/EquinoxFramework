@@ -94,7 +94,7 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
         string sError = ExecuteScriptChunk(sScriptChunk, oTarget, FALSE);
 
         if (EM_LOG_DEBUG && sError != "")
-            WriteLog("DEBUG: Failed to run scriptchunk '" + sScriptChunk + "' with error: " + sError);
+            WriteLog("* DEBUG: Failed to run scriptchunk '" + sScriptChunk + "' with error: " + sError);
     }
 }
 
@@ -127,10 +127,10 @@ void EM_InsertObjectEventAnnotations(struct AnnotationData str)
         {
             string sError = SqlGetError(sql);
             if (sError != "")
-                WriteLog("DEBUG: Failed to insert event: " + sError);
+                WriteLog("* DEBUG: Failed to insert event: " + sError);
         }
 
-        WriteLog("* System '" + str.sSystem + "' subscribed to object event '" + IntToString(nEventType) +
+        WriteLog("* System '" + str.sSystem + "' subscribed to object event '" + sEventType +
                  "' with priority '" + IntToString(nPriority) + "', DL=" + IntToString(bDispatchListMode));
     }
 }
@@ -184,7 +184,7 @@ void EM_SetObjectEventScript(object oObject, int nEvent, int bStoreOriginalEvent
     int bSet = SetEventScript(oObject, nEvent, sEventScript);
 
     if (!bSet)
-        WriteLog("WARNING: EM_SetObjectEventScript failed: " + GetName(oObject) + "(" + sEvent + ")");
+        WriteLog("* WARNING: EM_SetObjectEventScript failed: " + GetName(oObject) + "(" + sEvent + ")");
     else if (bStoreOriginalEvent && sOriginalScript != "" && sOriginalScript != sEventScript)
         SetLocalString(oObject, EM_ORIGINAL_EVENT_SCRIPT_PREFIX + sEvent, sOriginalScript);
 }

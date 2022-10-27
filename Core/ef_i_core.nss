@@ -149,9 +149,11 @@ void EFCore_InsertSystem(string sSystem, string sScriptData)
 
 void EFCore_InsertAnnotation(string sAnnotation)
 {
-    SetLocalJson(GetSystemDataObject(), EFCORE_ANNOTATIONS_ARRAY,
-        JsonArrayInsertUniqueString(EFCore_GetAnnotationsArray(),
-            "@(" + sAnnotation + ")\\[(.*)\\][\\n|\\r]+([a-z]+)\\s([\\w]+)\\((.*)\\)"));
+    if (!JsonArrayContainsString(EFCore_GetAnnotationsArray(), sAnnotation))
+    {
+        WriteLog("> Found Annotation: " + sAnnotation);
+        InsertStringToLocalJsonArray(GetSystemDataObject(), EFCORE_ANNOTATIONS_ARRAY, sAnnotation);
+    }
 }
 
 void EFCore_InsertFunction(string sSystem, string sFunction, string sReturnType, string sParameters, string sScriptChunk)
@@ -193,7 +195,7 @@ void EFCore_ParseSystem(string sSystem)
 
     if (FindSubString(sScriptData, "@SKIPSYSTEM") != -1)
     {
-        WriteLog("  > Skipping System: " + sSystem);
+        WriteLog("> Skipping System: " + sSystem);
         return;
     }
 
@@ -287,7 +289,7 @@ int EFCore_ValidateSystems()
         if (sError != "")
         {
             bValidated = FALSE;
-            WriteLog("  > System '" + sSystem + "' failed to validate with error: " + sError);
+            WriteLog("> System '" + sSystem + "' failed to validate with error: " + sError);
         }
     }
 
@@ -313,7 +315,7 @@ void EFCore_ParseSystemsForAnnotationData()
         int nAnnotation;
         for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
         {
-            string sAnnotation = JsonArrayGetString(jAnnotations, nAnnotation);
+            string sAnnotation = "@(" + JsonArrayGetString(jAnnotations, nAnnotation) + ")\\[(.*)\\][\\n|\\r]+([a-z]+)\\s([\\w]+)\\((.*)\\)";
             json jMatches = RegExpIterate(sAnnotation, sScriptData);
 
             int nMatch, nNumMatches = JsonGetLength(jMatches);
@@ -346,7 +348,7 @@ void EFCore_ExecuteCoreFunction(int nCoreFunctionType)
             string sError = ExecuteScriptChunk(nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction)), oModule, FALSE);
 
             if (sError != "")
-                WriteLog("  > Function '" + str.sFunction + "' for '" + str.sSystem + "' failed with error: " + sError);
+                WriteLog("> Function '" + str.sFunction + "' for '" + str.sSystem + "' failed with error: " + sError);
 
             EFCore_ResetScriptInstructions();
         }
@@ -375,7 +377,7 @@ void EFCore_ParseAnnotationData()
             string sError = ExecuteScriptChunk(nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(str.sSystem) + nssVoidMain(sFunction), oModule, FALSE);
 
             if (sError != "")
-                WriteLog("WARNING: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + sFunction + "' for '" + str.sSystem + "' failed with error: " + sError);
+                WriteLog("* ERROR: EFCore_ParseAnnotationData() [" + sAnnotation + "] Function '" + str.sFunction + "' for '" + str.sSystem + "' failed with error: " + sError);
 
             EFCore_ResetScriptInstructions();
         }
@@ -507,7 +509,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 
     if (!EFCORE_PARSE_SYSTEM_FUNCTIONS && !nLambdaId)
     {
-        WriteLog("WARNING: EFCore::Call() Function Parsing Disabled: could not execute '" + sFunction + "'");
+        WriteLog("* ERROR: EFCore::Call() Function Parsing Disabled: could not execute '" + sFunction + "'");
         return nCallStackDepth;
     }
 
@@ -527,16 +529,16 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
             DecrementCallStackDepth();
 
             if (sError != "")
-                WriteLog("ERROR: EFCore::Call() Failed to execute '" + sFunction + "' with error: " + sError);
+                WriteLog("* ERROR: EFCore::Call() Failed to execute '" + sFunction + "' with error: " + sError);
         }
         else
         {
-            WriteLog("ERROR: EFCore::Call() Parameter Mismatch: EXPECTED: '" + sFunction + "(" + sParameters + ")' -> GOT: '"  + sFunction + "(" + sArgs + ")'");
+            WriteLog("* ERROR: EFCore::Call() Parameter Mismatch: EXPECTED: '" + sFunction + "(" + sParameters + ")' -> GOT: '"  + sFunction + "(" + sArgs + ")'");
         }
     }
     else
     {
-        WriteLog("ERROR: EFCore::Call() Function '" + sFunction + "' does not exist");
+        WriteLog("* ERROR: EFCore::Call() Function '" + sFunction + "' does not exist");
     }
 
     return nCallStackDepth;
@@ -667,14 +669,14 @@ int ValidateReturnType(int nCallStackDepth, string sRequestedType)
 {
     if (nCallStackDepth == 0)
     {
-        WriteLog("WARNING: Tried to get return value for an invalid call stack depth");
+        WriteLog("* ERROR: Tried to get return value for an invalid call stack depth");
         return FALSE;
     }
 
     string sReturnType = GetCallStackReturnType(nCallStackDepth);
     if (sReturnType != sRequestedType)
     {
-        WriteLog("WARNING: Tried to get return type '" + sRequestedType + "' for function '" +
+        WriteLog("* ERROR: Tried to get return type '" + sRequestedType + "' for function '" +
                  GetCallStackFunction(nCallStackDepth) + "' with return type: " + sReturnType);
         return FALSE;
     }

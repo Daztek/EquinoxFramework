@@ -504,5 +504,5 @@ void Console_RegisterCommand(struct AnnotationData str)
 
     EFCore_CacheScriptChunk(sScriptChunk);
 
-    WriteLog("* System '" + str.sSystem + "' registered command '" + sName + "' with '" + IntToString(nNumArguments) + "' parameters");
+    LogInfo("System '" + str.sSystem + "' registered command '" + sName + "' with '" + IntToString(nNumArguments) + "' parameters");
 }

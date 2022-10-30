@@ -90,13 +90,13 @@ void EC_OnAreaPostProcessed()
     int nCave, nNumCaves = JsonGetLength(jCaves);
     if (nNumCaves)
     {
-        WriteLog("* Generating Caves for Area: " + sParentAreaID + " -> Amount: " + IntToString(nNumCaves));
+        LogInfo("Generating Caves for Area: " + sParentAreaID + " -> Amount: " + IntToString(nNumCaves));
 
         for (nCave = 0; nCave < nNumCaves; nCave++)
         {
             json jCave = JsonArrayGet(jCaves, nCave);
 
-            WriteLog("> Tile: " + IntToString(JsonObjectGetInt(jCave, "exit_index")) +
+            LogInfo("> Tile: " + IntToString(JsonObjectGetInt(jCave, "exit_index")) +
                      ", Type: " + IntToString(JsonObjectGetInt(jCave, "type")) +
                      ", ID: " + JsonObjectGetString(jCave, "area_id") +
                      ", Lighting: " + Get2DAString("environment", "LABEL", JsonObjectGetInt(jCave, "lighting_scheme")));

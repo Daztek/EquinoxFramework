@@ -864,9 +864,9 @@ void AG_GenerateArea(string sAreaID)
     {
         if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
         {
-            WriteLog("* Finished Generating Area: " + sAreaID);
-            WriteLog("> Result: " + (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED) ? "Failure" : "Success") +
-                     "> Iterations: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS)));
+            LogInfo("Finished Generating Area: " + sAreaID);
+            LogInfo("> Result: " + (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED) ? "Failure" : "Success") +
+                     ", Iterations: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS)));
         }
         string sCallback = AG_GetCallbackFunction(sAreaID);
         if (sCallback != "")
@@ -882,10 +882,10 @@ void AG_GenerateArea(string sAreaID)
         {
             if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
             {
-                WriteLog("* Generating Area: " + sAreaID);
-                WriteLog("> Tileset: " + AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET) +
-                         "> Width: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH)) +
-                         "> Height: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT)));
+                LogInfo("Generating Area: " + sAreaID);
+                LogInfo("> Tileset: " + AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET) +
+                         ", Width: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH)) +
+                         ", Height: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT)));
             }
 
             object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
@@ -990,7 +990,7 @@ int AG_GetTileOrientationFromEdge(string sAreaID, int nEdge, int nTileID)
             return 1;
     }
     else
-        WriteLog("* AG_GetTileOrientationFromEdge: unknown tile: " + sTileset + "(" + IntToString(nTileID) + ")");
+        LogWarning("Unknown tile: " + sTileset + "(" + IntToString(nTileID) + ")");
 
     return -1;
 }
@@ -1040,7 +1040,7 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
     {
         if (nWidth != nOtherWidth)
         {
-            WriteLog("* ERROR: AG_CopyEdgeFromArea: Area Width does not match!");
+            LogError("Area Width does not match!");
             return;
         }
     }
@@ -1048,7 +1048,7 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
     {
         if (nHeight != nOtherHeight)
         {
-            WriteLog("* ERROR: AG_CopyEdgeFromArea: Area Height does not match!");
+            LogError("Area Height does not match!");
             return;
         }
     }

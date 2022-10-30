@@ -90,5 +90,5 @@ void PM_RegisterButton(struct AnnotationData str)
     InsertStringToLocalJsonArray(oDataObject, PM_FUNCTION_ARRAY, sScriptChunk);
     EFCore_CacheScriptChunk(sScriptChunk);
 
-    WriteLog("* System '" + str.sSystem + "' registered player menu button '" + sButton + "' with tooltip: \""  + sTooltip + "\"");
+    LogInfo("System '" + str.sSystem + "' registered player menu button '" + sButton + "' with tooltip: \""  + sTooltip + "\"");
 }

@@ -96,13 +96,13 @@ json NB_FinalizeWindow();
 void NB_LogDebug(string sDebug)
 {
     if (NB_LOG_DEBUG)
-        WriteLog("* DEBUG: " + sDebug);
+        LogDebug(sDebug);
 }
 
 void NB_LogWarning(string sWarning)
 {
     if (NB_LOG_WARNINGS)
-        WriteLog("* WARNING: " + sWarning);
+        LogWarning(sWarning);
 }
 
 int NB_GetDepth()

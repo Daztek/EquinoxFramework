@@ -32,7 +32,7 @@ void Rad_OnRadialAttemptOpen()
         else if (NWM_OpenWindow(oPlayer, RAD_PLACEABLE_WINDOW_ID))
         {
             NuiSetClickthroughProtection(oPlayer, 0.25f);
-            NWM_SetUserDataString("Target", ObjectToString(GetLastGuiEventObject()));
+            NWM_SetUserDataObject("Target", GetLastGuiEventObject());
         }
     }
 }
@@ -82,7 +82,7 @@ void Rad_GroupMouseUp()
 void Rad_SitButtonClick()
 {
     object oPlayer = OBJECT_SELF;
-    object oPlaceable = StringToObject(NWM_GetUserDataString("Target"));
+    object oPlaceable = NWM_GetUserDataObject("Target");
 
     AssignCommand(oPlayer, ClearAllActions());
     AssignCommand(oPlayer, ActionInteractObject(oPlaceable));

@@ -26,7 +26,7 @@ void PerAOE_AddScript(string sScript)
     string sError = nssCompileScript(sScript, PERAOE_SCRIPT_NAME, sScriptChunk);
 
     if (sError != "")
-        WriteLog("* WARNING: failed to compile script '" + sScript + "' with error: " + sError);
+        LogError("Failed to compile script '" + sScript + "' with error: " + sError);
 }
 
 // @CORE[EF_SYSTEM_INIT]

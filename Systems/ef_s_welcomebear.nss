@@ -25,7 +25,7 @@ void WB_OnAreaPostProcessed()
 
         if (SqlStep(sql))
         {
-            WriteLog("* Spawning a friendly welcome bear! :D");
+            LogInfo("Spawning a friendly welcome bear! :D");
 
             location locTile = Location(oArea, GetTilePosition(SqlGetInt(sql, 0), SqlGetInt(sql, 1)), IntToFloat(Random(360)));
             object oBear = CreateObject(OBJECT_TYPE_CREATURE, "nw_bearbrwn", locTile);
@@ -33,7 +33,7 @@ void WB_OnAreaPostProcessed()
         }
         else
         {
-            WriteLog("* No suitable tile for a friendly welcome bear! :(");
+            LogInfo("No suitable tile for a friendly welcome bear! :(");
         }
     }
 }

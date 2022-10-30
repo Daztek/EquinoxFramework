@@ -30,7 +30,7 @@ int Profiler_Calibrate(int nIterations);
 void Profiler_Init()
 {
     int nOverhead = Profiler_Calibrate(PROFILER_OVERHEAD_COMPENSATION_ITERATIONS);
-    WriteLog("* Overhead Compensation: " + IntToString(nOverhead) + "us");
+    LogInfo("Overhead Compensation: " + IntToString(nOverhead) + "us");
     Profiler_SetOverheadCompensation(nOverhead);
 }
 
@@ -114,7 +114,7 @@ int Profiler_Stop(struct ProfilerData strData)
             nLength++;
         }
 
-        WriteLog("[" + strData.sName + "] " + IntToString(nTotalSeconds) + "." + sZeroPadding + IntToString(nTotalMicroSeconds) + " seconds" + sStats);
+        LogInfo("[" + strData.sName + "] " + IntToString(nTotalSeconds) + "." + sZeroPadding + IntToString(nTotalMicroSeconds) + " seconds" + sStats);
     }
 
     return nTotalMicroSeconds;

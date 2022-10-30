@@ -252,7 +252,7 @@ void EP_OnAreaGenerated(string sAreaID)
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
     {
         if (EP_DEBUG_LOG)
-            WriteLog("* Area Generation Failure: " + sAreaID + ", retrying...");
+            LogDebug("Area Generation Failure: " + sAreaID + ", retrying...");
 
         object oDataObject = GetDataObject(EP_SCRIPT_NAME);
         object oArea = GetLocalObject(oDataObject, "LAST_AREA");

@@ -7,30 +7,9 @@
 
 #include "ef_i_nss"
 #include "ef_i_gff"
+#include "ef_i_log"
 
-const string EF_DATAOBJECT_TAG_PREFIX       = "EFDataObject_";
 const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
-
-struct VMFrame
-{
-    string sFile;
-    string sFunction;
-    int nLine;
-};
-
-// Write a message to the log
-void WriteLog(string sMessage);
-
-// Create a waypoint at locLocation with sTag
-object CreateWaypoint(location locLocation, string sTag);
-// Create a new data object with sTag
-object CreateDataObject(string sTag, int bDestroyExisting = TRUE);
-// Destroy a data object with sTag
-void DestroyDataObject(string sTag);
-// Get a data object with sTag
-object GetDataObject(string sTag, int bCreateIfNotExists = TRUE);
-// Get the data object for the calling system
-object GetSystemDataObject();
 
 // Get an array of resrefs by type
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "");
@@ -105,58 +84,6 @@ int GetIsLocationValid(location locLocation);
 // Get an integer from a 2da, returns EF_UNSET_INTEGER_VALUE if not set.
 int Get2DAInt(string s2DA, string sColumn, int nRow);
 
-// Get a VM frame at nDepth
-// nDepth == 0: Current Function
-// nDepth == 1: Calling Function
-struct VMFrame GetVMFrame(int nDepth = 0);
-
-// Get script name of the current frame
-string GetVMFrameScript(int nDepth = 0);
-
-void WriteLog(string sMessage)
-{
-    struct VMFrame str = GetVMFrame(1);
-    PrintString("[" + str.sFile + ":" + str.sFunction + ":" + IntToString(str.nLine) + "] " + sMessage);
-}
-
-object CreateWaypoint(location locLocation, string sTag)
-{
-    return CreateObject(OBJECT_TYPE_WAYPOINT, "nw_waypoint001", locLocation, FALSE, sTag);
-}
-
-object CreateDataObject(string sTag, int bDestroyExisting = TRUE)
-{
-    if (bDestroyExisting)
-        DestroyDataObject(sTag);
-
-    object oDataObject = CreateWaypoint(GetStartingLocation(), EF_DATAOBJECT_TAG_PREFIX + sTag);
-    SetLocalObject(GetModule(), EF_DATAOBJECT_TAG_PREFIX + sTag, oDataObject);
-
-    return oDataObject;
-}
-
-void DestroyDataObject(string sTag)
-{
-    object oDataObject = GetLocalObject(GetModule(), EF_DATAOBJECT_TAG_PREFIX + sTag);
-
-    if (GetIsObjectValid(oDataObject))
-    {
-        DeleteLocalObject(GetModule(), EF_DATAOBJECT_TAG_PREFIX + sTag);
-        DestroyObject(oDataObject);
-    }
-}
-
-object GetDataObject(string sTag, int bCreateIfNotExists = TRUE)
-{
-    object oDataObject = GetLocalObject(GetModule(), EF_DATAOBJECT_TAG_PREFIX + sTag);
-    return GetIsObjectValid(oDataObject) ? oDataObject : bCreateIfNotExists ? CreateDataObject(sTag) : OBJECT_INVALID;
-}
-
-object GetSystemDataObject()
-{
-    return GetDataObject(GetVMFrameScript(1));
-}
-
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
 {
     json jArray = JsonArray();
@@ -201,7 +128,7 @@ json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, objec
     DeleteLocalJson(oModule, "EF_TEMP_VAR");
 
     if (sResult != "")
-        WriteLog("* ERROR: ExecuteScriptChunkAndReturnJson() failed with error: " + sResult);
+        LogError("Scriptchunk failed with error: " + sResult);
 
     return jReturn;
 }
@@ -434,19 +361,4 @@ int Get2DAInt(string s2DA, string sColumn, int nRow)
 {
     string sValue = Get2DAString(s2DA, sColumn, nRow);
     return sValue == "" ? EF_UNSET_INTEGER_VALUE : StringToInt(sValue);
-}
-
-struct VMFrame GetVMFrame(int nDepth = 0)
-{
-    json jFrame = JsonArrayGet(JsonObjectGet(GetScriptBacktrace(FALSE), "frames"), 1 + nDepth);
-    struct VMFrame str;
-    str.sFile = JsonObjectGetString(jFrame, "file");
-    str.sFunction = JsonObjectGetString(jFrame, "function");
-    str.nLine = JsonObjectGetInt(jFrame, "line");
-    return str;
-}
-
-string GetVMFrameScript(int nDepth = 0)
-{
-    return JsonObjectGetString(JsonArrayGet(JsonObjectGet(GetScriptBacktrace(FALSE), "frames"), 1 + nDepth), "file");
 }

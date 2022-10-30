@@ -70,7 +70,7 @@ void PostString_ReserveIDs(string sSystem, int nAmount)
         SetLocalInt(oDataObject, sSystem + "_StartID", nStart);
         SetLocalInt(oDataObject, sSystem + "_EndID", nEnd);
 
-        WriteLog("System '" + sSystem + "' reserved '" + IntToString(nAmount) + "' IDs -> " + IntToString(nStart) + " - " + IntToString(nEnd));
+        LogInfo("System '" + sSystem + "' reserved '" + IntToString(nAmount) + "' IDs -> " + IntToString(nStart) + " - " + IntToString(nEnd));
     }
 }
 

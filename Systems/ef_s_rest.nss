@@ -34,7 +34,7 @@ void Rest_OnPlayerRest()
         string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
-            WriteLog("* ERROR: (" + IntToString(nRestEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+            LogError("(" + IntToString(nRestEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
     }
 }
 
@@ -53,5 +53,5 @@ void Rest_RegisterFunction(struct AnnotationData str)
 
     EFCore_CacheScriptChunk(sScriptChunk);
 
-    WriteLog("* System '" + str.sSystem + "' registered function '" + str.sFunction + "' for rest event type: " + sRestEventTypeConstant);
+    LogInfo("System '" + str.sSystem + "' registered function '" + str.sFunction + "' for rest event type: " + sRestEventTypeConstant);
 }

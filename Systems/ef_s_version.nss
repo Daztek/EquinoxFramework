@@ -20,7 +20,7 @@ void VersionCheck_OnClientConnect()
     int nMinor = EM_GetNWNXInt("VERSION_MINOR");
     if (nMajor != VERSION_MAJOR || (nMajor == VERSION_MAJOR && nMinor < VERSION_MINOR))
     {
-        WriteLog("* Player '" + EM_GetNWNXString("PLAYER_NAME") + "' (" + EM_GetNWNXString("CDKEY") + ") tried to connect with version: " + IntToString(nMajor) + "." + IntToString(nMinor));
+        LogInfo("Player '" + EM_GetNWNXString("PLAYER_NAME") + "' (" + EM_GetNWNXString("CDKEY") + ") tried to connect with version: " + IntToString(nMajor) + "." + IntToString(nMinor));
         EM_SetNWNXEventResult("Your client version must be at least '" + IntToString(VERSION_MAJOR) + "." + IntToString(VERSION_MINOR) + "' to play on this server");
         EM_SkipNWNXEvent();
     }

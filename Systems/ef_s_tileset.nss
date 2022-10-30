@@ -426,7 +426,7 @@ void TS_LoadTilesetData(string sTileset)
 
     string sName = (str.nDisplayNameStrRef != -1 ? GetStringByStrRef(str.nDisplayNameStrRef) : str.sUnlocalizedName);
 
-    WriteLog("* Loading Tileset Data: " + sTileset + " -> " + sName);
+    LogInfo("Loading Tileset Data: " + sTileset + " -> " + sName);
 
     int nTerrainNum;
     for (nTerrainNum = 0; nTerrainNum < str.nNumTerrain; nTerrainNum++)

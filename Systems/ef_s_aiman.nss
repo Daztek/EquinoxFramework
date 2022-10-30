@@ -42,7 +42,7 @@ void AIMan_RegisterAIBehaviorEvent(struct AnnotationData str)
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     if (nEventType == -1)
-        WriteLog("* WARNING: System '" + str.sSystem + "' tried to register '" + str.sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);
+        LogWarning("System '" + str.sSystem + "' tried to register '" + str.sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);
     else
     {
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + AIMAN_SCRIPT_NAME + "(behavior, eventtype, scriptchunk) VALUES(@behavior, @eventtype, @scriptchunk);");
@@ -53,7 +53,7 @@ void AIMan_RegisterAIBehaviorEvent(struct AnnotationData str)
 
         EFCore_CacheScriptChunk(sScriptChunk);
 
-        WriteLog("* System '" + str.sSystem + "' registered '" + str.sFunction + "' for behavior '" + sBehavior + "' and event '" + sEventType + "'");
+        LogInfo("System '" + str.sSystem + "' registered '" + str.sFunction + "' for behavior '" + sBehavior + "' and event '" + sEventType + "'");
     }
 }
 
@@ -184,7 +184,7 @@ void AIMan_HandleAIEvent(int nEventType)
 
                 if (AIMAN_DEBUG_EVENTS && sError != "")
                 {
-                    WriteLog("* DEBUG: '" + GetName(oCreature) + "' failed event '" + IntToString(nEventType) + "' for behavior '" + sBehavior + "' with error: " + sError);
+                    LogError(GetName(oCreature) + "' failed event '" + IntToString(nEventType) + "' for behavior '" + sBehavior + "' with error: " + sError);
                 }
             }
         }

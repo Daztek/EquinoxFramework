@@ -40,7 +40,7 @@ void ObjSit_Load()
         object oChair = GffTools_CreatePlaceable(jChair, GetLocation(oSpawnpoint));
         EM_ObjectDispatchListInsert(oChair, nObjectDispatchListId);
     }
-    WriteLog("* Created '" + IntToString(--nNth) + "' Single Sitting Objects");
+    LogInfo("Created '" + IntToString(--nNth) + "' Single Sitting Objects");
 
     struct GffTools_PlaceableData pdDouble;
     pdDouble.nModel = 178;
@@ -58,7 +58,7 @@ void ObjSit_Load()
         object oBench = GffTools_CreatePlaceable(jBench, GetLocation(oSpawnpoint));
         EM_ObjectDispatchListInsert(oBench, nObjectDispatchListId);
     }
-    WriteLog("* Created '" + IntToString(--nNth) + "' Double Sitting Objects");
+    LogInfo("Created '" + IntToString(--nNth) + "' Double Sitting Objects");
 }
 
 // @EVENT[EVENT_SCRIPT_PLACEABLE_ON_USED:DL]

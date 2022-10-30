@@ -22,7 +22,7 @@ void Debug_OnResourceModified()
 
         if (sScriptName == DEBUG_DEBUG_SCRIPT_NAME)
         {
-            WriteLog("* Changes detected, executing debug script");
+            LogInfo("Changes detected, executing debug script");
 
             string sScriptChunk = ResManGetFileContents(DEBUG_DEBUG_SCRIPT_NAME, RESTYPE_NSS);
 
@@ -31,7 +31,7 @@ void Debug_OnResourceModified()
                 string sResult = ExecuteScriptChunk(sScriptChunk, GetModule(), FALSE);
 
                 if (sResult != "")
-                    WriteLog("> Failed to execute debug script, error: " + sResult);
+                    LogError("Failed to execute debug script, error: " + sResult);
             }
         }
     }

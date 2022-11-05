@@ -30,7 +30,6 @@ string nssFunction(string sFunction, string sArguments = "", int bAddSemicolon =
 // Only supports the following types: (o)bject, (s)tring, (i)nt, (f)loat, (l)ocation, (v)ector, (j)son
 string nssConvertShortType(string sShortType, int bLowerCase = FALSE);
 string nssConvertType(string sType);
-string nssCompileScript(string sFileName, string sInclude, string sScriptChunk);
 
 string nssVoidMain(string sContents)
 {
@@ -172,9 +171,4 @@ string nssConvertType(string sType)
     else if (sType == "json")       sReturn = "j";
 
     return sReturn;
-}
-
-string nssCompileScript(string sFileName, string sInclude, string sScriptChunk)
-{
-    return CompileScript(sFileName, nssInclude(sInclude) + nssVoidMain(sScriptChunk));
 }

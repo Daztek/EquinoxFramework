@@ -54,7 +54,7 @@ void EM_Init()
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     // :(
-    nssCompileScript(EM_SCRIPT_NAME, EM_SCRIPT_NAME, nssFunction("EM_SignalObjectEvent"));
+    VMCompileScript(EM_SCRIPT_NAME, EM_SCRIPT_NAME, nssFunction("EM_SignalObjectEvent"));
 }
 
 // @CORE[EF_SYSTEM_LOAD]
@@ -107,7 +107,7 @@ void EM_InsertObjectEventAnnotations(struct AnnotationData str)
     int nPriority = GetConstantIntValue(JsonArrayGetString(str.jArguments, 2), str.sSystem, StringToInt(JsonArrayGetString(str.jArguments, 2)));
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
-    if (nEventType == -1)
+    if (nEventType == -1 || GetStringLeft(sEventType, GetStringLength("EVENT_SCRIPT_")) != "EVENT_SCRIPT_")
         LogWarning("System '" + str.sSystem + "' tried to register '" + str.sFunction + "' for an invalid object event: " + sEventType);
     else
     {

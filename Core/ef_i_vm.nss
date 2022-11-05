@@ -6,6 +6,7 @@
 */
 
 #include "ef_i_json"
+#include "ef_i_nss"
 
 struct VMFrame
 {
@@ -18,12 +19,12 @@ struct VMFrame
 // 0: Current Function
 // 1: Calling Function
 struct VMFrame GetVMFrame(int nDepth = 0);
-
 // Get script name of the current frame
 string GetVMFrameScript(int nDepth = 0);
-
 // Get a VM backtrace as string
 string GetVMBacktrace(int nDepth = 0);
+// Convenience  Wrapper around CompileScript
+string VMCompileScript(string sFileName, string sInclude, string sScriptChunk);
 
 struct VMFrame GetVMFrame(int nDepth = 0)
 {
@@ -65,4 +66,9 @@ string GetVMBacktrace(int nDepth = 0)
     }
 
     return sBacktrace;
+}
+
+string VMCompileScript(string sFileName, string sInclude, string sScriptChunk)
+{
+    return CompileScript(sFileName, nssInclude(sInclude) + nssVoidMain(sScriptChunk));
 }

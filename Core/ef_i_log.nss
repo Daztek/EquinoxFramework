@@ -16,15 +16,15 @@ void LogWarning(string sMessage);
 // Write an error message to the log
 void LogError(string sMessage, int bIncludeBacktrace = TRUE);
 
-void WriteLog(string sType, string sMessage)
+void WriteLog(string sType, string sMessage, int bShowFunctioName = TRUE)
 {
     struct VMFrame str = GetVMFrame(2);
-    PrintString("(" + str.sFile + ":" + str.sFunction + ":" + IntToString(str.nLine) + ") " + (sType != "" ? sType + ": " : "") + sMessage);
+    PrintString("(" + str.sFile + (bShowFunctioName ? ":" + str.sFunction : "") + ":" + IntToString(str.nLine) + ") " + (sType != "" ? sType + ": " : "") + sMessage);
 }
 
 void LogInfo(string sMessage)
 {
-    WriteLog("", sMessage);
+    WriteLog("", sMessage, FALSE);
 }
 
 void LogDebug(string sMessage)

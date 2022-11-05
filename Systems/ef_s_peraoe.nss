@@ -23,7 +23,7 @@ void PerAOE_AddScript(string sScript)
     string sExecuteScriptChunk = nssFunction("ExecuteScriptChunk", sGetLocalString + ", OBJECT_SELF, FALSE");
     string sScriptChunk = sObjectSelf + sExecuteScriptChunk;
 
-    string sError = nssCompileScript(sScript, PERAOE_SCRIPT_NAME, sScriptChunk);
+    string sError = VMCompileScript(sScript, PERAOE_SCRIPT_NAME, sScriptChunk);
 
     if (sError != "")
         LogError("Failed to compile script '" + sScript + "' with error: " + sError);

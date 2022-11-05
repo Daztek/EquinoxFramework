@@ -20,7 +20,7 @@ const int EP_POSTPROCESS_TILE_BATCH                 = 8;
 const string EP_EVENT_AREA_POST_PROCESS_FINISHED    = "EP_EVENT_AREA_POST_PROCESS_FINISHED";
 
 const string EP_AREA_TILESET                        = TILESET_RESREF_MEDIEVAL_RURAL_2;
-const int EP_MAX_ITERATIONS                         = 25;
+const int EP_MAX_ITERATIONS                         = 50;
 const string EP_AREA_DEFAULT_EDGE_TERRAIN           = "TREES";
 const int EP_AREA_MINIMUM_LENGTH                    = 8;
 const int EP_AREA_RANDOM_LENGTH                     = 12;
@@ -181,12 +181,13 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
 
     AG_AddEdgeTerrain(sAreaID, "WATER");
     AG_AddEdgeTerrain(sAreaID, "MOUNTAIN");
-    //AG_AddEdgeTerrain(sAreaID, "GRASS");
-    //AG_AddEdgeTerrain(sAreaID, "GRASS2");
+    AG_AddEdgeTerrain(sAreaID, "GRASS");
+    AG_AddEdgeTerrain(sAreaID, "GRASS2");
 
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "ROAD");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "BRIDGE");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "STREET");
+    AG_SetIgnoreTerrainOrCrosser(sAreaID, "WALL");
 
     if (sAreaID != EP_AREA_TAG_PREFIX + "1")
     {

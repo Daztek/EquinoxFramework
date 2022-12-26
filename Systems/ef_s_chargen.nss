@@ -606,7 +606,7 @@ json CG_CreateMainWindow()
                 NB_StartElement(NuiLabel(JsonString("First Name:"), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
                     NB_SetDimensions(128.0f, 32.0f);
                 NB_End();
-                NB_StartElement(NuiTextEdit(JsonString(""), NuiBind(CG_BIND_VALUE_FIRST_NAME), 256, FALSE));
+                NB_StartElement(NuiTextEdit(JsonString(""), NuiBind(CG_BIND_VALUE_FIRST_NAME), 256, FALSE, FALSE));
                     NB_SetHeight(32.0f);
                 NB_End();
                 NB_StartElement(NuiButtonImage(JsonString("ir_cheer")));
@@ -619,7 +619,7 @@ json CG_CreateMainWindow()
                 NB_StartElement(NuiLabel(JsonString("Last Name:"), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
                     NB_SetDimensions(128.0f, 32.0f);
                 NB_End();
-                NB_StartElement(NuiTextEdit(JsonString(""), NuiBind(CG_BIND_VALUE_LAST_NAME), 256, FALSE));
+                NB_StartElement(NuiTextEdit(JsonString(""), NuiBind(CG_BIND_VALUE_LAST_NAME), 256, FALSE, FALSE));
                     NB_SetHeight(32.0f);
                 NB_End();
                 NB_StartElement(NuiButtonImage(JsonString("ir_cheer")));
@@ -836,7 +836,7 @@ json CG_CreateFeatWindow()
                         NB_End();
                     NB_End();
                     NB_StartRow();
-                        NB_StartElement(NuiTextEdit(JsonString("Search Feats..."), NuiBind(CG_BIND_VALUE_SEARCH_TEXT), 32, FALSE));
+                        NB_StartElement(NuiTextEdit(JsonString("Search Feats..."), NuiBind(CG_BIND_VALUE_SEARCH_TEXT), 32, FALSE, FALSE));
                             NB_SetHeight(32.0f);
                         NB_End();
                         NB_StartElement(NuiButton(JsonString("X")));

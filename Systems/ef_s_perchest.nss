@@ -119,7 +119,7 @@ json PC_CreateWindow()
           NB_End();
         NB_End();
         NB_StartRow();
-          NB_AddElement(NuiTextEdit(JsonString("Search..."), NuiBind(PC_BIND_SEARCH_TEXT), 64, FALSE));
+          NB_AddElement(NuiTextEdit(JsonString("Search..."), NuiBind(PC_BIND_SEARCH_TEXT), 64, FALSE, FALSE));
           NB_StartElement(NuiButton(JsonString("X")));
             NB_SetId(PC_BIND_BUTTON_CLEAR);
             NB_SetEnabled(NuiBind(PC_BIND_BUTTON_CLEAR));

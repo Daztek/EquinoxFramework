@@ -92,7 +92,7 @@ json Console_CreateWindow()
                 NB_StartElement(NuiCombo(NuiBind(CONSOLE_BIND_COMBO_SYSTEM_ENTRIES), NuiBind(CONSOLE_BIND_COMBO_SYSTEM_SELECTED)));
                     NB_SetDimensions(150.0f, 32.0f);
                 NB_End();
-                NB_StartElement(NuiTextEdit(JsonString("Search commands..."), NuiBind(CONSOLE_BIND_INPUT_COMMAND), 64, FALSE));
+                NB_StartElement(NuiTextEdit(JsonString("Search commands..."), NuiBind(CONSOLE_BIND_INPUT_COMMAND), 64, FALSE, FALSE));
                     NB_SetHeight(32.0f);
                 NB_End();
                 NB_StartElement(NuiButton(JsonString("X")));
@@ -155,7 +155,7 @@ json Console_CreateWindow()
                                 NB_AddSpacer();
                             NB_End();
                             NB_StartListTemplateCell(220.0f, TRUE);
-                                NB_StartElement(NuiTextEdit(JsonString(""), NuiBind(CONSOLE_BIND_LIST_ARG_VALUE), 128, FALSE));
+                                NB_StartElement(NuiTextEdit(JsonString(""), NuiBind(CONSOLE_BIND_LIST_ARG_VALUE), 128, FALSE, FALSE));
                                 NB_End();
                             NB_End();
                             NB_StartListTemplateCell(2.0f, FALSE);

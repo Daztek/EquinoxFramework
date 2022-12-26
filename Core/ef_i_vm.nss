@@ -45,7 +45,7 @@ string GetVMBacktrace(int nDepth = 0)
 {
     string sBacktrace;
     json jFrames = JsonObjectGet(GetScriptBacktrace(FALSE), "frames");
-    int nFrame, nNumFrames = JsonGetLength(jFrames), nPreviousIP = 0x7FFFFFFF;
+    int nFrame, nNumFrames = JsonGetLength(jFrames);
 
     for (nFrame = (1 + nDepth); nFrame < nNumFrames; nFrame++)
     {
@@ -53,13 +53,8 @@ string GetVMBacktrace(int nDepth = 0)
         string sFile = JsonObjectGetString(jFrame, "file");
         string sFunction = JsonObjectGetString(jFrame, "function");
         int nLine = JsonObjectGetInt(jFrame, "line");
-        int nIP = JsonObjectGetInt(jFrame, "ip");
 
-        if (nIP < nPreviousIP)
-        {
-            nPreviousIP = nIP;
-            sBacktrace += IntToString(nFrame - (1 + nDepth)) + ": " + sFile + ":" + sFunction + ":" + IntToString(nLine) + "\n";
-        }
+        sBacktrace += IntToString(nFrame - (1 + nDepth)) + ": " + sFile + "::" + sFunction + ":" + IntToString(nLine) + "\n";
 
         if (sFunction == "main")
             break;
@@ -70,5 +65,5 @@ string GetVMBacktrace(int nDepth = 0)
 
 string VMCompileScript(string sFileName, string sInclude, string sScriptChunk)
 {
-    return CompileScript(sFileName, nssInclude(sInclude) + nssVoidMain(sScriptChunk));
+    return CompileScript(sFileName, nssInclude(sInclude) + nssVoidMain(sScriptChunk), FALSE, TRUE);
 }

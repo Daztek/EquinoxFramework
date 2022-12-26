@@ -242,7 +242,8 @@ json NuiProgress(json jValue);
 // - jValue: Bind:String
 // - nMaxLength: UInt >= 1, <= 65535
 // - bMultiLine: Bool
-json NuiTextEdit(json jPlaceholder, json jValue, int nMaxLength, int bMultiline);
+// - bWordWrap: Bool
+json NuiTextEdit(json jPlaceholder, json jValue, int nMaxLength, int bMultiline, int bWordWrap = TRUE);
 
 // Creates a list view of elements.
 // jTemplate needs to be an array of NuiListTemplateCell instances.
@@ -777,12 +778,14 @@ NuiTextEdit(
   json jPlaceholder,
   json jValue,
   int nMaxLength,
-  int bMultiline
+  int bMultiline,
+  int bWordWrap = TRUE
 )
 {
   json ret = NuiElement("textedit", jPlaceholder, jValue);
   ret = JsonObjectSet(ret, "max", JsonInt(nMaxLength));
   ret = JsonObjectSet(ret, "multiline", JsonBool(bMultiline));
+  ret = JsonObjectSet(ret, "wordwrap", JsonBool(bWordWrap));
   return ret;
 }
 

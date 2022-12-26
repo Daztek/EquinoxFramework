@@ -496,7 +496,7 @@ json QC_CreateSetSlotWindow()
                 NB_StartElement(NuiCombo(NuiBind(QC_BIND_METAMAGIC_COMBO_ENTRIES), NuiBind(QC_BIND_METAMAGIC_COMBO_SELECTED)));
                     NB_SetDimensions(125.0f, 32.0f);
                 NB_End();
-                NB_StartElement(NuiTextEdit(JsonString("Search spells..."), NuiBind(QC_BIND_SPELL_SEARCH_INPUT), 64, FALSE));
+                NB_StartElement(NuiTextEdit(JsonString("Search spells..."), NuiBind(QC_BIND_SPELL_SEARCH_INPUT), 64, FALSE, FALSE));
                     NB_SetHeight(32.0f);
                 NB_End();
                 NB_StartElement(NuiButton(JsonString("X")));

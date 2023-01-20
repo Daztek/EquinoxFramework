@@ -407,16 +407,16 @@ struct AnnotationData EFCore_GetAnnotationDataStruct(json jAnnotationData)
 
 string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)
 {
-    string retVal;
+    string sRetVal;
     if (EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING)
     {
         NWNX_PushArgumentInt(bWrapIntoMain);
         NWNX_PushArgumentString(sScriptChunk);
         NWNX_CallFunction("NWNX_Optimizations", "CacheScriptChunk");
-        retVal = NWNX_GetReturnValueString();
+        sRetVal = NWNX_GetReturnValueString();
     }
 
-    return retVal;
+    return sRetVal;
 }
 
 void EFCore_ResetScriptInstructions()

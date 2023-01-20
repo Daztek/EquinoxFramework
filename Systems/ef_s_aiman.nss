@@ -21,6 +21,7 @@ int AIMan_GetTimeOut(string sTimeoutFlag, object oCreature = OBJECT_SELF);
 void AIMan_SetTimeOut(string sTimeoutFlag, float fSeconds, object oCreature = OBJECT_SELF);
 void AIMan_ApplyCutsceneGhost(object oCreature = OBJECT_SELF);
 void AIMan_SetIsAmbientNPC(object oCreature = OBJECT_SELF);
+object AIMain_SpawnCreature(string sResRef, location locSpawn, string sBehavior);
 
 // @CORE[EF_SYSTEM_INIT]
 void AIMan_Init()
@@ -159,6 +160,13 @@ void AIMan_ApplyCutsceneGhost(object oCreature = OBJECT_SELF)
 void AIMan_SetIsAmbientNPC(object oCreature = OBJECT_SELF)
 {
     SetObjectUiDiscoveryMask(oCreature, OBJECT_UI_DISCOVERY_HILITE_MOUSEOVER | OBJECT_UI_DISCOVERY_TEXTBUBBLE_MOUSEOVER);
+}
+
+object AIMain_SpawnCreature(string sResRef, location locSpawn, string sBehavior)
+{
+    object oCreature = CreateObject(OBJECT_TYPE_CREATURE, sResRef, locSpawn);
+    AIMan_SetBehavior(oCreature, sBehavior);
+    return oCreature;
 }
 
 void AIMan_HandleAIEvent(int nEventType)

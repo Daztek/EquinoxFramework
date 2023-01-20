@@ -52,6 +52,7 @@ const string AG_DATA_KEY_GENERATION_CALLBACK                    = "GenerationCal
 const string AG_DATA_KEY_GENERATION_LOG_STATUS                  = "GenerationLogStatus";
 const string AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE    = "GenerationSingleGroupTileChance";
 const string AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE         = "GenerationHeightFirstChance";
+const string AG_DATA_KEY_GENERATION_SPIRAL_TYPE                 = "GenerationSpiralType";
 
 const string AG_DATA_KEY_TILE_ID                                = "TileID";
 const string AG_DATA_KEY_TILE_LOCKED                            = "Locked";
@@ -71,6 +72,7 @@ const string AG_DATA_KEY_NUM_PATH_DOOR_CROSSER_COMBOS           = "PathDoorCross
 const string AG_DATA_KEY_PATH_DOOR_ID                           = "PathDoorId_";
 const string AG_DATA_KEY_PATH_CROSSER_TYPE                      = "PathCrosserType_";
 
+const string AG_GENERATION_TILE_ARRAY                           = "GenerationTileArray";
 const string AG_FAILED_TILES_ARRAY                              = "FailedTilesArray";
 const string AG_IGNORE_TOC_ARRAY                                = "IgnoreTOCArray";
 
@@ -88,6 +90,9 @@ const int AG_AREA_EDGE_TOP                                      = 0;
 const int AG_AREA_EDGE_RIGHT                                    = 1;
 const int AG_AREA_EDGE_BOTTOM                                   = 2;
 const int AG_AREA_EDGE_LEFT                                     = 3;
+
+const int AG_GENERATION_SPIRAL_TYPE_INWARD                      = 0;
+const int AG_GENERATION_SPIRAL_TYPE_OUTWARD                     = 1;
 
 struct AG_Tile
 {
@@ -146,8 +151,9 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
 string AG_ResolveCorner(string sCorner1, string sCorner2);
 string AG_SqlConstructCAEClause(struct TS_TileStruct str);
 struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile, int bHeightFirst);
-void AG_ProcessTile(string sAreaID, int nWidth, int nX, int nY);
-int AG_GenerateRandom(string sAreaID);
+void AG_ProcessTile(string sAreaID, int nTileID);
+int AG_GenerateRandomTiles(string sAreaID);
+void AG_GenerateSpiralTileArray(string sAreaID);
 void AG_GenerateArea(string sAreaID);
 int AG_GetEdgeFromTile(string sAreaID, int nTile);
 int AG_GetRandomOtherEdge(int nEdgeToSkip);
@@ -788,10 +794,8 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     return tile;
 }
 
-void AG_ProcessTile(string sAreaID, int nWidth, int nX, int nY)
+void AG_ProcessTile(string sAreaID, int nTile)
 {
-    int nTile = nX + (nY * nWidth);
-
     if (AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile) != AG_INVALID_TILE_ID)
         return;
 
@@ -809,10 +813,44 @@ void AG_ProcessTile(string sAreaID, int nWidth, int nX, int nY)
     else
         IntArray_Insert(AG_GetAreaDataObject(sAreaID), AG_FAILED_TILES_ARRAY, nTile);
 
-    NWNX_Util_SetInstructionsExecuted(0);
+    EFCore_ResetScriptInstructions();
 }
 
 int AG_GenerateRandomTiles(string sAreaID)
+{
+    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+    int nSpiralType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SPIRAL_TYPE);
+    int nCount, nNumTiles = IntArray_Size(oAreaDataObject, AG_GENERATION_TILE_ARRAY);
+
+    IntArray_Clear(oAreaDataObject, AG_FAILED_TILES_ARRAY, TRUE);
+
+    switch (nSpiralType)
+    {
+        case AG_GENERATION_SPIRAL_TYPE_INWARD:
+        {
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCount);
+                AG_ProcessTile(sAreaID, nTile);
+            }
+            break;
+        }
+
+        case AG_GENERATION_SPIRAL_TYPE_OUTWARD:
+        {
+            for (nCount = nNumTiles - 1; nCount >= 0; nCount--)
+            {
+                int nTile = IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCount);
+                AG_ProcessTile(sAreaID, nTile);
+            }
+            break;
+        }
+    }
+
+    return IntArray_Size(oAreaDataObject, AG_FAILED_TILES_ARRAY);
+}
+
+void AG_GenerateSpiralTileArray(string sAreaID)
 {
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
     int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
@@ -820,19 +858,19 @@ int AG_GenerateRandomTiles(string sAreaID)
     int nCurrentWidth = nWidth, nCurrentHeight = nHeight;
     int nCount, nCurrentRow, nCurrentColumn;
 
-    IntArray_Clear(oAreaDataObject, AG_FAILED_TILES_ARRAY, TRUE);
+    IntArray_Clear(oAreaDataObject, AG_GENERATION_TILE_ARRAY, TRUE);
 
     while (nCurrentRow < nWidth && nCurrentColumn < nHeight)
     {
         for (nCount = nCurrentColumn; nCount < nCurrentHeight; nCount++)
         {
-            AG_ProcessTile(sAreaID, nWidth, nCurrentRow, nCount);
+            IntArray_Insert(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCurrentRow + (nCount * nWidth));
         }
         nCurrentRow++;
 
         for (nCount = nCurrentRow; nCount < nCurrentWidth; ++nCount)
         {
-            AG_ProcessTile(sAreaID, nWidth, nCount, nCurrentHeight - 1);
+            IntArray_Insert(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCount + ((nCurrentHeight - 1) * nWidth));
         }
         nCurrentHeight--;
 
@@ -840,7 +878,7 @@ int AG_GenerateRandomTiles(string sAreaID)
         {
             for (nCount = nCurrentHeight - 1; nCount >= nCurrentColumn; --nCount)
             {
-                AG_ProcessTile(sAreaID, nWidth, nCurrentWidth - 1, nCount);
+                IntArray_Insert(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nCurrentWidth - 1) + (nCount * nWidth));
             }
             nCurrentWidth--;
         }
@@ -849,13 +887,11 @@ int AG_GenerateRandomTiles(string sAreaID)
         {
             for (nCount = nCurrentWidth - 1; nCount >= nCurrentRow; --nCount)
             {
-                AG_ProcessTile(sAreaID, nWidth, nCount, nCurrentColumn);
+                IntArray_Insert(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCount + (nCurrentColumn * nWidth));
             }
             nCurrentColumn++;
         }
     }
-
-    return IntArray_Size(oAreaDataObject, AG_FAILED_TILES_ARRAY);
 }
 
 void AG_GenerateArea(string sAreaID)
@@ -895,6 +931,8 @@ void AG_GenerateArea(string sAreaID)
             {
                 StringArray_Insert(oAreaDataObject, AG_IGNORE_TOC_ARRAY, JsonArrayGetString(jIgnoredTOCArray, nTOC));
             }
+
+            AG_GenerateSpiralTileArray(sAreaID);
         }
 
         if (nIteration < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS))
@@ -1063,7 +1101,7 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
             {
                 int nTile = nStart + nCount;
                 struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfoByTileIndex(oArea, nTile);
-                AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, nCount, str.nID, str.nOrientation);
+                AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, nCount, str.nID, str.nOrientation, str.nHeight);
 
                 int nTileIndex = nCount;
                 if (AG_GetIsPathDoor(sAreaID, str.nID))
@@ -1083,7 +1121,7 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
             {
                 int nTile = nStart + (nCount * nOtherWidth);
                 struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfoByTileIndex(oArea, nTile);
-                AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_EDGE_LEFT, nCount, str.nID, str.nOrientation);
+                AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_EDGE_LEFT, nCount, str.nID, str.nOrientation, str.nHeight);
 
                 int nTileIndex = nCount * nWidth;
                 if (AG_GetIsPathDoor(sAreaID, str.nID))
@@ -1103,7 +1141,7 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
             {
                 int nTile = nStart + nCount;
                 struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfoByTileIndex(oArea, nTile);
-                AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TOP, nCount, str.nID, str.nOrientation);
+                AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TOP, nCount, str.nID, str.nOrientation, str.nHeight);
 
                 int nTileIndex = (nOtherWidth * (nHeight - 1)) + nCount;
                 if (AG_GetIsPathDoor(sAreaID, str.nID))
@@ -1123,7 +1161,7 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
             {
                 int nTile = nStart + (nCount * nOtherWidth);
                 struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfoByTileIndex(oArea, nTile);
-                AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, nCount, str.nID, str.nOrientation);
+                AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, nCount, str.nID, str.nOrientation, str.nHeight);
 
                 int nTileIndex = (nWidth - 1) + (nCount * nWidth);
                 if (AG_GetIsPathDoor(sAreaID, str.nID))

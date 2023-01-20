@@ -36,3 +36,9 @@ void Debug_OnResourceModified()
         }
     }
 }
+
+// @CORE[EF_SYSTEM_LOAD]
+void Debug_Load()
+{
+
+}

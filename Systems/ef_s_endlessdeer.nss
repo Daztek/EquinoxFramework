@@ -39,14 +39,12 @@ void ED_SpawnDeer(object oArea, location locSpawn)
 {
     if (!GetLocalInt(oArea, ED_AREA_SPAWNED_STAG) && (Random(100) < ED_AREA_SPAWN_STAG_CHANCE))
     {
-        object oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_deerstag", locSpawn);
-        AIB_EnableChargeFleeBehavior(oCreature);
+        AIMain_SpawnCreature("nw_deerstag", locSpawn, AIB_BEHAVIOR_CHARGEFLEE);
         SetLocalInt(oArea, ED_AREA_SPAWNED_STAG, TRUE);
     }
     else
     {
-        object oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_deer", locSpawn);
-        AIB_EnableWanderFleeBehavior(oCreature);
+        AIMain_SpawnCreature("nw_deer", locSpawn, AIB_BEHAVIOR_WANDERFLEE);
     }
 }
 

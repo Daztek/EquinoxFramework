@@ -177,6 +177,7 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, EP_AREA_SINGLE_GROUP_TILE_CHANCE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10 + Random(16));
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE, !Random(4) ? 100 : 0);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SPIRAL_TYPE, Random(2));
     AG_SetCallbackFunction(sAreaID, EP_SCRIPT_NAME, "EP_OnAreaGenerated");
 
     AG_AddEdgeTerrain(sAreaID, "WATER");
@@ -342,7 +343,6 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
 
             if (NWNX_Area_GetPathExists(oArea, vEntrancePosition, vTilePosition, nNumTiles))
             {
-                location locTile = Location(oArea, vTilePosition, 0.0f);
                 int nDistanceFromEntrance = abs(strEntrancePosition.nX - strTileInfo.nGridX) + abs(strEntrancePosition.nY - strTileInfo.nGridY);
                 int nDistanceFromExit = abs(strExitPosition.nX - strTileInfo.nGridX) + abs(strExitPosition.nY - strTileInfo.nGridY);
                 int nDistanceFromPath = EP_NearestPathDistance(sAreaID, strTileInfo.nGridX, strTileInfo.nGridY);
@@ -370,7 +370,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
     DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea, nCurrentTile, nNumTiles));
 }
 
-void PortToTile(string sType)
+void EP_PortToTile(string sType)
 {
     object oPlayer = OBJECT_SELF;
     object oArea = GetArea(oPlayer);
@@ -390,13 +390,13 @@ void PortToTile(string sType)
 // @CONSOLE[EPEntrance::]
 void EP_PortToEntrance()
 {
-    PortToTile(AG_DATA_KEY_ENTRANCE_TILE_INDEX);
+    EP_PortToTile(AG_DATA_KEY_ENTRANCE_TILE_INDEX);
 }
 
 // @CONSOLE[EPExit::]
 void EP_PortToExit()
 {
-    PortToTile(AG_DATA_KEY_EXIT_TILE_INDEX);
+    EP_PortToTile(AG_DATA_KEY_EXIT_TILE_INDEX);
 }
 
 // @CONSOLE[EPTileInfo::]

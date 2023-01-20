@@ -22,7 +22,7 @@ string BuffInfo_GetModifierType(int nEffectType, int nPlus, int nMinus);
 // @CORE[EF_SYSTEM_LOAD]
 void BuffInfo_Load()
 {
-    PostString_ReserveIDs(BUFFINFO_SCRIPT_NAME, BUFFINFO_GUI_NUM_IDS);
+    PostString_ReserveIDs(BUFFINFO_GUI_NUM_IDS);
 }
 
 // @GUIEVENT[GUIEVENT_EFFECTICON_CLICK]
@@ -35,7 +35,7 @@ void BuffInfo_HandleEffectIconClick()
     if (nIconEffectType == EFFECT_TYPE_INVALIDEFFECT)
         return;
 
-    int nID = PostString_GetStartID(BUFFINFO_SCRIPT_NAME);
+    int nID = PostString_GetStartID();
     int nLastNumLines = PlayerDB_GetSessionInt(oPlayer, BUFFINFO_SCRIPT_NAME, BUFFINFO_LAST_NUM_LINES);
     PostString_ClearByRange(oPlayer, nID, nID + nLastNumLines);
 

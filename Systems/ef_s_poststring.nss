@@ -34,13 +34,13 @@ const int POSTSTRING_COLOR_FUSCHIA      = 0xFF00FFFF;
 const int POSTSTRING_COLOR_PURPLE       = 0x800080FF;
 
 // Reserve nAmount of PostString() IDs for sSystem
-void PostString_ReserveIDs(string sSystem, int nAmount);
+void PostString_ReserveIDs(int nAmount, string sSystem = "");
 // Return the starting PostString() ID for sSystem
-int PostString_GetStartID(string sSystem);
+int PostString_GetStartID(string sSystem = "");
 // Return the ending PostString() ID for sSystem
-int PostString_GetEndID(string sSystem);
+int PostString_GetEndID(string sSystem = "");
 // Return the amount of PostString() IDs that sSystem has requested
-int PostString_GetIDAmount(string sSystem);
+int PostString_GetIDAmount(string sSystem = "");
 
 // Clear a PostString() string with nID for oPlayer
 void PostString_ClearByID(object oPlayer, int nID);
@@ -55,9 +55,12 @@ void PostString_Init()
     SetLocalInt(GetDataObject(POSTSTRING_SCRIPT_NAME), "TotalIDs", POSTSTRING_ID_START);
 }
 
-void PostString_ReserveIDs(string sSystem, int nAmount)
+void PostString_ReserveIDs(int nAmount, string sSystem = "")
 {
     object oDataObject = GetDataObject(POSTSTRING_SCRIPT_NAME);
+
+    if (sSystem == "")
+        sSystem = GetVMFrameScript(1);
 
     if (!GetLocalInt(oDataObject, sSystem + "_Amount"))
     {
@@ -74,18 +77,27 @@ void PostString_ReserveIDs(string sSystem, int nAmount)
     }
 }
 
-int PostString_GetStartID(string sSystem)
+int PostString_GetStartID(string sSystem = "")
 {
+    if (sSystem == "")
+        sSystem = GetVMFrameScript(1);
+
     return GetLocalInt(GetDataObject(POSTSTRING_SCRIPT_NAME), sSystem + "_StartID");
 }
 
-int PostString_GetEndID(string sSystem)
+int PostString_GetEndID(string sSystem = "")
 {
+    if (sSystem == "")
+        sSystem = GetVMFrameScript(1);
+
     return GetLocalInt(GetDataObject(POSTSTRING_SCRIPT_NAME), sSystem + "_EndID");
 }
 
-int PostString_GetIDAmount(string sSystem)
+int PostString_GetIDAmount(string sSystem = "")
 {
+    if (sSystem == "")
+        sSystem = GetVMFrameScript(1);
+
     return GetLocalInt(GetDataObject(POSTSTRING_SCRIPT_NAME), sSystem + "_Amount");
 }
 

@@ -190,7 +190,7 @@ void EC_GenerateCave(json jCave)
     AG_InitializeRandomArea(sAreaID, EC_AREA_TILESET, EC_AREA_DEFAULT_EDGE_TERRAIN, nAreaWidth, nAreaHeight);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, EC_DEBUG_LOG);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, EC_MAX_ITERATIONS);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SPIRAL_TYPE, AG_GENERATION_SPIRAL_TYPE_OUTWARD);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_GENERATION_TYPE_OUTWARD_SPIRAL);
     AG_SetCallbackFunction(sAreaID, EC_SCRIPT_NAME, "EC_OnCaveGenerated");
 
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "FENCE");

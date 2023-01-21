@@ -23,7 +23,7 @@ const string EP_AREA_TILESET                        = TILESET_RESREF_MEDIEVAL_RU
 const int EP_MAX_ITERATIONS                         = 50;
 const string EP_AREA_DEFAULT_EDGE_TERRAIN           = "TREES";
 const int EP_AREA_MINIMUM_LENGTH                    = 8;
-const int EP_AREA_RANDOM_LENGTH                     = 12;
+const int EP_AREA_RANDOM_LENGTH                     = 8;
 
 const int EP_AREA_PATH_NO_ROAD_CHANCE               = 10;
 const int EP_AREA_SAND_CHANCE                       = 30;
@@ -177,7 +177,7 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, EP_AREA_SINGLE_GROUP_TILE_CHANCE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10 + Random(16));
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE, !Random(4) ? 100 : 0);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, Random(5));
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, Random(8));
     AG_SetCallbackFunction(sAreaID, EP_SCRIPT_NAME, "EP_OnAreaGenerated");
 
     AG_AddEdgeTerrain(sAreaID, "WATER");
@@ -249,6 +249,22 @@ void EP_SetAreaModifiers(object oArea)
     Call(Function("ef_s_dynlight", "DynLight_InitArea"), ObjectArg(oArea));
 }
 
+string EP_GenerationTypeDebugString(int nGenerationType)
+{
+    switch (nGenerationType)
+    {
+        case AG_GENERATION_TYPE_SPIRAL_INWARD: return "AG_GENERATION_TYPE_SPIRAL_INWARD";
+        case AG_GENERATION_TYPE_SPIRAL_OUTWARD: return "AG_GENERATION_TYPE_SPIRAL_OUTWARD";
+        case AG_GENERATION_TYPE_LINEAR_ASCENDING: return "AG_GENERATION_TYPE_LINEAR_ASCENDING";
+        case AG_GENERATION_TYPE_LINEAR_DESCENDING: return "AG_GENERATION_TYPE_LINEAR_DESCENDING";
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD: return "AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD";
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD: return "AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD";
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD: return "AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD";
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD: return "AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD";
+    }
+    return "ERROR";
+}
+
 void EP_OnAreaGenerated(string sAreaID)
 {
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
@@ -279,7 +295,7 @@ void EP_OnAreaGenerated(string sAreaID)
         SetTransitionTarget(oPreviousDoor, oEntranceDoor);
         SetTransitionTarget(oEntranceDoor, oPreviousDoor);
 
-        LogInfo("Creating Area: " + GetTag(oArea) + " -> Generation Type: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
+        LogInfo("Creating Area: " + GetTag(oArea) + " -> Generation Type: " + EP_GenerationTypeDebugString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
 
         DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea));
     }

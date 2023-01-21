@@ -91,11 +91,14 @@ const int AG_AREA_EDGE_RIGHT                                    = 1;
 const int AG_AREA_EDGE_BOTTOM                                   = 2;
 const int AG_AREA_EDGE_LEFT                                     = 3;
 
-const int AG_GENERATION_TYPE_INWARD_SPIRAL                      = 0;
-const int AG_GENERATION_TYPE_OUTWARD_SPIRAL                     = 1;
+const int AG_GENERATION_TYPE_SPIRAL_INWARD                      = 0;
+const int AG_GENERATION_TYPE_SPIRAL_OUTWARD                     = 1;
 const int AG_GENERATION_TYPE_LINEAR_ASCENDING                   = 2;
 const int AG_GENERATION_TYPE_LINEAR_DESCENDING                  = 3;
-const int AG_GENERATION_TYPE_ALTERNATING_ROWS                   = 4;
+const int AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD            = 4;
+const int AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD           = 5;
+const int AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD         = 6;
+const int AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD        = 7;
 
 struct AG_Tile
 {
@@ -828,7 +831,9 @@ int AG_GenerateRandomTiles(string sAreaID)
 
     switch (nGenerationType)
     {
-        case AG_GENERATION_TYPE_INWARD_SPIRAL:
+        case AG_GENERATION_TYPE_SPIRAL_INWARD:
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD:
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD:
         {
             int nTile, nNumTiles = IntArray_Size(oAreaDataObject, AG_GENERATION_TILE_ARRAY);
             for (nTile = 0; nTile < nNumTiles; nTile++)
@@ -838,7 +843,9 @@ int AG_GenerateRandomTiles(string sAreaID)
             break;
         }
 
-        case AG_GENERATION_TYPE_OUTWARD_SPIRAL:
+        case AG_GENERATION_TYPE_SPIRAL_OUTWARD:
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD:
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD:
         {
             int nTile, nNumTiles = IntArray_Size(oAreaDataObject, AG_GENERATION_TILE_ARRAY);
             for (nTile = nNumTiles - 1; nTile >= 0; nTile--)
@@ -867,17 +874,6 @@ int AG_GenerateRandomTiles(string sAreaID)
             }
             break;
         }
-
-        case AG_GENERATION_TYPE_ALTERNATING_ROWS:
-        {
-            int nTile, nNumTiles = IntArray_Size(oAreaDataObject, AG_GENERATION_TILE_ARRAY);
-            for (nTile = 0; nTile < nNumTiles; nTile++)
-            {
-                AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nTile));
-            }
-
-            break;
-        }
     }
 
     return IntArray_Size(oAreaDataObject, AG_FAILED_TILES_ARRAY);
@@ -894,8 +890,8 @@ void AG_GenerateGenerationTileArray(string sAreaID)
 
     switch(nGenerationType)
     {
-        case AG_GENERATION_TYPE_INWARD_SPIRAL:
-        case AG_GENERATION_TYPE_OUTWARD_SPIRAL:
+        case AG_GENERATION_TYPE_SPIRAL_INWARD:
+        case AG_GENERATION_TYPE_SPIRAL_OUTWARD:
         {
             int nCurrentWidth = nWidth, nCurrentHeight = nHeight;
             int nCount, nCurrentRow, nCurrentColumn;
@@ -935,11 +931,11 @@ void AG_GenerateGenerationTileArray(string sAreaID)
             break;
         }
 
-        case AG_GENERATION_TYPE_ALTERNATING_ROWS:
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD:
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD:
         {
-            int nCurrentHeight;
-
-            while (nCurrentHeight < (nHeight / 2))
+            int nCurrentHeight, nMiddle = nHeight / 2;
+            while (nCurrentHeight < nMiddle)
             {
                 int nFront = nCurrentHeight;
                 int nBack = nHeight - (nCurrentHeight + 1);
@@ -955,7 +951,7 @@ void AG_GenerateGenerationTileArray(string sAreaID)
                     IntArray_Insert(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nBack * nWidth) + nTile);
                 }
 
-                if ((nHeight % 2) && nCurrentHeight == ((nHeight / 2) - 1))
+                if ((nHeight % 2) && nCurrentHeight == (nMiddle - 1))
                 {
                     for (nTile = 0; nTile < nWidth; nTile++)
                     {
@@ -966,6 +962,39 @@ void AG_GenerateGenerationTileArray(string sAreaID)
                 nCurrentHeight++;
             }
 
+            break;
+        }
+
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD:
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD:
+        {
+            int nCurrentWidth, nMiddle = (nWidth / 2);
+            while (nCurrentWidth < nMiddle)
+            {
+                int nFront = nCurrentWidth;
+                int nBack = nWidth - (nCurrentWidth + 1);
+
+                int nTile;
+                for (nTile = 0; nTile < nHeight; nTile++)
+                {
+                    IntArray_Insert(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nFront + (nWidth * nTile));
+                }
+
+                for (nTile = 0; nTile < nHeight; nTile++)
+                {
+                    IntArray_Insert(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nBack + (nWidth * nTile));
+                }
+
+                if ((nWidth % 2) && nCurrentWidth == (nMiddle - 1))
+                {
+                    for (nTile = 0; nTile < nHeight; nTile++)
+                    {
+                        IntArray_Insert(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nBack - 1) + (nWidth * nTile));
+                    }
+                }
+
+                nCurrentWidth++;
+            }
             break;
         }
     }
@@ -1015,7 +1044,10 @@ void AG_GenerateArea(string sAreaID)
         if (nIteration < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS))
         {
             object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+
+            struct ProfilerData pd = Profiler_Start("AG_GenerateRandomTiles: " + sAreaID);
             int nTileFailure, nNumTileFailures = AG_GenerateRandomTiles(sAreaID);
+            Profiler_Stop(pd);
 
             if (nNumTileFailures)
             {

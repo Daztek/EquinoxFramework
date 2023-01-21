@@ -15,7 +15,8 @@ const string AG_SCRIPT_NAME                                     = "ef_s_areagen"
 const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject";
 
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
-const float AG_GENERATION_DELAY                                 = 0.15f;
+const float AG_GENERATION_DELAY                                 = 0.1f;
+const int AG_GENERATION_TILE_BATCH                              = 32;
 const int AG_GENERATION_TILE_FAILURE_RESET_CHANCE               = 100;
 const int AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE              = 100;
 const int AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE                 = 25;
@@ -158,7 +159,7 @@ string AG_ResolveCorner(string sCorner1, string sCorner2);
 string AG_SqlConstructCAEClause(struct TS_TileStruct str);
 struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile, int bHeightFirst);
 void AG_ProcessTile(string sAreaID, int nTileID);
-int AG_GenerateRandomTiles(string sAreaID);
+void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0);
 void AG_GenerateGenerationTileArray(string sAreaID);
 void AG_GenerateArea(string sAreaID);
 int AG_GetEdgeFromTile(string sAreaID, int nTile);
@@ -822,12 +823,25 @@ void AG_ProcessTile(string sAreaID, int nTile)
     EFCore_ResetScriptInstructions();
 }
 
-int AG_GenerateRandomTiles(string sAreaID)
+void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 {
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
-    int nGenerationType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE);
 
-    IntArray_Clear(oAreaDataObject, AG_FAILED_TILES_ARRAY, TRUE);
+    if (nNumTiles == 0)
+    {
+        nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
+        IntArray_Clear(oAreaDataObject, AG_FAILED_TILES_ARRAY, TRUE);
+    }
+
+    if (nCurrentTile == nNumTiles)
+    {
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS) + 1);
+        AG_GenerateArea(sAreaID);
+        return;
+    }
+
+    int nGenerationType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE);
+    int nCurrentMaxTiles = min(nCurrentTile + AG_GENERATION_TILE_BATCH, nNumTiles);
 
     switch (nGenerationType)
     {
@@ -835,10 +849,9 @@ int AG_GenerateRandomTiles(string sAreaID)
         case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD:
         case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD:
         {
-            int nTile, nNumTiles = IntArray_Size(oAreaDataObject, AG_GENERATION_TILE_ARRAY);
-            for (nTile = 0; nTile < nNumTiles; nTile++)
+            for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
             {
-                AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nTile));
+                AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCurrentTile));
             }
             break;
         }
@@ -847,36 +860,33 @@ int AG_GenerateRandomTiles(string sAreaID)
         case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD:
         case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD:
         {
-            int nTile, nNumTiles = IntArray_Size(oAreaDataObject, AG_GENERATION_TILE_ARRAY);
-            for (nTile = nNumTiles - 1; nTile >= 0; nTile--)
+            for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
             {
-                AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nTile));
+                AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nNumTiles - 1) - nCurrentTile));
             }
             break;
         }
 
         case AG_GENERATION_TYPE_LINEAR_ASCENDING:
         {
-            int nTile, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
-            for (nTile = 0; nTile < nNumTiles; nTile++)
+            for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
             {
-                AG_ProcessTile(sAreaID, nTile);
+                AG_ProcessTile(sAreaID, nCurrentTile);
             }
             break;
         }
 
         case AG_GENERATION_TYPE_LINEAR_DESCENDING:
         {
-            int nTile, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
-            for (nTile = nNumTiles - 1; nTile >= 0; nTile--)
+            for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
             {
-                AG_ProcessTile(sAreaID, nTile);
+                AG_ProcessTile(sAreaID, (nNumTiles - 1) - nCurrentTile);
             }
             break;
         }
     }
 
-    return IntArray_Size(oAreaDataObject, AG_FAILED_TILES_ARRAY);
+    DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID, nCurrentTile, nNumTiles));
 }
 
 void AG_GenerateGenerationTileArray(string sAreaID)
@@ -1002,7 +1012,7 @@ void AG_GenerateGenerationTileArray(string sAreaID)
 
 void AG_GenerateArea(string sAreaID)
 {
-    if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FINISHED))
+    if (SetJmp(AG_DATA_KEY_GENERATION_FINISHED) || AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FINISHED))
     {
         if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
         {
@@ -1039,16 +1049,12 @@ void AG_GenerateArea(string sAreaID)
             }
 
             AG_GenerateGenerationTileArray(sAreaID);
+            DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID));
         }
-
-        if (nIteration < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS))
+        else if (nIteration < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS))
         {
             object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
-
-            struct ProfilerData pd = Profiler_Start("AG_GenerateRandomTiles: " + sAreaID);
-            int nTileFailure, nNumTileFailures = AG_GenerateRandomTiles(sAreaID);
-            Profiler_Stop(pd);
-
+            int nTileFailure, nNumTileFailures = IntArray_Size(oAreaDataObject, AG_FAILED_TILES_ARRAY);
             if (nNumTileFailures)
             {
                 for (nTileFailure = 0; nTileFailure < nNumTileFailures; nTileFailure++)
@@ -1057,20 +1063,20 @@ void AG_GenerateArea(string sAreaID)
                         AG_ResetNeighborTiles(sAreaID, IntArray_At(oAreaDataObject, AG_FAILED_TILES_ARRAY, nTileFailure));
                 }
 
-                AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS, ++nIteration);
+                DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID));
             }
             else
             {
                 AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FINISHED, TRUE);
+                LongJmp(AG_DATA_KEY_GENERATION_FINISHED);
             }
         }
         else
         {
             AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED, TRUE);
             AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FINISHED, TRUE);
+            LongJmp(AG_DATA_KEY_GENERATION_FINISHED);
         }
-
-        DelayCommand(AG_GENERATION_DELAY, AG_GenerateArea(sAreaID));
     }
 }
 

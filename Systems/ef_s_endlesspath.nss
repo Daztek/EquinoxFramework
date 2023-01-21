@@ -177,7 +177,7 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, EP_AREA_SINGLE_GROUP_TILE_CHANCE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10 + Random(16));
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE, !Random(4) ? 100 : 0);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, Random(4));
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, Random(5));
     AG_SetCallbackFunction(sAreaID, EP_SCRIPT_NAME, "EP_OnAreaGenerated");
 
     AG_AddEdgeTerrain(sAreaID, "WATER");
@@ -278,6 +278,8 @@ void EP_OnAreaGenerated(string sAreaID)
 
         SetTransitionTarget(oPreviousDoor, oEntranceDoor);
         SetTransitionTarget(oEntranceDoor, oPreviousDoor);
+
+        LogInfo("Creating Area: " + GetTag(oArea) + " -> Generation Type: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
 
         DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea));
     }

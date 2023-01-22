@@ -40,6 +40,12 @@ void AIB_WanderFlee_OnEnterAoE()
     if (!GetIsPC(oPlayer))
         return;
 
+    if (!LineOfSightObject(oPlayer, oSelf))
+        return;
+
+    if (!GetObjectHeard(oPlayer, oSelf) && !GetObjectSeen(oPlayer, oSelf))
+        return;
+
     if (!AIMan_GetTimeOut("AIBWanderFleeTimeOut", oSelf))
     {
         AIMan_SetTimeOut("AIBWanderFleeTimeOut", 5.0f, oSelf);

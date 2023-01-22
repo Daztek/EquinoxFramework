@@ -14,9 +14,10 @@
 const string AG_SCRIPT_NAME                                     = "ef_s_areagen";
 const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject";
 
+const int AG_ENABLE_SEEDED_RANDOM                               = TRUE;
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
 const float AG_GENERATION_DELAY                                 = 0.1f;
-const int AG_GENERATION_TILE_BATCH                              = 32;
+const int AG_GENERATION_TILE_BATCH                              = 16;
 const int AG_GENERATION_TILE_FAILURE_RESET_CHANCE               = 100;
 const int AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE              = 100;
 const int AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE                 = 25;
@@ -54,6 +55,7 @@ const string AG_DATA_KEY_GENERATION_LOG_STATUS                  = "GenerationLog
 const string AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE    = "GenerationSingleGroupTileChance";
 const string AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE         = "GenerationHeightFirstChance";
 const string AG_DATA_KEY_GENERATION_TYPE                        = "GenerationType";
+const string AG_DATA_KEY_GENERATION_RANDOM_NAME                 = "GenerationRandomName";
 
 const string AG_DATA_KEY_TILE_ID                                = "TileID";
 const string AG_DATA_KEY_TILE_LOCKED                            = "Locked";
@@ -163,7 +165,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0);
 void AG_GenerateGenerationTileArray(string sAreaID);
 void AG_GenerateArea(string sAreaID);
 int AG_GetEdgeFromTile(string sAreaID, int nTile);
-int AG_GetRandomOtherEdge(int nEdgeToSkip);
+int AG_GetRandomOtherEdge(string sAreaID, int nEdgeToSkip);
 int AG_GetTileOrientationFromEdge(string sAreaID, int nEdge, int nTileID);
 void AG_CreatePathEntranceDoorTile(string sAreaID, int nTile);
 void AG_CreatePathExitDoorTile(string sAreaID);
@@ -186,6 +188,8 @@ struct AG_TilePosition AG_GetTilePosition(string sAreaID, int nTile);
 void AG_CreateRandomEntrance(string sAreaID, int nEntranceTileID);
 json AG_GetTileList(string sAreaID);
 object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex = 0);
+int AG_Random(string sAreaID, int nMaxInteger);
+string AG_GetRandomQueryString(string sAreaID);
 
 object AG_GetAreaDataObject(string sAreaID)
 {
@@ -531,7 +535,7 @@ void AG_ResetNeighborTiles(string sAreaID, int nTile)
         {
             if (!AG_Tile_GetLocked(sAreaID, AG_DATA_KEY_ARRAY_TILES, nNeighborTile))
             {
-                if (AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE == 100 || Random(100) < AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE)
+                if (AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE == 100 || AG_Random(sAreaID, 100) < AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE)
                     AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_TILES, nNeighborTile);
             }
         }
@@ -762,7 +766,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
         sQuery += "AND corners_and_edges NOT LIKE @" + sTOC + " ";
     }
 
-    sQuery += " ORDER BY RANDOM() LIMIT 1;";
+    sQuery += " ORDER BY " + AG_GetRandomQueryString(sAreaID) + " LIMIT 1;";
 
     sqlquery sql = SqlPrepareQueryModule(sQuery);
 
@@ -806,8 +810,8 @@ void AG_ProcessTile(string sAreaID, int nTile)
     if (AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile) != AG_INVALID_TILE_ID)
         return;
 
-    int bTrySingleGroupTile = Random(100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE);
-    int bHeightFirst = Random(100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE);
+    int bTrySingleGroupTile = AG_Random(sAreaID, 100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE);
+    int bHeightFirst = AG_Random(sAreaID, 100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE);
 
     struct AG_Tile tile = AG_GetRandomMatchingTile(sAreaID, nTile, bTrySingleGroupTile, bHeightFirst);
     if (tile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
@@ -825,6 +829,8 @@ void AG_ProcessTile(string sAreaID, int nTile)
 
 void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 {
+    //struct ProfilerData pd = Profiler_Start("AG_GenerateTiles: " + sAreaID);
+
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
 
     if (nNumTiles == 0)
@@ -887,6 +893,8 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
     }
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID, nCurrentTile, nNumTiles));
+
+    //Profiler_Stop(pd);
 }
 
 void AG_GenerateGenerationTileArray(string sAreaID)
@@ -1059,7 +1067,7 @@ void AG_GenerateArea(string sAreaID)
             {
                 for (nTileFailure = 0; nTileFailure < nNumTileFailures; nTileFailure++)
                 {
-                    if (AG_GENERATION_TILE_FAILURE_RESET_CHANCE == 100 || Random(100) < AG_GENERATION_TILE_FAILURE_RESET_CHANCE)
+                    if (AG_GENERATION_TILE_FAILURE_RESET_CHANCE == 100 || AG_Random(sAreaID, 100) < AG_GENERATION_TILE_FAILURE_RESET_CHANCE)
                         AG_ResetNeighborTiles(sAreaID, IntArray_At(oAreaDataObject, AG_FAILED_TILES_ARRAY, nTileFailure));
                 }
 
@@ -1105,10 +1113,10 @@ int AG_GetEdgeFromTile(string sAreaID, int nTile)
     return -1;
 }
 
-int AG_GetRandomOtherEdge(int nEdgeToSkip)
+int AG_GetRandomOtherEdge(string sAreaID, int nEdgeToSkip)
 {
     int nEdge;
-    do nEdge = Random(4);
+    do nEdge = AG_Random(sAreaID, 4);
     while (nEdge == nEdgeToSkip);
     return nEdge;
 }
@@ -1164,19 +1172,19 @@ void AG_CreatePathExitDoorTile(string sAreaID)
     int nEntranceEdge = AG_GetEdgeFromTile(sAreaID, nEntranceTile);
     int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
     int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
-    int nEdge = AG_GetRandomOtherEdge(nEntranceEdge);
+    int nEdge = AG_GetRandomOtherEdge(sAreaID, nEntranceEdge);
     int nPathDoorTileID = AG_GetAreaPathDoor(sAreaID);
     int nOrientation = AG_GetTileOrientationFromEdge(sAreaID, nEdge, nPathDoorTileID);
     int nTile;
 
     if (nEdge == AG_AREA_EDGE_TOP)
-        nTile = (nWidth * (nHeight - 1)) + (Random(nWidth - 2) + 1);
+        nTile = (nWidth * (nHeight - 1)) + (AG_Random(sAreaID, nWidth - 2) + 1);
     else if (nEdge == AG_AREA_EDGE_RIGHT)
-        nTile = (nWidth - 1) + ((Random(nHeight - 2) + 1) * nWidth);
+        nTile = (nWidth - 1) + ((AG_Random(sAreaID, nHeight - 2) + 1) * nWidth);
     else if (nEdge == AG_AREA_EDGE_BOTTOM)
-        nTile = (Random(nWidth - 2) + 1);
+        nTile = (AG_Random(sAreaID, nWidth - 2) + 1);
     else if (nEdge == AG_AREA_EDGE_LEFT)
-        nTile = (Random(nHeight - 2) + 1) * nWidth;
+        nTile = (AG_Random(sAreaID, nHeight - 2) + 1) * nWidth;
 
     AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, nPathDoorTileID, nOrientation, 0, TRUE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX, nTile);
@@ -1307,10 +1315,9 @@ struct TS_TileStruct AG_GetRoadTileStruct(string sAreaID, int nNode, int nNumNod
 {
     struct TS_TileStruct str;
     string sRoadCrosser = AG_GetAreaPathCrosserType(sAreaID);
-    string sFloorTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_FLOOR_TERRAIN);
 
     if (bNoRoad)
-        str = TS_ReplaceTerrainOrCrosser(str, "", sFloorTerrain);
+        str = TS_ReplaceTerrainOrCrosser(str, "", AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_FLOOR_TERRAIN));
 
     if (bNoRoad && nNumNodes != 1)
     {
@@ -1359,7 +1366,7 @@ struct AG_Tile AG_GetRandomRoadTile(string sAreaID, struct TS_TileStruct strQuer
 
     string sQuery = "SELECT tile_id, orientation FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " WHERE is_group_tile=0 " +
                     AG_SqlConstructCAEClause(strQuery);
-    sQuery += " ORDER BY RANDOM() LIMIT 1;";
+    sQuery += " ORDER BY " + AG_GetRandomQueryString(sAreaID) + " LIMIT 1;";
 
     sqlquery sql = SqlPrepareQueryModule(sQuery);
 
@@ -1433,7 +1440,7 @@ void AG_PlotRoad(string sAreaID)
 
     nEntranceTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX);
     nExitTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
-    int bNoRoad = Random(100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD_CHANCE);
+    int bNoRoad = AG_Random(sAreaID, 100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD_CHANCE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD, bNoRoad);
 
     int nPreviousX = nEntranceTile % nWidth, nPreviousY = nEntranceTile / nWidth;
@@ -1558,8 +1565,8 @@ void AG_GenerateEdge(string sAreaID, int nEdge)
             {
                 int nEdgeTerrainChangeChance = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE);
 
-                if (nEdgeTerrainChangeChance == 100 || Random(100) < nEdgeTerrainChangeChance)
-                    sTC3 = JsonArrayGetString(jUsableEdgeTerrains, Random(nNumUsableEdgeTerrains));
+                if (nEdgeTerrainChangeChance == 100 || AG_Random(sAreaID, 100) < nEdgeTerrainChangeChance)
+                    sTC3 = JsonArrayGetString(jUsableEdgeTerrains, AG_Random(sAreaID, nNumUsableEdgeTerrains));
                 else
                     sTC3 = sTC1;
             }
@@ -1646,9 +1653,9 @@ struct AG_TilePosition AG_GetTilePosition(string sAreaID, int nTile)
 void AG_CreateRandomEntrance(string sAreaID, int nEntranceTileID)
 {
     int nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
-    int nTile = Random(nNumTiles);
+    int nTile = AG_Random(sAreaID, nNumTiles);
     int nEdge = AG_GetEdgeFromTile(sAreaID, nTile);
-    int nOrientation = nEdge == -1 ? Random(4) : AG_GetTileOrientationFromEdge(sAreaID, nEdge, nEntranceTileID);
+    int nOrientation = nEdge == -1 ? AG_Random(sAreaID, 4) : AG_GetTileOrientationFromEdge(sAreaID, nEdge, nEntranceTileID);
 
     AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, nEntranceTileID, nOrientation, 0, TRUE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX, nTile);
@@ -1697,4 +1704,30 @@ object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex
     location locSpawn = Location(oArea, vDoorPosition, strDoor.fOrientation);
 
     return GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);
+}
+
+int AG_Random(string sAreaID, int nMaxInteger)
+{
+    if (SQL_ENABLE_NAMED_RANDOM && AG_ENABLE_SEEDED_RANDOM)
+    {
+        string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME);
+        return sRandomName == "" ? Random(nMaxInteger) : SqlGetRandomModule(sRandomName, nMaxInteger);
+    }
+    else
+    {
+        return Random(nMaxInteger);
+    }
+}
+
+string AG_GetRandomQueryString(string sAreaID)
+{
+    if (SQL_ENABLE_NAMED_RANDOM && AG_ENABLE_SEEDED_RANDOM)
+    {
+        string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME);
+        return sRandomName == "" ? "RANDOM()" : "NAMED_RANDOM('" + sRandomName + "')";
+    }
+    else
+    {
+        return "RANDOM()";
+    }
 }

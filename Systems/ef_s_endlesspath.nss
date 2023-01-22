@@ -68,6 +68,10 @@ void EP_Init()
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
+
+    int nSeed = 2023;
+    LogInfo("Seed: " + IntToString(nSeed));
+    SqlSetRandomSeedModule(EP_SCRIPT_NAME, nSeed);
 }
 
 // @CORE[EF_SYSTEM_LOAD]
@@ -75,7 +79,7 @@ void EP_Load()
 {
     object oStartingArea = GetArea(GetObjectByTag(EP_GetLastDoorID()));
     int nAreaWidth = GetAreaSize(AREA_WIDTH, oStartingArea);
-    int nAreaHeight = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH + 1);
+    int nAreaHeight = EP_AREA_MINIMUM_LENGTH + SqlGetRandomModule(EP_SCRIPT_NAME, EP_AREA_RANDOM_LENGTH + 1);
     string sAreaID = EP_GetNextAreaID();
 
     EP_GenerateArea(sAreaID, oStartingArea, AG_AREA_EDGE_TOP, nAreaWidth, nAreaHeight);
@@ -101,11 +105,11 @@ void EP_OnAreaEnter()
             if (nExitEdge == AG_AREA_EDGE_TOP || nExitEdge == AG_AREA_EDGE_BOTTOM)
             {
                 nAreaWidth = GetAreaSize(AREA_WIDTH, oPreviousArea);
-                nAreaHeight = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH + 1);
+                nAreaHeight = EP_AREA_MINIMUM_LENGTH + AG_Random(sPreviousAreaID, EP_AREA_RANDOM_LENGTH + 1);
             }
             else if (nExitEdge == AG_AREA_EDGE_LEFT || nExitEdge == AG_AREA_EDGE_RIGHT)
             {
-                nAreaWidth = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH + 1);
+                nAreaWidth = EP_AREA_MINIMUM_LENGTH + AG_Random(sPreviousAreaID, EP_AREA_RANDOM_LENGTH + 1);
                 nAreaHeight = GetAreaSize(AREA_HEIGHT, oPreviousArea);
             }
 
@@ -163,7 +167,7 @@ void EP_ToggleTerrainOrCrosser(string sAreaID, object oPreviousArea, string sCro
     json jExitEdgeTerrains = AG_GetJsonDataByKey(GetTag(oPreviousArea), AG_DATA_KEY_ARRAY_EXIT_EDGE_TERRAINS);
     if (!JsonArrayContainsString(jExitEdgeTerrains, sCrosser))
     {
-        AG_SetIgnoreTerrainOrCrosser(sAreaID, sCrosser, !(Random(100) < nChance));
+        AG_SetIgnoreTerrainOrCrosser(sAreaID, sCrosser, !(AG_Random(sAreaID, 100) < nChance));
     }
 }
 
@@ -171,13 +175,13 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
 {
     EP_SetLastGenerationData(oPreviousArea, nEdgeToCopy, nAreaWidth, nAreaHeight);
     AG_InitializeRandomArea(sAreaID, EP_AREA_TILESET, EP_AREA_DEFAULT_EDGE_TERRAIN, nAreaWidth, nAreaHeight);
-
+    AG_SetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, EP_SCRIPT_NAME);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, EP_DEBUG_LOG);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, EP_MAX_ITERATIONS);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, EP_AREA_SINGLE_GROUP_TILE_CHANCE);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10 + Random(16));
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE, !Random(4) ? 100 : 0);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, Random(8));
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10 + AG_Random(sAreaID, 16));
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE, !AG_Random(sAreaID, 4) ? 100 : 0);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_Random(sAreaID, 8));
     AG_SetCallbackFunction(sAreaID, EP_SCRIPT_NAME, "EP_OnAreaGenerated");
 
     AG_AddEdgeTerrain(sAreaID, "WATER");
@@ -203,7 +207,7 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
 
     AG_AddPathDoorCrosserCombo(sAreaID, 80, "ROAD");
     AG_AddPathDoorCrosserCombo(sAreaID, 1161, "STREET");
-    AG_SetAreaPathDoorCrosserCombo(sAreaID, Random(100) < EP_AREA_ROAD_CHANCE ? 0 : 1);
+    AG_SetAreaPathDoorCrosserCombo(sAreaID, AG_Random(sAreaID, 100) < EP_AREA_ROAD_CHANCE ? 0 : 1);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD_CHANCE, EP_AREA_PATH_NO_ROAD_CHANCE);
 
     AG_CopyEdgeFromArea(sAreaID, oPreviousArea, nEdgeToCopy);
@@ -234,8 +238,8 @@ object EP_CreateArea(string sAreaID)
     jArea = GffReplaceInt(jArea, "ARE/value/Height", AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT));
     jArea = GffReplaceInt(jArea, "ARE/value/Width", AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH));
     jArea = GffReplaceLocString(jArea, "ARE/value/Name", "The Endless Path (" +IntToString(EP_GetAreaNum(sAreaID)) + ")");
-    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicDay", Random(2) ? 128 : 136);
-    jArea = GffReplaceInt(jArea, "ARE/value/WindPower", Random(3));
+    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicDay", AG_Random(sAreaID, 2) ? 128 : 136);
+    jArea = GffReplaceInt(jArea, "ARE/value/WindPower", AG_Random(sAreaID, 3));
     jArea = GffAddList(jArea, "ARE/value/Tile_List", AG_GetTileList(sAreaID));
 
     return JsonToObject(jArea, GetStartingLocation());
@@ -327,9 +331,11 @@ int EP_NearestPathDistance(string sAreaID, int nTileX, int nTileY)
 
 void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
 {
+    string sAreaID = GetTag(oArea);
+
     if (nNumTiles == 0)
     {
-        nNumTiles = GetAreaSize(AREA_HEIGHT, oArea) * GetAreaSize(AREA_WIDTH, oArea);
+        nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
     }
 
     if (nCurrentTile == nNumTiles)
@@ -338,7 +344,6 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
         return;
     }
 
-    string sAreaID = GetTag(oArea);
     int nEntranceTileIndex = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX);
     struct AG_TilePosition strEntrancePosition = AG_GetTilePosition(sAreaID, nEntranceTileIndex);
     vector vEntrancePosition = GetTilePosition(strEntrancePosition.nX, strEntrancePosition.nY);

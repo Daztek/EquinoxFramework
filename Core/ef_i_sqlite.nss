@@ -34,9 +34,9 @@ void SqlBeginTransactionModule();
 // Commit a transaction on the module database
 void SqlCommitTransactionModule();
 // Set the seed for a named random number generator
-void SqlSetRandomSeedModule(string sName, int nSeed);
+void SqlSetRandomSeed(string sName, int nSeed);
 // Get a random value from a named random number generator
-int SqlGetRandomModule(string sName, int nMaxInteger);
+int SqlRandom(string sName, int nMaxInteger);
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -118,7 +118,7 @@ void SqlCommitTransactionModule()
     SqlStep(SqlPrepareQueryObject(GetModule(), "COMMIT;"));
 }
 
-void SqlSetRandomSeedModule(string sName, int nSeed)
+void SqlSetRandomSeed(string sName, int nSeed)
 {
     if (SQL_ENABLE_NAMED_RANDOM)
     {
@@ -129,13 +129,14 @@ void SqlSetRandomSeedModule(string sName, int nSeed)
     }
 }
 
-int SqlGetRandomModule(string sName, int nMaxInteger)
+int SqlRandom(string sName, int nMaxInteger)
 {
     if (SQL_ENABLE_NAMED_RANDOM)
     {
-        sqlquery sql = SqlPrepareQueryModule("SELECT NAMED_RANDOM(@name);");
+        sqlquery sql = SqlPrepareQueryModule("SELECT (NAMED_RANDOM(@name) % @maxinteger);");
         SqlBindString(sql, "@name", sName);
-        return SqlStep(sql) ? abs(SqlGetInt(sql, 0)) % nMaxInteger : Random(nMaxInteger);
+        SqlBindInt(sql, "@maxinteger", nMaxInteger);
+        return SqlStep(sql) ? SqlGetInt(sql, 0) : Random(nMaxInteger);
     }
     else
     {

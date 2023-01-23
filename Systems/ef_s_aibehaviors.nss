@@ -43,9 +43,6 @@ void AIB_WanderFlee_OnEnterAoE()
     if (!LineOfSightObject(oPlayer, oSelf))
         return;
 
-    if (!GetObjectHeard(oPlayer, oSelf) && !GetObjectSeen(oPlayer, oSelf))
-        return;
-
     if (!AIMan_GetTimeOut("AIBWanderFleeTimeOut", oSelf))
     {
         AIMan_SetTimeOut("AIBWanderFleeTimeOut", 5.0f, oSelf);
@@ -94,6 +91,9 @@ void AIB_ChargeFlee_OnEnterAoE()
     object oSelf = GetAreaOfEffectCreator();
 
     if (!GetIsPC(oPlayer))
+        return;
+
+    if (!LineOfSightObject(oPlayer, oSelf))
         return;
 
     if (!AIMan_GetTimeOut("AIBChargeFleeTimeOut", oSelf))

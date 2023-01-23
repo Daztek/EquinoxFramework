@@ -69,9 +69,9 @@ void EP_Init()
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
 
-    int nSeed = 2023;
-    LogInfo("Seed: " + IntToString(nSeed));
-    SqlSetRandomSeedModule(EP_SCRIPT_NAME, nSeed);
+    int nSeed = 128;
+    LogInfo("Random Seed: " + IntToString(nSeed));
+    SqlSetRandomSeed(EP_SCRIPT_NAME, nSeed);
 }
 
 // @CORE[EF_SYSTEM_LOAD]
@@ -79,7 +79,7 @@ void EP_Load()
 {
     object oStartingArea = GetArea(GetObjectByTag(EP_GetLastDoorID()));
     int nAreaWidth = GetAreaSize(AREA_WIDTH, oStartingArea);
-    int nAreaHeight = EP_AREA_MINIMUM_LENGTH + SqlGetRandomModule(EP_SCRIPT_NAME, EP_AREA_RANDOM_LENGTH + 1);
+    int nAreaHeight = EP_AREA_MINIMUM_LENGTH + SqlRandom(EP_SCRIPT_NAME, EP_AREA_RANDOM_LENGTH + 1);
     string sAreaID = EP_GetNextAreaID();
 
     EP_GenerateArea(sAreaID, oStartingArea, AG_AREA_EDGE_TOP, nAreaWidth, nAreaHeight);

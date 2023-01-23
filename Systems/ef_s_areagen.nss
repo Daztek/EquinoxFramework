@@ -1711,7 +1711,7 @@ int AG_Random(string sAreaID, int nMaxInteger)
     if (SQL_ENABLE_NAMED_RANDOM && AG_ENABLE_SEEDED_RANDOM)
     {
         string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME);
-        return sRandomName == "" ? Random(nMaxInteger) : SqlGetRandomModule(sRandomName, nMaxInteger);
+        return sRandomName == "" ? Random(nMaxInteger) : SqlRandom(sRandomName, nMaxInteger);
     }
     else
     {

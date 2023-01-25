@@ -13,7 +13,6 @@ const string ED_SCRIPT_NAME             = "ef_s_endlessdeer";
 const int ED_ENTRANCE_DISTANCE          = 3;
 const int ED_EXIT_DISTANCE              = 3;
 const int ED_PATH_DISTANCE              = 2;
-const int ED_PATH_DISTANCE_NO_ROAD      = 0;
 const int ED_GROUP_TILE                 = FALSE;
 
 const float ED_SPAWN_DELAY              = 0.05f;
@@ -37,7 +36,7 @@ int ED_GetNumSpawnTiles(string sAreaID)
     SqlBindString(sql, "@area_id", sAreaID);
     SqlBindInt(sql, "@entrance_dist", ED_ENTRANCE_DISTANCE);
     SqlBindInt(sql, "@exit_dist", ED_EXIT_DISTANCE);
-    SqlBindInt(sql, "@path_dist",  AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD) ? ED_PATH_DISTANCE_NO_ROAD : ED_PATH_DISTANCE);
+    SqlBindInt(sql, "@path_dist",  ED_PATH_DISTANCE);
     SqlBindInt(sql, "@group_tile", ED_GROUP_TILE);
 
     return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
@@ -77,7 +76,7 @@ void ED_OnAreaPostProcessed()
     SqlBindString(sql, "@area_id", sAreaID);
     SqlBindInt(sql, "@entrance_dist", ED_ENTRANCE_DISTANCE);
     SqlBindInt(sql, "@exit_dist", ED_EXIT_DISTANCE);
-    SqlBindInt(sql, "@path_dist",  AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD) ? ED_PATH_DISTANCE_NO_ROAD : ED_PATH_DISTANCE);
+    SqlBindInt(sql, "@path_dist",  ED_PATH_DISTANCE);
     SqlBindInt(sql, "@group_tile", ED_GROUP_TILE);
     SqlBindInt(sql, "@limit", nLimit);
 

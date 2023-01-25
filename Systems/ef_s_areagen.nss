@@ -17,9 +17,7 @@ const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject"
 const int AG_ENABLE_SEEDED_RANDOM                               = TRUE;
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
 const float AG_GENERATION_DELAY                                 = 0.1f;
-const int AG_GENERATION_TILE_BATCH                              = 16;
-const int AG_GENERATION_TILE_FAILURE_RESET_CHANCE               = 100;
-const int AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE              = 100;
+const int AG_GENERATION_TILE_BATCH                              = 32;
 const int AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE                 = 25;
 
 const int AG_INVALID_TILE_ID                                    = -1;
@@ -53,7 +51,6 @@ const string AG_DATA_KEY_GENERATION_FAILED                      = "GenerationFai
 const string AG_DATA_KEY_GENERATION_CALLBACK                    = "GenerationCallback";
 const string AG_DATA_KEY_GENERATION_LOG_STATUS                  = "GenerationLogStatus";
 const string AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE    = "GenerationSingleGroupTileChance";
-const string AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE         = "GenerationHeightFirstChance";
 const string AG_DATA_KEY_GENERATION_TYPE                        = "GenerationType";
 const string AG_DATA_KEY_GENERATION_RANDOM_NAME                 = "GenerationRandomName";
 
@@ -65,8 +62,6 @@ const string AG_DATA_KEY_TILE_HEIGHT                            = "Height";
 const string AG_DATA_KEY_ENTRANCE_TILE_INDEX                    = "EntranceTileIndex";
 const string AG_DATA_KEY_EXIT_TILE_INDEX                        = "ExitTileIndex";
 const string AG_DATA_KEY_PATH_NODES                             = "PathNodes";
-const string AG_DATA_KEY_PATH_NO_ROAD_CHANCE                    = "PathNoRoadChance";
-const string AG_DATA_KEY_PATH_NO_ROAD                           = "PathNoRoad";
 const string AG_DATA_KEY_ARRAY_EDGE_TERRAINS                    = "ArrayEdgeTerrains";
 const string AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE             = "EdgeTerrainChangeChance";
 const string AG_DATA_KEY_ARRAY_EXIT_EDGE_TERRAINS               = "ArrayExitEdgeTerrains";
@@ -159,7 +154,7 @@ void AG_ResetNeighborTiles(string sAreaID, int nTile);
 struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDirection);
 string AG_ResolveCorner(string sCorner1, string sCorner2);
 string AG_SqlConstructCAEClause(struct TS_TileStruct str);
-struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile, int bHeightFirst);
+struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile);
 void AG_ProcessTile(string sAreaID, int nTileID);
 void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0);
 void AG_GenerateGenerationTileArray(string sAreaID);
@@ -171,8 +166,7 @@ void AG_CreatePathEntranceDoorTile(string sAreaID, int nTile);
 void AG_CreatePathExitDoorTile(string sAreaID);
 void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy);
 int AG_GetNextTile(int nAreaWidth, int nTile, int nEdge);
-struct TS_TileStruct AG_GetRoadTileStruct(string sAreaID, int nPoint, int nNumPoints, int nX1, int nY1, int nX2, int nY2, int bNoRoad);
-struct AG_Tile AG_GetRandomRoadTile(string sAreaID, struct TS_TileStruct strQuery);
+struct TS_TileStruct AG_GetRoadTileStruct(string sAreaID, int nPoint, int nNumPoints, int nX1, int nY1, int nX2, int nY2);
 void AG_PlotRoad(string sAreaID);
 void AG_AddEdgeTerrain(string sAreaID, string sTerrain);
 void AG_GenerateEdge(string sAreaID, int nEdge);
@@ -316,18 +310,22 @@ int AG_Tile_GetHeight(string sAreaID, string sTileArray, int nTile)
 
 void AG_Tile_Set(string sAreaID, string sTileArray, int nTile, int nID, int nOrientation, int nHeight = 0, int bLocked = FALSE)
 {
-    AG_Tile_SetID(sAreaID, sTileArray, nTile, nID);
-    AG_Tile_SetOrientation(sAreaID, sTileArray, nTile, nOrientation);
-    AG_Tile_SetHeight(sAreaID, sTileArray, nTile, nHeight);
-    AG_Tile_SetLocked(sAreaID, sTileArray, nTile, bLocked);
+    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+    string sTile = IntToString(nTile);
+    SetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_ID + sTile, nID);
+    SetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_ORIENTATION + sTile, nOrientation);
+    SetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_HEIGHT + sTile, nHeight);
+    SetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_LOCKED + sTile, bLocked);
 }
 
 void AG_Tile_Reset(string sAreaID, string sTileArray, int nTile)
 {
-    AG_Tile_SetID(sAreaID, sTileArray, nTile, AG_INVALID_TILE_ID);
-    AG_Tile_SetLocked(sAreaID, sTileArray, nTile, FALSE);
-    AG_Tile_SetOrientation(sAreaID, sTileArray, nTile, 0);
-    AG_Tile_SetHeight(sAreaID, sTileArray, nTile, 0);
+    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+    string sTile = IntToString(nTile);
+    SetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_ID + sTile, AG_INVALID_TILE_ID);
+    SetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_ORIENTATION + sTile, 0);
+    SetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_HEIGHT + sTile, 0);
+    SetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_LOCKED + sTile, FALSE);
 }
 
 void AG_SetEdgeTileOverride(string sAreaID, string sEdge, int nTile, string sTC1, string sTC2, string sTC3)
@@ -535,8 +533,7 @@ void AG_ResetNeighborTiles(string sAreaID, int nTile)
         {
             if (!AG_Tile_GetLocked(sAreaID, AG_DATA_KEY_ARRAY_TILES, nNeighborTile))
             {
-                if (AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE == 100 || AG_Random(sAreaID, 100) < AG_GENERATION_TILE_NEIGHBOR_RESET_CHANCE)
-                    AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_TILES, nNeighborTile);
+                AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_TILES, nNeighborTile);
             }
         }
     }
@@ -557,12 +554,6 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
         if (nTileID != AG_INVALID_TILE_ID)
             str = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
 
-        if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2 && nHeight)
-        {
-            str = TS_ReplaceTerrainOrCrosser(str, "GRASS", "GRASS+");
-            str = TS_ReplaceTerrainOrCrosser(str, "MOUNTAIN", "MOUNTAIN+");
-        }
-
         if (AG_GetHasTileOverride(sAreaID, nNeighborTile))
         {
             struct TS_TileStruct strOverride = AG_GetTileOverride(sAreaID, nNeighborTile);
@@ -575,6 +566,11 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
             if (strOverride.sTR != "") str.sTR = strOverride.sTR;
             if (strOverride.sBL != "") str.sBL = strOverride.sBL;
             if (strOverride.sBR != "") str.sBR = strOverride.sBR;
+        }
+
+        if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2 && nHeight)
+        {
+            str = TS_IncreaseHeight(sTileset, str, nHeight);
         }
     }
     else
@@ -719,10 +715,10 @@ string AG_SqlConstructCAEClause(struct TS_TileStruct str)
     return sWhere;
 }
 
-struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile, int bHeightFirst)
+struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile)
 {
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
-    struct AG_Tile tile;
+    struct AG_Tile tile; tile.nTileID = AG_INVALID_TILE_ID;
     struct TS_TileStruct strQuery;
     struct TS_TileStruct strTop = AG_GetNeighborTileStruct(sAreaID, nTile, AG_NEIGHBOR_TILE_TOP);
     struct TS_TileStruct strRight = AG_GetNeighborTileStruct(sAreaID, nTile, AG_NEIGHBOR_TILE_RIGHT);
@@ -736,9 +732,13 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     strQuery.sL = strLeft.sR;
 
     strQuery.sTL = AG_ResolveCorner(strTop.sBL, strLeft.sTR);
+    if (strQuery.sTL == "ERROR") return tile;
     strQuery.sTR = AG_ResolveCorner(strTop.sBR, strRight.sTL);
+    if (strQuery.sTR == "ERROR") return tile;
     strQuery.sBR = AG_ResolveCorner(strRight.sBL, strBottom.sTR);
+    if (strQuery.sBR == "ERROR") return tile;
     strQuery.sBL = AG_ResolveCorner(strBottom.sTL, strLeft.sBR);
+    if (strQuery.sBL == "ERROR") return tile;
 
     string sRoadCrosser = AG_GetAreaPathCrosserType(sAreaID);
     int bHasRoad = TS_GetHasTerrainOrCrosser(strQuery, sRoadCrosser);
@@ -750,23 +750,9 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     else
         sQuery = "SELECT tile_id, orientation, height FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " WHERE is_group_tile=0 ";
 
-    if (bHeightFirst)
-        sQuery += "AND height=1 ";
-
     sQuery += AG_SqlConstructCAEClause(strQuery);
-
-    int nTOC, nNumTOC = StringArray_Size(oAreaDataObject, AG_IGNORE_TOC_ARRAY);
-    for (nTOC = 0; nTOC < nNumTOC; nTOC++)
-    {
-        string sTOC = StringArray_At(oAreaDataObject, AG_IGNORE_TOC_ARRAY, nTOC);
-
-        if (sTOC == sRoadCrosser && bHasRoad)
-            continue;
-
-        sQuery += "AND corners_and_edges NOT LIKE @" + sTOC + " ";
-    }
-
-    sQuery += " ORDER BY " + AG_GetRandomQueryString(sAreaID) + " LIMIT 1;";
+    sQuery += "AND (corners_and_edges & @tocbitmask) = 0 ";
+    sQuery += "ORDER BY height DESC, " + AG_GetRandomQueryString(sAreaID) + " LIMIT 1;";
 
     sqlquery sql = SqlPrepareQueryModule(sQuery);
 
@@ -779,6 +765,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     if (strQuery.sBL != "") SqlBindString(sql, "@bl", strQuery.sBL);
     if (strQuery.sL != "")  SqlBindString(sql, "@l", strQuery.sL);
 
+    int nTOC, nNumTOC = StringArray_Size(oAreaDataObject, AG_IGNORE_TOC_ARRAY), nBitmask;
     for (nTOC = 0; nTOC < nNumTOC; nTOC++)
     {
         string sTOC = StringArray_At(oAreaDataObject, AG_IGNORE_TOC_ARRAY, nTOC);
@@ -786,8 +773,9 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
         if (sTOC == sRoadCrosser && bHasRoad)
             continue;
 
-        SqlBindString(sql, "@" + sTOC, "%|" + sTOC + "|%");
+        nBitmask |= TS_GetTCBitmask(sTileset, sTOC);
     }
+    SqlBindInt(sql, "@tocbitmask", nBitmask);
 
     if (SqlStep(sql))
     {
@@ -811,13 +799,10 @@ void AG_ProcessTile(string sAreaID, int nTile)
         return;
 
     int bTrySingleGroupTile = AG_Random(sAreaID, 100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE);
-    int bHeightFirst = AG_Random(sAreaID, 100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE);
 
-    struct AG_Tile tile = AG_GetRandomMatchingTile(sAreaID, nTile, bTrySingleGroupTile, bHeightFirst);
+    struct AG_Tile tile = AG_GetRandomMatchingTile(sAreaID, nTile, bTrySingleGroupTile);
     if (tile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
-        tile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE, bHeightFirst);
-    if (tile.nTileID == AG_INVALID_TILE_ID && bHeightFirst)
-        tile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE, FALSE);
+        tile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE);
 
     if (tile.nTileID != AG_INVALID_TILE_ID)
         AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, tile.nTileID, tile.nOrientation, tile.nHeight);
@@ -829,7 +814,7 @@ void AG_ProcessTile(string sAreaID, int nTile)
 
 void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 {
-    //struct ProfilerData pd = Profiler_Start("AG_GenerateTiles: " + sAreaID);
+    struct ProfilerData pd = Profiler_Start("AG_GenerateTiles: " + sAreaID);
 
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
 
@@ -894,7 +879,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID, nCurrentTile, nNumTiles));
 
-    //Profiler_Stop(pd);
+    Profiler_Stop(pd);
 }
 
 void AG_GenerateGenerationTileArray(string sAreaID)
@@ -1067,8 +1052,7 @@ void AG_GenerateArea(string sAreaID)
             {
                 for (nTileFailure = 0; nTileFailure < nNumTileFailures; nTileFailure++)
                 {
-                    if (AG_GENERATION_TILE_FAILURE_RESET_CHANCE == 100 || AG_Random(sAreaID, 100) < AG_GENERATION_TILE_FAILURE_RESET_CHANCE)
-                        AG_ResetNeighborTiles(sAreaID, IntArray_At(oAreaDataObject, AG_FAILED_TILES_ARRAY, nTileFailure));
+                    AG_ResetNeighborTiles(sAreaID, IntArray_At(oAreaDataObject, AG_FAILED_TILES_ARRAY, nTileFailure));
                 }
 
                 DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID));
@@ -1311,88 +1295,21 @@ int AG_GetNextTile(int nAreaWidth, int nTile, int nEdge)
     return nTile;
 }
 
-struct TS_TileStruct AG_GetRoadTileStruct(string sAreaID, int nNode, int nNumNodes, int nX1, int nY1, int nX2, int nY2, int bNoRoad)
+struct TS_TileStruct AG_GetRoadTileStruct(string sAreaID, int nNode, int nNumNodes, int nX1, int nY1, int nX2, int nY2)
 {
-    struct TS_TileStruct str;
     string sRoadCrosser = AG_GetAreaPathCrosserType(sAreaID);
+    struct TS_TileStruct str;
 
-    if (bNoRoad)
-        str = TS_ReplaceTerrainOrCrosser(str, "", AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_FLOOR_TERRAIN));
-
-    if (bNoRoad && nNumNodes != 1)
-    {
-        if (nNode == 0)
-        {
-            if (nX1 == 0 && nY1 == -1)
-                str.sT = sRoadCrosser;
-            if (nX1 == -1 && nY1 == 0)
-                str.sR = sRoadCrosser;
-            if (nX1 == 0 && nY1 == 1)
-                str.sB = sRoadCrosser;
-            if (nX1 == 1 && nY1 == 0)
-                str.sL = sRoadCrosser;
-        }
-        else if (nNode == (nNumNodes - 1))
-        {
-            if (nX2 == 0 && nY2 == -1)
-                str.sT = sRoadCrosser;
-            if (nX2 == -1 && nY2 == 0)
-                str.sR = sRoadCrosser;
-            if (nX2 == 0 && nY2 == 1)
-                str.sB = sRoadCrosser;
-            if (nX2 == 1 && nY2 == 0)
-                str.sL = sRoadCrosser;
-        }
-    }
-    else
-    {
-        if ((nX1 == 0 && nY1 == -1) || (nX2 == 0 && nY2 == -1))
-            str.sT = sRoadCrosser;
-        if ((nX1 == -1 && nY1 == 0) || (nX2 == -1 && nY2 == 0))
-            str.sR = sRoadCrosser;
-        if ((nX1 == 0 && nY1 == 1) || (nX2 == 0 && nY2 == 1))
-            str.sB = sRoadCrosser;
-        if ((nX1 == 1 && nY1 == 0) || (nX2 == 1 && nY2 == 0))
-            str.sL = sRoadCrosser;
-    }
+    if ((nX1 == 0 && nY1 == -1) || (nX2 == 0 && nY2 == -1))
+        str.sT = sRoadCrosser;
+    if ((nX1 == -1 && nY1 == 0) || (nX2 == -1 && nY2 == 0))
+        str.sR = sRoadCrosser;
+    if ((nX1 == 0 && nY1 == 1) || (nX2 == 0 && nY2 == 1))
+        str.sB = sRoadCrosser;
+    if ((nX1 == 1 && nY1 == 0) || (nX2 == 1 && nY2 == 0))
+        str.sL = sRoadCrosser;
 
     return str;
-}
-
-struct AG_Tile AG_GetRandomRoadTile(string sAreaID, struct TS_TileStruct strQuery)
-{
-    struct AG_Tile tile;
-    string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
-
-    string sQuery = "SELECT tile_id, orientation FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " WHERE is_group_tile=0 " +
-                    AG_SqlConstructCAEClause(strQuery);
-    sQuery += " ORDER BY " + AG_GetRandomQueryString(sAreaID) + " LIMIT 1;";
-
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
-
-    if (strQuery.sTL != "") SqlBindString(sql, "@tl", strQuery.sTL);
-    if (strQuery.sT != "")  SqlBindString(sql, "@t", strQuery.sT);
-    if (strQuery.sTR != "") SqlBindString(sql, "@tr", strQuery.sTR);
-    if (strQuery.sR != "")  SqlBindString(sql, "@r", strQuery.sR);
-    if (strQuery.sBR != "") SqlBindString(sql, "@br", strQuery.sBR);
-    if (strQuery.sB != "")  SqlBindString(sql, "@b", strQuery.sB);
-    if (strQuery.sBL != "") SqlBindString(sql, "@bl", strQuery.sBL);
-    if (strQuery.sL != "")  SqlBindString(sql, "@l", strQuery.sL);
-
-    if (SqlStep(sql))
-    {
-        tile.nTileID = SqlGetInt(sql, 0);
-        tile.nOrientation = SqlGetInt(sql, 1);
-        tile.nHeight = 0;
-    }
-    else
-    {
-        tile.nTileID = -1;
-        tile.nOrientation = -1;
-        tile.nHeight = -1;
-    }
-
-    return tile;
 }
 
 void AG_PlotRoad(string sAreaID)
@@ -1401,12 +1318,12 @@ void AG_PlotRoad(string sAreaID)
     int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
     int nEntranceTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX);
     int nEntranceEdge = AG_GetEdgeFromTile(sAreaID, nEntranceTile);
-    nEntranceTile = AG_GetNextTile(nWidth, nEntranceTile, nEntranceEdge);
+        nEntranceTile = AG_GetNextTile(nWidth, nEntranceTile, nEntranceEdge);
     int nEntranceX = nEntranceTile % nWidth;
     int nEntranceY = nEntranceTile / nWidth;
     int nExitTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
     int nExitEdge = AG_GetEdgeFromTile(sAreaID, nExitTile);
-    nExitTile = AG_GetNextTile(nWidth, nExitTile, nExitEdge);
+        nExitTile = AG_GetNextTile(nWidth, nExitTile, nExitEdge);
     int nExitX = nExitTile % nWidth;
     int nExitY = nExitTile / nWidth;
     int nDistanceX = nExitX - nEntranceX;
@@ -1440,8 +1357,6 @@ void AG_PlotRoad(string sAreaID)
 
     nEntranceTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX);
     nExitTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
-    int bNoRoad = AG_Random(sAreaID, 100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD_CHANCE);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD, bNoRoad);
 
     int nPreviousX = nEntranceTile % nWidth, nPreviousY = nEntranceTile / nWidth;
     int nNode, nNumNodes = JsonGetLength(jPathNodes);
@@ -1459,16 +1374,8 @@ void AG_PlotRoad(string sAreaID)
         int nNextDiffX = nCurrentX - nNextX;
         int nNextDiffY = nCurrentY - nNextY;
 
-        struct TS_TileStruct strQuery = AG_GetRoadTileStruct(sAreaID, nNode, nNumNodes, nPreviousDiffX, nPreviousDiffY, nNextDiffX, nNextDiffY, bNoRoad);
-
-        int nTile = nCurrentX + (nCurrentY * nWidth);
-        if (bNoRoad)
-        {
-            struct AG_Tile strTile = AG_GetRandomRoadTile(sAreaID, strQuery);
-            AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, strTile.nTileID, strTile.nOrientation, 0, TRUE);
-        }
-        else
-            AG_SetTileOverride(sAreaID, nTile, strQuery);
+        struct TS_TileStruct strQuery = AG_GetRoadTileStruct(sAreaID, nNode, nNumNodes, nPreviousDiffX, nPreviousDiffY, nNextDiffX, nNextDiffY);
+        AG_SetTileOverride(sAreaID, (nCurrentX + (nCurrentY * nWidth)), strQuery);
 
         nPreviousX = nCurrentX;
         nPreviousY = nCurrentY;
@@ -1670,6 +1577,9 @@ json AG_GetTileList(string sAreaID)
         int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
         int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
         int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+
+        if (nHeight > 0)
+            PrintString("Wow! Tile Height == " + IntToString(nHeight) + "!");
 
         sTiles += "{\"Tile_AnimLoop1\":{\"type\":\"byte\",\"value\":1},\"Tile_AnimLoop2\":{\"type\":\"byte\",\"value\":1},\"" +
                   "Tile_AnimLoop3\":{\"type\":\"byte\",\"value\":1},\"Tile_Height\":{\"type\":\"int\",\"value\":" + IntToString(nHeight) +

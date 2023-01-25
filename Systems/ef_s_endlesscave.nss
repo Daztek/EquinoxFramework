@@ -72,7 +72,7 @@ void EC_OnAreaPostProcessed()
         int nTileIndex = SqlGetInt(sql, 0);
         int nTileID = SqlGetInt(sql, 1);
 
-        if (nTileID == EC_AREA_PARENT_CLIFF_ENTRANCE_TILE || FindSubString(TS_GetCornersAndEdgesAsString(TS_GetTileEdgesAndCorners(EP_AREA_TILESET, nTileID)), "MOUNTAIN") != -1)
+        if (nTileID == EC_AREA_PARENT_CLIFF_ENTRANCE_TILE || (TS_GetTileTCBitmask(EP_AREA_TILESET, TS_GetTileEdgesAndCorners(EP_AREA_TILESET, nTileID)) & 64))
         {
             string sCaveAreaID = EC_GetNextAreaID();
             json jCave = JsonObject();

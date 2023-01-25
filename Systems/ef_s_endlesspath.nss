@@ -25,17 +25,16 @@ const string EP_AREA_DEFAULT_EDGE_TERRAIN           = "TREES";
 const int EP_AREA_MINIMUM_LENGTH                    = 8;
 const int EP_AREA_RANDOM_LENGTH                     = 8;
 
-const int EP_AREA_PATH_NO_ROAD_CHANCE               = 10;
 const int EP_AREA_SAND_CHANCE                       = 30;
 const int EP_AREA_WATER_CHANCE                      = 35;
 const int EP_AREA_MOUNTAIN_CHANCE                   = 25;
-const int EP_AREA_STREAM_CHANCE                     = 30;
+const int EP_AREA_STREAM_CHANCE                     = 20;
 const int EP_AREA_RIDGE_CHANCE                      = 25;
 const int EP_AREA_ROAD_CHANCE                       = 25;
 const int EP_AREA_GRASS2_CHANCE                     = 25;
 const int EP_AREA_WALL_CHANCE                       = 1;
 
-const int EP_AREA_SINGLE_GROUP_TILE_CHANCE          = 5;
+const int EP_AREA_SINGLE_GROUP_TILE_CHANCE          = 1;
 
 string EP_GetTilesTable();
 string EP_GetLastAreaID();
@@ -69,7 +68,7 @@ void EP_Init()
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
 
-    int nSeed = 128;
+    int nSeed = 1;
     LogInfo("Random Seed: " + IntToString(nSeed));
     SqlSetRandomSeed(EP_SCRIPT_NAME, nSeed);
 }
@@ -180,7 +179,6 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, EP_MAX_ITERATIONS);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, EP_AREA_SINGLE_GROUP_TILE_CHANCE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10 + AG_Random(sAreaID, 16));
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_HEIGHT_FIRST_CHANCE, !AG_Random(sAreaID, 4) ? 100 : 0);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_Random(sAreaID, 8));
     AG_SetCallbackFunction(sAreaID, EP_SCRIPT_NAME, "EP_OnAreaGenerated");
 
@@ -188,6 +186,8 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     AG_AddEdgeTerrain(sAreaID, "MOUNTAIN");
     AG_AddEdgeTerrain(sAreaID, "GRASS");
     AG_AddEdgeTerrain(sAreaID, "GRASS2");
+    //AG_AddEdgeTerrain(sAreaID, "SAND");
+    //AG_AddEdgeTerrain(sAreaID, "CHASM");
 
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "ROAD");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "BRIDGE");
@@ -208,7 +208,6 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     AG_AddPathDoorCrosserCombo(sAreaID, 80, "ROAD");
     AG_AddPathDoorCrosserCombo(sAreaID, 1161, "STREET");
     AG_SetAreaPathDoorCrosserCombo(sAreaID, AG_Random(sAreaID, 100) < EP_AREA_ROAD_CHANCE ? 0 : 1);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_PATH_NO_ROAD_CHANCE, EP_AREA_PATH_NO_ROAD_CHANCE);
 
     AG_CopyEdgeFromArea(sAreaID, oPreviousArea, nEdgeToCopy);
     AG_GenerateEdge(sAreaID, AG_AREA_EDGE_TOP);
@@ -358,9 +357,9 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
     for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
     {
         struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nCurrentTile);
-        string sCAE = TS_GetCornersAndEdgesAsString(TS_GetTileEdgesAndCorners(EP_AREA_TILESET, strTileInfo.nID));
+        int nCAE = TS_GetTileTCBitmask(EP_AREA_TILESET, TS_GetTileEdgesAndCorners(EP_AREA_TILESET, strTileInfo.nID));
 
-        if (FindSubString(sCAE, "GRASS") != -1)
+        if ((nCAE & 40))
         {
             vector vTilePosition = GetTilePosition(strTileInfo.nGridX, strTileInfo.nGridY);
 

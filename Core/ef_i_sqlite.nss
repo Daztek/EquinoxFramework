@@ -5,7 +5,7 @@
     Description: Equinox Framework SQLite Utility Include
 */
 
-const int SQL_ENABLE_NAMED_RANDOM           = TRUE;
+const int SQL_ENABLE_NAMED_RANDOM           = FALSE;
 
 // Returns TRUE if sTableName exists in sDatabase.
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName);

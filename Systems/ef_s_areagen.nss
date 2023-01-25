@@ -17,7 +17,7 @@ const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject"
 const int AG_ENABLE_SEEDED_RANDOM                               = TRUE;
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
 const float AG_GENERATION_DELAY                                 = 0.1f;
-const int AG_GENERATION_TILE_BATCH                              = 32;
+const int AG_GENERATION_TILE_BATCH                              = 16;
 const int AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE                 = 25;
 
 const int AG_INVALID_TILE_ID                                    = -1;
@@ -568,7 +568,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
             if (strOverride.sBR != "") str.sBR = strOverride.sBR;
         }
 
-        if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2 && nHeight)
+        if (nHeight)
         {
             str = TS_IncreaseHeight(sTileset, str, nHeight);
         }
@@ -586,6 +586,11 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
                 {
                     int nEdgeOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TOP, strTilePos.nX);
                     str = TS_GetCornersAndEdgesByOrientation(sTileset, nEdgeTileID, nEdgeOrientation);
+
+                    int nEdgeHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TOP, strTilePos.nX);
+                    if (nEdgeHeight)
+                        str = TS_IncreaseHeight(sTileset, str, nEdgeHeight);
+
                 }
                 else if (AG_GetHasEdgeTileOverride(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TOP, strTilePos.nX))
                 {
@@ -611,6 +616,10 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
                 {
                     int nEdgeOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, strTilePos.nY);
                     str = TS_GetCornersAndEdgesByOrientation(sTileset, nEdgeTileID, nEdgeOrientation);
+
+                    int nEdgeHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, strTilePos.nY);
+                    if (nEdgeHeight)
+                        str = TS_IncreaseHeight(sTileset, str, nEdgeHeight);
                 }
                 else if (AG_GetHasEdgeTileOverride(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, strTilePos.nY))
                 {
@@ -636,6 +645,10 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
                 {
                     int nEdgeOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, strTilePos.nX);
                     str = TS_GetCornersAndEdgesByOrientation(sTileset, nEdgeTileID, nEdgeOrientation);
+
+                    int nEdgeHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, strTilePos.nX);
+                    if (nEdgeHeight)
+                        str = TS_IncreaseHeight(sTileset, str, nEdgeHeight);
                 }
                 else if (AG_GetHasEdgeTileOverride(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, strTilePos.nX))
                 {
@@ -661,6 +674,10 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
                 {
                     int nEdgeOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_EDGE_LEFT, strTilePos.nY);
                     str = TS_GetCornersAndEdgesByOrientation(sTileset, nEdgeTileID, nEdgeOrientation);
+
+                    int nEdgeHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_EDGE_LEFT, strTilePos.nY);
+                    if (nEdgeHeight)
+                        str = TS_IncreaseHeight(sTileset, str, nEdgeHeight);
                 }
                 else if (AG_GetHasEdgeTileOverride(sAreaID, AG_DATA_KEY_ARRAY_EDGE_LEFT, strTilePos.nY))
                 {
@@ -733,15 +750,18 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
 
     strQuery.sTL = AG_ResolveCorner(strTop.sBL, strLeft.sTR);
     if (strQuery.sTL == "ERROR") return tile;
+
     strQuery.sTR = AG_ResolveCorner(strTop.sBR, strRight.sTL);
     if (strQuery.sTR == "ERROR") return tile;
+
     strQuery.sBR = AG_ResolveCorner(strRight.sBL, strBottom.sTR);
     if (strQuery.sBR == "ERROR") return tile;
+
     strQuery.sBL = AG_ResolveCorner(strBottom.sTL, strLeft.sBR);
     if (strQuery.sBL == "ERROR") return tile;
 
-    string sRoadCrosser = AG_GetAreaPathCrosserType(sAreaID);
-    int bHasRoad = TS_GetHasTerrainOrCrosser(strQuery, sRoadCrosser);
+    string sPathCrosser = AG_GetAreaPathCrosserType(sAreaID);
+    int bHasPath = TS_GetHasTerrainOrCrosser(strQuery, sPathCrosser);
 
     string sQuery;
 
@@ -751,8 +771,8 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
         sQuery = "SELECT tile_id, orientation, height FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " WHERE is_group_tile=0 ";
 
     sQuery += AG_SqlConstructCAEClause(strQuery);
-    sQuery += "AND (corners_and_edges & @tocbitmask) = 0 ";
-    sQuery += "ORDER BY height DESC, " + AG_GetRandomQueryString(sAreaID) + " LIMIT 1;";
+    sQuery += "AND (bitmask & @tocbitmask) = 0 ";
+    sQuery += "ORDER BY " + AG_GetRandomQueryString(sAreaID) + " LIMIT 1;";
 
     sqlquery sql = SqlPrepareQueryModule(sQuery);
 
@@ -770,7 +790,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     {
         string sTOC = StringArray_At(oAreaDataObject, AG_IGNORE_TOC_ARRAY, nTOC);
 
-        if (sTOC == sRoadCrosser && bHasRoad)
+        if (bHasPath && sTOC == sPathCrosser)
             continue;
 
         nBitmask |= TS_GetTCBitmask(sTileset, sTOC);
@@ -814,7 +834,7 @@ void AG_ProcessTile(string sAreaID, int nTile)
 
 void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 {
-    struct ProfilerData pd = Profiler_Start("AG_GenerateTiles: " + sAreaID);
+    //struct ProfilerData pd = Profiler_Start("AG_GenerateTiles: " + sAreaID);
 
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
 
@@ -879,7 +899,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID, nCurrentTile, nNumTiles));
 
-    Profiler_Stop(pd);
+    //Profiler_Stop(pd);
 }
 
 void AG_GenerateGenerationTileArray(string sAreaID)

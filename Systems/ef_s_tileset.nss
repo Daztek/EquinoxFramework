@@ -64,6 +64,7 @@ int TS_GetTCBitmask(string sTileset, string sTC);
 int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str);
 
 int TS_GetTilesetNumTiles(string sTileset);
+int TS_GetHasTileHeightTransition(string sTileset);
 float TS_GetTilesetHeightTransition(string sTileset);
 int TS_GetTilesetNumTerrain(string sTileset);
 string TS_GetTilesetTerrain(string sTileset, int nIndex);
@@ -136,7 +137,7 @@ void TS_CreateTilesetTables(string sTileset)
              "b TEXT NOT NULL, " +
              "bl TEXT NOT NULL, " +
              "l TEXT NOT NULL, " +
-             "corners_and_edges INTEGER NOT NULL, " +
+             "bitmask INTEGER NOT NULL, " +
              "is_group_tile INTEGER NOT NULL, " +
              "PRIMARY KEY(tile_id, orientation, height));";
     SqlStep(SqlPrepareQueryModule(sQuery));
@@ -169,7 +170,7 @@ void TS_CreateTilesetTables(string sTileset)
              "b TEXT NOT NULL, " +
              "bl TEXT NOT NULL, " +
              "l TEXT NOT NULL, " +
-             "corners_and_edges INTEGER NOT NULL, " +
+             "bitmask INTEGER NOT NULL, " +
              "PRIMARY KEY(tile_id, orientation, height));";
     SqlStep(SqlPrepareQueryModule(sQuery));
 }
@@ -357,51 +358,30 @@ int TS_GetTCBitmask(string sTileset, string sTC)
 
     if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
     {
-             if (sTC == "SAND")
-            return 1 << 0;
-        else if (sTC == "WATER")
-            return 1 << 1;
-        else if (sTC == "TREES")
-            return 1 << 2;
-        else if (sTC == "GRASS")
-            return 1 << 3;
-        else if (sTC == "CHASM")
-            return 1 << 4;
-        else if (sTC == "GRASS2")
-            return 1 << 5;
-        else if (sTC == "MOUNTAIN")
-            return 1 << 6;
-        else if (sTC == "ROAD")
-            return 1 << 7;
-        else if (sTC == "STREAM")
-            return 1 << 8;
-        else if (sTC == "WALL")
-            return 1 << 9;
-        else if (sTC == "BRIDGE")
-            return 1 << 10;
-        else if (sTC == "RIDGE")
-            return 1 << 11;
-        else if (sTC == "STREET")
-            return 1 << 12;
+        if (sTC == "SAND")      return 1;
+        if (sTC == "WATER")     return 2;
+        if (sTC == "TREES")     return 4;
+        if (sTC == "GRASS")     return 8;
+        if (sTC == "CHASM")     return 16;
+        if (sTC == "GRASS2")    return 32;
+        if (sTC == "MOUNTAIN")  return 64;
+        if (sTC == "ROAD")      return 128;
+        if (sTC == "STREAM")    return 256;
+        if (sTC == "WALL")      return 512;
+        if (sTC == "BRIDGE")    return 1024;
+        if (sTC == "RIDGE")     return 2048;
+        if (sTC == "STREET")    return 4096;
     }
     else if (sTileset == TILESET_RESREF_MINES_AND_CAVERNS)
     {
-             if (sTC == "FLOOR")
-            return 1 << 0;
-        else if (sTC == "WALL")
-            return 1 << 1;
-        else if (sTC == "WATER")
-            return 1 << 2;
-        else if (sTC == "FENCE")
-            return 1 << 3;
-        else if (sTC == "CORRIDOR")
-            return 1 << 4;
-        else if (sTC == "TRACKS")
-            return 1 << 5;
-        else if (sTC == "DOORWAY")
-            return 1 << 6;
-        else if (sTC == "BRIDGE")
-            return 1 << 7;
+        if (sTC == "FLOOR")     return 1;
+        if (sTC == "WALL")      return 2;
+        if (sTC == "WATER")     return 4;
+        if (sTC == "FENCE")     return 8;
+        if (sTC == "CORRIDOR")  return 16;
+        if (sTC == "TRACKS")    return 32;
+        if (sTC == "DOORWAY")   return 64;
+        if (sTC == "BRIDGE")    return 128;
     }
 
     return 0;
@@ -427,6 +407,11 @@ int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str)
 int TS_GetTilesetNumTiles(string sTileset)
 {
     return GetLocalInt(TS_GetTilesetDataObject(sTileset), "NumTiles");
+}
+
+int TS_GetHasTileHeightTransition(string sTileset)
+{
+    return GetLocalInt(TS_GetTilesetDataObject(sTileset), "HasHeightTransition");
 }
 
 float TS_GetTilesetHeightTransition(string sTileset)
@@ -520,6 +505,7 @@ void TS_LoadTilesetData(string sTileset)
 
     struct NWNX_Tileset_TilesetData str = NWNX_Tileset_GetTilesetData(sTileset);
     SetLocalInt(oTDO, "NumTiles", str.nNumTileData);
+    SetLocalInt(oTDO, "HasHeightTransition", str.bHasHeightTransition);
     SetLocalFloat(oTDO, "HeightTransition", str.fHeightTransition);
     SetLocalInt(oTDO, "NumTerrain", str.nNumTerrain);
     SetLocalInt(oTDO, "NumCrossers", str.nNumCrossers);
@@ -645,8 +631,8 @@ void TS_ProcessTileDoors(string sTileset, int nTileID)
 
 void TS_InsertTile(string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str)
 {
-    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " (tile_id, orientation, height, tl, t, tr, r, br, b, bl, l, corners_and_edges, is_group_tile) " +
-                    "VALUES(@tile_id, @orientation, @height, @tl, @t, @tr, @r, @br, @b, @bl, @l, @corners_and_edges, @is_group_tile);";
+    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " (tile_id, orientation, height, tl, t, tr, r, br, b, bl, l, bitmask, is_group_tile) " +
+                    "VALUES(@tile_id, @orientation, @height, @tl, @t, @tr, @r, @br, @b, @bl, @l, @bitmask, @is_group_tile);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@tile_id", nTileID);
     SqlBindInt(sql, "@orientation", nOrientation);
@@ -659,7 +645,7 @@ void TS_InsertTile(string sTileset, int nTileID, int nOrientation, int nHeight, 
     SqlBindString(sql, "@b", str.sB);
     SqlBindString(sql, "@bl", str.sBL);
     SqlBindString(sql, "@l", str.sL);
-    SqlBindInt(sql, "@corners_and_edges", TS_GetTileTCBitmask(sTileset, TS_GetTileEdgesAndCorners(sTileset, nTileID)));
+    SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, TS_GetTileEdgesAndCorners(sTileset, nTileID)));
     SqlBindInt(sql, "@is_group_tile", TS_GetIsTilesetGroupTile(sTileset, nTileID));
     SqlStep(sql);
 }
@@ -695,16 +681,15 @@ void TS_ProcessTile(string sTileset, int nTileID)
 
     struct TS_TileStruct str = strTile;
 
-    int nOrientation;
+    int nOrientation, nHeight;
     for (nOrientation = 0; nOrientation < 4; nOrientation++)
     {
-        TS_InsertTile(sTileset, nTileID, nOrientation, 0, str);
+        TS_InsertTile(sTileset, nTileID, nOrientation, nHeight, str);
         str = TS_RotateTileStruct(str);
     }
 
-    if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
+    if (TS_GetHasTileHeightTransition(sTileset))
     {
-        int nHeight;
         for (nHeight = 1; nHeight <= TS_MAX_TILE_HEIGHT; nHeight++)
         {
             str = TS_IncreaseHeight(sTileset, strTile, nHeight);
@@ -722,8 +707,8 @@ void TS_ProcessTile(string sTileset, int nTileID)
 
 void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str)
 {
-    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (tile_id, orientation, height, tl, t, tr, r, br, b, bl, l, corners_and_edges) " +
-                    "VALUES(@tile_id, @orientation, @height, @tl, @t, @tr, @r, @br, @b, @bl, @l, @corners_and_edges);";
+    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (tile_id, orientation, height, tl, t, tr, r, br, b, bl, l, bitmask) " +
+                    "VALUES(@tile_id, @orientation, @height, @tl, @t, @tr, @r, @br, @b, @bl, @l, @bitmask);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@tile_id", nTileID);
     SqlBindInt(sql, "@orientation", nOrientation);
@@ -736,7 +721,7 @@ void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, in
     SqlBindString(sql, "@b", str.sB);
     SqlBindString(sql, "@bl", str.sBL);
     SqlBindString(sql, "@l", str.sL);
-    SqlBindInt(sql, "@corners_and_edges", TS_GetTileTCBitmask(sTileset, TS_GetTileEdgesAndCorners(sTileset, nTileID)));
+    SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, TS_GetTileEdgesAndCorners(sTileset, nTileID)));
     SqlStep(sql);
 }
 
@@ -758,16 +743,15 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
 
     struct TS_TileStruct str = strTile;
 
-    int nOrientation;
+    int nOrientation, nHeight;
     for (nOrientation = 0; nOrientation < 4; nOrientation++)
     {
-        TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, 0, str);
+        TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, nHeight, str);
         str = TS_RotateTileStruct(str);
     }
 
-    if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
+    if (TS_GetHasTileHeightTransition(sTileset))
     {
-        int nHeight;
         for (nHeight = 1; nHeight <= TS_MAX_TILE_HEIGHT; nHeight++)
         {
             str = TS_IncreaseHeight(sTileset, strTile, nHeight);

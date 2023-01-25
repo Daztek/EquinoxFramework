@@ -20,10 +20,10 @@ const int EP_POSTPROCESS_TILE_BATCH                 = 8;
 const string EP_EVENT_AREA_POST_PROCESS_FINISHED    = "EP_EVENT_AREA_POST_PROCESS_FINISHED";
 
 const string EP_AREA_TILESET                        = TILESET_RESREF_MEDIEVAL_RURAL_2;
-const int EP_MAX_ITERATIONS                         = 50;
+const int EP_MAX_ITERATIONS                         = 100;
 const string EP_AREA_DEFAULT_EDGE_TERRAIN           = "TREES";
 const int EP_AREA_MINIMUM_LENGTH                    = 8;
-const int EP_AREA_RANDOM_LENGTH                     = 8;
+const int EP_AREA_RANDOM_LENGTH                     = 24;
 
 const int EP_AREA_SAND_CHANCE                       = 30;
 const int EP_AREA_WATER_CHANCE                      = 35;

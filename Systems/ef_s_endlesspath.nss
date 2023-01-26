@@ -23,7 +23,7 @@ const string EP_AREA_TILESET                        = TILESET_RESREF_MEDIEVAL_RU
 const int EP_MAX_ITERATIONS                         = 25;
 const string EP_AREA_DEFAULT_EDGE_TERRAIN           = "TREES";
 const int EP_AREA_MINIMUM_LENGTH                    = 8;
-const int EP_AREA_RANDOM_LENGTH                     = 12;
+const int EP_AREA_RANDOM_LENGTH                     = 8;
 
 const int EP_AREA_SAND_CHANCE                       = 20;
 const int EP_AREA_WATER_CHANCE                      = 30;

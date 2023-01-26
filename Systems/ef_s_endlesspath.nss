@@ -349,6 +349,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
     string sQuery = "INSERT INTO " + EP_GetTilesTable() + "(area_id, tile_index, tile_x, tile_y, tile_id, entrance_dist, exit_dist, path_dist, group_tile, num_doors) " +
                     "VALUES(@area_id, @tile_index, @tile_x, @tile_y, @tile_id, @entrance_dist, @exit_dist, @path_dist, @group_tile, @num_doors);";
     int nCurrentMaxTiles = min(nCurrentTile + EP_POSTPROCESS_TILE_BATCH, nNumTiles);
+    int nGrassBitmask = TS_GetTCBitmask(EP_AREA_TILESET, "GRASS") + TS_GetTCBitmask(EP_AREA_TILESET, "GRASS2");
 
     SqlBeginTransactionModule();
 
@@ -357,7 +358,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
         struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nCurrentTile);
         int nCAE = TS_GetTileTCBitmask(EP_AREA_TILESET, TS_GetTileEdgesAndCorners(EP_AREA_TILESET, strTileInfo.nID));
 
-        if ((nCAE & 40))
+        if ((nCAE & nGrassBitmask))
         {
             vector vTilePosition = GetTilePosition(strTileInfo.nGridX, strTileInfo.nGridY);
 

@@ -573,7 +573,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
 
         if (nHeight)
         {
-            str = TS_IncreaseHeight(sTileset, str, nHeight);
+            str = TS_IncreaseTileHeight(sTileset, str, nHeight);
         }
     }
     else
@@ -592,7 +592,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
 
                     int nEdgeHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TOP, strTilePos.nX);
                     if (nEdgeHeight)
-                        str = TS_IncreaseHeight(sTileset, str, nEdgeHeight);
+                        str = TS_IncreaseTileHeight(sTileset, str, nEdgeHeight);
 
                 }
                 else if (AG_GetHasEdgeTileOverride(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TOP, strTilePos.nX))
@@ -622,7 +622,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
 
                     int nEdgeHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, strTilePos.nY);
                     if (nEdgeHeight)
-                        str = TS_IncreaseHeight(sTileset, str, nEdgeHeight);
+                        str = TS_IncreaseTileHeight(sTileset, str, nEdgeHeight);
                 }
                 else if (AG_GetHasEdgeTileOverride(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, strTilePos.nY))
                 {
@@ -651,7 +651,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
 
                     int nEdgeHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, strTilePos.nX);
                     if (nEdgeHeight)
-                        str = TS_IncreaseHeight(sTileset, str, nEdgeHeight);
+                        str = TS_IncreaseTileHeight(sTileset, str, nEdgeHeight);
                 }
                 else if (AG_GetHasEdgeTileOverride(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, strTilePos.nX))
                 {
@@ -680,7 +680,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
 
                     int nEdgeHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_EDGE_LEFT, strTilePos.nY);
                     if (nEdgeHeight)
-                        str = TS_IncreaseHeight(sTileset, str, nEdgeHeight);
+                        str = TS_IncreaseTileHeight(sTileset, str, nEdgeHeight);
                 }
                 else if (AG_GetHasEdgeTileOverride(sAreaID, AG_DATA_KEY_ARRAY_EDGE_LEFT, strTilePos.nY))
                 {

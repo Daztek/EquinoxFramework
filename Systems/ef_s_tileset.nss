@@ -59,7 +59,8 @@ struct TS_TileStruct TS_ReplaceTerrainOrCrosser(struct TS_TileStruct str, string
 struct TS_TileStruct TS_ReplaceTerrain(struct TS_TileStruct str, string sOld, string sNew);
 struct TS_TileStruct TS_SetTerrain(struct TS_TileStruct str, string sTerrain);
 int TS_GetTerrainIsOfType(struct TS_TileStruct str, string sTerrain);
-struct TS_TileStruct TS_IncreaseHeight(string sTileset, struct TS_TileStruct str, int nHeight);
+int TS_GetIsCrosser(string sTileset, string sEdge);
+struct TS_TileStruct TS_IncreaseTileHeight(string sTileset, struct TS_TileStruct str, int nHeight);
 string TS_StripHeightIndicator(string sTC);
 int TS_GetTCBitmask(string sTileset, string sTC);
 int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str);
@@ -77,6 +78,9 @@ string TS_GetTilesetDefaultEdgeTerrain(string sTileset);
 int TS_GetTilesetNumDoors(string sTileset, int nTileID);
 struct TS_DoorStruct TS_GetTilesetTileDoor(string sTileset, int nTileID, int nIndex);
 int TS_GetIsTilesetGroupTile(string sTileset, int nTileID);
+json TS_GetTilesetTerrainCrosserArray(string sTileset);
+json TS_GetTilesetTerrainArray(string sTileset);
+json TS_GetTilesetCrosserArray(string sTileset);
 
 void TS_LoadTilesetData(string sTileset);
 void TS_ProcessTilesetGroups(string sTileset);
@@ -315,13 +319,16 @@ int TS_GetTerrainIsOfType(struct TS_TileStruct str, string sTerrain)
            (str.sBR == sTerrain) && (str.sBL == sTerrain);
 }
 
-int TS_GetIsMedievalRural2Crosser(string sTileset, string sEdge)
+int TS_GetIsCrosser(string sTileset, string sEdge)
 {
-    return sEdge == "N/A" || sEdge == "ROAD" || sEdge == "STREAM" || sEdge == "WALL" || sEdge == "BRIDGE" || sEdge == "RIDGE" || sEdge == "STREET";
+    return JsonGetType(JsonFind(TS_GetTilesetCrosserArray(sTileset), JsonString(sEdge))) == JSON_TYPE_INTEGER;
 }
 
-struct TS_TileStruct TS_IncreaseHeight(string sTileset, struct TS_TileStruct str, int nHeight)
+struct TS_TileStruct TS_IncreaseTileHeight(string sTileset, struct TS_TileStruct str, int nHeight)
 {
+    if (!TS_GetHasTileHeightTransition(sTileset))
+        return str;
+
     int nCount;
     string sPlus;
     for (nCount = 0; nCount < nHeight; nCount++)
@@ -329,32 +336,29 @@ struct TS_TileStruct TS_IncreaseHeight(string sTileset, struct TS_TileStruct str
         sPlus += "+";
     }
 
-    if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
-    {
-        if (str.sTL != "")
-            str.sTL += sPlus;
+    if (str.sTL != "")
+        str.sTL += sPlus;
 
-        if (str.sT != "" && !TS_GetIsMedievalRural2Crosser(sTileset, str.sT))
-            str.sT += sPlus;
+    if (str.sT != "" && str.sT != "N/A" && !TS_GetIsCrosser(sTileset, str.sT))
+        str.sT += sPlus;
 
-        if (str.sTR != "")
-            str.sTR += sPlus;
+    if (str.sTR != "")
+        str.sTR += sPlus;
 
-        if (str.sR != "" && !TS_GetIsMedievalRural2Crosser(sTileset, str.sR))
-            str.sR += sPlus;
+    if (str.sR != "" && str.sT != "N/A" && !TS_GetIsCrosser(sTileset, str.sR))
+        str.sR += sPlus;
 
-        if (str.sBR != "")
-            str.sBR += sPlus;
+    if (str.sBR != "")
+        str.sBR += sPlus;
 
-        if (str.sB != "" && !TS_GetIsMedievalRural2Crosser(sTileset, str.sB))
-            str.sB += sPlus;
+    if (str.sB != "" && str.sT != "N/A" && !TS_GetIsCrosser(sTileset, str.sB))
+        str.sB += sPlus;
 
-        if (str.sBL != "")
-            str.sBL += sPlus;
+    if (str.sBL != "")
+        str.sBL += sPlus;
 
-        if (str.sL != "" && !TS_GetIsMedievalRural2Crosser(sTileset, str.sL))
-            str.sL += sPlus;
-    }
+    if (str.sL != "" && str.sT != "N/A" && !TS_GetIsCrosser(sTileset, str.sL))
+        str.sL += sPlus;
 
     return str;
 }
@@ -370,37 +374,8 @@ string TS_StripHeightIndicator(string sTC)
 
 int TS_GetTCBitmask(string sTileset, string sTC)
 {
-    sTC = TS_StripHeightIndicator(sTC);
-
-    if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
-    {
-        if (sTC == "SAND")      return 1;
-        if (sTC == "WATER")     return 2;
-        if (sTC == "TREES")     return 4;
-        if (sTC == "GRASS")     return 8;
-        if (sTC == "CHASM")     return 16;
-        if (sTC == "GRASS2")    return 32;
-        if (sTC == "MOUNTAIN")  return 64;
-        if (sTC == "ROAD")      return 128;
-        if (sTC == "STREAM")    return 256;
-        if (sTC == "WALL")      return 512;
-        if (sTC == "BRIDGE")    return 1024;
-        if (sTC == "RIDGE")     return 2048;
-        if (sTC == "STREET")    return 4096;
-    }
-    else if (sTileset == TILESET_RESREF_MINES_AND_CAVERNS)
-    {
-        if (sTC == "FLOOR")     return 1;
-        if (sTC == "WALL")      return 2;
-        if (sTC == "WATER")     return 4;
-        if (sTC == "FENCE")     return 8;
-        if (sTC == "CORRIDOR")  return 16;
-        if (sTC == "TRACKS")    return 32;
-        if (sTC == "DOORWAY")   return 64;
-        if (sTC == "BRIDGE")    return 128;
-    }
-
-    return 0;
+    json jIndex = JsonFind(TS_GetTilesetTerrainCrosserArray(sTileset), JsonString(TS_StripHeightIndicator(sTC)));
+    return JsonGetType(jIndex) == JSON_TYPE_INTEGER ? 1 << JsonGetInt(jIndex) : 0;
 }
 
 int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str)
@@ -475,6 +450,21 @@ int TS_GetTilesetNumDoors(string sTileset, int nTileID)
     return GetLocalInt(TS_GetTilesetDataObject(sTileset), "Tile_" + IntToString(nTileID) + "_NumDoors");
 }
 
+json TS_GetTilesetTerrainCrosserArray(string sTileset)
+{
+    return GetLocalJson(TS_GetTilesetDataObject(sTileset), "TerrainCrosserArray");
+}
+
+json TS_GetTilesetTerrainArray(string sTileset)
+{
+    return GetLocalJson(TS_GetTilesetDataObject(sTileset), "TerrainArray");
+}
+
+json TS_GetTilesetCrosserArray(string sTileset)
+{
+    return GetLocalJson(TS_GetTilesetDataObject(sTileset), "CrosserArray");
+}
+
 struct TS_DoorStruct TS_GetTilesetTileDoor(string sTileset, int nTileID, int nIndex)
 {
     object oDataObject = TS_GetTilesetDataObject(sTileset);
@@ -533,11 +523,14 @@ void TS_LoadTilesetData(string sTileset)
 
     LogInfo("Loading Tileset Data: " + sTileset + " -> " + sName);
 
+    json jTC = JsonArray(), jTerrain = JsonArray(), jCrosser = JsonArray();
     int nTerrainNum;
     for (nTerrainNum = 0; nTerrainNum < str.nNumTerrain; nTerrainNum++)
     {
         string sTerrain = GetStringUpperCase(NWNX_Tileset_GetTilesetTerrain(sTileset, nTerrainNum));
         SetLocalString(oTDO, "Terrain" + IntToString(nTerrainNum), sTerrain);
+        jTC = JsonArrayInsertString(jTC, sTerrain);
+        jTerrain = JsonArrayInsertString(jTerrain, sTerrain);
     }
 
     int nCrosserNum;
@@ -545,7 +538,13 @@ void TS_LoadTilesetData(string sTileset)
     {
         string sCrosser = GetStringUpperCase(NWNX_Tileset_GetTilesetCrosser(sTileset, nCrosserNum));
         SetLocalString(oTDO, "Crosser" + IntToString(nCrosserNum), sCrosser);
+        jTC = JsonArrayInsertString(jTC, sCrosser);
+        jCrosser = JsonArrayInsertString(jCrosser, sCrosser);
     }
+
+    SetLocalJson(oTDO, "TerrainCrosserArray", jTC);
+    SetLocalJson(oTDO, "TerrainArray", jTerrain);
+    SetLocalJson(oTDO, "CrosserArray", jTerrain);
 
     TS_ProcessTilesetGroups(sTileset);
 
@@ -708,7 +707,7 @@ void TS_ProcessTile(string sTileset, int nTileID)
     {
         for (nHeight = 1; nHeight < TS_MAX_TILE_HEIGHT; nHeight++)
         {
-            str = TS_IncreaseHeight(sTileset, strTile, nHeight);
+            str = TS_IncreaseTileHeight(sTileset, strTile, nHeight);
 
             for (nOrientation = 0; nOrientation < 4; nOrientation++)
             {
@@ -770,7 +769,7 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
     {
         for (nHeight = 1; nHeight < TS_MAX_TILE_HEIGHT; nHeight++)
         {
-            str = TS_IncreaseHeight(sTileset, strTile, nHeight);
+            str = TS_IncreaseTileHeight(sTileset, strTile, nHeight);
 
             for (nOrientation = 0; nOrientation < 4; nOrientation++)
             {

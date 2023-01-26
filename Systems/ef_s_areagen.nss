@@ -17,7 +17,7 @@ const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject"
 const int AG_ENABLE_SEEDED_RANDOM                               = TRUE;
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
 const float AG_GENERATION_DELAY                                 = 0.1f;
-const int AG_GENERATION_TILE_BATCH                              = 16;
+const int AG_GENERATION_TILE_BATCH                              = 32;
 const int AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE                 = 25;
 
 const int AG_INVALID_TILE_ID                                    = -1;
@@ -162,7 +162,7 @@ void AG_GenerateArea(string sAreaID);
 int AG_GetEdgeFromTile(string sAreaID, int nTile);
 int AG_GetRandomOtherEdge(string sAreaID, int nEdgeToSkip);
 int AG_GetTileOrientationFromEdge(string sAreaID, int nEdge, int nTileID);
-void AG_CreatePathEntranceDoorTile(string sAreaID, int nTile);
+void AG_CreatePathEntranceDoorTile(string sAreaID, int nTile, int nHeight);
 void AG_CreatePathExitDoorTile(string sAreaID);
 void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy);
 int AG_GetNextTile(int nAreaWidth, int nTile, int nEdge);
@@ -1160,13 +1160,13 @@ int AG_GetTileOrientationFromEdge(string sAreaID, int nEdge, int nTileID)
     return -1;
 }
 
-void AG_CreatePathEntranceDoorTile(string sAreaID, int nTile)
+void AG_CreatePathEntranceDoorTile(string sAreaID, int nTile, int nHeight)
 {
     int nEdge = AG_GetEdgeFromTile(sAreaID, nTile);
     int nPathDoorTileID = AG_GetAreaPathDoor(sAreaID);
     int nOrientation = AG_GetTileOrientationFromEdge(sAreaID, nEdge, nPathDoorTileID);
 
-    AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, nPathDoorTileID, nOrientation, 0, TRUE);
+    AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, nPathDoorTileID, nOrientation, nHeight, TRUE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX, nTile);
 }
 
@@ -1174,24 +1174,38 @@ void AG_CreatePathExitDoorTile(string sAreaID)
 {
     int nEntranceTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX);
     int nEntranceEdge = AG_GetEdgeFromTile(sAreaID, nEntranceTile);
+    int nEntranceHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nEntranceTile);
     int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
     int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
-    int nEdge = AG_GetRandomOtherEdge(sAreaID, nEntranceEdge);
+    int nExitEdge = AG_GetRandomOtherEdge(sAreaID, nEntranceEdge);
     int nPathDoorTileID = AG_GetAreaPathDoor(sAreaID);
-    int nOrientation = AG_GetTileOrientationFromEdge(sAreaID, nEdge, nPathDoorTileID);
-    int nTile;
+    int nOrientation = AG_GetTileOrientationFromEdge(sAreaID, nExitEdge, nPathDoorTileID);
+    int nExitTile, nRandom;
 
-    if (nEdge == AG_AREA_EDGE_TOP)
-        nTile = (nWidth * (nHeight - 1)) + (AG_Random(sAreaID, nWidth - 2) + 1);
-    else if (nEdge == AG_AREA_EDGE_RIGHT)
-        nTile = (nWidth - 1) + ((AG_Random(sAreaID, nHeight - 2) + 1) * nWidth);
-    else if (nEdge == AG_AREA_EDGE_BOTTOM)
-        nTile = (AG_Random(sAreaID, nWidth - 2) + 1);
-    else if (nEdge == AG_AREA_EDGE_LEFT)
-        nTile = (AG_Random(sAreaID, nHeight - 2) + 1) * nWidth;
+    if (nExitEdge == AG_AREA_EDGE_TOP)
+    {
+        nRandom = (nWidth / 4) + Random((nWidth / 2) + 1);
+        nExitTile = (nWidth * (nHeight - 1)) + nRandom;
+    }
+    else if (nExitEdge == AG_AREA_EDGE_RIGHT)
+    {
+        nRandom = (nHeight / 4) + Random((nHeight / 2) + 1);
+        nExitTile = (nWidth - 1) + (nRandom * nWidth);
+    }
+    else if (nExitEdge == AG_AREA_EDGE_BOTTOM)
+    {
+        nRandom = (nWidth / 4) + Random((nWidth / 2) + 1);
+        nExitTile = nRandom;
+    }
+    else if (nExitEdge == AG_AREA_EDGE_LEFT)
+    {
+        nRandom = (nHeight / 4) + Random((nHeight / 2) + 1);
+        nExitTile = nRandom * nWidth;
+    }
 
-    AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, nPathDoorTileID, nOrientation, 0, TRUE);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX, nTile);
+    int nExitHeight = 0;//AG_Random(sAreaID, min((nEntranceHeight + 2), TS_MAX_TILE_HEIGHT));
+    AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nExitTile, nPathDoorTileID, nOrientation, nExitHeight, TRUE);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX, nExitTile);
 }
 
 void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
@@ -1233,7 +1247,7 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
                 int nTileIndex = nCount;
                 if (AG_GetIsPathDoor(sAreaID, str.nID))
                 {
-                    AG_CreatePathEntranceDoorTile(sAreaID, nTileIndex);
+                    AG_CreatePathEntranceDoorTile(sAreaID, nTileIndex, str.nHeight);
                     AG_CreatePathExitDoorTile(sAreaID);
                 }
             }
@@ -1253,7 +1267,7 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
                 int nTileIndex = nCount * nWidth;
                 if (AG_GetIsPathDoor(sAreaID, str.nID))
                 {
-                    AG_CreatePathEntranceDoorTile(sAreaID, nTileIndex);
+                    AG_CreatePathEntranceDoorTile(sAreaID, nTileIndex, str.nHeight);
                     AG_CreatePathExitDoorTile(sAreaID);
                 }
             }
@@ -1273,7 +1287,7 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
                 int nTileIndex = (nOtherWidth * (nHeight - 1)) + nCount;
                 if (AG_GetIsPathDoor(sAreaID, str.nID))
                 {
-                    AG_CreatePathEntranceDoorTile(sAreaID, nTileIndex);
+                    AG_CreatePathEntranceDoorTile(sAreaID, nTileIndex, str.nHeight);
                     AG_CreatePathExitDoorTile(sAreaID);
                 }
             }
@@ -1293,7 +1307,7 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
                 int nTileIndex = (nWidth - 1) + (nCount * nWidth);
                 if (AG_GetIsPathDoor(sAreaID, str.nID))
                 {
-                    AG_CreatePathEntranceDoorTile(sAreaID, nTileIndex);
+                    AG_CreatePathEntranceDoorTile(sAreaID, nTileIndex, str.nHeight);
                     AG_CreatePathExitDoorTile(sAreaID);
                 }
             }
@@ -1503,11 +1517,8 @@ void AG_GenerateEdge(string sAreaID, int nEdge)
         {
             json jExitEdgeTerrains = AG_GetJsonDataByKey(sAreaID, AG_DATA_KEY_ARRAY_EXIT_EDGE_TERRAINS);
 
-            if (!JsonArrayContainsString(jExitEdgeTerrains, sTC1))
-                jExitEdgeTerrains = JsonArrayInsertString(jExitEdgeTerrains, sTC1);
-
-            if (!JsonArrayContainsString(jExitEdgeTerrains, sTC3))
-                jExitEdgeTerrains = JsonArrayInsertString(jExitEdgeTerrains, sTC3);
+            jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, sTC1);
+            jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, sTC3);
 
             AG_SetJsonDataByKey(sAreaID, AG_DATA_KEY_ARRAY_EXIT_EDGE_TERRAINS, jExitEdgeTerrains);
         }
@@ -1597,9 +1608,6 @@ json AG_GetTileList(string sAreaID)
         int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
         int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
         int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-
-        if (nHeight > 0)
-            PrintString("Wow! Tile Height == " + IntToString(nHeight) + "!");
 
         sTiles += "{\"Tile_AnimLoop1\":{\"type\":\"byte\",\"value\":1},\"Tile_AnimLoop2\":{\"type\":\"byte\",\"value\":1},\"" +
                   "Tile_AnimLoop3\":{\"type\":\"byte\",\"value\":1},\"Tile_Height\":{\"type\":\"int\",\"value\":" + IntToString(nHeight) +

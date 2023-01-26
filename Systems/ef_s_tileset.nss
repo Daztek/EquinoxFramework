@@ -60,6 +60,7 @@ struct TS_TileStruct TS_ReplaceTerrain(struct TS_TileStruct str, string sOld, st
 struct TS_TileStruct TS_SetTerrain(struct TS_TileStruct str, string sTerrain);
 int TS_GetTerrainIsOfType(struct TS_TileStruct str, string sTerrain);
 struct TS_TileStruct TS_IncreaseHeight(string sTileset, struct TS_TileStruct str, int nHeight);
+string TS_StripHeightIndicator(string sTC);
 int TS_GetTCBitmask(string sTileset, string sTC);
 int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str);
 
@@ -330,31 +331,46 @@ struct TS_TileStruct TS_IncreaseHeight(string sTileset, struct TS_TileStruct str
 
     if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
     {
-        str.sTL += sPlus;
-        if (!TS_GetIsMedievalRural2Crosser(sTileset, str.sT))
+        if (str.sTL != "")
+            str.sTL += sPlus;
+
+        if (str.sT != "" && !TS_GetIsMedievalRural2Crosser(sTileset, str.sT))
             str.sT += sPlus;
 
-        str.sTR += sPlus;
-        if (!TS_GetIsMedievalRural2Crosser(sTileset, str.sR))
+        if (str.sTR != "")
+            str.sTR += sPlus;
+
+        if (str.sR != "" && !TS_GetIsMedievalRural2Crosser(sTileset, str.sR))
             str.sR += sPlus;
 
-        str.sBR += sPlus;
-        if (!TS_GetIsMedievalRural2Crosser(sTileset, str.sB))
+        if (str.sBR != "")
+            str.sBR += sPlus;
+
+        if (str.sB != "" && !TS_GetIsMedievalRural2Crosser(sTileset, str.sB))
             str.sB += sPlus;
 
-        str.sBL += sPlus;
-        if (!TS_GetIsMedievalRural2Crosser(sTileset, str.sL))
+        if (str.sBL != "")
+            str.sBL += sPlus;
+
+        if (str.sL != "" && !TS_GetIsMedievalRural2Crosser(sTileset, str.sL))
             str.sL += sPlus;
     }
 
     return str;
 }
 
-int TS_GetTCBitmask(string sTileset, string sTC)
+string TS_StripHeightIndicator(string sTC)
 {
     int nPlus = FindSubString(sTC, "+");
     if (nPlus != -1)
         sTC = GetSubString(sTC, 0, nPlus);
+
+    return sTC;
+}
+
+int TS_GetTCBitmask(string sTileset, string sTC)
+{
+    sTC = TS_StripHeightIndicator(sTC);
 
     if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
     {
@@ -690,7 +706,7 @@ void TS_ProcessTile(string sTileset, int nTileID)
 
     if (TS_GetHasTileHeightTransition(sTileset))
     {
-        for (nHeight = 1; nHeight <= TS_MAX_TILE_HEIGHT; nHeight++)
+        for (nHeight = 1; nHeight < TS_MAX_TILE_HEIGHT; nHeight++)
         {
             str = TS_IncreaseHeight(sTileset, strTile, nHeight);
 
@@ -752,7 +768,7 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
 
     if (TS_GetHasTileHeightTransition(sTileset))
     {
-        for (nHeight = 1; nHeight <= TS_MAX_TILE_HEIGHT; nHeight++)
+        for (nHeight = 1; nHeight < TS_MAX_TILE_HEIGHT; nHeight++)
         {
             str = TS_IncreaseHeight(sTileset, strTile, nHeight);
 

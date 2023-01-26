@@ -99,7 +99,7 @@ void AV_ClickGenerateButton()
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_GENERATION_LOG_STATUS, TRUE);
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, 10);
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10);
-    AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_GENERATION_TYPE, Random(8));
+    AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_GENERATION_TYPE, AG_GENERATION_TYPE_SPIRAL_INWARD);
     AG_SetCallbackFunction(AV_AREA_ID, AV_SCRIPT_NAME, "AV_OnAreaGenerated");
 
     AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "ROAD");
@@ -117,15 +117,15 @@ void AV_ClickGenerateButton()
     AG_AddPathDoorCrosserCombo(AV_AREA_ID, 1161, "STREET");
     AG_SetAreaPathDoorCrosserCombo(AV_AREA_ID, Random(AG_GetNumPathDoorCrosserCombos(AV_AREA_ID)));
 
-    //AG_CopyEdgeFromArea(AV_AREA_ID, GetAreaFromLocation(GetStartingLocation()), AG_AREA_EDGE_TOP);
-    //AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_TOP);
-    //AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_BOTTOM);
-    //AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_LEFT);
-    //AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_RIGHT);
+    AG_CopyEdgeFromArea(AV_AREA_ID, GetAreaFromLocation(GetStartingLocation()), AG_AREA_EDGE_TOP);
+    AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_TOP);
+    AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_BOTTOM);
+    AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_LEFT);
+    AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_RIGHT);
 
     //AG_CreateRandomEntrance(AV_AREA_ID, 198);
 
-    //AG_PlotRoad(AV_AREA_ID);
+    AG_PlotRoad(AV_AREA_ID);
 
     //AV_OnAreaGenerated(AV_AREA_ID);
     AG_GenerateArea(AV_AREA_ID);

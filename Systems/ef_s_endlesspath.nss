@@ -28,13 +28,13 @@ const int EP_AREA_RANDOM_LENGTH                     = 8;
 const int EP_AREA_SAND_CHANCE                       = 20;
 const int EP_AREA_WATER_CHANCE                      = 30;
 const int EP_AREA_MOUNTAIN_CHANCE                   = 40;
-const int EP_AREA_STREAM_CHANCE                     = 20;
+const int EP_AREA_STREAM_CHANCE                     = 15;
 const int EP_AREA_RIDGE_CHANCE                      = 20;
 const int EP_AREA_ROAD_CHANCE                       = 20;
 const int EP_AREA_GRASS2_CHANCE                     = 25;
 const int EP_AREA_WALL_CHANCE                       = 1;
 
-const int EP_AREA_SINGLE_GROUP_TILE_CHANCE          = 1;
+const int EP_AREA_SINGLE_GROUP_TILE_CHANCE          = 3;
 
 string EP_GetTilesTable();
 string EP_GetLastAreaID();
@@ -68,7 +68,7 @@ void EP_Init()
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
 
-    int nSeed = 50;
+    int nSeed = 25;
     LogInfo("Random Seed: " + IntToString(nSeed));
     SqlSetRandomSeed(EP_SCRIPT_NAME, nSeed);
 }

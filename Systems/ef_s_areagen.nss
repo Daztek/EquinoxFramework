@@ -738,13 +738,13 @@ string AG_SqlConstructCAEClause(struct TS_TileStruct str)
 struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile)
 {
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+    string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
     struct AG_Tile tile; tile.nTileID = AG_INVALID_TILE_ID;
     struct TS_TileStruct strQuery;
     struct TS_TileStruct strTop = AG_GetNeighborTileStruct(sAreaID, nTile, AG_NEIGHBOR_TILE_TOP);
     struct TS_TileStruct strRight = AG_GetNeighborTileStruct(sAreaID, nTile, AG_NEIGHBOR_TILE_RIGHT);
     struct TS_TileStruct strBottom = AG_GetNeighborTileStruct(sAreaID, nTile, AG_NEIGHBOR_TILE_BOTTOM);
     struct TS_TileStruct strLeft = AG_GetNeighborTileStruct(sAreaID, nTile, AG_NEIGHBOR_TILE_LEFT);
-    string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
 
     strQuery.sT = strTop.sB;
     strQuery.sR = strRight.sL;
@@ -1188,22 +1188,22 @@ void AG_CreatePathExitDoorTile(string sAreaID)
 
     if (nExitEdge == AG_AREA_EDGE_TOP)
     {
-        nRandom = min((nWidth / 4) + Random((nWidth / 2) + 1), nWidth - 2);
+        nRandom = min((nWidth / 4) + AG_Random(sAreaID, (nWidth / 2) + 1), nWidth - 2);
         nExitTile = (nWidth * (nHeight - 1)) + nRandom;
     }
     else if (nExitEdge == AG_AREA_EDGE_RIGHT)
     {
-        nRandom = min((nHeight / 4) + Random((nHeight / 2) + 1), nHeight - 2);
+        nRandom = min((nHeight / 4) + AG_Random(sAreaID, (nHeight / 2) + 1), nHeight - 2);
         nExitTile = (nWidth - 1) + (nRandom * nWidth);
     }
     else if (nExitEdge == AG_AREA_EDGE_BOTTOM)
     {
-        nRandom = min((nWidth / 4) + Random((nWidth / 2) + 1), nWidth - 2);
+        nRandom = min((nWidth / 4) + AG_Random(sAreaID, (nWidth / 2) + 1), nWidth - 2);
         nExitTile = nRandom;
     }
     else if (nExitEdge == AG_AREA_EDGE_LEFT)
     {
-        nRandom = min((nHeight / 4) + Random((nHeight / 2) + 1), nHeight - 2);
+        nRandom = min((nHeight / 4) + AG_Random(sAreaID, (nHeight / 2) + 1), nHeight - 2);
         nExitTile = nRandom * nWidth;
     }
 

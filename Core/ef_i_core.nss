@@ -248,18 +248,18 @@ void EFCore_ParseSystem(string sSystem)
             {
                 sArguments += (!nArgument ? "" : ", ") +
                     nssFunction("GetLocal" + nssConvertShortType(GetSubString(sParameters, nArgument, 1)),
-                        "oModule, " + nssEscape(EFCORE_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
+                        "oFDO, " + nssEscape(EFCORE_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
             }
 
-            string sFunctionBody = nssObject("oModule", nssFunction("GetModule"));
+            string sFunctionBody = nssObject("oFDO", nssFunction("GetFunctionsDataObject"));
                 sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "", FALSE)));
 
             if (sReturnType != "")
             {
                 sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
-                                    "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
+                                    "oFDO, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
                 sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
-                                    "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction(sFunctionName, sArguments, FALSE));
+                                    "oFDO, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction(sFunctionName, sArguments, FALSE));
             }
             else
                 sFunctionBody += nssFunction(sFunctionName, sArguments);
@@ -446,57 +446,62 @@ vector RetVector(int nCallStackDepth);
 location RetLocation(int nCallStackDepth);
 cassowary RetCassowary(int nCallStackDepth);
 
+object GetFunctionsDataObject()
+{
+    return GetDataObject(EFCORE_SCRIPT_NAME + "_Functions");
+}
+
 int GetCallStackDepth()
 {
-    return GetLocalInt(GetModule(), EFCORE_CALLSTACK_DEPTH);
+    return GetLocalInt(GetFunctionsDataObject(), EFCORE_CALLSTACK_DEPTH);
 }
 
 int IncrementCallStackDepth(string sFunction, string sReturnType)
 {
-    object oModule = GetModule();
-    int nCallStackDepth = GetLocalInt(oModule, EFCORE_CALLSTACK_DEPTH);
-    SetLocalInt(oModule, EFCORE_CALLSTACK_DEPTH, ++nCallStackDepth);
-    SetLocalString(oModule, EFCORE_CALLSTACK_FUNCTION + IntToString(nCallStackDepth), sFunction);
-    SetLocalString(oModule, EFCORE_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth), sReturnType);
+    object oFDO = GetFunctionsDataObject();
+    int nCallStackDepth = GetLocalInt(oFDO, EFCORE_CALLSTACK_DEPTH);
+    SetLocalInt(oFDO, EFCORE_CALLSTACK_DEPTH, ++nCallStackDepth);
+    SetLocalString(oFDO, EFCORE_CALLSTACK_FUNCTION + IntToString(nCallStackDepth), sFunction);
+    SetLocalString(oFDO, EFCORE_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth), sReturnType);
     return nCallStackDepth;
 }
 
 int DecrementCallStackDepth()
 {
-    object oModule = GetModule();
-    int nCallStackDepth = GetLocalInt(oModule, EFCORE_CALLSTACK_DEPTH);
-    SetLocalInt(oModule, EFCORE_CALLSTACK_DEPTH, --nCallStackDepth);
+    object oFDO = GetFunctionsDataObject();
+    int nCallStackDepth = GetLocalInt(oFDO, EFCORE_CALLSTACK_DEPTH);
+    SetLocalInt(oFDO, EFCORE_CALLSTACK_DEPTH, --nCallStackDepth);
     return nCallStackDepth;
 }
 
 string GetCallStackReturnType(int nCallStackDepth)
 {
-    return GetLocalString(GetModule(), EFCORE_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth));
+    return GetLocalString(GetFunctionsDataObject(), EFCORE_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth));
 }
 
 string GetCallStackFunction(int nCallStackDepth)
 {
-    return GetLocalString(GetModule(), EFCORE_CALLSTACK_FUNCTION + IntToString(nCallStackDepth));
+    return GetLocalString(GetFunctionsDataObject(), EFCORE_CALLSTACK_FUNCTION + IntToString(nCallStackDepth));
 }
 
 void ClearArgumentCount()
 {
-    DeleteLocalInt(GetModule(), EFCORE_ARGUMENT_COUNT);
+    DeleteLocalInt(GetFunctionsDataObject(), EFCORE_ARGUMENT_COUNT);
 }
 
 int IncrementArgumentCount()
 {
-    object oModule = GetModule();
-    int nCount = GetLocalInt(oModule, EFCORE_ARGUMENT_COUNT);
-    SetLocalInt(oModule, EFCORE_ARGUMENT_COUNT, nCount + 1);
+    object oFDO = GetFunctionsDataObject();
+    int nCount = GetLocalInt(oFDO, EFCORE_ARGUMENT_COUNT);
+    SetLocalInt(oFDO, EFCORE_ARGUMENT_COUNT, nCount + 1);
     return nCount;
 }
 
 int GetNextLambdaId()
 {
-    object oModule = GetModule();
-    int nId = GetLocalInt(oModule, EFCORE_LAMBDA_ID) + 1;
-    SetLocalInt(oModule, EFCORE_LAMBDA_ID, nId);
+    object oFDO = GetFunctionsDataObject();
+    int nId = GetLocalInt(oFDO, EFCORE_LAMBDA_ID) + 1;
+    SetLocalInt(oFDO, EFCORE_LAMBDA_ID, nId);
     return nId;
 }
 
@@ -510,7 +515,7 @@ int GetLambdaIdFromFunction(string sFunction)
 
 int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 {
-    object oModule = GetModule();
+    object oFDO = GetFunctionsDataObject();
     int nLambdaId = GetLambdaIdFromFunction(sFunction);
     int nCallStackDepth = 0;
 
@@ -520,14 +525,14 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
         return nCallStackDepth;
     }
 
-    string sScriptChunk = GetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunction);
+    string sScriptChunk = GetLocalString(oFDO, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunction);
 
     ClearArgumentCount();
 
     if (sFunction != EFCORE_INVALID_FUNCTION || nLambdaId)
     {
-        string sParameters = GetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sFunction);
-        string sReturnType = GetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sFunction);
+        string sParameters = GetLocalString(oFDO, EFCORE_FUNCTION_PARAMETERS + sFunction);
+        string sReturnType = GetLocalString(oFDO, EFCORE_FUNCTION_RETURN_TYPE + sFunction);
 
         if (sParameters == sArgs)
         {
@@ -553,9 +558,9 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 
 string Function(string sSystem, string sFunction)
 {
-    object oModule = GetModule();
+    object oFDO = GetFunctionsDataObject();
     string sFunctionSymbol = sSystem + "::" + sFunction;
-    string sScriptChunk = GetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunctionSymbol);
+    string sScriptChunk = GetLocalString(oFDO, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunctionSymbol);
 
     if (sScriptChunk == "")
     {
@@ -567,14 +572,14 @@ string Function(string sSystem, string sFunction)
 
         if (SqlStep(sql))
         {
-            SetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sFunctionSymbol, SqlGetString(sql, 0));
-            SetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sFunctionSymbol, SqlGetString(sql, 1));
+            SetLocalString(oFDO, EFCORE_FUNCTION_RETURN_TYPE + sFunctionSymbol, SqlGetString(sql, 0));
+            SetLocalString(oFDO, EFCORE_FUNCTION_PARAMETERS + sFunctionSymbol, SqlGetString(sql, 1));
             sScriptChunk = SqlGetString(sql, 2);
         }
         else
             sScriptChunk = EFCORE_INVALID_FUNCTION;
 
-        SetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunctionSymbol, sScriptChunk);
+        SetLocalString(oFDO, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunctionSymbol, sScriptChunk);
     }
 
     return sFunctionSymbol;
@@ -582,8 +587,8 @@ string Function(string sSystem, string sFunction)
 
 string Lambda(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "")
 {
-    object oModule = GetModule();
-    int nLambdaId = GetLocalInt(oModule, EFCORE_LAMBDA_ID + sParameters + "::" + sBody + "::" + sReturnType);
+    object oFDO = GetFunctionsDataObject();
+    int nLambdaId = GetLocalInt(oFDO, EFCORE_LAMBDA_ID + sParameters + "::" + sBody + "::" + sReturnType);
     string sLambdaSymbol = EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId);
 
     if (!nLambdaId)
@@ -592,39 +597,41 @@ string Lambda(string sBody, string sParameters = "", string sReturnType = "", st
         sLambdaSymbol = EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId);
         string sArguments, sLambdaParameters;
         int nArgument, nNumArguments = GetStringLength(sParameters);
+
+        sLambdaParameters += "(";
         for (nArgument = 0; nArgument < nNumArguments; nArgument++)
         {
             string sParameter = GetSubString(sParameters, nArgument, 1);
             sArguments += (!nArgument ? "" : ", ") +
                 nssFunction("GetLocal" + nssConvertShortType(sParameter),
-                    "oModule, " + nssEscape(EFCORE_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
-            sLambdaParameters += (!nArgument ? "(" : ", ") +
+                    "oFDO, " + nssEscape(EFCORE_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
+            sLambdaParameters += (!nArgument ? "" : ", ") +
                 nssParameter(nssConvertShortType(sParameter, TRUE), "arg" + IntToString(nArgument + 1));
         }
         sLambdaParameters += ")";
 
         string sLambdaFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "LambdaFunction" + sLambdaParameters + sBody;
 
-        string sFunctionBody = nssObject("oModule", nssFunction("GetModule"));
+        string sFunctionBody = nssObject("oFDO", nssFunction("GetFunctionsDataObject"));
             sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "", FALSE)));
 
         if (sReturnType != "")
         {
             sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
-                                "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
+                                "oFDO, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
             sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
-                                "oModule, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("LambdaFunction", sArguments, FALSE));
+                                "oFDO, " + nssEscape(EFCORE_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("LambdaFunction", sArguments, FALSE));
         }
         else
             sFunctionBody += nssFunction("LambdaFunction", sArguments);
 
-        SetLocalInt(oModule, EFCORE_LAMBDA_ID + sParameters + "::" + sBody + "::" + sReturnType, nLambdaId);
+        SetLocalInt(oFDO, EFCORE_LAMBDA_ID + sParameters + "::" + sBody + "::" + sReturnType, nLambdaId);
 
-        SetLocalString(oModule, EFCORE_FUNCTION_RETURN_TYPE + sLambdaSymbol, sReturnType);
-        SetLocalString(oModule, EFCORE_FUNCTION_PARAMETERS + sLambdaSymbol, sParameters);
+        SetLocalString(oFDO, EFCORE_FUNCTION_RETURN_TYPE + sLambdaSymbol, sReturnType);
+        SetLocalString(oFDO, EFCORE_FUNCTION_PARAMETERS + sLambdaSymbol, sParameters);
 
         string sScriptChunk = nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(sInclude) + sLambdaFunction + nssVoidMain(sFunctionBody);
-        SetLocalString(oModule, EFCORE_FUNCTION_SCRIPT_CHUNK + sLambdaSymbol, sScriptChunk);
+        SetLocalString(oFDO, EFCORE_FUNCTION_SCRIPT_CHUNK + sLambdaSymbol, sScriptChunk);
     }
 
     return sLambdaSymbol;
@@ -632,43 +639,43 @@ string Lambda(string sBody, string sParameters = "", string sReturnType = "", st
 
 string ObjectArg(object oValue)
 {
-    SetLocalObject(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), oValue);
+    SetLocalObject(GetFunctionsDataObject(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), oValue);
     return "o";
 }
 
 string IntArg(int nValue)
 {
-    SetLocalInt(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), nValue);
+    SetLocalInt(GetFunctionsDataObject(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), nValue);
     return "i";
 }
 
 string FloatArg(float fValue)
 {
-    SetLocalFloat(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), fValue);
+    SetLocalFloat(GetFunctionsDataObject(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), fValue);
     return "f";
 }
 
 string StringArg(string sValue)
 {
-    SetLocalString(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), sValue);
+    SetLocalString(GetFunctionsDataObject(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), sValue);
     return "s";
 }
 
 string JsonArg(json jValue)
 {
-    SetLocalJson(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), jValue);
+    SetLocalJson(GetFunctionsDataObject(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), jValue);
     return "j";
 }
 
 string VectorArg(vector vValue)
 {
-    SetLocalVector(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), vValue);
+    SetLocalVector(GetFunctionsDataObject(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), vValue);
     return "v";
 }
 
 string LocationArg(location locValue)
 {
-    SetLocalLocation(GetModule(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), locValue);
+    SetLocalLocation(GetFunctionsDataObject(), EFCORE_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), locValue);
     return "l";
 }
 
@@ -694,7 +701,7 @@ int ValidateReturnType(int nCallStackDepth, string sRequestedType)
 object RetObject(int nCallStackDepth)
 {
     if (ValidateReturnType(nCallStackDepth, "o"))
-        return GetLocalObject(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+        return GetLocalObject(GetFunctionsDataObject(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return OBJECT_INVALID;
 }
@@ -702,7 +709,7 @@ object RetObject(int nCallStackDepth)
 int RetInt(int nCallStackDepth)
 {
     if (ValidateReturnType(nCallStackDepth, "i"))
-        return GetLocalInt(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+        return GetLocalInt(GetFunctionsDataObject(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return 0;
 }
@@ -710,7 +717,7 @@ int RetInt(int nCallStackDepth)
 float RetFloat(int nCallStackDepth)
 {
     if (ValidateReturnType(nCallStackDepth, "f"))
-        return GetLocalFloat(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+        return GetLocalFloat(GetFunctionsDataObject(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return 0.0f;
 }
@@ -718,7 +725,7 @@ float RetFloat(int nCallStackDepth)
 string RetString(int nCallStackDepth)
 {
     if (ValidateReturnType(nCallStackDepth, "s"))
-        return GetLocalString(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+        return GetLocalString(GetFunctionsDataObject(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return "";
 }
@@ -726,7 +733,7 @@ string RetString(int nCallStackDepth)
 json RetJson(int nCallStackDepth)
 {
     if (ValidateReturnType(nCallStackDepth, "j"))
-        return GetLocalJson(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+        return GetLocalJson(GetFunctionsDataObject(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return JsonNull();
 }
@@ -734,7 +741,7 @@ json RetJson(int nCallStackDepth)
 vector RetVector(int nCallStackDepth)
 {
     if (ValidateReturnType(nCallStackDepth, "v"))
-        return GetLocalVector(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+        return GetLocalVector(GetFunctionsDataObject(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return Vector(0.0f, 0.0f, 0.0f);
 }
@@ -742,7 +749,7 @@ vector RetVector(int nCallStackDepth)
 location RetLocation(int nCallStackDepth)
 {
     if (ValidateReturnType(nCallStackDepth, "l"))
-        return GetLocalLocation(GetModule(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+        return GetLocalLocation(GetFunctionsDataObject(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return Location(OBJECT_INVALID, Vector(0.0f, 0.0f, 0.0f), 0.0f);
 }

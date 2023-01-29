@@ -76,21 +76,17 @@ void ObjSit_OnPlaceableUsed()
     {
         object oSeat1 = GetLocalObject(oSelf, "SEAT_1");
         object oSeat2 = GetLocalObject(oSelf, "SEAT_2");
+        string sCreateSeat = Lambda(
+            "{ object oSelf = OBJECT_SELF; object oArea = GetArea(oSelf); vector vPosition = GetPosition(oSelf); float fFacing = GetFacing(oSelf);" +
+            "  location loc = Location(oArea, vPosition + (AngleToVector(fFacing + (arg1 ? 90.0f : -90.0f)) / 2.0f), fFacing);" +
+            "  object oSeat = CreateObject(OBJECT_TYPE_PLACEABLE, GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, loc);" +
+            "  SetPlotFlag(oSeat, TRUE); SetLocalObject(oSelf, \"SEAT_\" + (arg1 ? \"1\" : \"2\"), oSeat); return oSeat; }",
+            "i", "o", "ef_s_objsit");// Has science gone too far?
 
-        if (!GetIsObjectValid(oSeat1) || !GetIsObjectValid(oSeat2))
-        {
-            object oArea = GetArea(oSelf);
-            vector vPosition = GetPosition(oSelf);
-            float fFacing = GetFacing(oSelf);
-            location locSeat1 = Location(oArea, vPosition + (AngleToVector(fFacing + 90.0f) / 2.0f), fFacing);
-            location locSeat2 = Location(oArea, vPosition + (AngleToVector(fFacing - 90.0f) / 2.0f), fFacing);
-            oSeat1 = CreateObject(OBJECT_TYPE_PLACEABLE, GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, locSeat1);
-            oSeat2 = CreateObject(OBJECT_TYPE_PLACEABLE, GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, locSeat2);
-            SetPlotFlag(oSeat1, TRUE);
-            SetPlotFlag(oSeat2, TRUE);
-            SetLocalObject(oSelf, "SEAT_1", oSeat1);
-            SetLocalObject(oSelf, "SEAT_2", oSeat2);
-        }
+        if (!GetIsObjectValid(oSeat1))
+            oSeat1 = RetObject(Call(sCreateSeat, IntArg(TRUE)));
+        if (!GetIsObjectValid(oSeat2))
+            oSeat2 = RetObject(Call(sCreateSeat, IntArg(FALSE)));
 
         if (GetDistanceBetween(oPlayer, oSeat1) < GetDistanceBetween(oPlayer, oSeat2))
         {

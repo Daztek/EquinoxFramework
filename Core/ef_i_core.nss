@@ -415,7 +415,6 @@ string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)
         NWNX_CallFunction("NWNX_Optimizations", "CacheScriptChunk");
         sRetVal = NWNX_GetReturnValueString();
     }
-
     return sRetVal;
 }
 
@@ -436,7 +435,6 @@ string StringArg(string sValue);
 string JsonArg(json jValue);
 string VectorArg(vector vValue);
 string LocationArg(location locValue);
-string CassowaryArg(cassowary cValue);
 object RetObject(int nCallStackDepth);
 int RetInt(int nCallStackDepth);
 float RetFloat(int nCallStackDepth);
@@ -444,7 +442,7 @@ string RetString(int nCallStackDepth);
 json RetJson(int nCallStackDepth);
 vector RetVector(int nCallStackDepth);
 location RetLocation(int nCallStackDepth);
-cassowary RetCassowary(int nCallStackDepth);
+void RetVoid(int nCallStackDepth);
 
 object GetFunctionsDataObject()
 {
@@ -589,12 +587,11 @@ string Lambda(string sBody, string sParameters = "", string sReturnType = "", st
 {
     object oFDO = GetFunctionsDataObject();
     int nLambdaId = GetLocalInt(oFDO, EFCORE_LAMBDA_ID + sParameters + "::" + sBody + "::" + sReturnType);
-    string sLambdaSymbol = EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId);
 
     if (!nLambdaId)
     {
         nLambdaId = GetNextLambdaId();
-        sLambdaSymbol = EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId);
+        string sLambdaSymbol = EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId);
         string sArguments, sLambdaParameters;
         int nArgument, nNumArguments = GetStringLength(sParameters);
 
@@ -632,9 +629,11 @@ string Lambda(string sBody, string sParameters = "", string sReturnType = "", st
 
         string sScriptChunk = nssInclude(EFCORE_SCRIPT_NAME) + nssInclude(sInclude) + sLambdaFunction + nssVoidMain(sFunctionBody);
         SetLocalString(oFDO, EFCORE_FUNCTION_SCRIPT_CHUNK + sLambdaSymbol, sScriptChunk);
+
+        return sLambdaSymbol;
     }
 
-    return sLambdaSymbol;
+    return EFCORE_LAMBDA_FUNCTION + IntToString(nLambdaId);
 }
 
 string ObjectArg(object oValue)
@@ -752,4 +751,9 @@ location RetLocation(int nCallStackDepth)
         return GetLocalLocation(GetFunctionsDataObject(), EFCORE_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return Location(OBJECT_INVALID, Vector(0.0f, 0.0f, 0.0f), 0.0f);
+}
+
+void RetVoid(int nCallStackDepth)
+{
+
 }

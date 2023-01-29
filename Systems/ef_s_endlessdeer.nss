@@ -20,14 +20,6 @@ const float ED_SPAWN_DELAY              = 0.05f;
 const int ED_AREA_SPAWN_STAG_CHANCE     = 10;
 const string ED_AREA_SPAWNED_STAG       = "EDSpawnedStag";
 
-// @CORE[EF_SYSTEM_INIT]
-void ED_Init()
-{
-    int nSeed = 1;
-    LogInfo("Random Seed: " + IntToString(nSeed));
-    SqlSetRandomSeed(ED_SCRIPT_NAME, nSeed);
-}
-
 int ED_GetNumSpawnTiles(string sAreaID)
 {
     string sQuery = "SELECT COUNT(*) FROM " + EP_GetTilesTable() +
@@ -44,7 +36,7 @@ int ED_GetNumSpawnTiles(string sAreaID)
 
 void ED_SpawnDeer(object oArea, location locSpawn)
 {
-    if (!GetLocalInt(oArea, ED_AREA_SPAWNED_STAG) && (SqlRandom(ED_SCRIPT_NAME, 100) < ED_AREA_SPAWN_STAG_CHANCE))
+    if (!GetLocalInt(oArea, ED_AREA_SPAWNED_STAG) && (Random(100) < ED_AREA_SPAWN_STAG_CHANCE))
     {
         AIMain_SpawnCreature("nw_deerstag", locSpawn, AIB_BEHAVIOR_WANDERFLEE);//AIB_BEHAVIOR_CHARGEFLEE);
         SetLocalInt(oArea, ED_AREA_SPAWNED_STAG, TRUE);
@@ -71,7 +63,7 @@ void ED_OnAreaPostProcessed()
 
     string sQuery = "SELECT tile_x, tile_y FROM " + EP_GetTilesTable() +
                     "WHERE area_id=@area_id AND entrance_dist >= @entrance_dist AND exit_dist >= @exit_dist AND path_dist >= @path_dist AND group_tile = @group_tile " +
-                    "ORDER BY NAMED_RANDOM('" + ED_SCRIPT_NAME + "') LIMIT @limit;";
+                    "ORDER BY RANDOM() LIMIT @limit;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@area_id", sAreaID);
     SqlBindInt(sql, "@entrance_dist", ED_ENTRANCE_DISTANCE);

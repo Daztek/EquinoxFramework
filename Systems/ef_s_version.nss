@@ -11,7 +11,7 @@
 const string VERSION_SCRIPT_NAME        = "ef_s_version";
 
 const int VERSION_MAJOR                 = 8193;
-const int VERSION_MINOR                 = 34;
+const int VERSION_MINOR                 = 35;
 
 // @NWNX[NWNX_ON_CLIENT_CONNECT_BEFORE]
 void VersionCheck_OnClientConnect()

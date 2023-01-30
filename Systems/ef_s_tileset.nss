@@ -48,7 +48,7 @@ void TS_SetTilesetLoaded(string sTileset);
 int TS_GetTilesetLoaded(string sTileset);
 
 struct TS_TileStruct TS_RotateTileStruct(struct TS_TileStruct strTile);
-string TS_SetEdge(string sTileset, string sEdge, string sCorner1, string sCorner2);
+string TS_SetEdge(string sEdge, string sCorner1, string sCorner2);
 struct TS_TileStruct TS_UpperCaseTileStruct(struct TS_TileStruct str);
 struct TS_TileStruct TS_GetTileEdgesAndCorners(string sTileset, int nTileID);
 struct TS_TileStruct TS_GetCornersAndEdgesByOrientation(string sTileset, int nTileID, int nOrientation);
@@ -198,16 +198,12 @@ struct TS_TileStruct TS_RotateTileStruct(struct TS_TileStruct strTile)
     return str;
 }
 
-string TS_SetEdge(string sTileset, string sEdge, string sCorner1, string sCorner2)
+string TS_SetEdge(string sEdge, string sCorner1, string sCorner2)
 {
-    if (sEdge != "")
-        return sEdge;
-    else if (sCorner1 == sCorner2)
-        sEdge = sCorner1;
+    if (sCorner1 == "" && sCorner2 == "" && sEdge == "")
+        return "";
     else
-        sEdge = "N/A";
-
-    return sEdge;
+        return sEdge == "" ? "[NONE]" : sEdge;
 }
 
 struct TS_TileStruct TS_UpperCaseTileStruct(struct TS_TileStruct str)
@@ -238,10 +234,10 @@ struct TS_TileStruct TS_GetTileEdgesAndCorners(string sTileset, int nTileID)
     str.sL = strTile.sLeft;
     str = TS_UpperCaseTileStruct(str);
 
-    str.sT = TS_SetEdge(sTileset, str.sT, str.sTL, str.sTR);
-    str.sR = TS_SetEdge(sTileset, str.sR, str.sTR, str.sBR);
-    str.sB = TS_SetEdge(sTileset, str.sB, str.sBR, str.sBL);
-    str.sL = TS_SetEdge(sTileset, str.sL, str.sBL, str.sTL);
+    str.sT = TS_SetEdge(str.sT, str.sTL, str.sTR);
+    str.sR = TS_SetEdge(str.sR, str.sTR, str.sBR);
+    str.sB = TS_SetEdge(str.sB, str.sBL, str.sBR);
+    str.sL = TS_SetEdge(str.sL, str.sTL, str.sBL);
 
     return str;
 }
@@ -336,29 +332,10 @@ struct TS_TileStruct TS_IncreaseTileHeight(string sTileset, struct TS_TileStruct
         sPlus += "+";
     }
 
-    if (str.sTL != "")
-        str.sTL += sPlus;
-
-    if (str.sT != "" && str.sT != "N/A" && !TS_GetIsCrosser(sTileset, str.sT))
-        str.sT += sPlus;
-
-    if (str.sTR != "")
-        str.sTR += sPlus;
-
-    if (str.sR != "" && str.sT != "N/A" && !TS_GetIsCrosser(sTileset, str.sR))
-        str.sR += sPlus;
-
-    if (str.sBR != "")
-        str.sBR += sPlus;
-
-    if (str.sB != "" && str.sT != "N/A" && !TS_GetIsCrosser(sTileset, str.sB))
-        str.sB += sPlus;
-
-    if (str.sBL != "")
-        str.sBL += sPlus;
-
-    if (str.sL != "" && str.sT != "N/A" && !TS_GetIsCrosser(sTileset, str.sL))
-        str.sL += sPlus;
+    if (str.sTL != "") str.sTL += sPlus;
+    if (str.sTR != "") str.sTR += sPlus;
+    if (str.sBR != "") str.sBR += sPlus;
+    if (str.sBL != "") str.sBL += sPlus;
 
     return str;
 }

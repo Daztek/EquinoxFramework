@@ -606,7 +606,6 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
                 {
                     string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN);
                     str.sBL = sEdgeTerrain;
-                    str.sB = sEdgeTerrain;
                     str.sBR = sEdgeTerrain;
                 }
                 break;
@@ -635,7 +634,6 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
                 {
                     string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN);
                     str.sTL = sEdgeTerrain;
-                    str.sL = sEdgeTerrain;
                     str.sBL = sEdgeTerrain;
                 }
                 break;
@@ -664,7 +662,6 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
                 {
                     string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN);
                     str.sTL = sEdgeTerrain;
-                    str.sT = sEdgeTerrain;
                     str.sTR = sEdgeTerrain;
                 }
                 break;
@@ -693,7 +690,6 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
                 {
                     string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN);
                     str.sTR = sEdgeTerrain;
-                    str.sR = sEdgeTerrain;
                     str.sBR = sEdgeTerrain;
                 }
                 break;
@@ -746,11 +742,6 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     struct TS_TileStruct strBottom = AG_GetNeighborTileStruct(sAreaID, nTile, AG_NEIGHBOR_TILE_BOTTOM);
     struct TS_TileStruct strLeft = AG_GetNeighborTileStruct(sAreaID, nTile, AG_NEIGHBOR_TILE_LEFT);
 
-    strQuery.sT = strTop.sB;
-    strQuery.sR = strRight.sL;
-    strQuery.sB = strBottom.sT;
-    strQuery.sL = strLeft.sR;
-
     strQuery.sTL = AG_ResolveCorner(strTop.sBL, strLeft.sTR);
     if (strQuery.sTL == "ERROR") return tile;
 
@@ -762,6 +753,11 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
 
     strQuery.sBL = AG_ResolveCorner(strBottom.sTL, strLeft.sBR);
     if (strQuery.sBL == "ERROR") return tile;
+
+    strQuery.sT = TS_SetEdge(strTop.sB, strQuery.sTL, strQuery.sTR);
+    strQuery.sR = TS_SetEdge(strRight.sL, strQuery.sTR, strQuery.sBR);
+    strQuery.sB = TS_SetEdge(strBottom.sT, strQuery.sBL, strQuery.sBR);
+    strQuery.sL = TS_SetEdge(strLeft.sR, strQuery.sTL, strQuery.sBL);
 
     string sPathCrosser = AG_GetAreaPathCrosserType(sAreaID);
     int bHasPath = TS_GetHasTerrainOrCrosser(strQuery, sPathCrosser);
@@ -837,7 +833,7 @@ void AG_ProcessTile(string sAreaID, int nTile)
 
 void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 {
-    //struct ProfilerData pd = Profiler_Start("AG_GenerateTiles: " + sAreaID);
+    struct ProfilerData pd = Profiler_Start("AG_GenerateTiles: " + sAreaID);
 
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
 
@@ -902,7 +898,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID, nCurrentTile, nNumTiles));
 
-    //Profiler_Stop(pd);
+    Profiler_Stop(pd);
 }
 
 void AG_GenerateGenerationTileArray(string sAreaID)
@@ -1612,6 +1608,9 @@ json AG_GetTileList(string sAreaID)
         int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
         int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
         int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+
+        if (nHeight > 1)
+        PrintString("Wow! Tile Height = " + IntToString(nHeight));
 
         sTiles += "{\"Tile_AnimLoop1\":{\"type\":\"byte\",\"value\":1},\"Tile_AnimLoop2\":{\"type\":\"byte\",\"value\":1},\"" +
                   "Tile_AnimLoop3\":{\"type\":\"byte\",\"value\":1},\"Tile_Height\":{\"type\":\"int\",\"value\":" + IntToString(nHeight) +

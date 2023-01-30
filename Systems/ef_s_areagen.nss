@@ -165,6 +165,7 @@ int AG_GetTileOrientationFromEdge(string sAreaID, int nEdge, int nTileID);
 void AG_CreatePathEntranceDoorTile(string sAreaID, int nTile, int nHeight);
 void AG_CreatePathExitDoorTile(string sAreaID);
 void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy);
+void AG_ExtractExitEdgeTerrains(string sAreaID);
 int AG_GetNextTile(int nAreaWidth, int nTile, int nEdge);
 struct TS_TileStruct AG_GetRoadTileStruct(string sAreaID, int nX1, int nY1, int nX2, int nY2);
 void AG_PlotRoad(string sAreaID);
@@ -833,7 +834,7 @@ void AG_ProcessTile(string sAreaID, int nTile)
 
 void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 {
-    struct ProfilerData pd = Profiler_Start("AG_GenerateTiles: " + sAreaID);
+    //struct ProfilerData pd = Profiler_Start("AG_GenerateTiles: " + sAreaID);
 
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
 
@@ -898,7 +899,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID, nCurrentTile, nNumTiles));
 
-    Profiler_Stop(pd);
+    //Profiler_Stop(pd);
 }
 
 void AG_GenerateGenerationTileArray(string sAreaID)
@@ -1203,7 +1204,7 @@ void AG_CreatePathExitDoorTile(string sAreaID)
         nExitTile = nRandom * nWidth;
     }
 
-    int nExitHeight = 0;
+    int nExitHeight = 0;//clamp(AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nEntranceTile) + (AG_Random(sAreaID, 3) - 1), 0, TS_MAX_TILE_HEIGHT - 1);
     AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nExitTile, nPathDoorTileID, nOrientation, nExitHeight, TRUE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX, nExitTile);
 }
@@ -1314,6 +1315,86 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
             break;
         }
     }
+}
+
+void AG_ExtractExitEdgeTerrains(string sAreaID)
+{
+    int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
+    int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
+    string nTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
+    int nExitTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
+    int nExitEdge = AG_GetEdgeFromTile(sAreaID, nExitTile);
+
+    json jExitEdgeTerrains = AG_GetJsonDataByKey(sAreaID, AG_DATA_KEY_ARRAY_EXIT_EDGE_TERRAINS);
+
+    switch (nExitEdge)
+    {
+        case AG_AREA_EDGE_TOP:
+        {
+            int nStart = nWidth * (nHeight - 1);
+            int nCount, nNumTiles = nWidth;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + nCount;
+                int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(nTileset, nTile, nOrientation);
+
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTL));
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTR));
+            }
+            break;
+        }
+
+        case AG_AREA_EDGE_RIGHT:
+        {
+            int nStart = nWidth - 1;
+            int nCount, nNumTiles = nHeight;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + (nCount * nWidth);
+                int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(nTileset, nTile, nOrientation);
+
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTR));
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBR));
+            }
+            break;
+        }
+
+        case AG_AREA_EDGE_BOTTOM:
+        {
+            int nStart = 0;
+            int nCount, nNumTiles = nWidth;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + nCount;
+                int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(nTileset, nTile, nOrientation);
+
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBL));
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBR));
+            }
+            break;
+        }
+
+        case AG_AREA_EDGE_LEFT:
+        {
+            int nStart = 0;
+            int nCount, nNumTiles = nHeight;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + (nCount * nWidth);
+                int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(nTileset, nTile, nOrientation);
+
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTL));
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBL));
+            }
+            break;
+        }
+    }
+
+    AG_SetJsonDataByKey(sAreaID, AG_DATA_KEY_ARRAY_EXIT_EDGE_TERRAINS, jExitEdgeTerrains);
 }
 
 int AG_GetNextTile(int nAreaWidth, int nTile, int nEdge)
@@ -1608,9 +1689,6 @@ json AG_GetTileList(string sAreaID)
         int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
         int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
         int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-
-        if (nHeight > 1)
-        PrintString("Wow! Tile Height = " + IntToString(nHeight));
 
         sTiles += "{\"Tile_AnimLoop1\":{\"type\":\"byte\",\"value\":1},\"Tile_AnimLoop2\":{\"type\":\"byte\",\"value\":1},\"" +
                   "Tile_AnimLoop3\":{\"type\":\"byte\",\"value\":1},\"Tile_Height\":{\"type\":\"int\",\"value\":" + IntToString(nHeight) +

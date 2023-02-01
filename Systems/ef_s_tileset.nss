@@ -64,6 +64,9 @@ struct TS_TileStruct TS_IncreaseTileHeight(string sTileset, struct TS_TileStruct
 string TS_StripHeightIndicator(string sTC);
 int TS_GetTCBitmask(string sTileset, string sTC);
 int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str);
+int TS_CalculateTCHeight(string sTC);
+int TS_IsUniformTile(struct TS_TileStruct str, int nTileID);
+int TS_CalculateTileHeight(struct TS_TileStruct str);
 
 int TS_GetTilesetNumTiles(string sTileset);
 int TS_GetHasTileHeightTransition(string sTileset);
@@ -371,6 +374,51 @@ int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str)
     return nBitmask;
 }
 
+int TS_CalculateTCHeight(string sTC)
+{
+    int nPlus = FindSubString(sTC, "+");
+    if (nPlus == -1) return 0;
+    return GetStringLength(sTC) - nPlus;
+}
+
+int TS_IsUniformTile(struct TS_TileStruct str, int nTileID)
+{
+    return str.sTR == str.sTL && str.sBL == str.sTL && str.sBR == str.sTL &&
+           str.sR == str.sT && str.sB == str.sT && str.sL == str.sT;
+}
+
+int TS_CalculateTileHeight(struct TS_TileStruct str)
+{
+    int nDivide = 0;
+    int nHeight = 0;
+
+    if (str.sTL != "")
+    {
+        nDivide++;
+        nHeight += TS_CalculateTCHeight(str.sTL);
+    }
+
+    if (str.sTR != "")
+    {
+        nDivide++;
+        nHeight += TS_CalculateTCHeight(str.sTR);
+    }
+
+    if (str.sBL != "")
+    {
+        nDivide++;
+        nHeight += TS_CalculateTCHeight(str.sBL);
+    }
+
+    if (str.sBR != "")
+    {
+        nDivide++;
+        nHeight += TS_CalculateTCHeight(str.sBR);
+    }
+
+    return nDivide ? nHeight / nDivide : 0;
+}
+
 // TILESET DATA
 int TS_GetTilesetNumTiles(string sTileset)
 {
@@ -648,10 +696,10 @@ void TS_ProcessTile(string sTileset, int nTileID)
 
     if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
     {
-        if (TS_GetNumOfTerrainOrCrosser(strTile, "STREET") > 2)
+        if (TS_GetHasTerrainOrCrosser(strTile, "STREET") && TS_GetNumOfTerrainOrCrosser(strTile, "STREET") != 2)
             return;
 
-        if (TS_GetNumOfTerrainOrCrosser(strTile, "ROAD") > 2)
+        if (TS_GetHasTerrainOrCrosser(strTile, "ROAD") && TS_GetNumOfTerrainOrCrosser(strTile, "ROAD") != 2)
             return;
 
         if (nTileID == 812 || nTileID == 773 || nTileID == 1021 || nTileID == 541)
@@ -672,23 +720,24 @@ void TS_ProcessTile(string sTileset, int nTileID)
     }
 
     struct TS_TileStruct str = strTile;
-
-    int nOrientation, nHeight;
+    int nOrientation, nTileHeight = TS_CalculateTileHeight(str);
     for (nOrientation = 0; nOrientation < 4; nOrientation++)
     {
-        TS_InsertTile(sTileset, nTileID, nOrientation, nHeight, str);
+        TS_InsertTile(sTileset, nTileID, nOrientation, nTileHeight, str);
         str = TS_RotateTileStruct(str);
     }
 
     if (TS_GetHasTileHeightTransition(sTileset))
     {
+        int nHeight;
         for (nHeight = 1; nHeight < TS_MAX_TILE_HEIGHT; nHeight++)
         {
             str = TS_IncreaseTileHeight(sTileset, strTile, nHeight);
+            nTileHeight = TS_CalculateTileHeight(str);
 
             for (nOrientation = 0; nOrientation < 4; nOrientation++)
             {
-                TS_InsertTile(sTileset, nTileID, nOrientation, nHeight, str);
+                TS_InsertTile(sTileset, nTileID, nOrientation, nTileHeight, str);
                 str = TS_RotateTileStruct(str);
             }
         }
@@ -734,23 +783,26 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
     }
 
     struct TS_TileStruct str = strTile;
+    int nTileHeight = TS_CalculateTileHeight(str);
 
-    int nOrientation, nHeight;
+    int nOrientation;
     for (nOrientation = 0; nOrientation < 4; nOrientation++)
     {
-        TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, nHeight, str);
+        TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, nTileHeight, str);
         str = TS_RotateTileStruct(str);
     }
 
     if (TS_GetHasTileHeightTransition(sTileset))
     {
+        int nHeight;
         for (nHeight = 1; nHeight < TS_MAX_TILE_HEIGHT; nHeight++)
         {
             str = TS_IncreaseTileHeight(sTileset, strTile, nHeight);
+            nTileHeight = TS_CalculateTileHeight(str);
 
             for (nOrientation = 0; nOrientation < 4; nOrientation++)
             {
-                TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, nHeight, str);
+                TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, nTileHeight, str);
                 str = TS_RotateTileStruct(str);
             }
         }

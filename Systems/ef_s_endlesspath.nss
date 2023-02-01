@@ -20,7 +20,7 @@ const int EP_POSTPROCESS_TILE_BATCH                 = 8;
 const string EP_EVENT_AREA_POST_PROCESS_FINISHED    = "EP_EVENT_AREA_POST_PROCESS_FINISHED";
 
 const string EP_AREA_TILESET                        = TILESET_RESREF_MEDIEVAL_RURAL_2;
-const int EP_MAX_ITERATIONS                         = 25;
+const int EP_MAX_ITERATIONS                         = 50;
 const string EP_AREA_DEFAULT_EDGE_TERRAIN           = "TREES";
 const int EP_AREA_MINIMUM_LENGTH                    = 8;
 const int EP_AREA_RANDOM_LENGTH                     = 12;
@@ -68,7 +68,7 @@ void EP_Init()
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
 
-    int nSeed = 25;
+    int nSeed = 1024;
     LogInfo("Random Seed: " + IntToString(nSeed));
     SqlSetRandomSeed(EP_SCRIPT_NAME, nSeed);
 }
@@ -115,6 +115,9 @@ void EP_OnAreaEnter()
             EP_GenerateArea(sAreaID, oPreviousArea, nExitEdge, nAreaWidth, nAreaHeight);
             SetLocalInt(oArea, "PLAYER_ENTERED", TRUE);
         }
+
+        if (!GetHasEffectType(oPlayer, EFFECT_TYPE_HASTE))
+            ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectHaste(), oPlayer);
 
         ExploreAreaForPlayer(oArea, oPlayer);
         PopUpGUIPanel(oPlayer, GUI_PANEL_MINIMAP);
@@ -254,14 +257,14 @@ string EP_GenerationTypeDebugString(int nGenerationType)
 {
     switch (nGenerationType)
     {
-        case AG_GENERATION_TYPE_SPIRAL_INWARD: return "AG_GENERATION_TYPE_SPIRAL_INWARD";
-        case AG_GENERATION_TYPE_SPIRAL_OUTWARD: return "AG_GENERATION_TYPE_SPIRAL_OUTWARD";
-        case AG_GENERATION_TYPE_LINEAR_ASCENDING: return "AG_GENERATION_TYPE_LINEAR_ASCENDING";
-        case AG_GENERATION_TYPE_LINEAR_DESCENDING: return "AG_GENERATION_TYPE_LINEAR_DESCENDING";
-        case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD: return "AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD";
-        case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD: return "AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD";
-        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD: return "AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD";
-        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD: return "AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD";
+        case AG_GENERATION_TYPE_SPIRAL_INWARD: return "SPIRAL_INWARD";
+        case AG_GENERATION_TYPE_SPIRAL_OUTWARD: return "SPIRAL_OUTWARD";
+        case AG_GENERATION_TYPE_LINEAR_ASCENDING: return "LINEAR_ASCENDING";
+        case AG_GENERATION_TYPE_LINEAR_DESCENDING: return "LINEAR_DESCENDING";
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD: return "ALTERNATING_ROWS_INWARD";
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD: return "ALTERNATING_ROWS_OUTWARD";
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD: return "ALTERNATING_COLUMNS_INWARD";
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD: return "ALTERNATING_COLUMNS_OUTWARD";
     }
     return "ERROR";
 }

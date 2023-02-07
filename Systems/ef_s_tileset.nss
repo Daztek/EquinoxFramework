@@ -18,7 +18,7 @@ const string TS_TABLE_NAME_GROUPS               = "groups";
 const string TS_TABLE_NAME_GROUP_TILES          = "grouptiles";
 const string TS_TABLE_NAME_SINGLE_GROUP_TILES   = "singlegrouptiles";
 
-const int TS_MAX_TILE_HEIGHT                    = 3;
+const int TS_MAX_TILE_HEIGHT                    = 4;
 
 struct TS_TileStruct
 {
@@ -64,8 +64,8 @@ struct TS_TileStruct TS_IncreaseTileHeight(string sTileset, struct TS_TileStruct
 string TS_StripHeightIndicator(string sTC);
 int TS_GetTCBitmask(string sTileset, string sTC);
 int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str);
-int TS_CalculateTCHeight(string sTC);
-int TS_IsUniformTile(struct TS_TileStruct str, int nTileID);
+int TS_GetTerrainHeight(string sTC);
+int TS_GetIsUniformTile(struct TS_TileStruct str);
 int TS_CalculateTileHeight(struct TS_TileStruct str);
 
 int TS_GetTilesetNumTiles(string sTileset);
@@ -374,14 +374,14 @@ int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str)
     return nBitmask;
 }
 
-int TS_CalculateTCHeight(string sTC)
+int TS_GetTerrainHeight(string sTC)
 {
     int nPlus = FindSubString(sTC, "+");
     if (nPlus == -1) return 0;
     return GetStringLength(sTC) - nPlus;
 }
 
-int TS_IsUniformTile(struct TS_TileStruct str, int nTileID)
+int TS_GetIsUniformTile(struct TS_TileStruct str)
 {
     return str.sTR == str.sTL && str.sBL == str.sTL && str.sBR == str.sTL &&
            str.sR == str.sT && str.sB == str.sT && str.sL == str.sT;
@@ -389,31 +389,30 @@ int TS_IsUniformTile(struct TS_TileStruct str, int nTileID)
 
 int TS_CalculateTileHeight(struct TS_TileStruct str)
 {
-    int nDivide = 0;
-    int nHeight = 0;
+    int nDivide, nHeight;
 
     if (str.sTL != "")
     {
         nDivide++;
-        nHeight += TS_CalculateTCHeight(str.sTL);
+        nHeight += TS_GetTerrainHeight(str.sTL);
     }
 
     if (str.sTR != "")
     {
         nDivide++;
-        nHeight += TS_CalculateTCHeight(str.sTR);
+        nHeight += TS_GetTerrainHeight(str.sTR);
     }
 
     if (str.sBL != "")
     {
         nDivide++;
-        nHeight += TS_CalculateTCHeight(str.sBL);
+        nHeight += TS_GetTerrainHeight(str.sBL);
     }
 
     if (str.sBR != "")
     {
         nDivide++;
-        nHeight += TS_CalculateTCHeight(str.sBR);
+        nHeight += TS_GetTerrainHeight(str.sBR);
     }
 
     return nDivide ? nHeight / nDivide : 0;
@@ -685,7 +684,7 @@ void TS_InsertTile(string sTileset, int nTileID, int nOrientation, int nHeight, 
     SqlBindString(sql, "@b", str.sB);
     SqlBindString(sql, "@bl", str.sBL);
     SqlBindString(sql, "@l", str.sL);
-    SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, TS_GetTileEdgesAndCorners(sTileset, nTileID)));
+    SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, str));
     SqlBindInt(sql, "@is_group_tile", TS_GetIsTilesetGroupTile(sTileset, nTileID));
     SqlStep(sql);
 }
@@ -762,7 +761,7 @@ void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, in
     SqlBindString(sql, "@b", str.sB);
     SqlBindString(sql, "@bl", str.sBL);
     SqlBindString(sql, "@l", str.sL);
-    SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, TS_GetTileEdgesAndCorners(sTileset, nTileID)));
+    SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, str));
     SqlStep(sql);
 }
 
@@ -772,10 +771,10 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
 
     if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
     {
-        if (TS_GetNumOfTerrainOrCrosser(strTile, "STREET") > 2)
+        if (TS_GetHasTerrainOrCrosser(strTile, "STREET") && TS_GetNumOfTerrainOrCrosser(strTile, "STREET") != 2)
             return;
 
-        if (TS_GetNumOfTerrainOrCrosser(strTile, "ROAD") > 2)
+        if (TS_GetHasTerrainOrCrosser(strTile, "ROAD") && TS_GetNumOfTerrainOrCrosser(strTile, "ROAD") != 2)
             return;
 
         if (nTileID == 1383)// Forest - Elf Tower

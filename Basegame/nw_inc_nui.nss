@@ -275,6 +275,14 @@ json NuiColorPicker(json jColor);
 // - jValue: Bind:UInt
 json NuiOptions(int nDirection, json jElements, json jValue);
 
+// A group of buttons. Only one can be selected at a time. jValue
+// is updated every time a different button is selected. The special
+// value -1 means "nothing".
+// - nDirection: NUI_DIRECTION_*
+// - jElements: JsonArray of string labels
+// - jValue: Bind:Int
+json NuiToggles(int nDirection, json jElements,  json jValue);
+
 const int NUI_CHART_TYPE_LINES                 = 0;
 const int NUI_CHART_TYPE_COLUMN                = 1;
 
@@ -838,6 +846,19 @@ NuiOptions(
 )
 {
   json ret = NuiElement("options", JsonNull(), jValue);
+  ret = JsonObjectSet(ret, "direction", JsonInt(nDirection));
+  ret = JsonObjectSet(ret, "elements", jElements);
+  return ret;
+}
+
+json
+NuiToggles(
+  int nDirection,
+  json jElements,
+  json jValue
+)
+{
+  json ret = NuiElement("tabbar", JsonNull(), jValue);
   ret = JsonObjectSet(ret, "direction", JsonInt(nDirection));
   ret = JsonObjectSet(ret, "elements", jElements);
   return ret;

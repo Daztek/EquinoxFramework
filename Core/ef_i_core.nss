@@ -27,7 +27,7 @@ const int EFCORE_DISABLE_DEBUG_FAST_START               = TRUE;
 const int EFCORE_VALIDATE_SYSTEMS                       = EFCORE_DISABLE_DEBUG_FAST_START;
 const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
 
-const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = FALSE;//EFCORE_DISABLE_DEBUG_FAST_START;
+const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = EFCORE_DISABLE_DEBUG_FAST_START;
 
 const int EFCORE_PARSE_SYSTEM_FUNCTIONS                 = EFCORE_DISABLE_DEBUG_FAST_START;
 const int EFCORE_PRECACHE_SYSTEM_FUNCTIONS              = FALSE;
@@ -135,7 +135,7 @@ void EFCore_InitializeSystemData()
              "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
-    json jSystems = JsonArrayTransform(GetResRefArray(EFCORE_SYSTEM_SCRIPT_PREFIX, RESTYPE_NSS) , JSON_ARRAY_SORT_ASCENDING);
+    json jSystems = JsonArrayTransform(GetResRefArray(EFCORE_SYSTEM_SCRIPT_PREFIX, RESTYPE_NSS), JSON_ARRAY_SORT_ASCENDING);
     int nSystem, nNumSystems = JsonGetLength(jSystems);
     for (nSystem = 0; nSystem < nNumSystems; nSystem++)
     {

@@ -603,6 +603,8 @@ string VMan_EventToString(int nEvent)
             return "Login";
         case NWNX_VAULT_EVENT_TYPE_LOGOUT:
             return "Logout";
+        case NWNX_VAULT_EVENT_TYPE_MIGRATED:
+            return "Migrated";
     }
 
     return "";
@@ -613,6 +615,7 @@ string VMan_EventToIcon(int nEvent)
     switch (nEvent)
     {
         case NWNX_VAULT_EVENT_TYPE_CREATED:
+        case NWNX_VAULT_EVENT_TYPE_MIGRATED:
             return "ir_cast";
         case NWNX_VAULT_EVENT_TYPE_LOGIN:
             return "ief_moveincr";

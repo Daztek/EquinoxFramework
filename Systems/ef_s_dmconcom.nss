@@ -180,3 +180,10 @@ string DMConCom_ToggleCutsceneInvisibility()
 
     return "Set Cutscene Invisibility to: " + IntToString(!bCutsceneInvisibility);
 }
+
+// @CONSOLE[SetTimeHour::Set the hour]
+void DMConCom_SetTimeHour(int nHour = 8)
+{
+    if (nHour >= 0 && nHour <= 23)
+        SetTime(nHour, 0, 0, 0);
+}

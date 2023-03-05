@@ -185,6 +185,7 @@ json AG_GetTileList(string sAreaID);
 object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex = 0);
 int AG_Random(string sAreaID, int nMaxInteger);
 string AG_GetRandomQueryString(string sAreaID);
+json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHeight);
 
 object AG_GetAreaDataObject(string sAreaID)
 {
@@ -1749,4 +1750,14 @@ string AG_GetRandomQueryString(string sAreaID)
     {
         return "RANDOM()";
     }
+}
+
+json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHeight)
+{
+    json jTile = JsonObject();
+         jTile = JsonObjectSetInt(jTile, "index", nIndex);
+         jTile = JsonObjectSetInt(jTile, "tileid", nTileID);
+         jTile = JsonObjectSetInt(jTile, "orientation", nOrientation);
+         jTile = JsonObjectSetInt(jTile, "height", nHeight);
+    return jTile;
 }

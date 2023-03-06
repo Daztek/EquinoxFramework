@@ -186,6 +186,7 @@ object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex
 int AG_Random(string sAreaID, int nMaxInteger);
 string AG_GetRandomQueryString(string sAreaID);
 json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHeight);
+string AG_GetGenerationTypeAsString(int nGenerationType);
 
 object AG_GetAreaDataObject(string sAreaID)
 {
@@ -1031,7 +1032,7 @@ void AG_GenerateArea(string sAreaID)
         if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
         {
             LogInfo("Finished Generating Area: " + sAreaID);
-            LogInfo("> Result: " + (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED) ? "Failure" : "Success") +
+            LogInfo("> Result: " + (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED) ? "FAILURE" : "Success") +
                      ", Iterations: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS)));
         }
         string sCallback = AG_GetCallbackFunction(sAreaID);
@@ -1054,6 +1055,7 @@ void AG_GenerateArea(string sAreaID)
                 LogInfo("> Tileset: " + AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET) +
                          ", Width: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH)) +
                          ", Height: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT)));
+                LogInfo("> Generation Type: " + AG_GetGenerationTypeAsString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
             }
 
             object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
@@ -1760,4 +1762,20 @@ json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHei
          jTile = JsonObjectSetInt(jTile, "orientation", nOrientation);
          jTile = JsonObjectSetInt(jTile, "height", nHeight);
     return jTile;
+}
+
+string AG_GetGenerationTypeAsString(int nGenerationType)
+{
+    switch (nGenerationType)
+    {
+        case AG_GENERATION_TYPE_SPIRAL_INWARD: return "SPIRAL_INWARD";
+        case AG_GENERATION_TYPE_SPIRAL_OUTWARD: return "SPIRAL_OUTWARD";
+        case AG_GENERATION_TYPE_LINEAR_ASCENDING: return "LINEAR_ASCENDING";
+        case AG_GENERATION_TYPE_LINEAR_DESCENDING: return "LINEAR_DESCENDING";
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD: return "ALTERNATING_ROWS_INWARD";
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD: return "ALTERNATING_ROWS_OUTWARD";
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD: return "ALTERNATING_COLUMNS_INWARD";
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD: return "ALTERNATING_COLUMNS_OUTWARD";
+    }
+    return "ERROR";
 }

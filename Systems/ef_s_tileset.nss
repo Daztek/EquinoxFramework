@@ -325,7 +325,7 @@ int TS_GetIsCrosser(string sTileset, string sEdge)
 
 struct TS_TileStruct TS_IncreaseTileHeight(string sTileset, struct TS_TileStruct str, int nHeight)
 {
-    if (!TS_GetHasTileHeightTransition(sTileset))
+    if (!nHeight || !TS_GetHasTileHeightTransition(sTileset))
         return str;
 
     int nCount;
@@ -718,27 +718,16 @@ void TS_ProcessTile(string sTileset, int nTileID)
         }
     }
 
-    struct TS_TileStruct str = strTile;
-    int nOrientation, nTileHeight = TS_CalculateTileHeight(str);
-    for (nOrientation = 0; nOrientation < 4; nOrientation++)
+    struct TS_TileStruct str;
+    int nHeight, nMaxHeight = TS_GetHasTileHeightTransition(sTileset) ? TS_MAX_TILE_HEIGHT : 1, nOrientation;
+    for (nHeight = 0; nHeight < nMaxHeight; nHeight++)
     {
-        TS_InsertTile(sTileset, nTileID, nOrientation, nTileHeight, str);
-        str = TS_RotateTileStruct(str);
-    }
+        str = TS_IncreaseTileHeight(sTileset, strTile, nHeight);
 
-    if (TS_GetHasTileHeightTransition(sTileset))
-    {
-        int nHeight;
-        for (nHeight = 1; nHeight < TS_MAX_TILE_HEIGHT; nHeight++)
+        for (nOrientation = 0; nOrientation < 4; nOrientation++)
         {
-            str = TS_IncreaseTileHeight(sTileset, strTile, nHeight);
-            nTileHeight = TS_CalculateTileHeight(str);
-
-            for (nOrientation = 0; nOrientation < 4; nOrientation++)
-            {
-                TS_InsertTile(sTileset, nTileID, nOrientation, nTileHeight, str);
-                str = TS_RotateTileStruct(str);
-            }
+            TS_InsertTile(sTileset, nTileID, nOrientation, nHeight, str);
+            str = TS_RotateTileStruct(str);
         }
     }
 
@@ -781,29 +770,16 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
             return;
     }
 
-    struct TS_TileStruct str = strTile;
-    int nTileHeight = TS_CalculateTileHeight(str);
-
-    int nOrientation;
-    for (nOrientation = 0; nOrientation < 4; nOrientation++)
+    struct TS_TileStruct str;
+    int nHeight, nMaxHeight = TS_GetHasTileHeightTransition(sTileset) ? TS_MAX_TILE_HEIGHT : 1, nOrientation;
+    for (nHeight = 0; nHeight < nMaxHeight; nHeight++)
     {
-        TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, nTileHeight, str);
-        str = TS_RotateTileStruct(str);
-    }
+        str = TS_IncreaseTileHeight(sTileset, strTile, nHeight);
 
-    if (TS_GetHasTileHeightTransition(sTileset))
-    {
-        int nHeight;
-        for (nHeight = 1; nHeight < TS_MAX_TILE_HEIGHT; nHeight++)
+        for (nOrientation = 0; nOrientation < 4; nOrientation++)
         {
-            str = TS_IncreaseTileHeight(sTileset, strTile, nHeight);
-            nTileHeight = TS_CalculateTileHeight(str);
-
-            for (nOrientation = 0; nOrientation < 4; nOrientation++)
-            {
-                TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, nTileHeight, str);
-                str = TS_RotateTileStruct(str);
-            }
+            TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, nHeight, str);
+            str = TS_RotateTileStruct(str);
         }
     }
 

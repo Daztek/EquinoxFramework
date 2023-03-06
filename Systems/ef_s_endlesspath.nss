@@ -253,22 +253,6 @@ void EP_SetAreaModifiers(object oArea)
     Call(Function("ef_s_dynlight", "DynLight_InitArea"), ObjectArg(oArea));
 }
 
-string EP_GenerationTypeDebugString(int nGenerationType)
-{
-    switch (nGenerationType)
-    {
-        case AG_GENERATION_TYPE_SPIRAL_INWARD: return "SPIRAL_INWARD";
-        case AG_GENERATION_TYPE_SPIRAL_OUTWARD: return "SPIRAL_OUTWARD";
-        case AG_GENERATION_TYPE_LINEAR_ASCENDING: return "LINEAR_ASCENDING";
-        case AG_GENERATION_TYPE_LINEAR_DESCENDING: return "LINEAR_DESCENDING";
-        case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD: return "ALTERNATING_ROWS_INWARD";
-        case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD: return "ALTERNATING_ROWS_OUTWARD";
-        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD: return "ALTERNATING_COLUMNS_INWARD";
-        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD: return "ALTERNATING_COLUMNS_OUTWARD";
-    }
-    return "ERROR";
-}
-
 void EP_OnAreaGenerated(string sAreaID)
 {
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
@@ -299,7 +283,7 @@ void EP_OnAreaGenerated(string sAreaID)
         SetTransitionTarget(oPreviousDoor, oEntranceDoor);
         SetTransitionTarget(oEntranceDoor, oPreviousDoor);
 
-        LogInfo("Creating Area: " + GetTag(oArea) + " -> Generation Type: " + EP_GenerationTypeDebugString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
+        LogInfo("Creating Area: " + GetTag(oArea) + " -> Generation Type: " + AG_GetGenerationTypeAsString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
 
         DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea));
     }

@@ -445,6 +445,17 @@ string VMan_ConsoleExtractItem(int nId)
 
 }
 
+// @CONSOLE[VManDeleteCharacter::]
+void VMan_DeleteCharacter(int nID)
+{
+    if (!nID)
+        return;
+
+    sqlquery sql = VMan_PrepareQuery("DELETE FROM vault_characters WHERE id = @id;");
+    SqlBindInt(sql, "@id", nID);
+    SqlStep(sql);
+}
+
 sqlquery VMan_PrepareQuery(string sQuery)
 {
     return SqlPrepareQueryCampaign(VMAN_DATABASE_NAME, sQuery);

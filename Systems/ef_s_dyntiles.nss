@@ -35,7 +35,7 @@ const int DT_MAX_ITERATIONS                     = 100;
 const int DT_VISUALEFFECT_START_ROW             = 1000;
 const string DT_VISUALEFFECT_DUMMY_NAME         = "dummy_tile_";
 
-const float DT_TILE_OBJECT_HEIGHT               = 40.0f;
+const float DT_TILE_OBJECT_HEIGHT               = 30.0f;
 const float DT_START_DELAY                      = 3.0f;
 const float DT_LERP_SPEED                       = 1.5f;
 
@@ -114,7 +114,7 @@ void DT_ClickGenerateButton()
     AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_GENERATION_LOG_STATUS, TRUE);
     AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, 5);
     AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 25);
-    AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_GENERATION_TYPE, AG_GENERATION_TYPE_SPIRAL_INWARD);//Random(8));
+    AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_GENERATION_TYPE, Random(8));
     AG_SetCallbackFunction(DT_AREA_ID, DT_SCRIPT_NAME, "DT_OnAreaGenerated");
 
     AG_SetIgnoreTerrainOrCrosser(DT_AREA_ID, "ROAD");
@@ -123,9 +123,9 @@ void DT_ClickGenerateButton()
     AG_SetIgnoreTerrainOrCrosser(DT_AREA_ID, "STREET");
     //AG_SetIgnoreTerrainOrCrosser(DT_AREA_ID, "MOUNTAIN");
 
-    AG_AddEdgeTerrain(DT_AREA_ID, "WATER");
-    AG_AddEdgeTerrain(DT_AREA_ID, "MOUNTAIN");
-    AG_AddEdgeTerrain(DT_AREA_ID, "GRASS");
+    //AG_AddEdgeTerrain(DT_AREA_ID, "WATER");
+    //AG_AddEdgeTerrain(DT_AREA_ID, "MOUNTAIN");
+    //AG_AddEdgeTerrain(DT_AREA_ID, "GRASS");
     //AG_AddEdgeTerrain(DT_AREA_ID, "GRASS2");
 
     AG_SetStringDataByKey(DT_AREA_ID, AG_DATA_KEY_FLOOR_TERRAIN, "GRASS");
@@ -189,6 +189,29 @@ void DT_ReloadTileStuff(object oArea)
     SetLocalInt(GetSystemDataObject(), DT_GENERATING_AREA, FALSE);
 }
 
+int DT_GetTileFromGenerationType(object oAreaDataObject, int nGenerationType, int nNumTiles, int nTile)
+{
+    switch (nGenerationType)
+    {
+        case AG_GENERATION_TYPE_SPIRAL_INWARD:
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD:
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD:
+            return IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nTile);
+
+        case AG_GENERATION_TYPE_SPIRAL_OUTWARD:
+        case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD:
+        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD:
+                return IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nNumTiles - 1) - nTile);
+
+        case AG_GENERATION_TYPE_LINEAR_ASCENDING:
+            return nTile;
+
+        case AG_GENERATION_TYPE_LINEAR_DESCENDING:
+            return (nNumTiles - 1) - nTile;
+    }
+    return nTile;
+}
+
 void DT_OnAreaGenerated(string sAreaID)
 {
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
@@ -198,28 +221,37 @@ void DT_OnAreaGenerated(string sAreaID)
         return;
     }
 
-    object oDataObject = GetSystemDataObject();
-    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
     object oPlayer = GetFirstPC();
+    object oDataObject = GetSystemDataObject();
     object oArea = GetObjectByTag(DT_AREA_TAG);
-    json jTileArray = GetLocalJson(oDataObject, DT_TILE_SPAWN_ARRAY);
-         jTileArray = JsonArrayTransform(jTileArray, JSON_ARRAY_SHUFFLE);
+    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+    int nGenerationType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE);
     float fDelay;
 
+    ApplyEffectAtLocation(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_FNF_MYSTICAL_EXPLOSION, FALSE, 5.0f), Location(oArea, GetAreaCenterPosition(oArea, 6.0f), 0.0f));
     SetTileJson(oArea, GetLocalJson(oDataObject, DT_TILE_STARTING_ARRAY), SETTILE_FLAG_RELOAD_GRASS | SETTILE_FLAG_RECOMPUTE_LIGHTING);
+
+    int nMin = TS_MAX_TILE_HEIGHT;
+    int nMax = 0;
 
     int nCount, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
     for (nCount = 0; nCount < nNumTiles; nCount++)
     {
         fDelay += 0.25f;
-        //int nTile = nCount;
-        //int nTile = JsonArrayGetInt(jTileArray, nCount);
-        int nTile = IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nNumTiles - 1) - nCount);
+
+        int nTile = DT_GetTileFromGenerationType(oAreaDataObject, nGenerationType, nNumTiles, nCount);
+
+        int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+        nMin = min(nMin, nHeight);
+        nMax = max(nMax, nHeight);
+
         int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
         string sModel = NWNX_Tileset_GetTileModel(DT_AREA_TILESET, nTileID);
         NWNX_Player_SetResManOverride(oPlayer, 2002, DT_VISUALEFFECT_DUMMY_NAME + IntToString(nTile), sModel);
         DelayCommand(fDelay, DT_SetTile(sAreaID, nTile, oArea));
     }
+
+    LogInfo("TileHeight: Min=" + IntToString(nMin) + ", Max=" + IntToString(nMax));
 
     DelayCommand(fDelay + DT_START_DELAY + DT_LERP_SPEED + 0.5f, DT_ReloadTileStuff(oArea));
 }

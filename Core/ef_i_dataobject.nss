@@ -18,7 +18,7 @@ void DestroyDataObject(string sTag);
 // Get a data object with sTag
 object GetDataObject(string sTag, int bCreateIfNotExists = TRUE);
 // Get the data object for the calling system
-object GetSystemDataObject();
+object GetSystemDataObject(string sTag = "");
 
 object CreateWaypoint(location locLocation, string sTag)
 {
@@ -53,7 +53,7 @@ object GetDataObject(string sTag, int bCreateIfNotExists = TRUE)
     return GetIsObjectValid(oDataObject) ? oDataObject : bCreateIfNotExists ? CreateDataObject(sTag) : OBJECT_INVALID;
 }
 
-object GetSystemDataObject()
+object GetSystemDataObject(string sTag = "")
 {
-    return GetDataObject(GetVMFrameScript(1));
+    return GetDataObject(GetVMFrameScript(1) + sTag != "" ? ("_" + sTag) : "");
 }

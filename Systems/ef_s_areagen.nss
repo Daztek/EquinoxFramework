@@ -14,7 +14,7 @@
 const string AG_SCRIPT_NAME                                     = "ef_s_areagen";
 const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject";
 
-const int AG_ENABLE_SEEDED_RANDOM                               = TRUE;
+const int AG_ENABLE_SEEDED_RANDOM                               = FALSE;
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
 const float AG_GENERATION_DELAY                                 = 0.1f;
 const int AG_GENERATION_TILE_BATCH                              = 32;
@@ -74,6 +74,12 @@ const string AG_GENERATION_TILE_ARRAY                           = "GenerationTil
 const string AG_FAILED_TILES_ARRAY                              = "FailedTilesArray";
 const string AG_IGNORE_TOC_ARRAY                                = "IgnoreTOCArray";
 
+const string AG_DATA_KEY_CHUNK_SIZE                             = "ChunkSize";
+const string AG_DATA_KEY_CHUNK_AMOUNT                           = "ChunkAmount";
+const string AG_DATA_KEY_CHUNK_NUM_TILES                        = "ChunkNumTiles";
+const string AG_DATA_KEY_CHUNKS_ARRAY                           = "ChunksArray";
+const string AG_DATA_KEY_CURRENT_CHUNK                          = "CurrentChunk";
+
 const int AG_NEIGHBOR_TILE_TOP_LEFT                             = 0;
 const int AG_NEIGHBOR_TILE_TOP                                  = 1;
 const int AG_NEIGHBOR_TILE_TOP_RIGHT                            = 2;
@@ -131,6 +137,7 @@ void AG_SetCallbackFunction(string sAreaID, string sSystem, string sFunction);
 string AG_GetCallbackFunction(string sAreaID);
 int AG_GetIgnoreTerrainOrCrosser(string sAreaID, string sTOC);
 void AG_SetIgnoreTerrainOrCrosser(string sAreaID, string sTOC, int bIgnore = TRUE);
+struct AG_Tile AG_GetTile(string sAreaID, int nTile, string sTileArray = AG_DATA_KEY_ARRAY_TILES);
 void AG_Tile_SetID(string sAreaID, string sTileArray, int nTile, int nTileID);
 int AG_Tile_GetID(string sAreaID, string sTileArray, int nTile);
 void AG_Tile_SetLocked(string sAreaID, string sTileArray, int nTile, int bLocked);
@@ -187,6 +194,14 @@ int AG_Random(string sAreaID, int nMaxInteger);
 string AG_GetRandomQueryString(string sAreaID);
 json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHeight);
 string AG_GetGenerationTypeAsString(int nGenerationType);
+json AG_InsertTileToChunk(json jArray, int nChunk, int nTile);
+int AG_GetChunkIndexFromTile(string sAreaID, int nTile);
+json AG_GetChunkArray(string sAreaID, int nChunk);
+void AG_InitializeAreaChunks(string sAreaID, int nChunkSize);
+void AG_LockChunkTiles(string sAreaID, int nChunk);
+void AG_ResetChunkTiles(string sAreaID, int nChunk);
+void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int nNumTiles = 0);
+void AG_GenerateAreaChunk(string sAreaID, int nChunk);
 
 object AG_GetAreaDataObject(string sAreaID)
 {
@@ -269,6 +284,17 @@ void AG_SetIgnoreTerrainOrCrosser(string sAreaID, string sTOC, int bIgnore = TRU
             AG_SetJsonDataByKey(sAreaID, AG_DATA_KEY_IGNORE_TOC, jArray);
         }
     }
+}
+
+struct AG_Tile AG_GetTile(string sAreaID, int nTile, string sTileArray = AG_DATA_KEY_ARRAY_TILES)
+{
+    struct AG_Tile str;
+    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+    string sTile = IntToString(nTile);
+    str.nTileID = GetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_ID + sTile);
+    str.nOrientation = GetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_ORIENTATION + sTile);
+    str.nHeight = GetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_HEIGHT + sTile);
+    return str;
 }
 
 void AG_Tile_SetID(string sAreaID, string sTileArray, int nTile, int nTileID)
@@ -437,6 +463,7 @@ void AG_InitializeRandomArea(string sAreaID, string sTileset, string sEdgeTerrai
     AG_SetJsonDataByKey(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TERRAINS, JsonArrayInsertString(JsonArray(), sEdgeTerrain));
     AG_SetJsonDataByKey(sAreaID, AG_DATA_KEY_ARRAY_EXIT_EDGE_TERRAINS, JsonArray());
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_CURRENT_CHUNK, -1);
 
     AG_InitializeTileArrays(sAreaID, nWidth, nHeight);
 }
@@ -1778,4 +1805,187 @@ string AG_GetGenerationTypeAsString(int nGenerationType)
         case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD: return "ALTERNATING_COLUMNS_OUTWARD";
     }
     return "ERROR";
+}
+
+json AG_InsertTileToChunk(json jArray, int nChunk, int nTile)
+{
+    json jChunkArray = JsonArrayGet(jArray, nChunk);
+         jChunkArray = JsonArrayInsertInt(jChunkArray, nTile);
+    return JsonArraySet(jArray, nChunk, jChunkArray);
+}
+
+int AG_GetChunkIndexFromTile(string sAreaID, int nTile)
+{
+    int nAreaWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
+    int nChunkSize = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_CHUNK_SIZE);
+    return (((nTile / nAreaWidth) / nChunkSize) * (nAreaWidth / nChunkSize)) + ((nTile % nAreaWidth) / nChunkSize);
+}
+
+json AG_GetChunkArray(string sAreaID, int nChunk)
+{
+    return JsonArrayGet(AG_GetJsonDataByKey(sAreaID, AG_DATA_KEY_CHUNKS_ARRAY), nChunk);
+}
+
+void AG_InitializeAreaChunks(string sAreaID, int nChunkSize)
+{
+    int nAreaWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
+    int nAreaHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
+
+    if (nAreaWidth != nAreaHeight || (nAreaWidth % nChunkSize) != 0)
+    {
+        LogError("AG_InitializeChunks: nAreaWidth != nHeight || (nAreaWidth % nChunkSize) != 0");
+        return;
+    }
+
+    json jChunksArray = JsonArray();
+    int nChunk, nNumChunks = (nAreaWidth / nChunkSize) * (nAreaHeight / nChunkSize);
+    for (nChunk = 0; nChunk < nNumChunks; nChunk++)
+    {
+        jChunksArray = JsonArrayInsert(jChunksArray, JsonArray());
+    }
+
+    int nTileX, nTileY;
+    for (nTileY = 0; nTileY < nAreaHeight; nTileY++)
+    {
+        for (nTileX = 0; nTileX < nAreaWidth; nTileX++)
+        {
+            jChunksArray = AG_InsertTileToChunk(jChunksArray,
+                ((nTileY / nChunkSize) * (nAreaWidth / nChunkSize)) + (nTileX / nChunkSize),
+                (nTileY * nAreaWidth) + nTileX);
+        }
+    }
+
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_CHUNK_SIZE, nChunkSize);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_CHUNK_AMOUNT, nNumChunks);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_CHUNK_NUM_TILES, nChunkSize * nChunkSize);
+    AG_SetJsonDataByKey(sAreaID, AG_DATA_KEY_CHUNKS_ARRAY, jChunksArray);
+}
+
+void AG_LockChunkTiles(string sAreaID, int nChunk)
+{
+    json jChunkArray = AG_GetChunkArray(sAreaID, nChunk);
+    int nTile, nNumTiles = JsonGetLength(jChunkArray);
+    for (nTile = 0; nTile < nNumTiles; nTile++)
+    {
+        AG_Tile_SetLocked(sAreaID, AG_DATA_KEY_ARRAY_TILES, JsonArrayGetInt(jChunkArray, nTile), TRUE);
+    }
+}
+
+void AG_ResetChunkTiles(string sAreaID, int nChunk)
+{
+    json jChunkArray = AG_GetChunkArray(sAreaID, nChunk);
+    int nTile, nNumTiles = JsonGetLength(jChunkArray);
+    for (nTile = 0; nTile < nNumTiles; nTile++)
+    {
+        AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_TILES, JsonArrayGetInt(jChunkArray, nTile));
+    }
+}
+
+void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int nNumTiles = 0)
+{
+    //struct ProfilerData pd = Profiler_Start("AG_GenerateTileChunk: " + sAreaID + "[" + IntToString(nChunk) + "]");
+
+    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+
+    if (nNumTiles == 0)
+    {
+        nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_CHUNK_NUM_TILES);
+        IntArray_Clear(oAreaDataObject, AG_FAILED_TILES_ARRAY, TRUE);
+    }
+
+    if (nCurrentTile == nNumTiles)
+    {
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS) + 1);
+        AG_GenerateAreaChunk(sAreaID, nChunk);
+        return;
+    }
+
+    int nCurrentMaxTiles = min(nCurrentTile + AG_GENERATION_TILE_BATCH, nNumTiles);
+    json jChunkArray = AG_GetChunkArray(sAreaID, nChunk);
+
+    for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
+    {
+        AG_ProcessTile(sAreaID, JsonArrayGetInt(jChunkArray, nCurrentTile));
+    }
+
+    DelayCommand(AG_GENERATION_DELAY, AG_GenerateTileChunk(sAreaID, nChunk, nCurrentTile, nNumTiles));
+
+    //Profiler_Stop(pd);
+}
+
+void AG_GenerateAreaChunk(string sAreaID, int nChunk)
+{
+    if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FINISHED) &&
+        AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_CURRENT_CHUNK) != nChunk)
+    {
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FINISHED, FALSE);
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED, FALSE);
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS, 0);
+    }
+
+    if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FINISHED))
+    {
+        if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
+        {
+            LogInfo("Finished Generating Area Chunk: " + sAreaID + "[" + IntToString(nChunk) + "]");
+            LogInfo("> Result: " + (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED) ? "FAILURE" : "Success") +
+                     ", Iterations: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS)));
+        }
+        string sCallback = AG_GetCallbackFunction(sAreaID);
+        if (sCallback != "")
+        {
+            ExecuteScriptChunk(sCallback, GetModule(), FALSE);
+        }
+    }
+    else
+    {
+        int nIteration = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS);
+
+        if (!nIteration)
+        {
+            if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
+            {
+                LogInfo("Generating Area Chunk: " + sAreaID + "[" + IntToString(nChunk) + "]");
+                LogInfo("> Tileset: " + AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET) +
+                         ", Width: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH)) +
+                         ", Height: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT)));
+            }
+
+            object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+            json jIgnoredTOCArray = AG_GetJsonDataByKey(sAreaID, AG_DATA_KEY_IGNORE_TOC);
+            int nTOC, nNumTOC = JsonGetLength(jIgnoredTOCArray);
+            for (nTOC = 0; nTOC < nNumTOC; nTOC++)
+            {
+                StringArray_Insert(oAreaDataObject, AG_IGNORE_TOC_ARRAY, JsonArrayGetString(jIgnoredTOCArray, nTOC));
+            }
+
+            AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_CURRENT_CHUNK, nChunk);
+            DelayCommand(AG_GENERATION_DELAY, AG_GenerateTileChunk(sAreaID, nChunk));
+        }
+        else if (nIteration < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS))
+        {
+            object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+            int nTileFailure, nNumTileFailures = IntArray_Size(oAreaDataObject, AG_FAILED_TILES_ARRAY);
+            if (nNumTileFailures)
+            {
+                for (nTileFailure = 0; nTileFailure < nNumTileFailures; nTileFailure++)
+                {
+                    AG_ResetNeighborTiles(sAreaID, IntArray_At(oAreaDataObject, AG_FAILED_TILES_ARRAY, nTileFailure));
+                }
+
+                DelayCommand(AG_GENERATION_DELAY, AG_GenerateTileChunk(sAreaID, nChunk));
+            }
+            else
+            {
+                AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FINISHED, TRUE);
+                DelayCommand(AG_GENERATION_DELAY, AG_GenerateAreaChunk(sAreaID, nChunk));
+            }
+        }
+        else
+        {
+            AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED, TRUE);
+            AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FINISHED, TRUE);
+            DelayCommand(AG_GENERATION_DELAY, AG_GenerateAreaChunk(sAreaID, nChunk));
+        }
+    }
 }

@@ -161,25 +161,21 @@ void DT_ResetLerp(object oTile)
     SetObjectVisualTransform(oTile, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Z, 0.0f);
 }
 
-void DT_SetTile(string sAreaID, int nTile, object oArea)
+void DT_SetTile(object oArea, int nTile, struct AG_Tile strTile)
 {
     object oTile = ObjectArray_At(GetSystemDataObject(), DT_TILE_OBJECT_ARRAY, nTile);
     location locTile = GetLocation(oTile);
-    int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-    int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-    int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-
     vector vTranslate = Vector(0.0f, 0.0f, 6.0f);
     effect eVfx = EffectVisualEffect(VFX_FNF_BLINDDEAF, FALSE, 2.5f, vTranslate);
     ApplyEffectToObject(DURATION_TYPE_INSTANT, eVfx, oTile);
 
     vTranslate = Vector(0.0f, 0.0f, 0.0f);
-    vector vRotate = Vector((nOrientation * 90.0f), 0.0f, 0.0f);
+    vector vRotate = Vector((strTile.nOrientation * 90.0f), 0.0f, 0.0f);
     effect eTile = EffectVisualEffect(DT_VISUALEFFECT_START_ROW + nTile, FALSE, 1.0f, vTranslate, vRotate);
     DelayCommand(DT_START_DELAY, ApplyEffectToObject(DURATION_TYPE_TEMPORARY, eTile, oTile, DT_LERP_SPEED + 0.2f));
 
-    DelayCommand(DT_START_DELAY, DT_StartLerp(oTile, nHeight));
-    DelayCommand(DT_START_DELAY + DT_LERP_SPEED + 0.1f, SetTile(locTile, nTileID, nOrientation, nHeight, SETTILE_FLAG_RELOAD_GRASS));
+    DelayCommand(DT_START_DELAY, DT_StartLerp(oTile, strTile.nHeight));
+    DelayCommand(DT_START_DELAY + DT_LERP_SPEED + 0.1f, SetTile(locTile, strTile.nTileID, strTile.nOrientation, strTile.nHeight, SETTILE_FLAG_RELOAD_GRASS));
     DelayCommand(DT_START_DELAY + DT_LERP_SPEED + 0.5f, DT_ResetLerp(oTile));
 }
 
@@ -222,33 +218,26 @@ void DT_OnAreaGenerated(string sAreaID)
     }
 
     object oPlayer = GetFirstPC();
-    object oDataObject = GetSystemDataObject();
     object oArea = GetObjectByTag(DT_AREA_TAG);
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
     int nGenerationType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE);
+    int nMin = TS_MAX_TILE_HEIGHT, nMax = 0;
     float fDelay;
 
     ApplyEffectAtLocation(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_FNF_MYSTICAL_EXPLOSION, FALSE, 5.0f), Location(oArea, GetAreaCenterPosition(oArea, 6.0f), 0.0f));
-    SetTileJson(oArea, GetLocalJson(oDataObject, DT_TILE_STARTING_ARRAY), SETTILE_FLAG_RELOAD_GRASS | SETTILE_FLAG_RECOMPUTE_LIGHTING);
-
-    int nMin = TS_MAX_TILE_HEIGHT;
-    int nMax = 0;
+    SetTileJson(oArea, GetLocalJson(GetSystemDataObject(), DT_TILE_STARTING_ARRAY), SETTILE_FLAG_RELOAD_GRASS | SETTILE_FLAG_RECOMPUTE_LIGHTING);
 
     int nCount, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
     for (nCount = 0; nCount < nNumTiles; nCount++)
     {
         fDelay += 0.25f;
-
         int nTile = DT_GetTileFromGenerationType(oAreaDataObject, nGenerationType, nNumTiles, nCount);
+        struct AG_Tile strTile = AG_GetTile(sAreaID, nTile);
 
-        int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-        nMin = min(nMin, nHeight);
-        nMax = max(nMax, nHeight);
-
-        int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-        string sModel = NWNX_Tileset_GetTileModel(DT_AREA_TILESET, nTileID);
-        NWNX_Player_SetResManOverride(oPlayer, 2002, DT_VISUALEFFECT_DUMMY_NAME + IntToString(nTile), sModel);
-        DelayCommand(fDelay, DT_SetTile(sAreaID, nTile, oArea));
+        nMin = min(nMin, strTile.nHeight);
+        nMax = max(nMax, strTile.nHeight);
+        NWNX_Player_SetResManOverride(oPlayer, 2002, DT_VISUALEFFECT_DUMMY_NAME + IntToString(nTile), NWNX_Tileset_GetTileModel(DT_AREA_TILESET, strTile.nTileID));
+        DelayCommand(fDelay, DT_SetTile(oArea, nTile, strTile));
     }
 
     LogInfo("TileHeight: Min=" + IntToString(nMin) + ", Max=" + IntToString(nMax));

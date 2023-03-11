@@ -14,13 +14,13 @@ const int PROFILER_OVERHEAD_COMPENSATION_ITERATIONS     = 1000;
 struct ProfilerData
 {
     string sName;
-    int bEnableStats;
-    int bSkipLog;
+    int bPrintLog;
+    int bInsertStats;
     int nSeconds;
     int nMicroseconds;
 };
 
-struct ProfilerData Profiler_Start(string sName, int bSkipLog = FALSE, int bEnableStats = TRUE);
+struct ProfilerData Profiler_Start(string sName, int bPrintLog = TRUE, int bInsertStats = TRUE);
 int Profiler_Stop(struct ProfilerData strData);
 int Profiler_GetOverheadCompensation();
 void Profiler_SetOverheadCompensation(int nOverhead);
@@ -29,17 +29,30 @@ int Profiler_Calibrate(int nIterations);
 // @CORE[EF_SYSTEM_INIT]
 void Profiler_Init()
 {
+    string sQuery = "CREATE TABLE IF NOT EXISTS " + PROFILER_SCRIPT_NAME + " (" +
+                    "id INTEGER NOT NULL, " +
+                    "microseconds INTEGER NOT NULL);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+
     int nOverhead = Profiler_Calibrate(PROFILER_OVERHEAD_COMPENSATION_ITERATIONS);
     LogInfo("Overhead Compensation: " + IntToString(nOverhead) + "us");
     Profiler_SetOverheadCompensation(nOverhead);
 }
 
-struct ProfilerData Profiler_Start(string sName, int bSkipLog = FALSE, int bEnableStats = TRUE)
+void Profiler_InsertData(int nHash, int nMicroseconds)
+{
+    sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + PROFILER_SCRIPT_NAME + "(id, microseconds) VALUES(@id, @microseconds);");
+    SqlBindInt(sql, "@id", nHash);
+    SqlBindInt(sql, "@microseconds", nMicroseconds);
+    SqlStep(sql);
+}
+
+struct ProfilerData Profiler_Start(string sName, int bPrintLog = TRUE, int bInsertStats = TRUE)
 {
     struct ProfilerData pd;
     pd.sName = sName;
-    pd.bEnableStats = bEnableStats;
-    pd.bSkipLog = bSkipLog;
+    pd.bPrintLog = bPrintLog;
+    pd.bInsertStats = bInsertStats;
 
     struct NWNX_Util_HighResTimestamp ts = NWNX_Util_GetHighResTimeStamp();
     pd.nSeconds = ts.seconds;
@@ -66,44 +79,21 @@ int Profiler_Stop(struct ProfilerData strData)
     }
 
     string sStats;
-    if (strData.bEnableStats)
+    if (strData.bInsertStats)
     {
-        object oDataObject = GetDataObject(PROFILER_SCRIPT_NAME + "_" + strData.sName);
-        int nMin, nMax, nCount = GetLocalInt(oDataObject, "PROFILER_COUNT") + 1;
-        SetLocalInt(oDataObject, "PROFILER_COUNT", nCount);
+        int nHash = HashString(strData.sName);
+        Profiler_InsertData(nHash, nTotalMicroSeconds);
+        sqlquery sql = SqlPrepareQueryModule("SELECT MIN(microseconds), MAX(microseconds), AVG(microseconds) " +
+                                             "FROM " + PROFILER_SCRIPT_NAME + " WHERE id = @id;");
+        SqlBindInt(sql, "@id", nHash);
 
-        if (nCount == 1)
+        if(SqlStep(sql))
         {
-            nMin = nTotalMicroSeconds;
-            nMax = nTotalMicroSeconds;
-
-            SetLocalInt(oDataObject, "PROFILER_MIN", nTotalMicroSeconds);
-            SetLocalInt(oDataObject, "PROFILER_MAX", nTotalMicroSeconds);
+            sStats = " (MIN: " + IntToString(SqlGetInt(sql, 0)) + "us, MAX: " + IntToString(SqlGetInt(sql, 1)) + "us, AVG: " + IntToString(SqlGetInt(sql, 2)) + "us)";
         }
-        else
-        {
-            nMin = GetLocalInt(oDataObject, "PROFILER_MIN");
-            if (nTotalMicroSeconds < nMin)
-            {
-                nMin = nTotalMicroSeconds;
-                SetLocalInt(oDataObject, "PROFILER_MIN", nTotalMicroSeconds);
-            }
-
-            nMax = GetLocalInt(oDataObject, "PROFILER_MAX");
-            if (nTotalMicroSeconds > nMax)
-            {
-                nMax = nTotalMicroSeconds;
-                SetLocalInt(oDataObject, "PROFILER_MAX", nTotalMicroSeconds);
-            }
-        }
-
-        int nSum = GetLocalInt(oDataObject, "PROFILER_SUM") + nTotalMicroSeconds;
-        SetLocalInt(oDataObject, "PROFILER_SUM", nSum);
-
-        sStats = " (MIN: " + IntToString(nMin) + "us, MAX: " + IntToString(nMax) + "us, AVG: " + IntToString((nSum / nCount)) + "us)";
     }
 
-    if (!strData.bSkipLog)
+    if (strData.bPrintLog)
     {
         int nLength = GetStringLength(IntToString(nTotalMicroSeconds));
 
@@ -136,7 +126,7 @@ int Profiler_Calibrate(int nIterations)
 
     for (nIteration = 0; nIteration < nIterations; nIteration++)
     {
-        nSum += Profiler_Stop(Profiler_Start("Calibration", TRUE, FALSE));
+        nSum += Profiler_Stop(Profiler_Start("Calibration", FALSE, FALSE));
     }
 
     return nIterations == 0 ? 0 : nSum / nIterations;

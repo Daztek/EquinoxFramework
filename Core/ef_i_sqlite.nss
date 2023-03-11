@@ -5,8 +5,6 @@
     Description: Equinox Framework SQLite Utility Include
 */
 
-const int SQL_ENABLE_NAMED_RANDOM           = FALSE;
-
 // Returns TRUE if sTableName exists in sDatabase.
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName);
 // Returns TRUE if sTableName exists on oObject.
@@ -33,10 +31,6 @@ void SqlCommitTransactionObject(object oObject);
 void SqlBeginTransactionModule();
 // Commit a transaction on the module database
 void SqlCommitTransactionModule();
-// Set the seed for a named random number generator
-void SqlSetRandomSeed(string sName, int nSeed);
-// Get a random value from a named random number generator
-int SqlRandom(string sName, int nMaxInteger);
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -116,30 +110,4 @@ void SqlBeginTransactionModule()
 void SqlCommitTransactionModule()
 {
     SqlStep(SqlPrepareQueryObject(GetModule(), "COMMIT;"));
-}
-
-void SqlSetRandomSeed(string sName, int nSeed)
-{
-    if (SQL_ENABLE_NAMED_RANDOM)
-    {
-        sqlquery sql = SqlPrepareQueryModule("SELECT NAMED_RANDOM_SEED(@name, @seed);");
-        SqlBindString(sql, "@name", sName);
-        SqlBindInt(sql, "@seed", nSeed);
-        SqlStep(sql);
-    }
-}
-
-int SqlRandom(string sName, int nMaxInteger)
-{
-    if (SQL_ENABLE_NAMED_RANDOM)
-    {
-        sqlquery sql = SqlPrepareQueryModule("SELECT (NAMED_RANDOM(@name) % @maxinteger);");
-        SqlBindString(sql, "@name", sName);
-        SqlBindInt(sql, "@maxinteger", nMaxInteger);
-        return SqlStep(sql) ? SqlGetInt(sql, 0) : Random(nMaxInteger);
-    }
-    else
-    {
-        return Random(nMaxInteger);
-    }
 }

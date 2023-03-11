@@ -187,3 +187,9 @@ void DMConCom_SetTimeHour(int nHour = 8)
     if (nHour >= 0 && nHour <= 23)
         SetTime(nHour, 0, 0, 0);
 }
+
+// @CONSOLE[GetTickRate::Get the server tick rate]
+string DMConCom_GetTickRate()
+{
+    return "Server Tick Rate: " + IntToString(GetTickRate());
+}

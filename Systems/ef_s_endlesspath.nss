@@ -36,6 +36,7 @@ const int EP_AREA_WALL_CHANCE                       = 1;
 
 const int EP_AREA_SINGLE_GROUP_TILE_CHANCE          = 2;
 
+void EP_BeginPath(object oArea);
 string EP_GetTilesTable();
 string EP_GetLastAreaID();
 string EP_GetNextAreaID();
@@ -67,21 +68,15 @@ void EP_Init()
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
-
-    int nSeed = 1024;
-    LogInfo("Random Seed: " + IntToString(nSeed));
-    SqlSetRandomSeed(EP_SCRIPT_NAME, nSeed);
 }
 
-// @CORE[EF_SYSTEM_LOAD]
-void EP_Load()
+void EP_BeginPath(object oArea)
 {
-    object oStartingArea = GetArea(GetObjectByTag(EP_GetLastDoorID()));
-    int nAreaWidth = GetAreaSize(AREA_WIDTH, oStartingArea);
-    int nAreaHeight = EP_AREA_MINIMUM_LENGTH + SqlRandom(EP_SCRIPT_NAME, EP_AREA_RANDOM_LENGTH + 1);
+    int nAreaWidth = GetAreaSize(AREA_WIDTH, oArea);
+    int nAreaHeight = EP_AREA_MINIMUM_LENGTH + Random(EP_AREA_RANDOM_LENGTH + 1);
     string sAreaID = EP_GetNextAreaID();
 
-    EP_GenerateArea(sAreaID, oStartingArea, AG_AREA_EDGE_TOP, nAreaWidth, nAreaHeight);
+    EP_GenerateArea(sAreaID, oArea, AG_AREA_EDGE_TOP, nAreaWidth, nAreaHeight);
 }
 
 // @EVENT[EVENT_SCRIPT_AREA_ON_ENTER:DL]
@@ -177,7 +172,6 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
 {
     EP_SetLastGenerationData(oPreviousArea, nEdgeToCopy, nAreaWidth, nAreaHeight);
     AG_InitializeRandomArea(sAreaID, EP_AREA_TILESET, EP_AREA_DEFAULT_EDGE_TERRAIN, nAreaWidth, nAreaHeight);
-    AG_SetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, EP_SCRIPT_NAME);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, EP_DEBUG_LOG);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, EP_MAX_ITERATIONS);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, EP_AREA_SINGLE_GROUP_TILE_CHANCE);

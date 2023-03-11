@@ -14,7 +14,6 @@
 const string AG_SCRIPT_NAME                                     = "ef_s_areagen";
 const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject";
 
-const int AG_ENABLE_SEEDED_RANDOM                               = FALSE;
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
 const float AG_GENERATION_DELAY                                 = 0.1f;
 const int AG_GENERATION_TILE_BATCH                              = 32;
@@ -52,7 +51,6 @@ const string AG_DATA_KEY_GENERATION_CALLBACK                    = "GenerationCal
 const string AG_DATA_KEY_GENERATION_LOG_STATUS                  = "GenerationLogStatus";
 const string AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE    = "GenerationSingleGroupTileChance";
 const string AG_DATA_KEY_GENERATION_TYPE                        = "GenerationType";
-const string AG_DATA_KEY_GENERATION_RANDOM_NAME                 = "GenerationRandomName";
 
 const string AG_DATA_KEY_TILE_ID                                = "TileID";
 const string AG_DATA_KEY_TILE_LOCKED                            = "Locked";
@@ -77,7 +75,7 @@ const string AG_IGNORE_TOC_ARRAY                                = "IgnoreTOCArra
 const string AG_DATA_KEY_CHUNK_SIZE                             = "ChunkSize";
 const string AG_DATA_KEY_CHUNK_AMOUNT                           = "ChunkAmount";
 const string AG_DATA_KEY_CHUNK_NUM_TILES                        = "ChunkNumTiles";
-const string AG_DATA_KEY_CHUNKS_ARRAY                           = "ChunksArray";
+const string AG_DATA_KEY_CHUNK_ARRAY                            = "ChunkArray_";
 const string AG_DATA_KEY_CURRENT_CHUNK                          = "CurrentChunk";
 
 const int AG_NEIGHBOR_TILE_TOP_LEFT                             = 0;
@@ -194,14 +192,16 @@ int AG_Random(string sAreaID, int nMaxInteger);
 string AG_GetRandomQueryString(string sAreaID);
 json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHeight);
 string AG_GetGenerationTypeAsString(int nGenerationType);
-json AG_InsertTileToChunk(json jArray, int nChunk, int nTile);
 int AG_GetChunkIndexFromTile(string sAreaID, int nTile);
+void AG_SetChunkArray(string sAreaID, int nChunk, json jArray);
 json AG_GetChunkArray(string sAreaID, int nChunk);
+void AG_InsertTileToChunk(string sAreaID, int nChunk, int nTile);
 void AG_InitializeAreaChunks(string sAreaID, int nChunkSize);
 void AG_LockChunkTiles(string sAreaID, int nChunk);
 void AG_ResetChunkTiles(string sAreaID, int nChunk);
 void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int nNumTiles = 0);
 void AG_GenerateAreaChunk(string sAreaID, int nChunk);
+void AG_InitializeChunkFromArea(string sAreaID, object oArea, int nChunk);
 
 object AG_GetAreaDataObject(string sAreaID)
 {
@@ -1757,28 +1757,12 @@ object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex
 
 int AG_Random(string sAreaID, int nMaxInteger)
 {
-    if (SQL_ENABLE_NAMED_RANDOM && AG_ENABLE_SEEDED_RANDOM)
-    {
-        string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME);
-        return sRandomName == "" ? Random(nMaxInteger) : SqlRandom(sRandomName, nMaxInteger);
-    }
-    else
-    {
-        return Random(nMaxInteger);
-    }
+    return Random(nMaxInteger);
 }
 
 string AG_GetRandomQueryString(string sAreaID)
 {
-    if (SQL_ENABLE_NAMED_RANDOM && AG_ENABLE_SEEDED_RANDOM)
-    {
-        string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME);
-        return sRandomName == "" ? "RANDOM()" : "NAMED_RANDOM('" + sRandomName + "')";
-    }
-    else
-    {
-        return "RANDOM()";
-    }
+    return "RANDOM()";
 }
 
 json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHeight)
@@ -1807,13 +1791,6 @@ string AG_GetGenerationTypeAsString(int nGenerationType)
     return "ERROR";
 }
 
-json AG_InsertTileToChunk(json jArray, int nChunk, int nTile)
-{
-    json jChunkArray = JsonArrayGet(jArray, nChunk);
-         jChunkArray = JsonArrayInsertInt(jChunkArray, nTile);
-    return JsonArraySet(jArray, nChunk, jChunkArray);
-}
-
 int AG_GetChunkIndexFromTile(string sAreaID, int nTile)
 {
     int nAreaWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
@@ -1821,9 +1798,22 @@ int AG_GetChunkIndexFromTile(string sAreaID, int nTile)
     return (((nTile / nAreaWidth) / nChunkSize) * (nAreaWidth / nChunkSize)) + ((nTile % nAreaWidth) / nChunkSize);
 }
 
+void AG_SetChunkArray(string sAreaID, int nChunk, json jArray)
+{
+    SetLocalJson(AG_GetAreaDataObject(sAreaID), AG_DATA_KEY_CHUNK_ARRAY + IntToString(nChunk), jArray);
+}
+
 json AG_GetChunkArray(string sAreaID, int nChunk)
 {
-    return JsonArrayGet(AG_GetJsonDataByKey(sAreaID, AG_DATA_KEY_CHUNKS_ARRAY), nChunk);
+    return GetLocalJson(AG_GetAreaDataObject(sAreaID), AG_DATA_KEY_CHUNK_ARRAY + IntToString(nChunk));
+}
+
+void AG_InsertTileToChunk(string sAreaID, int nChunk, int nTile)
+{
+    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+    json jChunkArray = GetLocalJson(oAreaDataObject, AG_DATA_KEY_CHUNK_ARRAY + IntToString(nChunk));
+         jChunkArray = JsonArrayInsertInt(jChunkArray, nTile);
+    SetLocalJson(oAreaDataObject, AG_DATA_KEY_CHUNK_ARRAY + IntToString(nChunk), jChunkArray);
 }
 
 void AG_InitializeAreaChunks(string sAreaID, int nChunkSize)
@@ -1837,11 +1827,10 @@ void AG_InitializeAreaChunks(string sAreaID, int nChunkSize)
         return;
     }
 
-    json jChunksArray = JsonArray();
     int nChunk, nNumChunks = (nAreaWidth / nChunkSize) * (nAreaHeight / nChunkSize);
     for (nChunk = 0; nChunk < nNumChunks; nChunk++)
     {
-        jChunksArray = JsonArrayInsert(jChunksArray, JsonArray());
+        AG_SetChunkArray(sAreaID, nChunk, JsonArray());
     }
 
     int nTileX, nTileY;
@@ -1849,16 +1838,13 @@ void AG_InitializeAreaChunks(string sAreaID, int nChunkSize)
     {
         for (nTileX = 0; nTileX < nAreaWidth; nTileX++)
         {
-            jChunksArray = AG_InsertTileToChunk(jChunksArray,
-                ((nTileY / nChunkSize) * (nAreaWidth / nChunkSize)) + (nTileX / nChunkSize),
-                (nTileY * nAreaWidth) + nTileX);
+            AG_InsertTileToChunk(sAreaID, ((nTileY / nChunkSize) * (nAreaWidth / nChunkSize)) + (nTileX / nChunkSize), (nTileY * nAreaWidth) + nTileX);
         }
     }
 
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_CHUNK_SIZE, nChunkSize);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_CHUNK_AMOUNT, nNumChunks);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_CHUNK_NUM_TILES, nChunkSize * nChunkSize);
-    AG_SetJsonDataByKey(sAreaID, AG_DATA_KEY_CHUNKS_ARRAY, jChunksArray);
 }
 
 void AG_LockChunkTiles(string sAreaID, int nChunk)
@@ -1987,5 +1973,17 @@ void AG_GenerateAreaChunk(string sAreaID, int nChunk)
             AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FINISHED, TRUE);
             DelayCommand(AG_GENERATION_DELAY, AG_GenerateAreaChunk(sAreaID, nChunk));
         }
+    }
+}
+
+void AG_InitializeChunkFromArea(string sAreaID, object oArea, int nChunk)
+{
+    json jChunk = AG_GetChunkArray(sAreaID, nChunk);
+    int nCount, nNumTiles = JsonGetLength(jChunk);
+    for (nCount = 0; nCount < nNumTiles; nCount++)
+    {
+        int nTileIndex = JsonArrayGetInt(jChunk, nCount);
+        struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfoByTileIndex(oArea, nTileIndex);
+        AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTileIndex, str.nID, str.nOrientation, str.nHeight, TRUE);
     }
 }

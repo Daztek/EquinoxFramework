@@ -9,125 +9,74 @@
 
 const string PROFILER_SCRIPT_NAME                       = "ef_s_profiler";
 
-const int PROFILER_OVERHEAD_COMPENSATION_ITERATIONS     = 1000;
+const string PROFILER_CALLING_FUNCTION                  = "CallingFunction";
+const string PROFILER_IDENTIFIER_STRING                 = "IdentifierString";
+const string PROFILER_START_INSTRUCTIONS                = "StartInstructions";
+const string PROFILER_START_MICROSECONDS                = "StartMicroseconds";
 
-struct ProfilerData
-{
-    string sName;
-    int bPrintLog;
-    int bInsertStats;
-    int nSeconds;
-    int nMicroseconds;
-};
+const int PROFILER_INSTRUCTION_OVERHEAD                 = 17;
+const int PROFILER_MICROSECOND_OVERHEAD                 = 1;
 
-struct ProfilerData Profiler_Start(string sName, int bPrintLog = TRUE, int bInsertStats = TRUE);
-int Profiler_Stop(struct ProfilerData strData);
-int Profiler_GetOverheadCompensation();
-void Profiler_SetOverheadCompensation(int nOverhead);
-int Profiler_Calibrate(int nIterations);
+void Profiler_Start(string sIdentifier = "");
+void Profiler_Stop();
 
 // @CORE[EF_SYSTEM_INIT]
 void Profiler_Init()
 {
-    string sQuery = "CREATE TABLE IF NOT EXISTS " + PROFILER_SCRIPT_NAME + " (" +
-                    "id INTEGER NOT NULL, " +
-                    "microseconds INTEGER NOT NULL);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
-
-    int nOverhead = Profiler_Calibrate(PROFILER_OVERHEAD_COMPENSATION_ITERATIONS);
-    LogInfo("Overhead Compensation: " + IntToString(nOverhead) + "us");
-    Profiler_SetOverheadCompensation(nOverhead);
+    SqlStep(SqlPrepareQueryModule("CREATE TABLE IF NOT EXISTS " + PROFILER_SCRIPT_NAME + " (" +
+                                  "hash INTEGER NOT NULL, microseconds INTEGER NOT NULL, " +
+                                  "instructions INTEGER NOT NULL);"));
 }
 
-void Profiler_InsertData(int nHash, int nMicroseconds)
+void Profiler_Insert(int nHash, int nMicroseconds, int nInstructions)
 {
-    sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + PROFILER_SCRIPT_NAME + "(id, microseconds) VALUES(@id, @microseconds);");
-    SqlBindInt(sql, "@id", nHash);
+    sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + PROFILER_SCRIPT_NAME + "(hash, microseconds, instructions) VALUES(@hash, @microseconds, @instructions);");
+    SqlBindInt(sql, "@hash", nHash);
     SqlBindInt(sql, "@microseconds", nMicroseconds);
+    SqlBindInt(sql, "@instructions", nInstructions);
     SqlStep(sql);
 }
 
-struct ProfilerData Profiler_Start(string sName, int bPrintLog = TRUE, int bInsertStats = TRUE)
+string Profiler_FormatTime(int nMicroseconds)
 {
-    struct ProfilerData pd;
-    pd.sName = sName;
-    pd.bPrintLog = bPrintLog;
-    pd.bInsertStats = bInsertStats;
-
-    struct NWNX_Util_HighResTimestamp ts = NWNX_Util_GetHighResTimeStamp();
-    pd.nSeconds = ts.seconds;
-    pd.nMicroseconds = ts.microseconds;
-
-    return pd;
+    return IntToString(nMicroseconds / 1000000) + "." + LeftPadString(IntToString(nMicroseconds % 1000000), 6, "0") + "s";
 }
 
-int Profiler_Stop(struct ProfilerData strData)
+string Profiler_GetTimeStats(int nHash)
 {
-    struct NWNX_Util_HighResTimestamp endTimestamp = NWNX_Util_GetHighResTimeStamp();
-    int nTotalSeconds = endTimestamp.seconds - strData.nSeconds;
-    int nTotalMicroSeconds = endTimestamp.microseconds - strData.nMicroseconds - Profiler_GetOverheadCompensation();
+    sqlquery sql = SqlPrepareQueryModule("SELECT MIN(microseconds), MAX(microseconds), AVG(microseconds) FROM " + PROFILER_SCRIPT_NAME + " WHERE hash = @hash;");
+    SqlBindInt(sql, "@hash", nHash);
 
-    if (nTotalMicroSeconds < 0)
+    if(SqlStep(sql))
     {
-        if (nTotalSeconds > 0)
-        {
-            nTotalMicroSeconds = 1000000 + nTotalMicroSeconds;
-            nTotalSeconds--;
-        }
-        else
-            nTotalMicroSeconds = 0;
+        return "Stats: (Min: " + Profiler_FormatTime(SqlGetInt(sql, 0)) +
+                       ", Max: " + Profiler_FormatTime(SqlGetInt(sql, 1)) +
+                       ", Avg: " + Profiler_FormatTime(SqlGetInt(sql, 2)) + ")";
     }
-
-    string sStats;
-    if (strData.bInsertStats)
-    {
-        int nHash = HashString(strData.sName);
-        Profiler_InsertData(nHash, nTotalMicroSeconds);
-        sqlquery sql = SqlPrepareQueryModule("SELECT MIN(microseconds), MAX(microseconds), AVG(microseconds) " +
-                                             "FROM " + PROFILER_SCRIPT_NAME + " WHERE id = @id;");
-        SqlBindInt(sql, "@id", nHash);
-
-        if(SqlStep(sql))
-        {
-            sStats = " (MIN: " + IntToString(SqlGetInt(sql, 0)) + "us, MAX: " + IntToString(SqlGetInt(sql, 1)) + "us, AVG: " + IntToString(SqlGetInt(sql, 2)) + "us)";
-        }
-    }
-
-    if (strData.bPrintLog)
-    {
-        int nLength = GetStringLength(IntToString(nTotalMicroSeconds));
-
-        string sZeroPadding;
-        while (nLength < 6)
-        {
-            sZeroPadding += "0";
-            nLength++;
-        }
-
-        LogInfo("[" + strData.sName + "] " + IntToString(nTotalSeconds) + "." + sZeroPadding + IntToString(nTotalMicroSeconds) + " seconds" + sStats);
-    }
-
-    return nTotalMicroSeconds;
+    return "Stats: (Min: N/A, Max: N/A, Avg: N/A)";
 }
 
-int Profiler_GetOverheadCompensation()
+void Profiler_Start(string sIdentifier = "")
 {
-    return GetLocalInt(GetDataObject(PROFILER_SCRIPT_NAME), "OVERHEAD_COMPENSATION");
+    struct VMFrame strFrame = GetVMFrame(1);
+    object oDataObject = GetSystemDataObject();
+    SetLocalString(oDataObject, PROFILER_CALLING_FUNCTION, strFrame.sFile + "::" + strFrame.sFunction + ":" + IntToString(strFrame.nLine));
+    SetLocalString(oDataObject, PROFILER_IDENTIFIER_STRING, sIdentifier);
+    SetLocalInt(oDataObject, PROFILER_START_INSTRUCTIONS, GetScriptInstructionsRemaining());
+    SetLocalInt(oDataObject, PROFILER_START_MICROSECONDS, GetMicrosecondCounter());
 }
 
-void Profiler_SetOverheadCompensation(int nOverhead)
+void Profiler_Stop()
 {
-    SetLocalInt(GetDataObject(PROFILER_SCRIPT_NAME), "OVERHEAD_COMPENSATION", nOverhead);
-}
+    int nEndMicroseconds = GetMicrosecondCounter();
+    int nEndInstructions = GetScriptInstructionsRemaining();
+    object oDataObject = GetSystemDataObject();
+    string sIdentifierString = GetLocalString(oDataObject, PROFILER_IDENTIFIER_STRING);
+    string sHashString = sIdentifierString == "" ? GetLocalString(oDataObject, PROFILER_CALLING_FUNCTION) : sIdentifierString;
+    int nHash = HashString(sHashString);
+    int nUsedInstructions = max(0, GetLocalInt(oDataObject, PROFILER_START_INSTRUCTIONS) - nEndInstructions - PROFILER_INSTRUCTION_OVERHEAD);
+    int nElapsedMicroseconds = max(0, nEndMicroseconds - GetLocalInt(oDataObject, PROFILER_START_MICROSECONDS) - PROFILER_MICROSECOND_OVERHEAD);
 
-int Profiler_Calibrate(int nIterations)
-{
-    int nIteration, nSum;
-
-    for (nIteration = 0; nIteration < nIterations; nIteration++)
-    {
-        nSum += Profiler_Stop(Profiler_Start("Calibration", FALSE, FALSE));
-    }
-
-    return nIterations == 0 ? 0 : nSum / nIterations;
+    Profiler_Insert(nHash, nElapsedMicroseconds, nUsedInstructions);
+    LogInfo("[" + sHashString + "] Time: " + Profiler_FormatTime(nElapsedMicroseconds) + " | Instructions: " + IntToString(nUsedInstructions) + " | " + Profiler_GetTimeStats(nHash));
 }

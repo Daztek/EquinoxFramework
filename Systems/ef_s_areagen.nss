@@ -863,7 +863,7 @@ void AG_ProcessTile(string sAreaID, int nTile)
 
 void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 {
-    //struct ProfilerData pd = Profiler_Start("AG_GenerateTiles: " + sAreaID);
+    //Profiler_Start("AG_GenerateTiles: " + sAreaID);
 
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
 
@@ -928,7 +928,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID, nCurrentTile, nNumTiles));
 
-    //Profiler_Stop(pd);
+    //Profiler_Stop();
 }
 
 void AG_GenerateGenerationTileArray(string sAreaID)
@@ -1869,7 +1869,7 @@ void AG_ResetChunkTiles(string sAreaID, int nChunk)
 
 void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int nNumTiles = 0)
 {
-    //struct ProfilerData pd = Profiler_Start("AG_GenerateTileChunk: " + sAreaID + "[" + IntToString(nChunk) + "]");
+    //Profiler_Start("AG_GenerateTileChunk: " + sAreaID + "[" + IntToString(nChunk) + "]");
 
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
 
@@ -1896,7 +1896,7 @@ void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int 
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTileChunk(sAreaID, nChunk, nCurrentTile, nNumTiles));
 
-    //Profiler_Stop(pd);
+    //Profiler_Stop();
 }
 
 void AG_GenerateAreaChunk(string sAreaID, int nChunk)

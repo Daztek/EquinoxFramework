@@ -68,7 +68,7 @@ void AIMan_SetBehavior(object oCreature, string sBehavior)
     if (sBehavior == "")
         return;
 
-    //struct ProfilerData pd = Profiler_Start("AIMan_SetBehavior: " + sBehavior);
+    //Profiler_Start("AIMan_SetBehavior: " + sBehavior);
 
     AIMan_UnsetBehavior(oCreature);
     SetLocalString(oCreature, AIMAN_BEHAVIOR_NAME, sBehavior);
@@ -99,7 +99,7 @@ void AIMan_SetBehavior(object oCreature, string sBehavior)
         EM_ObjectDispatchListInsert(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, EVENT_SCRIPT_CREATURE_ON_DEATH));
     }
 
-    //Profiler_Stop(pd);
+    //Profiler_Stop();
 }
 
 void AIMan_UnsetBehavior(object oCreature)
@@ -109,7 +109,7 @@ void AIMan_UnsetBehavior(object oCreature)
     if (sBehavior == "")
         return;
 
-    //struct ProfilerData pd = Profiler_Start("AIMan_UnsetBehavior: " + sBehavior);
+    //Profiler_Start("AIMan_UnsetBehavior: " + sBehavior);
 
     DeleteLocalString(oCreature, AIMAN_BEHAVIOR_NAME);
 
@@ -138,7 +138,7 @@ void AIMan_UnsetBehavior(object oCreature)
         EM_ObjectDispatchListRemove(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, EVENT_SCRIPT_CREATURE_ON_DEATH));
     }
 
-    //Profiler_Stop(pd);
+    //Profiler_Stop();
 }
 
 int AIMan_GetTimeOut(string sTimeoutFlag, object oCreature = OBJECT_SELF)
@@ -171,7 +171,7 @@ object AIMain_SpawnCreature(string sResRef, location locSpawn, string sBehavior)
 
 void AIMan_HandleAIEvent(int nEventType)
 {
-    //struct ProfilerData pd = Profiler_Start("AIMan_HandleAIEvent");
+    //Profiler_Start();
 
     object oCreature = OBJECT_SELF;
     string sBehavior = AIMan_GetBehavior(oCreature);
@@ -198,7 +198,7 @@ void AIMan_HandleAIEvent(int nEventType)
         }
     }
 
-    //Profiler_Stop(pd);
+    //Profiler_Stop();
 }
 
 // @EVENT[EVENT_SCRIPT_CREATURE_ON_HEARTBEAT:DL]

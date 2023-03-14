@@ -84,6 +84,9 @@ int GetIsLocationValid(location locLocation);
 // Get an integer from a 2da, returns EF_UNSET_INTEGER_VALUE if not set.
 int Get2DAInt(string s2DA, string sColumn, int nRow);
 
+// Leftpad sString to nLength with sCharacter
+string LeftPadString(string sString, int nLength, string sCharacter);
+
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
 {
     json jArray = JsonArray();
@@ -361,4 +364,16 @@ int Get2DAInt(string s2DA, string sColumn, int nRow)
 {
     string sValue = Get2DAString(s2DA, sColumn, nRow);
     return sValue == "" ? EF_UNSET_INTEGER_VALUE : StringToInt(sValue);
+}
+
+string LeftPadString(string sString, int nLength, string sCharacter)
+{
+    int nStringLength = GetStringLength(sString);
+    string sPadding;
+    while (nStringLength < nLength)
+    {
+        sPadding += sCharacter;
+        nStringLength++;
+    }
+    return sPadding + sString;
 }

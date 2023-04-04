@@ -1,8 +1,6 @@
 /*
     Script: ef_s_version
     Author: Daz
-
-    Description:
 */
 
 #include "ef_i_core"
@@ -10,18 +8,20 @@
 
 const string VERSION_SCRIPT_NAME        = "ef_s_version";
 
-const int VERSION_MAJOR                 = 8193;
-const int VERSION_MINOR                 = 35;
+const int VERSION_BUILD                 = 8193;
+const int VERSION_REVISION              = 35;
+const int VERSION_POSTFIX               = 37;
 
 // @NWNX[NWNX_ON_CLIENT_CONNECT_BEFORE]
 void VersionCheck_OnClientConnect()
 {
-    int nMajor = EM_GetNWNXInt("VERSION_MAJOR");
-    int nMinor = EM_GetNWNXInt("VERSION_MINOR");
-    if (nMajor != VERSION_MAJOR || (nMajor == VERSION_MAJOR && nMinor < VERSION_MINOR))
+    int nBuild = EM_GetNWNXInt("VERSION_MAJOR");
+    int nRevision = EM_GetNWNXInt("VERSION_MINOR");
+    int nPostfix = EM_GetNWNXInt("VERSION_POSTFIX");
+    if (nRevision < VERSION_REVISION || (nRevision == VERSION_REVISION && nPostfix < VERSION_POSTFIX))
     {
-        LogInfo("Player '" + EM_GetNWNXString("PLAYER_NAME") + "' (" + EM_GetNWNXString("CDKEY") + ") tried to connect with version: " + IntToString(nMajor) + "." + IntToString(nMinor));
-        EM_SetNWNXEventResult("Your client version must be at least '" + IntToString(VERSION_MAJOR) + "." + IntToString(VERSION_MINOR) + "' to play on this server");
+        LogInfo("Player '" + EM_GetNWNXString("PLAYER_NAME") + "' (" + EM_GetNWNXString("CDKEY") + ") tried to connect with version: " + IntToString(nBuild) + "." + IntToString(nRevision) + "-" + IntToString(nPostfix));
+        EM_SetNWNXEventResult("Your client version must be at least '" + IntToString(VERSION_BUILD) + "." + IntToString(VERSION_REVISION) + "-" + IntToString(VERSION_POSTFIX) + "' to play on this server");
         EM_SkipNWNXEvent();
     }
 }

@@ -14,6 +14,7 @@ const string PROFILER_IDENTIFIER_STRING                 = "IdentifierString";
 const string PROFILER_START_INSTRUCTIONS                = "StartInstructions";
 const string PROFILER_START_MICROSECONDS                = "StartMicroseconds";
 
+const int PROFILER_MICROSECONDS_IN_SECOND               = 1000000;
 const int PROFILER_INSTRUCTION_OVERHEAD                 = 17;
 const int PROFILER_MICROSECOND_OVERHEAD                 = 1;
 
@@ -39,7 +40,7 @@ void Profiler_Insert(int nHash, int nMicroseconds, int nInstructions)
 
 string Profiler_FormatTime(int nMicroseconds)
 {
-    return IntToString(nMicroseconds / 1000000) + "." + LeftPadString(IntToString(nMicroseconds % 1000000), 6, "0") + "s";
+    return IntToString(nMicroseconds / PROFILER_MICROSECONDS_IN_SECOND) + "." + LeftPadString(IntToString(nMicroseconds % PROFILER_MICROSECONDS_IN_SECOND), 6, "0") + "s";
 }
 
 string Profiler_GetTimeStats(int nHash)
@@ -50,8 +51,8 @@ string Profiler_GetTimeStats(int nHash)
     if(SqlStep(sql))
     {
         return "Stats: (Min: " + Profiler_FormatTime(SqlGetInt(sql, 0)) +
-                       ", Max: " + Profiler_FormatTime(SqlGetInt(sql, 1)) +
-                       ", Avg: " + Profiler_FormatTime(SqlGetInt(sql, 2)) + ")";
+                     ", Max: " + Profiler_FormatTime(SqlGetInt(sql, 1)) +
+                     ", Avg: " + Profiler_FormatTime(SqlGetInt(sql, 2)) + ")";
     }
     return "Stats: (Min: N/A, Max: N/A, Avg: N/A)";
 }

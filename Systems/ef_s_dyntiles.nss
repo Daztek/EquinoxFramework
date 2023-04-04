@@ -181,6 +181,7 @@ void DT_SetTile(object oArea, int nTile, struct AG_Tile strTile)
 
 void DT_ReloadTileStuff(object oArea)
 {
+    ReloadAreaBorder(oArea);
     RecomputeStaticLighting(oArea);
     SetLocalInt(GetSystemDataObject(), DT_GENERATING_AREA, FALSE);
 }
@@ -225,7 +226,7 @@ void DT_OnAreaGenerated(string sAreaID)
     float fDelay;
 
     ApplyEffectAtLocation(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_FNF_MYSTICAL_EXPLOSION, FALSE, 5.0f), Location(oArea, GetAreaCenterPosition(oArea, 6.0f), 0.0f));
-    SetTileJson(oArea, GetLocalJson(GetSystemDataObject(), DT_TILE_STARTING_ARRAY), SETTILE_FLAG_RELOAD_GRASS | SETTILE_FLAG_RECOMPUTE_LIGHTING);
+    SetTileJson(oArea, GetLocalJson(GetSystemDataObject(), DT_TILE_STARTING_ARRAY), SETTILE_FLAG_RELOAD_GRASS | SETTILE_FLAG_RELOAD_BORDER | SETTILE_FLAG_RECOMPUTE_LIGHTING);
 
     int nCount, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
     for (nCount = 0; nCount < nNumTiles; nCount++)

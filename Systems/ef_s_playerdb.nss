@@ -21,12 +21,12 @@ const int PLAYERDB_TYPE_LOCATION            = 16;
 const int PLAYERDB_TYPE_JSON                = 32;
 
 object PlayerDB_GetSessionDataObject(object oPlayer);
-int PlayerDB_GetSessionInt(object oPlayer, string sSystem, string sVarName);
-void PlayerDB_SetSessionInt(object oPlayer, string sSystem, string sVarName, int nValue);
-void PlayerDB_DeleteSessionInt(object oPlayer, string sSystem, string sVarName);
-string PlayerDB_GetSessionString(object oPlayer, string sSystem, string sVarName);
-void PlayerDB_SetSessionString(object oPlayer, string sSystem, string sVarName, string sValue);
-void PlayerDB_DeleteSessionString(object oPlayer, string sSystem, string sVarName);
+int PlayerDB_GetSessionInt(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
+void PlayerDB_SetSessionInt(object oPlayer, string sSystem, string sVarName, int nValue, object oSessionDataObject = OBJECT_INVALID);
+void PlayerDB_DeleteSessionInt(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
+string PlayerDB_GetSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
+void PlayerDB_SetSessionString(object oPlayer, string sSystem, string sVarName, string sValue, object oSessionDataObject = OBJECT_INVALID);
+void PlayerDB_DeleteSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
 
 int PlayerDB_GetInt(object oPlayer, string sSystem, string sVarName);
 void PlayerDB_SetInt(object oPlayer, string sSystem, string sVarName, int nValue);
@@ -79,34 +79,34 @@ object PlayerDB_GetSessionDataObject(object oPlayer)
     return GetDataObject(PLAYERDB_SESSION_DATA + GetObjectUUID(oPlayer));
 }
 
-int PlayerDB_GetSessionInt(object oPlayer, string sSystem, string sVarName)
+int PlayerDB_GetSessionInt(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
 {
-    return GetLocalInt(PlayerDB_GetSessionDataObject(oPlayer), PLAYERDB_SESSION_DATA + sSystem + sVarName);
+    return GetLocalInt(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
 }
 
-void PlayerDB_SetSessionInt(object oPlayer, string sSystem, string sVarName, int nValue)
+void PlayerDB_SetSessionInt(object oPlayer, string sSystem, string sVarName, int nValue, object oSessionDataObject = OBJECT_INVALID)
 {
-    SetLocalInt(PlayerDB_GetSessionDataObject(oPlayer), PLAYERDB_SESSION_DATA + sSystem + sVarName, nValue);
+    SetLocalInt(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName, nValue);
 }
 
-void PlayerDB_DeleteSessionInt(object oPlayer, string sSystem, string sVarName)
+void PlayerDB_DeleteSessionInt(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
 {
-    DeleteLocalInt(PlayerDB_GetSessionDataObject(oPlayer), PLAYERDB_SESSION_DATA + sSystem + sVarName);
+    DeleteLocalInt(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
 }
 
-string PlayerDB_GetSessionString(object oPlayer, string sSystem, string sVarName)
+string PlayerDB_GetSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
 {
-    return GetLocalString(PlayerDB_GetSessionDataObject(oPlayer), PLAYERDB_SESSION_DATA + sSystem + sVarName);
+    return GetLocalString(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
 }
 
-void PlayerDB_SetSessionString(object oPlayer, string sSystem, string sVarName, string sValue)
+void PlayerDB_SetSessionString(object oPlayer, string sSystem, string sVarName, string sValue, object oSessionDataObject = OBJECT_INVALID)
 {
-    SetLocalString(PlayerDB_GetSessionDataObject(oPlayer), PLAYERDB_SESSION_DATA + sSystem + sVarName, sValue);
+    SetLocalString(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName, sValue);
 }
 
-void PlayerDB_DeleteSessionString(object oPlayer, string sSystem, string sVarName)
+void PlayerDB_DeleteSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
 {
-    DeleteLocalString(PlayerDB_GetSessionDataObject(oPlayer), PLAYERDB_SESSION_DATA + sSystem + sVarName);
+    DeleteLocalString(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
 }
 
 sqlquery PlayerDB_PrepareSelect(object oPlayer, string sSystem, int nType, string sVarName)

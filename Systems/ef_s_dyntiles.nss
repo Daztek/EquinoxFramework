@@ -19,7 +19,6 @@ const string DT_AREA_TAG                        = "AR_DYNTILES";
 const string DT_GENERATING_AREA                 = "GeneratingArea";
 
 const string DT_TILE_STARTING_ARRAY             = "TileStartingArray";
-const string DT_TILE_SPAWN_ARRAY                = "TileSpawnArray";
 const string DT_TILE_OBJECT_ARRAY               = "TileObjectArray";
 
 const string DT_WINDOW_ID                       = "DYNAMICTILES";
@@ -46,17 +45,14 @@ void DT_Init()
     object oArea = GetObjectByTag(DT_AREA_TAG);
 
     json jStartingTiles = JsonArray();
-    json jTileArray = JsonArray();
     int nTile, nNumTiles = DT_AREA_WIDTH * DT_AREA_HEIGHT;
     for (nTile = 0; nTile < nNumTiles; nTile++)
     {
         struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfoByTileIndex(oArea, nTile);
 
         jStartingTiles = JsonArrayInsert(jStartingTiles, AG_GetSetTileTileObject(nTile, str.nID, str.nOrientation, str.nHeight));
-        jTileArray = JsonArrayInsertInt(jTileArray, nTile);
     }
     SetLocalJson(oDataObject, DT_TILE_STARTING_ARRAY, jStartingTiles);
-    SetLocalJson(oDataObject, DT_TILE_SPAWN_ARRAY, jTileArray);
 
     struct GffTools_PlaceableData pdTilePlaceable;
     pdTilePlaceable.nModel = GFFTOOLS_INVISIBLE_PLACEABLE_MODEL_ID;

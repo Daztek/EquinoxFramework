@@ -71,7 +71,7 @@ void NWM_Init()
 // @PAD[NWMWINDOW]
 void NWM_RegisterWindow(struct AnnotationData str)
 {
-    if (str.sReturnType != "json")
+    if (str.sReturnType != NSS_RETURN_TYPE_JSON)
     {
         LogError("Function '" + str.sFunction + "'' from system '" + str.sSystem + "' has an non-json return type!");
         return;

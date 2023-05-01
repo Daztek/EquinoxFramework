@@ -193,3 +193,9 @@ string DMConCom_GetTickRate()
 {
     return "Server Tick Rate: " + IntToString(GetTickRate());
 }
+
+// @CONSOLE[Kill::Kill the target]
+void DMConCom_Kill()
+{
+    ApplyEffectToObject(DURATION_TYPE_INSTANT, EffectDeath(), OBJECT_SELF);
+}

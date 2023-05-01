@@ -31,6 +31,8 @@ void SqlCommitTransactionObject(object oObject);
 void SqlBeginTransactionModule();
 // Commit a transaction on the module database
 void SqlCommitTransactionModule();
+// Get the unix epoch
+int SqlGetUnixEpoch();
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -110,4 +112,10 @@ void SqlBeginTransactionModule()
 void SqlCommitTransactionModule()
 {
     SqlStep(SqlPrepareQueryObject(GetModule(), "COMMIT;"));
+}
+
+int SqlGetUnixEpoch()
+{
+    sqlquery sql = SqlPrepareQueryModule("SELECT UNIXEPOCH();");
+    return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
 }

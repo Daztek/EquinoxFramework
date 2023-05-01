@@ -18,6 +18,8 @@ json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, s
 int GetConstantIntValue(string sConstant, string sInclude = "", int nErrorValue = 0);
 // Get the string value of sConstant or sErrorValue on error
 string GetConstantStringValue(string sConstant, string sInclude = "", string sErrorValue = "");
+// Get the float value of sConstant or fErrorValue on error
+float GetConstantFloatValue(string sConstant, string sInclude = "", float fErrorValue = 0.0f);
 
 // Run sScriptChunk and return its json result
 json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject);
@@ -87,6 +89,12 @@ int Get2DAInt(string s2DA, string sColumn, int nRow);
 // Leftpad sString to nLength with sCharacter
 string LeftPadString(string sString, int nLength, string sCharacter);
 
+// Increment local int sVarName on oObject
+int IncrementLocalInt(object oObject, string sVarName);
+
+// Decrement local int sVarName on oObject
+int DecrementLocalInt(object oObject, string sVarName);
+
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
 {
     json jArray = JsonArray();
@@ -119,6 +127,16 @@ string GetConstantStringValue(string sConstant, string sInclude = "", string sEr
     string sRet = GetLocalString(oModule, "CONVERT_CONSTANT");
     DeleteLocalString(oModule, "CONVERT_CONSTANT");
     return sError == "" ? sRet : sErrorValue;
+}
+
+float GetConstantFloatValue(string sConstant, string sInclude = "", float fErrorValue = 0.0f)
+{
+    object oModule = GetModule();
+    string sScriptChunk = nssInclude(sInclude) + nssVoidMain("SetLocalFloat(OBJECT_SELF, \"CONVERT_CONSTANT\", " + sConstant + ");");
+    string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
+    float fRet = GetLocalFloat(oModule, "CONVERT_CONSTANT");
+    DeleteLocalFloat(oModule, "CONVERT_CONSTANT");
+    return sError == "" ? fRet : fErrorValue;
 }
 
 json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject)
@@ -376,4 +394,18 @@ string LeftPadString(string sString, int nLength, string sCharacter)
         nStringLength++;
     }
     return sPadding + sString;
+}
+
+int IncrementLocalInt(object oObject, string sVarName)
+{
+    int nCurrent = GetLocalInt(oObject, sVarName);
+    SetLocalInt(oObject, sVarName, ++nCurrent);
+    return nCurrent;
+}
+
+int DecrementLocalInt(object oObject, string sVarName)
+{
+    int nCurrent = GetLocalInt(oObject, sVarName);
+    SetLocalInt(oObject, sVarName, --nCurrent);
+    return nCurrent;
 }

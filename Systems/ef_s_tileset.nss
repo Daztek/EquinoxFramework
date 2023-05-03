@@ -88,9 +88,9 @@ json TS_GetTilesetCrosserArray(string sTileset);
 void TS_LoadTilesetData(string sTileset);
 void TS_ProcessTilesetGroups(string sTileset);
 void TS_ProcessTileDoors(string sTileset, int nTileID);
-void TS_InsertTile(string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str);
+void TS_InsertTile(sqlquery sql, string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str);
 void TS_ProcessTile(string sTileset, int nTileID);
-void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str);
+void TS_InsertSingleGroupTile(sqlquery sql, string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str);
 void TS_ProcessSingleGroupTile(string sTileset, int nTileID);
 
 vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical);
@@ -668,11 +668,8 @@ void TS_ProcessTileDoors(string sTileset, int nTileID)
     }
 }
 
-void TS_InsertTile(string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str)
+void TS_InsertTile(sqlquery sql, string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str)
 {
-    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " (tile_id, orientation, height, tl, t, tr, r, br, b, bl, l, bitmask, is_group_tile) " +
-                    "VALUES(@tile_id, @orientation, @height, @tl, @t, @tr, @r, @br, @b, @bl, @l, @bitmask, @is_group_tile);";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@tile_id", nTileID);
     SqlBindInt(sql, "@orientation", nOrientation);
     SqlBindInt(sql, "@height", nHeight);
@@ -687,6 +684,7 @@ void TS_InsertTile(string sTileset, int nTileID, int nOrientation, int nHeight, 
     SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, str));
     SqlBindInt(sql, "@is_group_tile", TS_GetIsTilesetGroupTile(sTileset, nTileID));
     SqlStep(sql);
+    SqlResetQuery(sql, TRUE);
 }
 
 void TS_ProcessTile(string sTileset, int nTileID)
@@ -718,6 +716,10 @@ void TS_ProcessTile(string sTileset, int nTileID)
         }
     }
 
+    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " (tile_id, orientation, height, tl, t, tr, r, br, b, bl, l, bitmask, is_group_tile) " +
+                    "VALUES(@tile_id, @orientation, @height, @tl, @t, @tr, @r, @br, @b, @bl, @l, @bitmask, @is_group_tile);";
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
+
     struct TS_TileStruct str;
     int nHeight, nMaxHeight = TS_GetHasTileHeightTransition(sTileset) ? TS_MAX_TILE_HEIGHT : 1, nOrientation;
     for (nHeight = 0; nHeight < nMaxHeight; nHeight++)
@@ -726,7 +728,7 @@ void TS_ProcessTile(string sTileset, int nTileID)
 
         for (nOrientation = 0; nOrientation < 4; nOrientation++)
         {
-            TS_InsertTile(sTileset, nTileID, nOrientation, nHeight, str);
+            TS_InsertTile(sql, sTileset, nTileID, nOrientation, nHeight, str);
             str = TS_RotateTileStruct(str);
         }
     }
@@ -734,11 +736,8 @@ void TS_ProcessTile(string sTileset, int nTileID)
     EFCore_ResetScriptInstructions();
 }
 
-void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str)
+void TS_InsertSingleGroupTile(sqlquery sql, string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str)
 {
-    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (tile_id, orientation, height, tl, t, tr, r, br, b, bl, l, bitmask) " +
-                    "VALUES(@tile_id, @orientation, @height, @tl, @t, @tr, @r, @br, @b, @bl, @l, @bitmask);";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@tile_id", nTileID);
     SqlBindInt(sql, "@orientation", nOrientation);
     SqlBindInt(sql, "@height", nHeight);
@@ -752,6 +751,7 @@ void TS_InsertSingleGroupTile(string sTileset, int nTileID, int nOrientation, in
     SqlBindString(sql, "@l", str.sL);
     SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, str));
     SqlStep(sql);
+    SqlResetQuery(sql, TRUE);
 }
 
 void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
@@ -770,6 +770,10 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
             return;
     }
 
+    string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " (tile_id, orientation, height, tl, t, tr, r, br, b, bl, l, bitmask) " +
+                    "VALUES(@tile_id, @orientation, @height, @tl, @t, @tr, @r, @br, @b, @bl, @l, @bitmask);";
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
+
     struct TS_TileStruct str;
     int nHeight, nMaxHeight = TS_GetHasTileHeightTransition(sTileset) ? TS_MAX_TILE_HEIGHT : 1, nOrientation;
     for (nHeight = 0; nHeight < nMaxHeight; nHeight++)
@@ -778,7 +782,7 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
 
         for (nOrientation = 0; nOrientation < 4; nOrientation++)
         {
-            TS_InsertSingleGroupTile(sTileset, nTileID, nOrientation, nHeight, str);
+            TS_InsertSingleGroupTile(sql, sTileset, nTileID, nOrientation, nHeight, str);
             str = TS_RotateTileStruct(str);
         }
     }

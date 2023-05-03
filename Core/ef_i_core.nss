@@ -22,19 +22,15 @@
 
 const string EFCORE_SCRIPT_NAME                         = "ef_i_core";
 
-const int EFCORE_DISABLE_DEBUG_FAST_START               = TRUE;
-
-const int EFCORE_VALIDATE_SYSTEMS                       = EFCORE_DISABLE_DEBUG_FAST_START;
+const int EFCORE_VALIDATE_SYSTEMS                       = TRUE;
 const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
-
-const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = EFCORE_DISABLE_DEBUG_FAST_START;
-
-const int EFCORE_PARSE_SYSTEM_FUNCTIONS                 = EFCORE_DISABLE_DEBUG_FAST_START;
+const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = FALSE;
+const int EFCORE_PARSE_SYSTEM_FUNCTIONS                 = TRUE;
 const int EFCORE_PRECACHE_SYSTEM_FUNCTIONS              = FALSE;
 
-const int EF_SYSTEM_INIT                                = 1;
-const int EF_SYSTEM_LOAD                                = 2;
-const int EF_SYSTEM_POST                                = 3;
+const int EF_SYSTEM_INIT                                = 2;
+const int EF_SYSTEM_LOAD                                = 3;
+const int EF_SYSTEM_POST                                = 4;
 
 const string EFCORE_SYSTEM_SCRIPT_PREFIX                = "ef_s_";
 const string EFCORE_ANNOTATIONS_ARRAY                   = "EFCoreAnnotationsArray";
@@ -523,8 +519,6 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
         return nCallStackDepth;
     }
 
-    string sScriptChunk = GetLocalString(oFDO, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunction);
-
     ClearArgumentCount();
 
     if (sFunction != EFCORE_INVALID_FUNCTION || nLambdaId)
@@ -535,6 +529,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
         if (sParameters == sArgs)
         {
             nCallStackDepth = IncrementCallStackDepth(sFunction, sReturnType);
+            string sScriptChunk = GetLocalString(oFDO, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunction);
             string sError = ExecuteScriptChunk(sScriptChunk, oTarget, FALSE);
             DecrementCallStackDepth();
 
@@ -557,7 +552,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 string Function(string sSystem, string sFunction)
 {
     object oFDO = GetFunctionsDataObject();
-    string sFunctionSymbol = sSystem + "::" + sFunction;
+    string sFunctionSymbol = sSystem + "_" + sFunction;
     string sScriptChunk = GetLocalString(oFDO, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunctionSymbol);
 
     if (sScriptChunk == "")
@@ -586,7 +581,8 @@ string Function(string sSystem, string sFunction)
 string Lambda(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "")
 {
     object oFDO = GetFunctionsDataObject();
-    int nLambdaId = GetLocalInt(oFDO, EFCORE_LAMBDA_ID + sParameters + "::" + sBody + "::" + sReturnType);
+    string sHash = IntToString(HashString(sReturnType + sBody + sParameters));
+    int nLambdaId = GetLocalInt(oFDO, EFCORE_LAMBDA_ID + sHash);
 
     if (!nLambdaId)
     {
@@ -622,7 +618,7 @@ string Lambda(string sBody, string sParameters = "", string sReturnType = "", st
         else
             sFunctionBody += nssFunction("LambdaFunction", sArguments);
 
-        SetLocalInt(oFDO, EFCORE_LAMBDA_ID + sParameters + "::" + sBody + "::" + sReturnType, nLambdaId);
+        SetLocalInt(oFDO, EFCORE_LAMBDA_ID + sHash, nLambdaId);
 
         SetLocalString(oFDO, EFCORE_FUNCTION_RETURN_TYPE + sLambdaSymbol, sReturnType);
         SetLocalString(oFDO, EFCORE_FUNCTION_PARAMETERS + sLambdaSymbol, sParameters);

@@ -24,6 +24,9 @@ float GetConstantFloatValue(string sConstant, string sInclude = "", float fError
 // Run sScriptChunk and return its json result
 json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject);
 
+// Run sScriptChunk and return its int result
+int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object oObject);
+
 // Remove all effects with sTag from oObject
 void RemoveEffectsWithTag(object oObject, string sTag);
 
@@ -152,6 +155,21 @@ json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, objec
         LogError("Scriptchunk failed with error: " + sResult);
 
     return jReturn;
+}
+
+int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object oObject)
+{
+    object oModule = GetModule();
+    string sScript = nssInclude(sInclude) + nssVoidMain(nssInt("nReturn", sScriptChunk) +
+        nssFunction("SetLocalInt", nssFunction("GetModule", "", FALSE) + ", " + nssEscape("EF_TEMP_VAR") + ", nReturn"));
+    string sResult = ExecuteScriptChunk(sScript, oObject, FALSE);
+    int nReturn = GetLocalInt(oModule, "EF_TEMP_VAR");
+    DeleteLocalInt(oModule, "EF_TEMP_VAR");
+
+    if (sResult != "")
+        LogError("Scriptchunk failed with error: " + sResult);
+
+    return nReturn;
 }
 
 void RemoveEffectsWithTag(object oObject, string sTag)

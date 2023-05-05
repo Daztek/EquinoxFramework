@@ -155,7 +155,7 @@ void EFCore_InsertAnnotation(string sAnnotation)
     if (!JsonArrayContainsString(EFCore_GetAnnotationsArray(), sAnnotation))
     {
         LogInfo("Found Annotation: " + sAnnotation);
-        InsertStringToLocalJsonArray(GetSystemDataObject(), EFCORE_ANNOTATIONS_ARRAY, sAnnotation);
+        InsertStringToLocalJsonArray(GetDataObject(EFCORE_SCRIPT_NAME), EFCORE_ANNOTATIONS_ARRAY, sAnnotation);
     }
 }
 
@@ -189,7 +189,7 @@ int EFCore_GetNumberOfSystems()
 
 json EFCore_GetAnnotationsArray()
 {
-    return GetLocalJsonOrDefault(GetSystemDataObject(), EFCORE_ANNOTATIONS_ARRAY, JsonArray());
+    return GetLocalJsonOrDefault(GetDataObject(EFCORE_SCRIPT_NAME), EFCORE_ANNOTATIONS_ARRAY, JsonArray());
 }
 
 void EFCore_ParseSystem(string sSystem)

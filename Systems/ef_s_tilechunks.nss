@@ -19,19 +19,9 @@ const int TC_AREA_CHUNK_SIZE                    = 8;
 const string TC_AREA_EDGE_TERRAIN               = "";
 const int TC_MAX_ITERATIONS                     = 25;
 
-// @CORE[EF_SYSTEM_INIT]
-void TC_Init()
-{
-    object oDataObject = GetSystemDataObject();
-    object oArea = GetObjectByTag(TC_AREA_TAG);
-}
-
 // @CORE[EF_SYSTEM_LOAD]
 void TC_Load()
 {
-    object oDataObject = GetSystemDataObject();
-    object oArea = GetObjectByTag(TC_AREA_TAG);
-
     AG_InitializeRandomArea(TC_AREA_ID, TC_AREA_TILESET, TC_AREA_EDGE_TERRAIN, TC_AREA_WIDTH, TC_AREA_HEIGHT);
     AG_InitializeAreaChunks(TC_AREA_ID, TC_AREA_CHUNK_SIZE);
     AG_SetIntDataByKey(TC_AREA_ID, AG_DATA_KEY_MAX_ITERATIONS, TC_MAX_ITERATIONS);

@@ -60,7 +60,7 @@ string Profiler_GetTimeStats(int nHash)
 void Profiler_Start(string sIdentifier = "")
 {
     struct VMFrame strFrame = GetVMFrame(1);
-    object oDataObject = GetSystemDataObject();
+    object oDataObject = GetDataObject(PROFILER_SCRIPT_NAME);
     SetLocalString(oDataObject, PROFILER_CALLING_FUNCTION, strFrame.sFile + "::" + strFrame.sFunction + ":" + IntToString(strFrame.nLine));
     SetLocalString(oDataObject, PROFILER_IDENTIFIER_STRING, sIdentifier);
     SetLocalInt(oDataObject, PROFILER_START_INSTRUCTIONS, GetScriptInstructionsRemaining());
@@ -71,7 +71,7 @@ void Profiler_Stop()
 {
     int nEndMicroseconds = GetMicrosecondCounter();
     int nEndInstructions = GetScriptInstructionsRemaining();
-    object oDataObject = GetSystemDataObject();
+    object oDataObject = GetDataObject(PROFILER_SCRIPT_NAME);
     string sIdentifierString = GetLocalString(oDataObject, PROFILER_IDENTIFIER_STRING);
     string sHashString = sIdentifierString == "" ? GetLocalString(oDataObject, PROFILER_CALLING_FUNCTION) : sIdentifierString;
     int nHash = HashString(sHashString);

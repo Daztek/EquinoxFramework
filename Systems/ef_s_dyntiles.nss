@@ -41,7 +41,7 @@ const float DT_LERP_SPEED                       = 1.5f;
 // @CORE[EF_SYSTEM_INIT]
 void DT_Init()
 {
-    object oDataObject = GetSystemDataObject();
+    object oDataObject = GetDataObject(DT_SCRIPT_NAME);
     object oArea = GetObjectByTag(DT_AREA_TAG);
 
     json jStartingTiles = JsonArray();
@@ -100,10 +100,11 @@ json DT_CreateWindow()
 // @NWMEVENT[DT_WINDOW_ID:NUI_EVENT_CLICK:DT_BIND_GENERATE_BUTTON]
 void DT_ClickGenerateButton()
 {
-    if (GetLocalInt(GetSystemDataObject(), DT_GENERATING_AREA))
+    object oDataObject = GetDataObject(DT_SCRIPT_NAME);
+    if (GetLocalInt(oDataObject, DT_GENERATING_AREA))
         return;
 
-    SetLocalInt(GetSystemDataObject(), DT_GENERATING_AREA, TRUE);
+    SetLocalInt(oDataObject, DT_GENERATING_AREA, TRUE);
 
     AG_InitializeRandomArea(DT_AREA_ID, DT_AREA_TILESET, DT_AREA_EDGE_TERRAIN, DT_AREA_WIDTH, DT_AREA_HEIGHT);
     AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_MAX_ITERATIONS, DT_MAX_ITERATIONS);
@@ -159,7 +160,7 @@ void DT_ResetLerp(object oTile)
 
 void DT_SetTile(object oArea, int nTile, struct AG_Tile strTile)
 {
-    object oTile = ObjectArray_At(GetSystemDataObject(), DT_TILE_OBJECT_ARRAY, nTile);
+    object oTile = ObjectArray_At(GetDataObject(DT_SCRIPT_NAME), DT_TILE_OBJECT_ARRAY, nTile);
     location locTile = GetLocation(oTile);
     vector vTranslate = Vector(0.0f, 0.0f, 6.0f);
     effect eVfx = EffectVisualEffect(VFX_FNF_BLINDDEAF, FALSE, 2.5f, vTranslate);
@@ -179,7 +180,7 @@ void DT_ReloadTileStuff(object oArea)
 {
     ReloadAreaBorder(oArea);
     RecomputeStaticLighting(oArea);
-    SetLocalInt(GetSystemDataObject(), DT_GENERATING_AREA, FALSE);
+    SetLocalInt(GetDataObject(DT_SCRIPT_NAME), DT_GENERATING_AREA, FALSE);
 }
 
 int DT_GetTileFromGenerationType(object oAreaDataObject, int nGenerationType, int nNumTiles, int nTile)
@@ -209,7 +210,7 @@ void DT_OnAreaGenerated(string sAreaID)
 {
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
     {
-        SetLocalInt(GetSystemDataObject(), DT_GENERATING_AREA, FALSE);
+        SetLocalInt(GetDataObject(DT_SCRIPT_NAME), DT_GENERATING_AREA, FALSE);
         DT_ClickGenerateButton();
         return;
     }
@@ -222,7 +223,7 @@ void DT_OnAreaGenerated(string sAreaID)
     float fDelay;
 
     ApplyEffectAtLocation(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_FNF_MYSTICAL_EXPLOSION, FALSE, 5.0f), Location(oArea, GetAreaCenterPosition(oArea, 6.0f), 0.0f));
-    SetTileJson(oArea, GetLocalJson(GetSystemDataObject(), DT_TILE_STARTING_ARRAY), SETTILE_FLAG_RELOAD_GRASS | SETTILE_FLAG_RELOAD_BORDER | SETTILE_FLAG_RECOMPUTE_LIGHTING);
+    SetTileJson(oArea, GetLocalJson(GetDataObject(DT_SCRIPT_NAME), DT_TILE_STARTING_ARRAY), SETTILE_FLAG_RELOAD_GRASS | SETTILE_FLAG_RELOAD_BORDER | SETTILE_FLAG_RECOMPUTE_LIGHTING);
 
     int nCount, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
     for (nCount = 0; nCount < nNumTiles; nCount++)

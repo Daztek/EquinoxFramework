@@ -55,5 +55,5 @@ object GetDataObject(string sTag, int bCreateIfNotExists = TRUE)
 
 object GetSystemDataObject(string sTag = "")
 {
-    return GetDataObject(GetVMFrameScript(1) + sTag != "" ? ("_" + sTag) : "");
+    return GetDataObject(GetVMFrameScript(1) + (sTag != "" ? ("_" + sTag) : ""));
 }

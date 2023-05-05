@@ -683,8 +683,7 @@ void TS_InsertTile(sqlquery sql, string sTileset, int nTileID, int nOrientation,
     SqlBindString(sql, "@l", str.sL);
     SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, str));
     SqlBindInt(sql, "@is_group_tile", TS_GetIsTilesetGroupTile(sTileset, nTileID));
-    SqlStep(sql);
-    SqlResetQuery(sql, TRUE);
+    SqlStepAndReset(sql);
 }
 
 void TS_ProcessTile(string sTileset, int nTileID)
@@ -750,8 +749,7 @@ void TS_InsertSingleGroupTile(sqlquery sql, string sTileset, int nTileID, int nO
     SqlBindString(sql, "@bl", str.sBL);
     SqlBindString(sql, "@l", str.sL);
     SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, str));
-    SqlStep(sql);
-    SqlResetQuery(sql, TRUE);
+    SqlStepAndReset(sql);
 }
 
 void TS_ProcessSingleGroupTile(string sTileset, int nTileID)

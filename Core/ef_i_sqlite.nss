@@ -33,6 +33,8 @@ void SqlBeginTransactionModule();
 void SqlCommitTransactionModule();
 // Get the unix epoch
 int SqlGetUnixEpoch();
+// Execute the sql query and reset it
+void SqlStepAndReset(sqlquery sql);
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -118,4 +120,10 @@ int SqlGetUnixEpoch()
 {
     sqlquery sql = SqlPrepareQueryModule("SELECT UNIXEPOCH();");
     return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
+}
+
+void SqlStepAndReset(sqlquery sql)
+{
+    SqlStep(sql);
+    SqlResetQuery(sql, TRUE);
 }

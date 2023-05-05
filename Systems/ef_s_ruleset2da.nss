@@ -20,7 +20,7 @@ void RS2DA_Init()
 
     SqlBeginTransactionModule();
 
-    sQuery = "INSERT INTO " + RS2DA_SCRIPT_NAME + "(name, value) VALUES(@name, @value);";
+    sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + RS2DA_SCRIPT_NAME + "(name, value) VALUES(@name, @value);");
     int nRow, nNumRows = Get2DARowCount("ruleset");
     for (nRow = 0; nRow < nNumRows; nRow++)
     {
@@ -30,10 +30,9 @@ void RS2DA_Init()
         if (sName == "" || sValue == "")
             continue;
 
-        sqlquery sql = SqlPrepareQueryModule(sQuery);
         SqlBindString(sql, "@name", sName);
         SqlBindString(sql, "@value", sValue);
-        SqlStep(sql);
+        SqlStepAndReset(sql);
     }
 
     SqlCommitTransactionModule();
@@ -41,16 +40,14 @@ void RS2DA_Init()
 
 int RS2DA_GetIntEntry(string sEntry)
 {
-    string sQuery = "SELECT value FROM " + RS2DA_SCRIPT_NAME + " WHERE name = @name;";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
+    sqlquery sql = SqlPrepareQueryModule("SELECT value FROM " + RS2DA_SCRIPT_NAME + " WHERE name = @name;");
     SqlBindString(sql, "@name", sEntry);
     return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
 }
 
 float RS2DA_GetFloatEntry(string sEntry)
 {
-    string sQuery = "SELECT value FROM " + RS2DA_SCRIPT_NAME + " WHERE name = @name;";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
+    sqlquery sql = SqlPrepareQueryModule("SELECT value FROM " + RS2DA_SCRIPT_NAME + " WHERE name = @name;");
     SqlBindString(sql, "@name", sEntry);
     return SqlStep(sql) ? SqlGetFloat(sql, 0) : 0.0f;
 }

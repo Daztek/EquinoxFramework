@@ -27,6 +27,9 @@ void PlayerDB_DeleteSessionInt(object oPlayer, string sSystem, string sVarName, 
 string PlayerDB_GetSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
 void PlayerDB_SetSessionString(object oPlayer, string sSystem, string sVarName, string sValue, object oSessionDataObject = OBJECT_INVALID);
 void PlayerDB_DeleteSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
+json PlayerDB_GetSessionJson(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
+void PlayerDB_SetSessionJson(object oPlayer, string sSystem, string sVarName, json jValue, object oSessionDataObject = OBJECT_INVALID);
+void PlayerDB_DeleteSessionJson(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
 
 int PlayerDB_GetInt(object oPlayer, string sSystem, string sVarName);
 void PlayerDB_SetInt(object oPlayer, string sSystem, string sVarName, int nValue);
@@ -107,6 +110,21 @@ void PlayerDB_SetSessionString(object oPlayer, string sSystem, string sVarName, 
 void PlayerDB_DeleteSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
 {
     DeleteLocalString(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
+}
+
+json PlayerDB_GetSessionJson(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
+{
+    return GetLocalJson(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
+}
+
+void PlayerDB_SetSessionJson(object oPlayer, string sSystem, string sVarName, json jValue, object oSessionDataObject = OBJECT_INVALID)
+{
+    SetLocalJson(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName, jValue);
+}
+
+void PlayerDB_DeleteSessionJson(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
+{
+    DeleteLocalJson(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
 }
 
 sqlquery PlayerDB_PrepareSelect(object oPlayer, string sSystem, int nType, string sVarName)

@@ -28,9 +28,9 @@ const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = FALSE;
 const int EFCORE_PARSE_SYSTEM_FUNCTIONS                 = TRUE;
 const int EFCORE_PRECACHE_SYSTEM_FUNCTIONS              = FALSE;
 
-const int EF_SYSTEM_INIT                                = 2;
-const int EF_SYSTEM_LOAD                                = 3;
-const int EF_SYSTEM_POST                                = 4;
+const int EF_SYSTEM_INIT                                = 1;
+const int EF_SYSTEM_LOAD                                = 2;
+const int EF_SYSTEM_POST                                = 3;
 
 const string EFCORE_SYSTEM_SCRIPT_PREFIX                = "ef_s_";
 const string EFCORE_ANNOTATIONS_ARRAY                   = "EFCoreAnnotationsArray";

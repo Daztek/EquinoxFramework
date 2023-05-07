@@ -6,6 +6,7 @@
 */
 
 #include "ef_i_core"
+#include "ef_s_session"
 #include "ef_s_playerdb"
 #include "ef_s_poststring"
 
@@ -36,7 +37,7 @@ void BuffInfo_HandleEffectIconClick()
         return;
 
     int nID = PostString_GetStartID();
-    int nLastNumLines = PlayerDB_GetSessionInt(oPlayer, BUFFINFO_SCRIPT_NAME, BUFFINFO_LAST_NUM_LINES);
+    int nLastNumLines = Session_GetInt(oPlayer, BUFFINFO_SCRIPT_NAME, BUFFINFO_LAST_NUM_LINES);
     PostString_ClearByRange(oPlayer, nID, nID + nLastNumLines);
 
     int nOffsetY = 1;
@@ -353,7 +354,7 @@ void BuffInfo_HandleEffectIconClick()
         BuffInfo_DisplayLine(oPlayer, nOffsetY++, nID++, " - <Item Effect?>", nColor);
     }
 
-    PlayerDB_SetSessionInt(oPlayer, BUFFINFO_SCRIPT_NAME, BUFFINFO_LAST_NUM_LINES, nOffsetY);
+    Session_SetInt(oPlayer, BUFFINFO_SCRIPT_NAME, BUFFINFO_LAST_NUM_LINES, nOffsetY);
 }
 
 void BuffInfo_DisplayLine(object oPlayer, int nLineOffset, int nID, string sText, int nColor)

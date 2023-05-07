@@ -2,15 +2,13 @@
     Script: ef_s_playerdb
     Author: Daz
 
-    Description: An Equinox Framework System to store player data temporarily or persistently.
+    Description: An Equinox Framework System to store player data persistently.
 */
 
 #include "ef_i_core"
 
 const string PLAYERDB_SCRIPT_NAME           = "ef_s_playerdb";
 const string PLAYERDB_DATABASE_NAME         = "EFPlayerDB";
-const string PLAYERDB_SESSION_DATA          = "PDBSessionData_";
-const int PLAYERDB_ONCLIENTEXIT_PRIORITY    = 100;
 
 const int PLAYERDB_TYPE_ALL                 = 0;
 const int PLAYERDB_TYPE_INT                 = 1;
@@ -19,17 +17,6 @@ const int PLAYERDB_TYPE_STRING              = 4;
 const int PLAYERDB_TYPE_VECTOR              = 8;
 const int PLAYERDB_TYPE_LOCATION            = 16;
 const int PLAYERDB_TYPE_JSON                = 32;
-
-object PlayerDB_GetSessionDataObject(object oPlayer);
-int PlayerDB_GetSessionInt(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
-void PlayerDB_SetSessionInt(object oPlayer, string sSystem, string sVarName, int nValue, object oSessionDataObject = OBJECT_INVALID);
-void PlayerDB_DeleteSessionInt(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
-string PlayerDB_GetSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
-void PlayerDB_SetSessionString(object oPlayer, string sSystem, string sVarName, string sValue, object oSessionDataObject = OBJECT_INVALID);
-void PlayerDB_DeleteSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
-json PlayerDB_GetSessionJson(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
-void PlayerDB_SetSessionJson(object oPlayer, string sSystem, string sVarName, json jValue, object oSessionDataObject = OBJECT_INVALID);
-void PlayerDB_DeleteSessionJson(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID);
 
 int PlayerDB_GetInt(object oPlayer, string sSystem, string sVarName);
 void PlayerDB_SetInt(object oPlayer, string sSystem, string sVarName, int nValue);
@@ -69,62 +56,6 @@ void PlayerDB_OnELCValidateCharacterBefore()
         "timestamp INTEGER, " +
         "PRIMARY KEY(system, type, varname));"));
     ExportSingleCharacter(oPlayer);
-}
-
-// @EVENT[EVENT_SCRIPT_MODULE_ON_CLIENT_EXIT::PLAYERDB_ONCLIENTEXIT_PRIORITY]
-void PlayerDB_DestroySessionDataObjectOnClientExit()
-{
-    DestroyDataObject(PLAYERDB_SESSION_DATA + GetObjectUUID(GetExitingObject()));
-}
-
-object PlayerDB_GetSessionDataObject(object oPlayer)
-{
-    return GetDataObject(PLAYERDB_SESSION_DATA + GetObjectUUID(oPlayer));
-}
-
-int PlayerDB_GetSessionInt(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
-{
-    return GetLocalInt(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
-}
-
-void PlayerDB_SetSessionInt(object oPlayer, string sSystem, string sVarName, int nValue, object oSessionDataObject = OBJECT_INVALID)
-{
-    SetLocalInt(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName, nValue);
-}
-
-void PlayerDB_DeleteSessionInt(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
-{
-    DeleteLocalInt(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
-}
-
-string PlayerDB_GetSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
-{
-    return GetLocalString(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
-}
-
-void PlayerDB_SetSessionString(object oPlayer, string sSystem, string sVarName, string sValue, object oSessionDataObject = OBJECT_INVALID)
-{
-    SetLocalString(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName, sValue);
-}
-
-void PlayerDB_DeleteSessionString(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
-{
-    DeleteLocalString(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
-}
-
-json PlayerDB_GetSessionJson(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
-{
-    return GetLocalJson(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
-}
-
-void PlayerDB_SetSessionJson(object oPlayer, string sSystem, string sVarName, json jValue, object oSessionDataObject = OBJECT_INVALID)
-{
-    SetLocalJson(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName, jValue);
-}
-
-void PlayerDB_DeleteSessionJson(object oPlayer, string sSystem, string sVarName, object oSessionDataObject = OBJECT_INVALID)
-{
-    DeleteLocalJson(oSessionDataObject == OBJECT_INVALID ? PlayerDB_GetSessionDataObject(oPlayer) : oSessionDataObject, PLAYERDB_SESSION_DATA + sSystem + sVarName);
 }
 
 sqlquery PlayerDB_PrepareSelect(object oPlayer, string sSystem, int nType, string sVarName)

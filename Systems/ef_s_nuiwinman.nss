@@ -176,17 +176,6 @@ void NWM_NuiEvent()
     NWM_RunEvents(oPlayer, sWindowId, sEventType, sElement);
 }
 
-// @GUIEVENT[GUIEVENT_OPTIONS_OPEN]
-void NWM_CloseAllWindows()
-{
-    object oPlayer = OBJECT_SELF;
-    int nToken;
-    while ((nToken = NuiGetNthWindow(oPlayer, 0)))
-    {
-        NWM_CloseWindow(oPlayer, NuiGetWindowId(oPlayer, nToken));
-    }
-}
-
 void NWM_SetToken(int nToken)
 {
     SetLocalInt(GetDataObject(NWM_SCRIPT_NAME), NWM_CURRENT_TOKEN, nToken);

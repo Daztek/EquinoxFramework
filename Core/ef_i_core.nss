@@ -72,6 +72,9 @@ void EFCore_ParseSystemsForAnnotationData();
 void EFCore_ExecuteCoreFunction(int nCoreFunctionType);
 void EFCore_ParseAnnotationData();
 struct AnnotationData EFCore_GetAnnotationDataStruct(json jAnnotationData);
+string EFCore_GetAnnotationString(struct AnnotationData str, int nIndex);
+int EFCore_GetAnnotationInt(struct AnnotationData str, int nIndex);
+float EFCore_GetAnnotationFloat(struct AnnotationData str, int nIndex);
 string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE);
 void EFCore_ResetScriptInstructions();
 
@@ -399,6 +402,21 @@ struct AnnotationData EFCore_GetAnnotationDataStruct(json jAnnotationData)
     str.sFunction = JsonArrayGetString(jAnnotationData, 4);
     str.sParameters = JsonArrayGetString(jAnnotationData, 5);
     return str;
+}
+
+string EFCore_GetAnnotationString(struct AnnotationData str, int nIndex)
+{
+    return GetConstantStringValue(JsonArrayGetString(str.jArguments, nIndex), str.sSystem, JsonArrayGetString(str.jArguments, nIndex));
+}
+
+int EFCore_GetAnnotationInt(struct AnnotationData str, int nIndex)
+{
+    return GetConstantIntValue(JsonArrayGetString(str.jArguments, nIndex), str.sSystem, JsonArrayGetInt(str.jArguments, nIndex));
+}
+
+float EFCore_GetAnnotationFloat(struct AnnotationData str, int nIndex)
+{
+    return GetConstantFloatValue(JsonArrayGetString(str.jArguments, nIndex), str.sSystem, JsonArrayGetFloat(str.jArguments, nIndex));
 }
 
 string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)

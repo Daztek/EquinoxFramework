@@ -515,7 +515,7 @@ struct TS_DoorStruct TS_GetTilesetTileDoor(string sTileset, int nTileID, int nIn
 
 int TS_GetIsTilesetGroupTile(string sTileset, int nTileID)
 {
-    string sQuery = "SELECT * FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUP_TILES) + " WHERE tile_id = @tile_id;";
+    string sQuery = "SELECT tile_id FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUP_TILES) + " WHERE tile_id = @tile_id;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@tile_id", nTileID);
     return SqlStep(sql);

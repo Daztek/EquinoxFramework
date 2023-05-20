@@ -1513,7 +1513,7 @@ void QC_RefreshAllSpellUses(object oPlayer)
 
 int QC_GetHasMemorizedSpell(object oPlayer, int nMulticlass, int nSpellId, int nMetaMagic)
 {
-    string sQuery = "SELECT * FROM " + QC_GetPlayerMemorizedSpellsTable(oPlayer) + " WHERE " +
+    string sQuery = "SELECT spellid FROM " + QC_GetPlayerMemorizedSpellsTable(oPlayer) + " WHERE " +
                     "multiclass = @multiclass AND spellid = @spellid AND metamagic = @metamagic;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@multiclass", nMulticlass);

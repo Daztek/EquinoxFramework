@@ -23,7 +23,7 @@ struct VMFrame GetVMFrame(int nDepth = 0);
 string GetVMFrameScript(int nDepth = 0);
 // Get a VM backtrace as string
 string GetVMBacktrace(int nDepth = 0);
-// Convenience  Wrapper around CompileScript
+// Convenience Wrapper around CompileScript
 string VMCompileScript(string sFileName, string sInclude, string sScriptChunk);
 
 struct VMFrame GetVMFrame(int nDepth = 0)

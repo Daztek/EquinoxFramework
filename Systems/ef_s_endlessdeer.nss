@@ -17,9 +17,6 @@ const int ED_GROUP_TILE                 = FALSE;
 
 const float ED_SPAWN_DELAY              = 0.05f;
 
-const int ED_AREA_SPAWN_STAG_CHANCE     = 10;
-const string ED_AREA_SPAWNED_STAG       = "EDSpawnedStag";
-
 int ED_GetNumSpawnTiles(string sAreaID)
 {
     string sQuery = "SELECT COUNT(*) FROM " + EP_GetTilesTable() +
@@ -36,15 +33,7 @@ int ED_GetNumSpawnTiles(string sAreaID)
 
 void ED_SpawnDeer(object oArea, location locSpawn)
 {
-    if (!GetLocalInt(oArea, ED_AREA_SPAWNED_STAG) && (Random(100) < ED_AREA_SPAWN_STAG_CHANCE))
-    {
-        AIMain_SpawnCreature("nw_deerstag", locSpawn, AIB_BEHAVIOR_WANDERFLEE);//AIB_BEHAVIOR_CHARGEFLEE);
-        SetLocalInt(oArea, ED_AREA_SPAWNED_STAG, TRUE);
-    }
-    else
-    {
-        AIMain_SpawnCreature("nw_deer", locSpawn, AIB_BEHAVIOR_WANDERFLEE);
-    }
+    AIMain_SpawnCreature("nw_deer", locSpawn, AIB_BEHAVIOR_WANDERFLEE);
 }
 
 // @NWNX[EP_EVENT_AREA_POST_PROCESS_FINISHED]

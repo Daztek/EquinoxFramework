@@ -11,16 +11,9 @@ const string TARGETMODE_SCRIPT_NAME             = "ef_s_targetmode";
 const string TARGETMODE_FUNCTIONS_ARRAY_PREFIX  = "FunctionsArray_";
 const string TARGETMODE_CURRENT_TARGET_MODE     = "CurrentTargetMode_";
 
+void TargetMode_SetTargetMode(object oPlayer, string sTargetingMode);
 string TargetMode_GetTargetMode(object oPlayer);
 void TargetMode_Enter(object oPlayer, string sTargetingMode, int nValidObjectTypes = OBJECT_TYPE_ALL, int nMouseCursorId = MOUSECURSOR_MAGIC, int nBadTargetCursor = MOUSECURSOR_NOMAGIC);
-
-// Sets the spell targeting data which is used for the next call to EnterTargetingMode() for this player.
-// If the shape is set to SPELL_TARGETING_SHAPE_NONE and the range is provided, the dotted line range indicator will still appear.
-// - nShape: SPELL_TARGETING_SHAPE_*
-// - nFlags: SPELL_TARGETING_FLAGS_*
-// - nSpell: SPELL_* (optional, passed to the shader but does nothing by default, you need to edit the shader to use it)
-// - nFeat: FEAT_* (optional, passed to the shader but does nothing by default, you need to edit the shader to use it)
-void _SetEnterTargetingModeData(object oPlayer, int nShape, float fSizeX, float fSizeY, int nFlags, float fRange = 0.0f, int nSpell = -1, int nFeat = -1);
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_PLAYER_TARGET]
 void TargetMode_OnPlayerTarget()
@@ -44,6 +37,8 @@ void TargetMode_OnPlayerTarget()
                     LogError("ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
             }
         }
+
+        TargetMode_SetTargetMode(oPlayer, "");
     }
 }
 
@@ -64,6 +59,11 @@ void TargetMode_RegisterFunction(struct AnnotationData str)
     }
 }
 
+void TargetMode_SetTargetMode(object oPlayer, string sTargetingMode)
+{
+    SetLocalString(GetDataObject(TARGETMODE_SCRIPT_NAME), TARGETMODE_CURRENT_TARGET_MODE + GetObjectUUID(oPlayer), sTargetingMode);
+}
+
 string TargetMode_GetTargetMode(object oPlayer)
 {
     return GetLocalString(GetDataObject(TARGETMODE_SCRIPT_NAME), TARGETMODE_CURRENT_TARGET_MODE + GetObjectUUID(oPlayer));
@@ -71,7 +71,7 @@ string TargetMode_GetTargetMode(object oPlayer)
 
 void TargetMode_Enter(object oPlayer, string sTargetingMode, int nValidObjectTypes = OBJECT_TYPE_ALL, int nMouseCursorId = MOUSECURSOR_MAGIC, int nBadTargetCursor = MOUSECURSOR_NOMAGIC)
 {
-    SetLocalString(GetDataObject(TARGETMODE_SCRIPT_NAME), TARGETMODE_CURRENT_TARGET_MODE + GetObjectUUID(oPlayer), sTargetingMode);
+    TargetMode_SetTargetMode(oPlayer, sTargetingMode);
     EnterTargetingMode(oPlayer, nValidObjectTypes, nMouseCursorId, nBadTargetCursor);
 }
 

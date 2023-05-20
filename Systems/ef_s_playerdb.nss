@@ -286,7 +286,7 @@ int PlayerDB_IsSet(object oPlayer, string sSystem, string sVarName, int nType)
     if (!PlayerDB_ValidateArguments(oPlayer, sSystem, sVarName) || nType < 0) return 0;
 
     sqlquery sql = SqlPrepareQueryObject(oPlayer,
-        "SELECT * FROM " + PLAYERDB_DATABASE_NAME + " " +
+        "SELECT value FROM " + PLAYERDB_DATABASE_NAME + " " +
         "WHERE system = @system " +
         (nType != PLAYERDB_TYPE_ALL ? "AND type & @type " : " ") +
         "AND varname = @varname;");

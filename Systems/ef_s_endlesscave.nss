@@ -6,6 +6,7 @@
 #include "ef_i_core"
 #include "ef_s_areagen"
 #include "ef_s_endlesspath"
+#include "ef_s_areamusic"
 #include "nwnx_object"
 
 const string EC_SCRIPT_NAME                     = "ef_s_endlesscave";
@@ -52,6 +53,12 @@ void EC_Init()
 
     SetLocalJson(GetDataObject(EC_SCRIPT_NAME), EC_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(oTemplateArea));
     DestroyArea(oTemplateArea);
+}
+
+// @CORE[EF_SYSTEM_LOAD]
+void EC_Load()
+{
+    AreaMusic_AddTrackToTrackList(EC_SCRIPT_NAME, 9, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
 }
 
 // @NWNX[EP_EVENT_AREA_POST_PROCESS_FINISHED]
@@ -245,6 +252,8 @@ void EC_OnCaveGenerated(string sAreaID)
 
         // Don't persist player locations in EC areas
         Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oCaveArea));
+        // Assign Track List
+        AreaMusic_SetAreaTrackList(oCaveArea, EC_SCRIPT_NAME);
 
         object oCaveDoor = AG_CreateDoor(sAreaID, nCaveAreaDoorTile, EC_GetNextDoorID());
         object oParentAreaDoor = AG_CreateDoor(sParentAreaID, nParentAreaDoorTile, EC_GetNextDoorID());

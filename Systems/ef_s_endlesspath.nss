@@ -7,6 +7,7 @@
 #include "ef_s_areagen"
 #include "ef_s_eventman"
 #include "ef_s_profiler"
+#include "ef_s_areamusic"
 
 const string EP_SCRIPT_NAME                         = "ef_s_endlesspath";
 const int EP_DEBUG_LOG                              = FALSE;
@@ -68,6 +69,13 @@ void EP_Init()
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
+}
+
+// @CORE[EF_SYSTEM_LOAD]
+void EP_Load()
+{
+    AreaMusic_AddTrackToTrackList(EP_SCRIPT_NAME, 128, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
+    AreaMusic_AddTrackToTrackList(EP_SCRIPT_NAME, 136, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
 }
 
 void EP_BeginPath(object oArea)
@@ -181,8 +189,6 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
 
     AG_AddEdgeTerrain(sAreaID, "WATER");
     AG_AddEdgeTerrain(sAreaID, "MOUNTAIN");
-    AG_AddEdgeTerrain(sAreaID, "GRASS");
-    AG_AddEdgeTerrain(sAreaID, "GRASS2");
 
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "ROAD");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "BRIDGE");
@@ -232,7 +238,9 @@ object EP_CreateArea(string sAreaID)
     jArea = GffReplaceInt(jArea, "ARE/value/Height", AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT));
     jArea = GffReplaceInt(jArea, "ARE/value/Width", AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH));
     jArea = GffReplaceLocString(jArea, "ARE/value/Name", "The Endless Path (" +IntToString(EP_GetAreaNum(sAreaID)) + ")");
-    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicDay", AG_Random(sAreaID, 2) ? 128 : 136);
+    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicDay", 0);
+    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicNight", 0);
+    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicBattle", 0);
     jArea = GffReplaceInt(jArea, "ARE/value/WindPower", AG_Random(sAreaID, 3));
     jArea = GffAddList(jArea, "ARE/value/Tile_List", AG_GetTileList(sAreaID));
 
@@ -245,6 +253,8 @@ void EP_SetAreaModifiers(object oArea)
     Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oArea));
     // Setup dynamic lighting
     Call(Function("ef_s_dynlight", "DynLight_InitArea"), ObjectArg(oArea));
+    // Assign Track List
+    AreaMusic_SetAreaTrackList(oArea, EP_SCRIPT_NAME);
 }
 
 void EP_OnAreaGenerated(string sAreaID)
@@ -329,6 +339,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
     struct AG_TilePosition strExitPosition = AG_GetTilePosition(sAreaID, nExitTileIndex);
     string sQuery = "INSERT INTO " + EP_GetTilesTable() + "(area_id, tile_index, tile_x, tile_y, tile_id, entrance_dist, exit_dist, path_dist, group_tile, num_doors) " +
                     "VALUES(@area_id, @tile_index, @tile_x, @tile_y, @tile_id, @entrance_dist, @exit_dist, @path_dist, @group_tile, @num_doors);";
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
     int nCurrentMaxTiles = min(nCurrentTile + EP_POSTPROCESS_TILE_BATCH, nNumTiles);
     int nGrassBitmask = TS_GetTCBitmask(EP_AREA_TILESET, "GRASS");
     int nGrass2Bitmask = TS_GetTCBitmask(EP_AREA_TILESET, "GRASS2");
@@ -352,7 +363,6 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
                 int bIsGroupTile = TS_GetIsTilesetGroupTile(EP_AREA_TILESET, strTileInfo.nID);
                 int nNumDoors = TS_GetTilesetNumDoors(EP_AREA_TILESET, strTileInfo.nID);
 
-                sqlquery sql = SqlPrepareQueryModule(sQuery);
                 SqlBindString(sql, "@area_id", sAreaID);
                 SqlBindInt(sql, "@tile_index", nCurrentTile);
                 SqlBindInt(sql, "@tile_x", strTileInfo.nGridX);
@@ -363,7 +373,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
                 SqlBindInt(sql, "@path_dist", nDistanceFromPath);
                 SqlBindInt(sql, "@group_tile", bIsGroupTile);
                 SqlBindInt(sql, "@num_doors", nNumDoors);
-                SqlStep(sql);
+                SqlStepAndReset(sql);
             }
         }
     }

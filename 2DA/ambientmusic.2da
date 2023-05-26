@@ -1,0 +1,141 @@
+2DA V2.0
+
+    Description                                 Resource         Stinger1          Stinger2 Stinger3 DisplayName                                            Duration
+0   61901                                       ****             ****              ****     ****     ****                                                   ****
+1   61842                                       mus_ruralday1    ****              ****     ****     ****                                                   100
+2   61843                                       mus_ruralday2    ****              ****     ****     ****                                                   76
+3   61844                                       mus_ruralnite    ****              ****     ****     ****                                                   105
+4   61845                                       mus_forestday1   ****              ****     ****     ****                                                   97
+5   61846                                       mus_forestday2   ****              ****     ****     ****                                                   100
+6   61847                                       mus_forestnite   ****              ****     ****     ****                                                   122
+7   61848                                       mus_gendungeon1  ****              ****     ****     ****                                                   103
+8   61849                                       mus_sewer        ****              ****     ****     ****                                                   94
+9   61850                                       mus_mines1       ****              ****     ****     ****                                                   121
+10  61851                                       mus_mines2       ****              ****     ****     ****                                                   81
+11  61852                                       mus_crypt1       ****              ****     ****     ****                                                   118
+12  61853                                       mus_crypt2       ****              ****     ****     ****                                                   70
+13  61854                                       mus_evildungeon1 ****              ****     ****     ****                                                   100
+14  61855                                       mus_evildungeon2 ****              ****     ****     ****                                                   67
+15  61856                                       mus_cityslumday  ****              ****     ****     ****                                                   95
+16  61857                                       mus_cityslumnite ****              ****     ****     ****                                                   107
+17  61858                                       mus_citydockday  ****              ****     ****     ****                                                   92
+18  61859                                       mus_citydocknite ****              ****     ****     ****                                                   96
+19  61860                                       mus_citywealthy  ****              ****     ****     ****                                                   93
+20  61861                                       mus_citymarket   ****              ****     ****     ****                                                   71
+21  61862                                       mus_citynite     ****              ****     ****     ****                                                   106
+22  61863                                       mus_tavern1      ****              ****     ****     ****                                                   111
+23  61864                                       mus_tavern2      ****              ****     ****     ****                                                   85
+24  61865                                       mus_tavern3      ****              ****     ****     ****                                                   99
+25  61866                                       mus_richhouse    ****              ****     ****     ****                                                   71
+26  61867                                       mus_store        ****              ****     ****     ****                                                   67
+27  61868                                       mus_templegood   ****              ****     ****     ****                                                   69
+28  61869                                       mus_templeevil   ****              ****     ****     ****                                                   93
+29  61870                                       mus_theme_nwn    ****              ****     ****     ****                                                   125
+30  61871                                       mus_theme_chap1  ****              ****     ****     ****                                                   62
+31  61872                                       mus_theme_chap2  ****              ****     ****     ****                                                   78
+32  61873                                       mus_theme_chap3  ****              ****     ****     ****                                                   79
+33  61874                                       mus_theme_chap4  ****              ****     ****     ****                                                   68
+34  61875                                       mus_bat_rural1   mus_sbat_rural1   ****     ****     ****                                                   704
+35  61876                                       mus_bat_forest1  mus_sbat_forest1  ****     ****     ****                                                   622
+36  61877                                       mus_bat_forest2  mus_sbat_forest2  ****     ****     ****                                                   580
+37  61878                                       mus_bat_dung1    mus_sbat_dung1    ****     ****     ****                                                   669
+38  61879                                       mus_bat_dung2    mus_sbat_dung2    ****     ****     ****                                                   630
+39  61880                                       mus_bat_dung3    mus_sbat_dung3    ****     ****     ****                                                   525
+40  61881                                       mus_bat_city1    mus_sbat_city1    ****     ****     ****                                                   634
+41  61882                                       mus_bat_city2    mus_sbat_city2    ****     ****     ****                                                   609
+42  61883                                       mus_bat_city3    mus_sbat_city3    ****     ****     ****                                                   583
+43  61884                                       mus_bat_citboss  mus_sbat_citboss  ****     ****     ****                                                   564
+44  61885                                       mus_bat_forboss  mus_sbat_forboss  ****     ****     ****                                                   592
+45  61886                                       mus_bat_lizboss  mus_sbat_lizboss  ****     ****     ****                                                   600
+46  61887                                       mus_bat_dragon   mus_sbat_dragon   ****     ****     ****                                                   643
+47  61888                                       mus_bat_aribeth  mus_sbat_aribeth  ****     ****     ****                                                   628
+48  61889                                       mus_bat_endboss  mus_sbat_endboss  ****     ****     ****                                                   601
+49  66833                                       mus_templegood2  ****              ****     ****     ****                                                   66
+50  66883                                       mus_castle       ****              ****     ****     ****                                                   72
+51  66878                                       mus_theme_aribgd ****              ****     ****     ****                                                   38
+52  66879                                       mus_theme_aribev ****              ****     ****     ****                                                   32
+53  66880                                       mus_theme_argend ****              ****     ****     ****                                                   38
+54  66881                                       mus_theme_maugrm ****              ****     ****     ****                                                   38
+55  66882                                       mus_theme_morag  ****              ****     ****     ****                                                   40
+56  67545                                       mus_tavern4      ****              ****     ****     ****                                                   99
+57  8807                                        mus_bat_x0desert ****              ****     ****     ****                                                   540
+58  8806                                        mus_x0desertday  ****              ****     ****     ****                                                   114
+59  8805                                        mus_x0winterday  ****              ****     ****     ****                                                   92
+60  52827                                       mus_bat_x0winter ****              ****     ****     ****                                                   611
+61  40050                                       mus_x0desertngt  ****              ****     ****     ****                                                   91
+62  86656                                       mus_x2theme      ****              ****     ****     ****                                                   93
+63  86657                                       mus_x2waterdeep  ****              ****     ****     ****                                                   135
+64  86658                                       mus_x2undermtn   ****              ****     ****     ****                                                   134
+65  86659                                       mus_x2rebelcamp  ****              ****     ****     ****                                                   131
+66  86660                                       mus_x2fireplane  ****              ****     ****     ****                                                   128
+67  86661                                       mus_x2queen      ****              ****     ****     ****                                                   123
+68  86662                                       mus_x2frozenhell ****              ****     ****     ****                                                   132
+69  86663                                       mus_x2draco      ****              ****     ****     ****                                                   132
+70  86664                                       mus_bat_x2small  mus_sbat_x2small  ****     ****     ****                                                   362
+71  86665                                       mus_bat_x2med    mus_sbat_x2med    ****     ****     ****                                                   368
+72  86666                                       mus_bat_x2large  mus_sbat_x2large  ****     ****     ****                                                   386
+73  86667                                       mus_bat_x2hell   mus_sbat_x2hell   ****     ****     ****                                                   361
+74  86668                                       mus_bat_x2boss1  mus_sbat_x2boss1  ****     ****     ****                                                   373
+75  86669                                       mus_bat_x2boss2  mus_sbat_x2boss2  ****     ****     ****                                                   370
+76  110653                                      mus_dd_kingmaker ****              ****     ****     ****                                                   160
+77  110654                                      mus_dd_shadowgua ****              ****     ****     ****                                                   144
+78  110655                                      mus_dd_witchwake ****              ****     ****     ****                                                   107
+79  110725                                      mus_dd_islands   ****              ****     ****     ****                                                   99
+80  110726                                      mus_dd_pirates   ****              ****     ****     ****                                                   127
+81  111903                                      mus_dd_infdun    ****              ****     ****     ****                                                   116
+82  111906                                      mus_wc_ogma      ****              ****     ****     ****                                                   131
+83  111911                                      mus_wc_openroad  ****              ****     ****     ****                                                   115
+84  111914                                      mus_wc_smokeash  ****              ****     ****     ****                                                   114
+85  111912                                      mus_wc_rural     ****              ****     ****     ****                                                   96
+86  111913                                      mus_wc_ruralg    ****              ****     ****     ****                                                   47
+87  111916                                      mus_wc_tears     ****              ****     ****     ****                                                   116
+88  111908                                      mus_bat_wcchase  ****              ****     ****     ****                                                   61
+89  111917                                      mus_wc_theme     ****              ****     ****     ****                                                   135
+90  111904                                      mus_wc_armchair  ****              ****     ****     ****                                                   82
+91  111907                                      mus_bat_wcbattle ****              ****     ****     ****                                                   85
+92  111915                                      mus_wc_solace    ****              ****     ****     ****                                                   95
+93  111905                                      mus_wc_knighted  ****              ****     ****     ****                                                   19
+94  111910                                      mus_wc_opening   ****              ****     ****     ****                                                   94
+95  111909                                      mus_wc_morfen    ****              ****     ****     ****                                                   82
+96  ****                                        mus_tm_tyrants   ****              ****     ****     "Tyrants - Main Theme"                                 94
+97  ****                                        mus_tm_voonlar   ****              ****     ****     "Tyrants - Voonlar"                                    94
+98  ****                                        mus_tm_chauntea  ****              ****     ****     "Tyrants - Temple of Chauntea"                         65
+99  ****                                        mus_tm_shindroad ****              ****     ****     "Tyrants - Shind Road"                                 66
+100 ****                                        mus_tm_elventree ****              ****     ****     "Tyrants - Elventree"                                  89
+101 ****                                        mus_tm_hillsfar  ****              ****     ****     "Tyrants - Hillsfar"                                   90
+102 ****                                        mus_tm_arenacell ****              ****     ****     "Tyrants - Arena Cell"                                 69
+103 ****                                        mus_tm_cormanthr ****              ****     ****     "Tyrants - Cormanthor Forest"                          76
+104 ****                                        mus_tm_elmwood   ****              ****     ****     "Tyrants - Elmwood"                                    88
+105 ****                                        mus_tm_melvaunt  ****              ****     ****     "Tyrants - Melvaunt"                                   85
+106 ****                                        mus_tm_mulmaster ****              ****     ****     "Tyrants - Mulmaster"                                  93
+107 ****                                        mus_tm_thar      ****              ****     ****     "Tyrants - Thar"                                       61
+108 ****                                        mus_tm_kurtharsu ****              ****     ****     "Tyrants - Kur-Tharsu"                                 63
+109 ****                                        mus_tm_thentia   ****              ****     ****     "Tyrants - Thentia"                                    84
+110 ****                                        mus_tm_zhentil   ****              ****     ****     "Tyrants - Zhentil Keep"                               97
+111 ****                                        mus_tm_inn1      ****              ****     ****     "Tyrants - Tavern 1"                                   63
+112 ****                                        mus_tm_inn2      ****              ****     ****     "Tyrants - Tavern 2"                                   88
+113 ****                                        mus_tm_inn3      ****              ****     ****     "Tyrants - Tavern 3"                                   101
+114 ****                                        mus_tm_inn4      ****              ****     ****     "Tyrants - Tavern 4"                                   67
+115 ****                                        mus_tm_inn5      ****              ****     ****     "Tyrants - Tavern 5"                                   82
+116 ****                                        mus_bat_tm_drag  ****              ****     ****     "Tyrants - Battle, Dragon"                             89
+117 ****                                        mus_bat_tm_arena ****              ****     ****     "Tyrants - Battle, Arena"                              135
+118 ****                                        mus_bat_tm_ship  ****              ****     ****     "Tyrants - Battle, Ship"                               89
+119 ****                                        mus_bat_tm_orcus ****              ****     ****     "Tyrants - Battle, Orcus"                              87
+120 ****                                        mus_dag_theme    ****              ****     ****     "Daggerford - Main Theme"                              150
+121 ****                                        mus_dag_mines    ****              ****     ****     "Daggerford - Mines"                                   66
+122 ****                                        mus_dag_rural    ****              ****     ****     "Daggerford - Rural"                                   97
+123 ****                                        mus_dag_theme2   ****              ****     ****     "Daggerford - Theme 2"                                 85
+124 ****                                        mus_dag_tavern   ****              ****     ****     "Daggerford - Tavern"                                  72
+125 ****                                        mus_dag_bhaal    ****              ****     ****     "Daggerford - Echoes of Bhaal"                         109
+126 ****                                        mus_dag_blackinn ****              ****     ****     "Daggerford - Black Stone Inn"                         62
+127 ****                                        mus_dag_chateau  ****              ****     ****     "Daggerford - Chateau Elite Inn"                       150
+128 ****                                        mus_dag_cliffs   ****              ****     ****     "Daggerford - Sword Coast Cliffs"                      108
+129 ****                                        mus_dag_dagnight ****              ****     ****     "Daggerford - Daggerford, Nighttime"                   94
+130 ****                                        mus_dag_forest   ****              ****     ****     "Daggerford - Trollbark Forest"                        67
+131 ****                                        mus_dag_happycou ****              ****     ****     "Daggerford - Happy Cow Tavern, Upstairs"              68
+132 ****                                        mus_dag_happycow ****              ****     ****     "Daggerford - Happy Cow Tavern, Main Floor"            71
+133 ****                                        mus_dag_hills    ****              ****     ****     "Daggerford - Wild Hills"                              106
+134 ****                                        mus_dag_illefarn ****              ****     ****     "Daggerford - Illefarn Mine Tunnels"                   108
+135 ****                                        mus_dag_lizards  ****              ****     ****     "Daggerford - Lizardfolk Village"                      105
+136 ****                                        mus_dag_pastures ****              ****     ****     "Daggerford - Wild Pastures"                           95
+137 ****                                        mus_dag_wilds    ****              ****     ****     "Daggerford - Desolate Wilderness"                     67

@@ -33,7 +33,7 @@ int ED_GetNumSpawnTiles(string sAreaID)
 
 void ED_SpawnDeer(object oArea, location locSpawn)
 {
-    AIMain_SpawnCreature("nw_deer", locSpawn, AIB_BEHAVIOR_WANDERFLEE);
+    AIMan_SpawnCreature("nw_deer", locSpawn, AIB_BEHAVIOR_WANDERFLEE);
 }
 
 // @NWNX[EP_EVENT_AREA_POST_PROCESS_FINISHED]

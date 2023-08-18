@@ -640,7 +640,7 @@ string VMan_EventToIcon(int nEvent)
 void VMan_UpdateEventLog(int nCharacterId, string sName)
 {
     json jIcons = JsonArray(), jLabels = JsonArray();
-    sqlquery sql = VMan_PrepareQuery("SELECT cdkey, event, datetime(timestamp, 'unixepoch', 'localtime') FROM vault_log WHERE id = @id ORDER BY rowid DESC LIMIT 100;");
+    sqlquery sql = VMan_PrepareQuery("SELECT cdkey, event, datetime(timestamp, 'unixepoch', 'localtime') FROM vault_log WHERE id = @id ORDER BY rowid DESC LIMIT 25;");
     SqlBindInt(sql, "@id", nCharacterId);
 
     while (SqlStep(sql))
@@ -716,9 +716,8 @@ string VMan_GetItemIconResref(int nBaseItem, int nModelPart1, json jProperties)
 
 void VMan_UpdateItems(int nCharacterId, string sName)
 {
-    object oPlayer = OBJECT_SELF;
-
     string sQuery = "SELECT JSON_EXTRACT(item.value, '$.BaseItem.value'), " +
+                           "JSON_EXTRACT(item.value, '$.LocalizedName.value.0'), " +
                            "JSON_EXTRACT(item.value, '$.LocalizedName.value.id'), " +
                            "JSON_EXTRACT(item.value, '$.ModelPart1.value'), " +
                            "JSON_EXTRACT(item.value, '$.PropertiesList.value') " +
@@ -732,12 +731,13 @@ void VMan_UpdateItems(int nCharacterId, string sName)
     while (SqlStep(sql))
     {
         int nBaseItemType = SqlGetInt(sql, 0);
-        int nLocalizedNameStrRef = SqlGetInt(sql, 1);
-        int nModelPart1 = SqlGetInt(sql, 2);
-        json jProperties = SqlGetJson(sql, 3);
+        string sName = SqlGetString(sql, 1);
+               sName = sName == "" ? GetStringByStrRef(SqlGetInt(sql, 2)) : sName;
+        int nModelPart1 = SqlGetInt(sql, 3);
+        json jProperties = SqlGetJson(sql, 4);
 
         jIcons = JsonArrayInsertString(jIcons, VMan_GetItemIconResref(nBaseItemType, nModelPart1, jProperties));
-        jLabels = JsonArrayInsertString(jLabels, GetStringByStrRef(nLocalizedNameStrRef));
+        jLabels = JsonArrayInsertString(jLabels, sName);
     }
 
     NWM_SetBindString(VMAN_BIND_WINDOW_NAME, "Inventory: " + sName);

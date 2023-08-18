@@ -7,7 +7,7 @@
 
 #include "ef_i_vm"
 
-const string EF_DATAOBJECT_TAG_PREFIX       = "EFDataObject_";
+const string EF_DATAOBJECT_TAG_PREFIX       = "EFDO_";
 
 // Create a waypoint at locLocation with sTag
 object CreateWaypoint(location locLocation, string sTag);

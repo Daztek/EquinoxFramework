@@ -328,7 +328,7 @@ struct MusMan_PlayerData MusMan_GetPlayerData(object oPlayer)
 
 void MusMan_DeletePlayerData(object oPlayer)
 {
-    sqlquery sql= SqlPrepareQueryModule("DELETE FROM " + MusMan_GetPlayerDataTable() + " WHERE oidplayer = @oidplayer;");
+    sqlquery sql = SqlPrepareQueryModule("DELETE FROM " + MusMan_GetPlayerDataTable() + " WHERE oidplayer = @oidplayer;");
     SqlBindString(sql, "@oidplayer", ObjectToString(oPlayer));
     SqlStep(sql);
 }

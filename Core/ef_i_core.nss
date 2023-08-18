@@ -463,14 +463,15 @@ object GetFunctionsDataObject()
     return GetDataObject(EFCORE_SCRIPT_NAME + "_Functions");
 }
 
-int GetCallStackDepth()
+int GetCallStackDepth(object oFDO = OBJECT_INVALID)
 {
-    return GetLocalInt(GetFunctionsDataObject(), EFCORE_CALLSTACK_DEPTH);
+    if (oFDO == OBJECT_INVALID) oFDO = GetFunctionsDataObject();
+    return GetLocalInt(oFDO, EFCORE_CALLSTACK_DEPTH);
 }
 
-int IncrementCallStackDepth(string sFunction, string sReturnType)
+int IncrementCallStackDepth(string sFunction, string sReturnType, object oFDO = OBJECT_INVALID)
 {
-    object oFDO = GetFunctionsDataObject();
+    if (oFDO == OBJECT_INVALID) oFDO = GetFunctionsDataObject();
     int nCallStackDepth = GetLocalInt(oFDO, EFCORE_CALLSTACK_DEPTH);
     SetLocalInt(oFDO, EFCORE_CALLSTACK_DEPTH, ++nCallStackDepth);
     SetLocalString(oFDO, EFCORE_CALLSTACK_FUNCTION + IntToString(nCallStackDepth), sFunction);
@@ -478,9 +479,9 @@ int IncrementCallStackDepth(string sFunction, string sReturnType)
     return nCallStackDepth;
 }
 
-int DecrementCallStackDepth()
+int DecrementCallStackDepth(object oFDO = OBJECT_INVALID)
 {
-    object oFDO = GetFunctionsDataObject();
+    if (oFDO == OBJECT_INVALID) oFDO = GetFunctionsDataObject();
     int nCallStackDepth = GetLocalInt(oFDO, EFCORE_CALLSTACK_DEPTH);
     SetLocalInt(oFDO, EFCORE_CALLSTACK_DEPTH, --nCallStackDepth);
     return nCallStackDepth;
@@ -496,9 +497,10 @@ string GetCallStackFunction(int nCallStackDepth)
     return GetLocalString(GetFunctionsDataObject(), EFCORE_CALLSTACK_FUNCTION + IntToString(nCallStackDepth));
 }
 
-void ClearArgumentCount()
+void ClearArgumentCount(object oFDO = OBJECT_INVALID)
 {
-    DeleteLocalInt(GetFunctionsDataObject(), EFCORE_ARGUMENT_COUNT);
+    if (oFDO == OBJECT_INVALID) oFDO = GetFunctionsDataObject();
+    DeleteLocalInt(oFDO, EFCORE_ARGUMENT_COUNT);
 }
 
 int IncrementArgumentCount()
@@ -537,7 +539,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
         return nCallStackDepth;
     }
 
-    ClearArgumentCount();
+    ClearArgumentCount(oFDO);
 
     if (sFunction != EFCORE_INVALID_FUNCTION || nLambdaId)
     {
@@ -546,10 +548,10 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 
         if (sParameters == sArgs)
         {
-            nCallStackDepth = IncrementCallStackDepth(sFunction, sReturnType);
+            nCallStackDepth = IncrementCallStackDepth(sFunction, sReturnType, oFDO);
             string sScriptChunk = GetLocalString(oFDO, EFCORE_FUNCTION_SCRIPT_CHUNK + sFunction);
             string sError = ExecuteScriptChunk(sScriptChunk, oTarget, FALSE);
-            DecrementCallStackDepth();
+            DecrementCallStackDepth(oFDO);
 
             if (sError != "")
                 LogError("Failed to execute '" + sFunction + "' with error: " + sError);
@@ -622,9 +624,8 @@ string Lambda(string sBody, string sParameters = "", string sReturnType = "", st
         sLambdaParameters += ")";
 
         string sLambdaFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "LambdaFunction" + sLambdaParameters + sBody;
-
-        string sFunctionBody = nssObject("oFDO", nssFunction("GetFunctionsDataObject"));
-            sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "", FALSE)));
+        string sFunctionBody = nssObject("oFDO", nssFunction("GetFunctionsDataObject")) +
+            nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "oFDO", FALSE)));
 
         if (sReturnType != "")
         {

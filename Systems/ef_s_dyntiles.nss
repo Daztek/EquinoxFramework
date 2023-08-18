@@ -28,7 +28,7 @@ const string DT_AREA_ID                         = "DTRandomArea";
 const string DT_AREA_TILESET                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
 const int DT_AREA_WIDTH                         = 12;
 const int DT_AREA_HEIGHT                        = 12;
-const string DT_AREA_EDGE_TERRAIN               = "";
+const string DT_AREA_EDGE_TERRAIN               = "TREES";
 const int DT_MAX_ITERATIONS                     = 100;
 
 const int DT_VISUALEFFECT_START_ROW             = 1000;
@@ -120,17 +120,17 @@ void DT_ClickGenerateButton()
     AG_SetIgnoreTerrainOrCrosser(DT_AREA_ID, "STREET");
     //AG_SetIgnoreTerrainOrCrosser(DT_AREA_ID, "MOUNTAIN");
 
-    //AG_AddEdgeTerrain(DT_AREA_ID, "WATER");
-    //AG_AddEdgeTerrain(DT_AREA_ID, "MOUNTAIN");
+    AG_AddEdgeTerrain(DT_AREA_ID, "WATER");
+    AG_AddEdgeTerrain(DT_AREA_ID, "MOUNTAIN");
     //AG_AddEdgeTerrain(DT_AREA_ID, "GRASS");
     //AG_AddEdgeTerrain(DT_AREA_ID, "GRASS2");
 
     AG_SetStringDataByKey(DT_AREA_ID, AG_DATA_KEY_FLOOR_TERRAIN, "GRASS");
 
-    //AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_TOP);
-    //AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_BOTTOM);
-    //AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_LEFT);
-    //AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_RIGHT);
+    AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_TOP);
+    AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_BOTTOM);
+    AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_LEFT);
+    AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_RIGHT);
 
     AG_GenerateArea(DT_AREA_ID);
 }
@@ -150,12 +150,13 @@ void DT_ToggleWindow()
 void DT_StartLerp(object oTile, int nHeight)
 {
     float fZ = (nHeight * TS_GetTilesetHeightTransition(DT_AREA_TILESET)) - DT_TILE_OBJECT_HEIGHT;
-    SetObjectVisualTransform(oTile, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Z, fZ, OBJECT_VISUAL_TRANSFORM_LERP_EASE_IN, DT_LERP_SPEED);
+    SetObjectVisualTransform(oTile, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Z, fZ, OBJECT_VISUAL_TRANSFORM_LERP_LINEAR, DT_LERP_SPEED);
 }
 
 void DT_ResetLerp(object oTile)
 {
-    SetObjectVisualTransform(oTile, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Z, 0.0f);
+    //SetObjectVisualTransform(oTile, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Z, 0.0f);
+    ClearObjectVisualTransform(oTile, OBJECT_VISUAL_TRANSFORM_DATA_SCOPE_BASE);
 }
 
 void DT_SetTile(object oArea, int nTile, struct AG_Tile strTile)

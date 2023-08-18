@@ -1188,9 +1188,9 @@ void QC_PreparePlayerMemorizedSpells(object oPlayer)
                     "PRIMARY KEY(multiclass, spellid, spelllevel, metamagic));";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
-    sQuery = "REPLACE INTO " + sTableName + "(multiclass, spellid, metamagic, spelllevel) VALUES(@multiclass, @spellid, @metamagic, @spelllevel);";
-
     SqlBeginTransactionModule();
+
+    sqlquery sql = SqlPrepareQueryModule("REPLACE INTO " + sTableName + "(multiclass, spellid, metamagic, spelllevel) VALUES(@multiclass, @spellid, @metamagic, @spelllevel);");
 
     int nMultiClass;
     for (nMultiClass = 0; nMultiClass < 3; nMultiClass++)
@@ -1208,13 +1208,15 @@ void QC_PreparePlayerMemorizedSpells(object oPlayer)
             int nSpellIndex, nNumMemorizedSpells = GetMemorizedSpellCountByLevel(oPlayer, nClassType, nSpellLevel);
             for (nSpellIndex = 0; nSpellIndex < nNumMemorizedSpells; nSpellIndex++)
             {
-                sqlquery sql = SqlPrepareQueryModule(sQuery);
+                int nSpellId = GetMemorizedSpellId(oPlayer, nClassType, nSpellLevel, nSpellIndex);
+                if (nSpellId == -1)
+                    continue;
+
                 SqlBindInt(sql, "@multiclass", nMultiClass);
-                SqlBindInt(sql, "@spellid", GetMemorizedSpellId(oPlayer, nClassType, nSpellLevel, nSpellIndex));
+                SqlBindInt(sql, "@spellid", nSpellId);
                 SqlBindInt(sql, "@metamagic", GetMemorizedSpellMetaMagic(oPlayer, nClassType, nSpellLevel, nSpellIndex));
                 SqlBindInt(sql, "@spelllevel", nSpellLevel);
-
-                SqlStep(sql);
+                SqlStepAndReset(sql);
             }
         }
     }

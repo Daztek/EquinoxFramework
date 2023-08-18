@@ -98,6 +98,9 @@ int IncrementLocalInt(object oObject, string sVarName);
 // Decrement local int sVarName on oObject
 int DecrementLocalInt(object oObject, string sVarName);
 
+// Convert a vector to a {x.x, y.y, z.z} string.
+string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2);
+
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
 {
     json jArray = JsonArray();
@@ -426,4 +429,11 @@ int DecrementLocalInt(object oObject, string sVarName)
     int nCurrent = GetLocalInt(oObject, sVarName);
     SetLocalInt(oObject, sVarName, --nCurrent);
     return nCurrent;
+}
+
+string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2)
+{
+    return "{" + FloatToString(v.x, nWidth, nDecimals) + ", " +
+                 FloatToString(v.y, nWidth, nDecimals) + ", " +
+                 FloatToString(v.z, nWidth, nDecimals) + "}";
 }

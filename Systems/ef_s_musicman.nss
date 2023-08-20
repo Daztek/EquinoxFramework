@@ -11,7 +11,7 @@
 
 const string MUSMAN_SCRIPT_NAME                         = "ef_s_musicman";
 const string MUSMAN_AMBIENT_MUSIC_2DA                   = "ambientmusic";
-const string MUSMAN_PLAYER_VOLUME_OVERRIDE              = "PlayerVolumeOverride";
+const string MUSMAN_PLAYER_VOLUME_MODIFIER              = "PlayerVolumeModifier";
 const string MUSMAN_CHANNEL_FADING                      = "ChannelFading_";
 const float MUSMAN_DEFAULT_FADE_TIME                    = 2.0f;
 const int MUSMAN_NUM_MUSIC_CHANNELS                     = 3;
@@ -61,6 +61,7 @@ struct MusMan_PlayerData
     int nTrackId;
     string sStinger;
     int nChannel;
+    float fVolume;
     float fFadeTime;
 };
 
@@ -75,17 +76,18 @@ json MusMan_JsonTrack(int nTrackId, int nStartTime = 0, int bPlayStinger = FALSE
 float MusMan_GetSeekOffset(int nCurrentTime, int nStartTime, int nLength);
 string MusMan_GetPlayerDataTable();
 void MusMan_InitializePlayerDataTable();
-void MusMan_UpdatePlayerData(object oPlayer, string sEvent, int nTrackId, string sStinger, int nChannel, float fFadeTime);
+void MusMan_UpdatePlayerData(object oPlayer, string sEvent, int nTrackId, string sStinger, int nChannel, float fVolume, float fFadeTime);
 struct MusMan_PlayerData MusMan_GetPlayerData(object oPlayer);
 void MusMan_DeletePlayerData(object oPlayer);
-void MusMan_SetPlayerVolumeOverride(object oPlayer, float fVolume);
-float MusMan_GetPlayerVolumeOverride(object oPlayer, float fVolumeIfNotSet);
-void MusMan_DeletePlayerVolumeOverride(object oPlayer);
+void MusMan_SetPlayerVolumeModifier(object oPlayer, float fVolume);
+float MusMan_GetPlayerVolumeModifier(object oPlayer);
+void MusMan_DeletePlayerVolumeModifier(object oPlayer);
 void MusMan_StartChannel(object oPlayer, int nChannel, string sResRef, int bLooping = FALSE, float fFadeTime = 0.0f, float fSeekOffset = -1.0f, float fVolume = 1.0f);
 void MusMan_StopChannel(object oPlayer, int nChannel, float fFadeTime = 0.0f);
 void MusMan_StopOtherChannels(object oPlayer, int nCurrentChannel, int nNextChannel);
 void MusMan_SetChannelVolume(object oPlayer, int nChannel, float fVolume, float fFadeTime = 0.0f);
 void MusMan_SetCurrentChannelVolume(object oPlayer, float fVolume, float fFadeTime = 0.0f);
+void MusMan_RefreshCurrentChannelVolume(object oPlayer, float fFadeTime = 0.0f);
 void MusMan_UpdatePlayerMusic(object oPlayer);
 void MusMan_UpdatePlayerMusicByEvent(string sEvent, object oArea = OBJECT_INVALID);
 
@@ -286,16 +288,17 @@ void MusMan_InitializePlayerDataTable()
                     "trackid INTEGER NOT NULL, " +
                     "stinger TEXT NOT NULL, " +
                     "channel INTEGER NOT NULL, " +
+                    "volume REAL NOT NULL, " +
                     "fadetime REAL NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 }
 
-void MusMan_UpdatePlayerData(object oPlayer, string sEvent, int nTrackId, string sStinger, int nChannel, float fFadeTime)
+void MusMan_UpdatePlayerData(object oPlayer, string sEvent, int nTrackId, string sStinger, int nChannel, float fVolume, float fFadeTime)
 {
-    string sQuery = "INSERT INTO " + MusMan_GetPlayerDataTable() + "(oidplayer, oidarea, event, trackid, stinger, channel, fadetime) " +
-                    "VALUES(@oidplayer, @oidarea, @event, @trackid, @stinger, @channel, @fadetime) " +
+    string sQuery = "INSERT INTO " + MusMan_GetPlayerDataTable() + "(oidplayer, oidarea, event, trackid, stinger, channel, volume, fadetime) " +
+                    "VALUES(@oidplayer, @oidarea, @event, @trackid, @stinger, @channel, @volume, @fadetime) " +
                     "ON CONFLICT (oidplayer) DO UPDATE SET oidarea = @oidarea, event = @event, trackid = @trackid, stinger = @stinger, " +
-                    "channel = @channel, fadetime = @fadetime;";
+                    "channel = @channel, volume = @volume, fadetime = @fadetime;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@oidplayer", ObjectToString(oPlayer));
     SqlBindString(sql, "@oidarea", ObjectToString(GetArea(oPlayer)));
@@ -303,6 +306,7 @@ void MusMan_UpdatePlayerData(object oPlayer, string sEvent, int nTrackId, string
     SqlBindInt(sql, "@trackid", nTrackId);
     SqlBindString(sql, "@stinger", sStinger);
     SqlBindInt(sql, "@channel", nChannel);
+    SqlBindFloat(sql, "@volume", fVolume);
     SqlBindFloat(sql, "@fadetime", fFadeTime);
     SqlStep(sql);
 }
@@ -311,7 +315,7 @@ struct MusMan_PlayerData MusMan_GetPlayerData(object oPlayer)
 {
     struct MusMan_PlayerData strPlayerData;
     strPlayerData.oPlayer = oPlayer;
-    sqlquery sql = SqlPrepareQueryModule("SELECT oidarea, event, trackid, stinger, channel, fadetime FROM " + MusMan_GetPlayerDataTable() + " WHERE oidplayer = @oidplayer;");
+    sqlquery sql = SqlPrepareQueryModule("SELECT oidarea, event, trackid, stinger, channel, volume, fadetime FROM " + MusMan_GetPlayerDataTable() + " WHERE oidplayer = @oidplayer;");
     SqlBindString(sql, "@oidplayer", ObjectToString(oPlayer));
     if (SqlStep(sql))
     {
@@ -321,6 +325,7 @@ struct MusMan_PlayerData MusMan_GetPlayerData(object oPlayer)
         strPlayerData.nTrackId = SqlGetInt(sql, nIndex++);
         strPlayerData.sStinger = SqlGetString(sql, nIndex++);
         strPlayerData.nChannel = SqlGetInt(sql, nIndex++);
+        strPlayerData.fVolume = SqlGetFloat(sql, nIndex++);
         strPlayerData.fFadeTime = SqlGetFloat(sql, nIndex++);
     }
     return strPlayerData;
@@ -333,20 +338,20 @@ void MusMan_DeletePlayerData(object oPlayer)
     SqlStep(sql);
 }
 
-void MusMan_SetPlayerVolumeOverride(object oPlayer, float fVolume)
+void MusMan_SetPlayerVolumeModifier(object oPlayer, float fVolume)
 {
-    Session_SetJson(oPlayer, MUSMAN_SCRIPT_NAME, MUSMAN_PLAYER_VOLUME_OVERRIDE, JsonFloat(fVolume));
+    Session_SetJson(oPlayer, MUSMAN_SCRIPT_NAME, MUSMAN_PLAYER_VOLUME_MODIFIER, JsonFloat(clampf(fVolume, 0.0f, 1.0f)));
 }
 
-float MusMan_GetPlayerVolumeOverride(object oPlayer, float fVolumeIfNotSet)
+float MusMan_GetPlayerVolumeModifier(object oPlayer)
 {
-    json jVolume = Session_GetJson(oPlayer, MUSMAN_SCRIPT_NAME, MUSMAN_PLAYER_VOLUME_OVERRIDE);
-    return !JsonGetType(jVolume) ? fVolumeIfNotSet : JsonGetFloat(jVolume);
+    json jVolume = Session_GetJson(oPlayer, MUSMAN_SCRIPT_NAME, MUSMAN_PLAYER_VOLUME_MODIFIER);
+    return !JsonGetType(jVolume) ? 1.0f : JsonGetFloat(jVolume);
 }
 
-void MusMan_DeletePlayerVolumeOverride(object oPlayer)
+void MusMan_DeletePlayerVolumeModifier(object oPlayer)
 {
-    Session_DeleteJson(oPlayer, MUSMAN_SCRIPT_NAME, MUSMAN_PLAYER_VOLUME_OVERRIDE);
+    Session_DeleteJson(oPlayer, MUSMAN_SCRIPT_NAME, MUSMAN_PLAYER_VOLUME_MODIFIER);
 }
 
 void MusMan_StartChannel(object oPlayer, int nChannel, string sResRef, int bLooping = FALSE, float fFadeTime = 0.0f, float fSeekOffset = -1.0f, float fVolume = 1.0f)
@@ -390,12 +395,18 @@ void MusMan_StopOtherChannels(object oPlayer, int nCurrentChannel, int nNextChan
 
 void MusMan_SetChannelVolume(object oPlayer, int nChannel, float fVolume, float fFadeTime = 0.0f)
 {
-    SetAudioStreamVolume(oPlayer, nChannel, fVolume, fFadeTime);
+    SetAudioStreamVolume(oPlayer, nChannel, clampf(MusMan_GetPlayerVolumeModifier(oPlayer) * fVolume, 0.0f, 1.0f), fFadeTime);
 }
 
 void MusMan_SetCurrentChannelVolume(object oPlayer, float fVolume, float fFadeTime = 0.0f)
 {
     MusMan_SetChannelVolume(oPlayer, MusMan_GetPlayerData(oPlayer).nChannel, fVolume, fFadeTime);
+}
+
+void MusMan_RefreshCurrentChannelVolume(object oPlayer, float fFadeTime = 0.0f)
+{
+    struct MusMan_PlayerData strPlayerData = MusMan_GetPlayerData(oPlayer);
+    MusMan_SetChannelVolume(oPlayer, strPlayerData.nChannel, strPlayerData.fVolume, fFadeTime);
 }
 
 void MusMan_UpdatePlayerMusic(object oPlayer)
@@ -408,7 +419,7 @@ void MusMan_UpdatePlayerMusic(object oPlayer)
         struct MusMan_MusicEventTrack strMusicEventTrack = MusMan_GetMusicEventTrackData(strMusicEvent.jTrack);
         int nCurrentChannel = strPlayerData.nChannel;
         int nNextChannel = (nCurrentChannel + 1) % MUSMAN_NUM_MUSIC_CHANNELS;
-        float fVolume = MusMan_GetPlayerVolumeOverride(oPlayer, strMusicEventTrack.fVolume);
+        float fVolume = clampf(MusMan_GetPlayerVolumeModifier(oPlayer) * strMusicEventTrack.fVolume, 0.0f, 1.0f);
 
         MusMan_StopOtherChannels(oPlayer, nCurrentChannel, nNextChannel);
 
@@ -424,7 +435,7 @@ void MusMan_UpdatePlayerMusic(object oPlayer)
             MusMan_StartChannel(oPlayer, nNextChannel, strMusicEventTrack.sResource, strMusicEventTrack.bLooping, strMusicEvent.fFadeTime, fSeekOffset, fVolume);
         }
 
-        MusMan_UpdatePlayerData(oPlayer, strMusicEvent.sEvent, strMusicEventTrack.nTrackId, strMusicEventTrack.sStinger1, nNextChannel, strMusicEvent.fFadeTime);
+        MusMan_UpdatePlayerData(oPlayer, strMusicEvent.sEvent, strMusicEventTrack.nTrackId, strMusicEventTrack.sStinger1, nNextChannel, strMusicEventTrack.fVolume, strMusicEvent.fFadeTime);
     }
 }
 

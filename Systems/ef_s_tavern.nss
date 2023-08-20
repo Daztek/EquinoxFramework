@@ -43,8 +43,10 @@ int Tavern_GetPlayerSubArea(object oPlayer);
 void Tavern_Init()
 {
     object oDataObject = GetDataObject(TAVERN_SCRIPT_NAME);
-    SetLocalJson(oDataObject, TAVERN_TRACK_JSON_MAIN, MusMan_JsonTrack(TAVERN_TRACKID_MAIN, SqlGetUnixEpoch()));
-    SetLocalJson(oDataObject, TAVERN_TRACK_JSON_MUTED, MusMan_JsonTrack(TAVERN_TRACKID_MUTED, SqlGetUnixEpoch()));
+    int nUnixEpoch = SqlGetUnixEpoch();
+
+    SetLocalJson(oDataObject, TAVERN_TRACK_JSON_MAIN, MusMan_JsonTrack(TAVERN_TRACKID_MAIN, nUnixEpoch));
+    SetLocalJson(oDataObject, TAVERN_TRACK_JSON_MUTED, MusMan_JsonTrack(TAVERN_TRACKID_MUTED, nUnixEpoch, FALSE, TRUE, 0.75f));
 }
 
 // @CORE[EF_SYSTEM_LOAD]

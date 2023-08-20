@@ -37,8 +37,8 @@ void MusicWidget_WatchVolumeSlider()
 {
     object oPlayer = OBJECT_SELF;
     float fVolume = NWM_GetBindInt(MUSICWIDGET_NUI_BIND_VOLUME) / 100.0f;
-    MusMan_SetPlayerVolumeOverride(oPlayer, fVolume);
-    MusMan_SetCurrentChannelVolume(oPlayer, fVolume);
+    MusMan_SetPlayerVolumeModifier(oPlayer, fVolume);
+    MusMan_RefreshCurrentChannelVolume(oPlayer);
 }
 
 // @GUIEVENT[GUIEVENT_AREA_LOADSCREEN_FINISHED]

@@ -23,7 +23,7 @@ void CloseDoor_Load()
 
     while ((oDoor = NWNX_Util_GetLastCreatedObject(10, ++nNth)) != OBJECT_INVALID)
     {
-        if (NWNX_Object_GetDoorHasVisibleModel(oDoor))
+        if (NWNX_Object_GetDoorHasVisibleModel(oDoor) && !GetLocalInt(oDoor, "NO_AUTO_CLOSE"))
         {
             EM_SetObjectEventScript(oDoor, EVENT_SCRIPT_DOOR_ON_OPEN);
             EM_ObjectDispatchListInsert(oDoor, nObjectDispatchListId);

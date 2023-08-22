@@ -71,12 +71,6 @@ json AreaMusic_GetAreaMusicTrack()
         return JsonNull();
 }
 
-// @GUIEVENT[GUIEVENT_AREA_LOADSCREEN_FINISHED]
-void AreaMusic_AreaLoadScreenFinished()
-{
-    MusMan_UpdatePlayerMusic(GetLastGuiEventPlayer());
-}
-
 // @NWNX[NWNX_ON_CALENDAR_HOUR]
 void AreaMusic_OnHour()
 {

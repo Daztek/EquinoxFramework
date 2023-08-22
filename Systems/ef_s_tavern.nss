@@ -6,6 +6,7 @@
 #include "ef_i_core"
 #include "ef_s_musicman"
 #include "ef_s_eventman"
+#include "ef_s_session"
 
 const string TAVERN_SCRIPT_NAME                 = "ef_s_tavern";
 
@@ -26,14 +27,14 @@ const int TAVERN_SUBAREA_INN                    = 1;
 const int TAVERN_SUBAREA_SHOP                   = 2;
 const int TAVERN_SUBAREA_KITCHEN                = 3;
 
-const string TAVERN_PLAYER_SUBAREA              = "PlayerSubArea_";
+const string TAVERN_PLAYER_SUBAREA              = "PlayerSubArea";
 
 const string TAVERN_DOOR_STATE                  = "DoorState";
 const int TAVERN_DOOR_STATE_CLOSED              = 0;
 const int TAVERN_DOOR_STATE_OPEN                = 1;
 
 void Tavern_InitializeDoor(object oDoor);
-void Tavern_SetDoorState(object oDoor, int nState);
+void Tavern_SetDoorState(int nState, object oDoor = OBJECT_SELF);
 int Tavern_GetDoorState(object oDoor);
 int Tavern_GetSubAreaFromTileIndex(int nTileIndex);
 void Tavern_SetPlayerSubArea(object oPlayer, int nSubArea);
@@ -63,35 +64,44 @@ json Tavern_GetAreaMusicTrack()
     if (GetTag(GetArea(oPlayer)) == TAVERN_AREA_TAG)
     {
         int nSubArea = Tavern_GetPlayerSubArea(oPlayer);
-        if ((nSubArea == TAVERN_SUBAREA_SHOP && !Tavern_GetDoorState(GetObjectByTag(TAVERN_INNSHOP_DOOR_TAG))) ||
-            (nSubArea == TAVERN_SUBAREA_KITCHEN && !Tavern_GetDoorState(GetObjectByTag(TAVERN_INNKITCHEN_DOOR_TAG))))
-            return GetLocalJson(GetDataObject(TAVERN_SCRIPT_NAME), TAVERN_TRACK_JSON_MUTED);
-        else
+        if ((nSubArea == TAVERN_SUBAREA_INN) ||
+            (nSubArea == TAVERN_SUBAREA_SHOP && Tavern_GetDoorState(GetObjectByTag(TAVERN_INNSHOP_DOOR_TAG))) ||
+            (nSubArea == TAVERN_SUBAREA_KITCHEN && Tavern_GetDoorState(GetObjectByTag(TAVERN_INNKITCHEN_DOOR_TAG))))
             return GetLocalJson(GetDataObject(TAVERN_SCRIPT_NAME), TAVERN_TRACK_JSON_MAIN);
+        else
+            return GetLocalJson(GetDataObject(TAVERN_SCRIPT_NAME), TAVERN_TRACK_JSON_MUTED);
     }
-    else
-        return JsonNull();
+
+    return JsonNull();
 }
 
 // @EVENT[EVENT_SCRIPT_DOOR_ON_OPEN:DL]
 void Tavern_OnDoorOpen()
 {
-    Tavern_SetDoorState(OBJECT_SELF, TAVERN_DOOR_STATE_OPEN);
+    Tavern_SetDoorState(TAVERN_DOOR_STATE_OPEN);
     MusMan_UpdatePlayerMusicByEvent(TAVERN_AREA_MUSIC_EVENT);
 }
 
 // @EVENT[EVENT_SCRIPT_DOOR_ON_CLOSE:DL]
 void Tavern_OnDoorClose()
 {
-    Tavern_SetDoorState(OBJECT_SELF, TAVERN_DOOR_STATE_CLOSED);
+    Tavern_SetDoorState(TAVERN_DOOR_STATE_CLOSED);
     MusMan_UpdatePlayerMusicByEvent(TAVERN_AREA_MUSIC_EVENT);
 }
 
-// @NWNX[NWNX_ON_TILE_CHANGE_BEFORE]
+// @NWNX[NWNX_ON_SERVER_SEND_AREA_BEFORE]
+void Tavern_OnServerSendAreaBefore()
+{
+    if (GetTag(EM_GetNWNXObject("AREA")) == TAVERN_AREA_TAG)
+        EM_NWNXDispatchListInsert(OBJECT_SELF, TAVERN_SCRIPT_NAME, "NWNX_ON_CREATURE_TILE_CHANGE_BEFORE");
+    else
+        EM_NWNXDispatchListRemove(OBJECT_SELF, TAVERN_SCRIPT_NAME, "NWNX_ON_CREATURE_TILE_CHANGE_BEFORE");
+}
+
+// @NWNX[NWNX_ON_CREATURE_TILE_CHANGE_BEFORE:DL]
 void Tavern_OnTileChange()
 {
-    if (GetIsPC(OBJECT_SELF) && GetTag(EM_GetNWNXObject("AREA")) == TAVERN_AREA_TAG)
-        Tavern_SetPlayerSubArea(OBJECT_SELF, Tavern_GetSubAreaFromTileIndex(EM_GetNWNXInt("NEW_TILE_INDEX")));
+    Tavern_SetPlayerSubArea(OBJECT_SELF, Tavern_GetSubAreaFromTileIndex(EM_GetNWNXInt("NEW_TILE_INDEX")));
 }
 
 void Tavern_InitializeDoor(object oDoor)
@@ -102,7 +112,7 @@ void Tavern_InitializeDoor(object oDoor)
     EM_ObjectDispatchListInsert(oDoor, EM_GetObjectDispatchListId(TAVERN_SCRIPT_NAME, EVENT_SCRIPT_DOOR_ON_CLOSE));
 }
 
-void Tavern_SetDoorState(object oDoor, int nState)
+void Tavern_SetDoorState(int nState, object oDoor = OBJECT_SELF)
 {
     SetLocalInt(oDoor, TAVERN_DOOR_STATE, nState);
 }
@@ -129,10 +139,10 @@ int Tavern_GetSubAreaFromTileIndex(int nTileIndex)
 
 void Tavern_SetPlayerSubArea(object oPlayer, int nSubArea)
 {
-    SetLocalInt(GetDataObject(TAVERN_SCRIPT_NAME), TAVERN_PLAYER_SUBAREA + GetObjectUUID(oPlayer), nSubArea);
+    Session_SetInt(oPlayer, TAVERN_SCRIPT_NAME, TAVERN_PLAYER_SUBAREA, nSubArea);
 }
 
 int Tavern_GetPlayerSubArea(object oPlayer)
 {
-    return GetLocalInt(GetDataObject(TAVERN_SCRIPT_NAME), TAVERN_PLAYER_SUBAREA + GetObjectUUID(oPlayer));
+    return Session_GetInt(oPlayer, TAVERN_SCRIPT_NAME, TAVERN_PLAYER_SUBAREA);
 }

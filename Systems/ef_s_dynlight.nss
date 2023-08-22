@@ -36,7 +36,7 @@ void DynLight_Load()
 
 void DynLight_InitArea(object oArea)
 {
-    if(DYNLIGHT_ENABLE_DYNAMIC_LIGHTING && !GetIsAreaInterior(oArea) && GetIsAreaAboveGround(oArea))
+    if(DYNLIGHT_ENABLE_DYNAMIC_LIGHTING && GetIsAreaNatural(oArea) && GetIsAreaAboveGround(oArea))
     {
         SetLocalInt(oArea, DYNLIGHT_AREA_DYNAMIC_LIGHTING_ENABLED, TRUE);
         SetLocalInt(oArea, NW_DYNAMIC_LIGHT_ORIGINAL_AREA_FOG_COLOR, GetFogColor(FOG_TYPE_SUN, oArea));

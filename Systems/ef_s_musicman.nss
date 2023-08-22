@@ -124,6 +124,12 @@ void MusMan_RegisterMusicEvent(struct AnnotationData str)
             IntToString(nPriority) + "' and fadetime '" + FloatToString(fFadeTime, 0, 2) + "'");
 }
 
+// @GUIEVENT[GUIEVENT_AREA_LOADSCREEN_FINISHED]
+void MusMan_AreaLoadScreenFinished()
+{
+    MusMan_UpdatePlayerMusic(GetLastGuiEventPlayer());
+}
+
 // @EVENT[EVENT_SCRIPT_MODULE_ON_CLIENT_EXIT::]
 void MusMan_OnClientExit()
 {
@@ -458,6 +464,6 @@ void MusMan_UpdatePlayerMusicByEvent(string sEvent, object oArea = OBJECT_INVALI
     {
         object oPlayer = StringToObject(SqlGetString(sql, 0));
         if (GetIsObjectValid(oPlayer))
-            DelayCommand(0.0f, MusMan_UpdatePlayerMusic(oPlayer));
+            DelayCommand((Random(10) + 1) * 0.01f, MusMan_UpdatePlayerMusic(oPlayer));
     }
 }

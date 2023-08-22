@@ -39,11 +39,8 @@ void SA_Load()
     AG_SetIgnoreTerrainOrCrosser(SA_AREA_ID, "STREET");
     AG_SetIgnoreTerrainOrCrosser(SA_AREA_ID, "WALL");
 
-    AG_InitializeChunkFromArea(SA_AREA_ID, oArea, 4);
-    AG_InitializeChunkFromArea(SA_AREA_ID, oArea, 5);
     AG_InitializeChunkFromArea(SA_AREA_ID, oArea, 8);
     AG_InitializeChunkFromArea(SA_AREA_ID, oArea, 9);
-    AG_InitializeChunkFromArea(SA_AREA_ID, oArea, 10);
     AG_InitializeChunkFromArea(SA_AREA_ID, oArea, 13);
 
     AG_GenerateArea(SA_AREA_ID);
@@ -61,7 +58,7 @@ void SA_OnAreaGenerated(string sAreaID)
         {
             switch (nChunk)
             {
-                case 4: case 5: case 8: case 9: case 10: case 13:
+                case 8: case 9: case 13:
                     continue;
 
                 default:
@@ -86,7 +83,7 @@ void SA_OnAreaGenerated(string sAreaID)
         {
             switch (nChunk)
             {
-                case 4: case 5: case 8: case 9: case 10: case 13:
+                case 8: case 9: case 13:
                     continue;
 
                 default:

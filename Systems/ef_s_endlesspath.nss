@@ -328,7 +328,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
 
     if (nCurrentTile == nNumTiles)
     {
-        EM_SignalNWNXEvent(EP_EVENT_AREA_POST_PROCESS_FINISHED, oArea);
+        EM_NWNXSignalEvent(EP_EVENT_AREA_POST_PROCESS_FINISHED, oArea);
         return;
     }
 

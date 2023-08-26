@@ -108,12 +108,12 @@ void SqlCommitTransactionObject(object oObject)
 }
 void SqlBeginTransactionModule()
 {
-    SqlStep(SqlPrepareQueryObject(GetModule(), "BEGIN TRANSACTION;"));
+    SqlStep(SqlPrepareQueryModule("BEGIN TRANSACTION;"));
 }
 
 void SqlCommitTransactionModule()
 {
-    SqlStep(SqlPrepareQueryObject(GetModule(), "COMMIT;"));
+    SqlStep(SqlPrepareQueryModule("COMMIT;"));
 }
 
 int SqlGetUnixEpoch()

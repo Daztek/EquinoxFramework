@@ -23,18 +23,20 @@ void EM_SetModuleEventScripts();
 void EM_SetAreaEventScripts(object oArea, int bSetHeartbeat = EM_HOOK_AREA_HEARTBEAT);
 void EM_ClearObjectEventScripts(object oObject);
 
-void EM_SubscribeNWNXEvent(string sSystem, string sEvent, string sScriptChunk, int bDispatchListMode = FALSE, int bWrapIntoMain = FALSE);
+void EM_NWNXSubscribeEvent(string sSystem, string sEvent, string sScriptChunk, int bDispatchListMode = FALSE, int bWrapIntoMain = FALSE);
 void EM_NWNXDispatchListInsert(object oObject, string sSystem, string sEvent);
 void EM_NWNXDispatchListRemove(object oObject, string sSystem, string sEvent);
-void EM_SignalNWNXEvent(string sEvent, object oTarget = OBJECT_SELF);
-void EM_SkipNWNXEvent();
-void EM_SetNWNXEventResult(string sData);
-string EM_GetNWNXString(string sTag);
-int EM_GetNWNXInt(string sTag);
-float EM_GetNWNXFloat(string sTag);
-object EM_GetNWNXObject(string sTag);
-vector EM_GetNWNXVector(string sTagX, string sTagY, string sTagZ);
-location EM_GetNWNXLocation(string sTagArea, string sTagX, string sTagY, string sTagZ);
+void EM_NWNXSignalEvent(string sEvent, object oTarget = OBJECT_SELF);
+void EM_NWNXAddIDToWhitelist(string sEvent, int nID);
+void EM_NWNXRemoveIDFromWhitelist(string sEvent, int nID);
+void EM_NWNXSkipEvent();
+void EM_NWNXSetEventResult(string sData);
+string EM_NWNXGetString(string sTag);
+int EM_NWNXGetInt(string sTag);
+float EM_NWNXGetFloat(string sTag);
+object EM_NWNXGetObject(string sTag);
+vector EM_NWNXGetVector(string sTagX, string sTagY, string sTagZ);
+location EM_NWNXGetLocation(string sTagArea, string sTagX, string sTagY, string sTagZ);
 
 // @CORE[EF_SYSTEM_INIT]
 void EM_Init()
@@ -275,29 +277,29 @@ void EM_ClearObjectEventScripts(object oObject)
 
 // *** NWNX Events
 
-void EM_SetNWNXEventScriptChunk(string sSystem, string sEvent, string sScriptChunk)
+void EM_NWNXSetEventScriptChunk(string sSystem, string sEvent, string sScriptChunk)
 {
     SetLocalString(GetDataObject(EM_SCRIPT_NAME), sSystem + sEvent, sScriptChunk);
 }
 
-string EM_GetNWNXEventScriptChunk(string sSystem, string sEvent)
+string EM_NWNXGetEventScriptChunk(string sSystem, string sEvent)
 {
     return GetLocalString(GetDataObject(EM_SCRIPT_NAME), sSystem + sEvent);
 }
 
 // @PAD[NWNX]
-void EM_SubscribeNWNXAnnotations(struct AnnotationData str)
+void EM_NWNXSubscribeAnnotations(struct AnnotationData str)
 {
     string sEvent = JsonArrayGetString(str.jArguments, 0);
     int bDispatchListMode = JsonArrayGetString(str.jArguments, 1) == "DL";
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     EFCore_CacheScriptChunk(sScriptChunk);
-    EM_SetNWNXEventScriptChunk(str.sSystem, sEvent, sScriptChunk);
-    EM_SubscribeNWNXEvent(str.sSystem, sEvent, sScriptChunk, bDispatchListMode);
+    EM_NWNXSetEventScriptChunk(str.sSystem, sEvent, sScriptChunk);
+    EM_NWNXSubscribeEvent(str.sSystem, sEvent, sScriptChunk, bDispatchListMode);
 }
 
-void EM_SubscribeNWNXEvent(string sSystem, string sEvent, string sScriptChunk, int bDispatchListMode = FALSE, int bWrapIntoMain = FALSE)
+void EM_NWNXSubscribeEvent(string sSystem, string sEvent, string sScriptChunk, int bDispatchListMode = FALSE, int bWrapIntoMain = FALSE)
 {
     LogInfo("System '" + sSystem + "' subscribed to NWNX event '" + sEvent + "', DL=" + IntToString(bDispatchListMode));
 
@@ -308,59 +310,69 @@ void EM_SubscribeNWNXEvent(string sSystem, string sEvent, string sScriptChunk, i
 
 void EM_NWNXDispatchListInsert(object oObject, string sSystem, string sEvent)
 {
-    string sScriptChunk = EM_GetNWNXEventScriptChunk(sSystem, sEvent);
+    string sScriptChunk = EM_NWNXGetEventScriptChunk(sSystem, sEvent);
     if (sScriptChunk != "")
         NWNX_Events_AddObjectToDispatchList(sEvent, sScriptChunk, oObject);
 }
 
 void EM_NWNXDispatchListRemove(object oObject, string sSystem, string sEvent)
 {
-    string sScriptChunk = EM_GetNWNXEventScriptChunk(sSystem, sEvent);
+    string sScriptChunk = EM_NWNXGetEventScriptChunk(sSystem, sEvent);
     if (sScriptChunk != "")
         NWNX_Events_RemoveObjectFromDispatchList(sEvent, sScriptChunk, oObject);
 }
 
-void EM_SignalNWNXEvent(string sEvent, object oTarget = OBJECT_SELF)
+void EM_NWNXSignalEvent(string sEvent, object oTarget = OBJECT_SELF)
 {
     NWNX_Events_SignalEvent(sEvent, oTarget);
 }
 
-void EM_SkipNWNXEvent()
+void EM_NWNXAddIDToWhitelist(string sEvent, int nID)
+{
+    NWNX_Events_AddIDToWhitelist(sEvent, nID);
+}
+
+void EM_NWNXRemoveIDFromWhitelist(string sEvent, int nID)
+{
+    NWNX_Events_RemoveIDFromWhitelist(sEvent, nID);
+}
+
+void EM_NWNXSkipEvent()
 {
     NWNX_Events_SkipEvent();
 }
 
-void EM_SetNWNXEventResult(string sData)
+void EM_NWNXSetEventResult(string sData)
 {
     NWNX_Events_SetEventResult(sData);
 }
 
-string EM_GetNWNXString(string sTag)
+string EM_NWNXGetString(string sTag)
 {
     return NWNX_Events_GetEventData(sTag);
 }
 
-int EM_GetNWNXInt(string sTag)
+int EM_NWNXGetInt(string sTag)
 {
-    return StringToInt(EM_GetNWNXString(sTag));
+    return StringToInt(EM_NWNXGetString(sTag));
 }
 
-float EM_GetNWNXFloat(string sTag)
+float EM_NWNXGetFloat(string sTag)
 {
-    return StringToFloat(EM_GetNWNXString(sTag));
+    return StringToFloat(EM_NWNXGetString(sTag));
 }
 
-object EM_GetNWNXObject(string sTag)
+object EM_NWNXGetObject(string sTag)
 {
-    return StringToObject(EM_GetNWNXString(sTag));
+    return StringToObject(EM_NWNXGetString(sTag));
 }
 
-vector EM_GetNWNXVector(string sTagX, string sTagY, string sTagZ)
+vector EM_NWNXGetVector(string sTagX, string sTagY, string sTagZ)
 {
-    return Vector(EM_GetNWNXFloat(sTagX), EM_GetNWNXFloat(sTagY), EM_GetNWNXFloat(sTagZ));
+    return Vector(EM_NWNXGetFloat(sTagX), EM_NWNXGetFloat(sTagY), EM_NWNXGetFloat(sTagZ));
 }
 
-location EM_GetNWNXLocation(string sTagArea, string sTagX, string sTagY, string sTagZ)
+location EM_NWNXGetLocation(string sTagArea, string sTagX, string sTagY, string sTagZ)
 {
-    return Location(EM_GetNWNXObject(sTagArea), EM_GetNWNXVector(sTagX, sTagY, sTagZ), 0.0f);
+    return Location(EM_NWNXGetObject(sTagArea), EM_NWNXGetVector(sTagX, sTagY, sTagZ), 0.0f);
 }

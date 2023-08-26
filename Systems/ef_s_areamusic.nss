@@ -82,7 +82,7 @@ void AreaMusic_OnPlayBattleMusic()
 {
     object oArea = OBJECT_SELF;
 
-    if (EM_GetNWNXInt("PLAY"))
+    if (EM_NWNXGetInt("PLAY"))
     {
         int nType = (GetIsDay() || GetIsDawn()) ? AREAMUSIC_MUSIC_TYPE_BATTLE_DAY : AREAMUSIC_MUSIC_TYPE_BATTLE_NIGHT;
         int nTrackId = AreaMusic_GetTrackFromTrackList(AreaMusic_GetAreaTrackList(oArea), nType);

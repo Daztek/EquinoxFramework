@@ -7,10 +7,12 @@
 #include "ef_s_musicman"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
+#include "ef_s_playerdb"
 
 const string MUSICWIDGET_SCRIPT_NAME                        = "ef_s_musicwidget";
 const string MUSICWIDGET_NUI_WIDGET_WINDOW_ID               = "MUSICWIDGET";
 const string MUSICWIDGET_NUI_BIND_VOLUME                    = "bind_volume";
+const string MUSICWIDGET_VOLUME_PLAYERDB_VARNAME            = "Volume";
 const int MUSICWIDGET_SLIDER_STEP_SIZE                      = 5;
 
 // @NWMWINDOW[MUSICWIDGET_NUI_WIDGET_WINDOW_ID]
@@ -36,8 +38,9 @@ json MusicWidget_CreateWindow()
 void MusicWidget_WatchVolumeSlider()
 {
     object oPlayer = OBJECT_SELF;
-    float fVolume = NWM_GetBindInt(MUSICWIDGET_NUI_BIND_VOLUME) / 100.0f;
-    MusMan_SetPlayerVolumeModifier(oPlayer, fVolume);
+    int nVolume = NWM_GetBindInt(MUSICWIDGET_NUI_BIND_VOLUME);
+    PlayerDB_SetInt(oPlayer, MUSICWIDGET_SCRIPT_NAME, MUSICWIDGET_VOLUME_PLAYERDB_VARNAME, nVolume);
+    MusMan_SetPlayerVolumeModifier(oPlayer, nVolume / 100.0f);
     MusMan_RefreshCurrentChannelVolume(oPlayer);
 }
 
@@ -49,6 +52,6 @@ void MusicWidget_AreaLoadScreenFinished()
     {
         NWM_SetBind(NUI_WINDOW_GEOMETRY_BIND, NuiRect(0.0f, GetPlayerDeviceProperty(oPlayer, PLAYER_DEVICE_PROPERTY_GUI_HEIGHT) - 32.0f, 140.0f, 32.0f));
         NWM_SetBindWatch(MUSICWIDGET_NUI_BIND_VOLUME);
-        NWM_SetBind(MUSICWIDGET_NUI_BIND_VOLUME, JsonInt(100));
+        NWM_SetBindInt(MUSICWIDGET_NUI_BIND_VOLUME, PlayerDB_GetInt(oPlayer, MUSICWIDGET_SCRIPT_NAME, MUSICWIDGET_VOLUME_PLAYERDB_VARNAME, 100));
     }
 }

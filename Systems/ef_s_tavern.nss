@@ -92,7 +92,7 @@ void Tavern_OnDoorClose()
 // @NWNX[NWNX_ON_SERVER_SEND_AREA_BEFORE]
 void Tavern_OnServerSendAreaBefore()
 {
-    if (GetTag(EM_GetNWNXObject("AREA")) == TAVERN_AREA_TAG)
+    if (GetTag(EM_NWNXGetObject("AREA")) == TAVERN_AREA_TAG)
         EM_NWNXDispatchListInsert(OBJECT_SELF, TAVERN_SCRIPT_NAME, "NWNX_ON_CREATURE_TILE_CHANGE_BEFORE");
     else
         EM_NWNXDispatchListRemove(OBJECT_SELF, TAVERN_SCRIPT_NAME, "NWNX_ON_CREATURE_TILE_CHANGE_BEFORE");
@@ -101,7 +101,7 @@ void Tavern_OnServerSendAreaBefore()
 // @NWNX[NWNX_ON_CREATURE_TILE_CHANGE_BEFORE:DL]
 void Tavern_OnTileChange()
 {
-    Tavern_SetPlayerSubArea(OBJECT_SELF, Tavern_GetSubAreaFromTileIndex(EM_GetNWNXInt("NEW_TILE_INDEX")));
+    Tavern_SetPlayerSubArea(OBJECT_SELF, Tavern_GetSubAreaFromTileIndex(EM_NWNXGetInt("NEW_TILE_INDEX")));
 }
 
 void Tavern_InitializeDoor(object oDoor)

@@ -711,9 +711,9 @@ void QC_DecrementSpellCount()
     object oPlayer = OBJECT_SELF;
     if (GetIsPC(oPlayer) && NWM_GetIsWindowOpen(oPlayer, QC_MAIN_WINDOW_ID, TRUE))
     {
-        int nSpellId = EM_GetNWNXInt("SPELL_ID");
-        int nMultiClass = EM_GetNWNXInt("CLASS");
-        int nMetaMagic = EM_GetNWNXInt("METAMAGIC");
+        int nSpellId = EM_NWNXGetInt("SPELL_ID");
+        int nMultiClass = EM_NWNXGetInt("CLASS");
+        int nMetaMagic = EM_NWNXGetInt("METAMAGIC");
         int nClassType = GetClassByPosition(nMultiClass + 1, oPlayer);
         int bMemorizesSpells = StringToInt(Get2DAString("classes", "MemorizesSpells", nClassType));
 

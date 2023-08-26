@@ -15,13 +15,13 @@ const int VERSION_POSTFIX               = 40;
 // @NWNX[NWNX_ON_CLIENT_CONNECT_BEFORE]
 void VersionCheck_OnClientConnect()
 {
-    int nBuild = EM_GetNWNXInt("VERSION_MAJOR");
-    int nRevision = EM_GetNWNXInt("VERSION_MINOR");
-    int nPostfix = EM_GetNWNXInt("VERSION_POSTFIX");
+    int nBuild = EM_NWNXGetInt("VERSION_MAJOR");
+    int nRevision = EM_NWNXGetInt("VERSION_MINOR");
+    int nPostfix = EM_NWNXGetInt("VERSION_POSTFIX");
     if (nRevision < VERSION_REVISION || (nRevision == VERSION_REVISION && nPostfix < VERSION_POSTFIX))
     {
-        LogInfo("Player '" + EM_GetNWNXString("PLAYER_NAME") + "' (" + EM_GetNWNXString("CDKEY") + ") tried to connect with version: " + IntToString(nBuild) + "." + IntToString(nRevision) + "-" + IntToString(nPostfix));
-        EM_SetNWNXEventResult("Your client version must be at least '" + IntToString(VERSION_BUILD) + "." + IntToString(VERSION_REVISION) + "-" + IntToString(VERSION_POSTFIX) + "' to play on this server");
-        EM_SkipNWNXEvent();
+        LogInfo("Player '" + EM_NWNXGetString("PLAYER_NAME") + "' (" + EM_NWNXGetString("CDKEY") + ") tried to connect with version: " + IntToString(nBuild) + "." + IntToString(nRevision) + "-" + IntToString(nPostfix));
+        EM_NWNXSetEventResult("Your client version must be at least '" + IntToString(VERSION_BUILD) + "." + IntToString(VERSION_REVISION) + "-" + IntToString(VERSION_POSTFIX) + "' to play on this server");
+        EM_NWNXSkipEvent();
     }
 }

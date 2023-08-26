@@ -63,7 +63,7 @@ void PC_DropItem()
         if (!JsonGetInt(NWM_GetBind(PC_BIND_DEPOSIT_MODE)))
             return;
 
-        object oItem = EM_GetNWNXObject("ITEM");
+        object oItem = EM_NWNXGetObject("ITEM");
 
         if (!GetIsObjectValid(oItem) || GetObjectType(oItem) != OBJECT_TYPE_ITEM || GetLocalInt(oItem, "PC_ITEM_DESTROYED"))
             return;
@@ -77,7 +77,7 @@ void PC_DropItem()
         int nStoredItems = PC_GetStoredItemAmount(oPlayer);
         if (nStoredItems >= PC_MAX_ITEMS)
         {
-            EM_SkipNWNXEvent();
+            EM_NWNXSkipEvent();
             SendMessageToPC(oPlayer, "Your persistent chest is full, withdraw an item first.");
             return;
         }
@@ -103,7 +103,7 @@ void PC_DropItem()
 
         SetLocalInt(oItem, "PC_ITEM_DESTROYED", TRUE);
         DestroyObject(oItem);
-        EM_SkipNWNXEvent();
+        EM_NWNXSkipEvent();
     }
 }
 

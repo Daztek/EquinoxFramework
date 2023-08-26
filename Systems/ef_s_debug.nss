@@ -13,12 +13,12 @@ const string DEBUG_DEBUG_SCRIPT_NAME    = "ef_debug";
 // @NWNX[NWNX_ON_RESOURCE_MODIFIED]
 void Debug_OnResourceModified()
 {
-    string sAlias = EM_GetNWNXString("ALIAS");
-    int nType = EM_GetNWNXInt("TYPE");
+    string sAlias = EM_NWNXGetString("ALIAS");
+    int nType = EM_NWNXGetInt("TYPE");
 
     if (sAlias == "NWNX" && nType == RESTYPE_NSS)
     {
-        string sScriptName = EM_GetNWNXString("RESREF");
+        string sScriptName = EM_NWNXGetString("RESREF");
 
         if (sScriptName == DEBUG_DEBUG_SCRIPT_NAME)
         {

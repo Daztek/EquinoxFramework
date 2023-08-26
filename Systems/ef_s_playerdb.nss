@@ -18,22 +18,22 @@ const int PLAYERDB_TYPE_VECTOR              = 8;
 const int PLAYERDB_TYPE_LOCATION            = 16;
 const int PLAYERDB_TYPE_JSON                = 32;
 
-int PlayerDB_GetInt(object oPlayer, string sSystem, string sVarName);
+int PlayerDB_GetInt(object oPlayer, string sSystem, string sVarName, int nDefault = 0);
 void PlayerDB_SetInt(object oPlayer, string sSystem, string sVarName, int nValue);
 void PlayerDB_DeleteInt(object oPlayer, string sSystem, string sVarName);
-float PlayerDB_GetFloat(object oPlayer, string sSystem, string sVarName);
+float PlayerDB_GetFloat(object oPlayer, string sSystem, string sVarName, float fDefault = 0.0f);
 void PlayerDB_SetFloat(object oPlayer, string sSystem, string sVarName, float fValue);
 void PlayerDB_DeleteFloat(object oPlayer, string sSystem, string sVarName);
-string PlayerDB_GetString(object oPlayer, string sSystem, string sVarName);
+string PlayerDB_GetString(object oPlayer, string sSystem, string sVarName, string sDefault = "");
 void PlayerDB_SetString(object oPlayer, string sSystem, string sVarName, string sValue);
 void PlayerDB_DeleteString(object oPlayer, string sSystem, string sVarName);
-vector PlayerDB_GetVector(object oPlayer, string sSystem, string sVarName);
+vector PlayerDB_GetVector(object oPlayer, string sSystem, string sVarName, vector vDefault = [0.0f, 0.0f, 0.0f]);
 void PlayerDB_SetVector(object oPlayer, string sSystem, string sVarName, vector vValue);
 void PlayerDB_DeleteVector(object oPlayer, string sSystem, string sVarName);
-location PlayerDB_GetLocation(object oPlayer, string sSystem, string sVarName);
+location PlayerDB_GetLocation(object oPlayer, string sSystem, string sVarName, location locDefault = LOCATION_INVALID);
 void PlayerDB_SetLocation(object oPlayer, string sSystem, string sVarName, location locValue);
 void PlayerDB_DeleteLocation(object oPlayer, string sSystem, string sVarName);
-json PlayerDB_GetJson(object oPlayer, string sSystem, string sVarName);
+json PlayerDB_GetJson(object oPlayer, string sSystem, string sVarName, json jDefault = JSON_NULL);
 void PlayerDB_SetJson(object oPlayer, string sSystem, string sVarName, json jValue);
 void PlayerDB_DeleteJson(object oPlayer, string sSystem, string sVarName);
 
@@ -97,11 +97,11 @@ int PlayerDB_ValidateArguments(object oPlayer, string sSystem, string sVarName)
     return GetIsObjectValid(oPlayer) && sSystem != "" && sVarName != "";
 }
 
-int PlayerDB_GetInt(object oPlayer, string sSystem, string sVarName)
+int PlayerDB_GetInt(object oPlayer, string sSystem, string sVarName, int nDefault = 0)
 {
     if (!PlayerDB_ValidateArguments(oPlayer, sSystem, sVarName)) return 0;
     sqlquery sql = PlayerDB_PrepareSelect(oPlayer, sSystem, PLAYERDB_TYPE_INT, sVarName);
-    return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
+    return SqlStep(sql) ? SqlGetInt(sql, 0) : nDefault;
 }
 
 void PlayerDB_SetInt(object oPlayer, string sSystem, string sVarName, int nValue)
@@ -118,11 +118,11 @@ void PlayerDB_DeleteInt(object oPlayer, string sSystem, string sVarName)
     SqlStep(PlayerDB_PrepareDelete(oPlayer, sSystem, PLAYERDB_TYPE_INT, sVarName));
 }
 
-float PlayerDB_GetFloat(object oPlayer, string sSystem, string sVarName)
+float PlayerDB_GetFloat(object oPlayer, string sSystem, string sVarName, float fDefault = 0.0f)
 {
     if (!PlayerDB_ValidateArguments(oPlayer, sSystem, sVarName)) return 0.0f;
     sqlquery sql = PlayerDB_PrepareSelect(oPlayer, sSystem, PLAYERDB_TYPE_FLOAT, sVarName);
-    return SqlStep(sql) ? SqlGetFloat(sql, 0) : 0.0f;
+    return SqlStep(sql) ? SqlGetFloat(sql, 0) : fDefault;
 }
 
 void PlayerDB_SetFloat(object oPlayer, string sSystem, string sVarName, float fValue)
@@ -139,11 +139,11 @@ void PlayerDB_DeleteFloat(object oPlayer, string sSystem, string sVarName)
     SqlStep(PlayerDB_PrepareDelete(oPlayer, sSystem, PLAYERDB_TYPE_FLOAT, sVarName));
 }
 
-string PlayerDB_GetString(object oPlayer, string sSystem, string sVarName)
+string PlayerDB_GetString(object oPlayer, string sSystem, string sVarName, string sDefault = "")
 {
     if (!PlayerDB_ValidateArguments(oPlayer, sSystem, sVarName)) return "";
     sqlquery sql = PlayerDB_PrepareSelect(oPlayer, sSystem, PLAYERDB_TYPE_STRING, sVarName);
-    return SqlStep(sql) ? SqlGetString(sql, 0) : "";
+    return SqlStep(sql) ? SqlGetString(sql, 0) : sDefault;
 }
 
 void PlayerDB_SetString(object oPlayer, string sSystem, string sVarName, string sValue)
@@ -160,14 +160,14 @@ void PlayerDB_DeleteString(object oPlayer, string sSystem, string sVarName)
     SqlStep(PlayerDB_PrepareDelete(oPlayer, sSystem, PLAYERDB_TYPE_STRING, sVarName));
 }
 
-vector PlayerDB_GetVector(object oPlayer, string sSystem, string sVarName)
+vector PlayerDB_GetVector(object oPlayer, string sSystem, string sVarName, vector vDefault = [0.0f, 0.0f, 0.0f])
 {
     if (!PlayerDB_ValidateArguments(oPlayer, sSystem, sVarName)) return Vector(0.0f, 0.0f, 0.0f);
     sqlquery sql = PlayerDB_PrepareSelect(oPlayer, sSystem, PLAYERDB_TYPE_VECTOR, sVarName);
     if (SqlStep(sql))
         return SqlGetVector(sql, 0);
     else
-        return Vector(0.0f, 0.0f, 0.0f);
+        return vDefault;
 }
 
 void PlayerDB_SetVector(object oPlayer, string sSystem, string sVarName, vector vValue)
@@ -184,11 +184,11 @@ void PlayerDB_DeleteVector(object oPlayer, string sSystem, string sVarName)
     SqlStep(PlayerDB_PrepareDelete(oPlayer, sSystem, PLAYERDB_TYPE_VECTOR, sVarName));
 }
 
-location PlayerDB_GetLocation(object oPlayer, string sSystem, string sVarName)
+location PlayerDB_GetLocation(object oPlayer, string sSystem, string sVarName, location locDefault = LOCATION_INVALID)
 {
     if (!PlayerDB_ValidateArguments(oPlayer, sSystem, sVarName)) return GetStartingLocation();
     sqlquery sql = PlayerDB_PrepareSelect(oPlayer, sSystem, PLAYERDB_TYPE_LOCATION, sVarName);
-    return SqlStep(sql) ? JsonToLocation(SqlGetJson(sql, 0)) : Location(OBJECT_INVALID, Vector(0.0f, 0.0f, 0.0f), 0.0f);
+    return SqlStep(sql) ? JsonToLocation(SqlGetJson(sql, 0)) : locDefault;
 }
 
 void PlayerDB_SetLocation(object oPlayer, string sSystem, string sVarName, location locValue)
@@ -205,11 +205,11 @@ void PlayerDB_DeleteLocation(object oPlayer, string sSystem, string sVarName)
     SqlStep(PlayerDB_PrepareDelete(oPlayer, sSystem, PLAYERDB_TYPE_LOCATION, sVarName));
 }
 
-json PlayerDB_GetJson(object oPlayer, string sSystem, string sVarName)
+json PlayerDB_GetJson(object oPlayer, string sSystem, string sVarName, json jDefault = JSON_NULL)
 {
     if (!PlayerDB_ValidateArguments(oPlayer, sSystem, sVarName)) return JsonNull();
     sqlquery sql = PlayerDB_PrepareSelect(oPlayer, sSystem, PLAYERDB_TYPE_JSON, sVarName);
-    return SqlStep(sql) ? SqlGetJson(sql, 0) : JsonNull();
+    return SqlStep(sql) ? SqlGetJson(sql, 0) : jDefault;
 }
 
 void PlayerDB_SetJson(object oPlayer, string sSystem, string sVarName, json jValue)

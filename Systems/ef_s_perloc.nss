@@ -13,20 +13,8 @@ const string PERLOC_AREA_DISABLED       = "EFPersistentLocationDisabled";
 
 int PerLoc_GetAreaDisabled(object oArea);
 void PerLoc_SetAreaDisabled(object oArea);
-
-void PerLoc_SaveLocation()
-{
-    object oPlayer = OBJECT_SELF;
-
-    if (!GetIsObjectValid(oPlayer) || GetIsDM(oPlayer) || GetIsDMPossessed(oPlayer))
-        return;
-
-    object oMaster = GetMaster(oPlayer);
-    if (GetIsObjectValid(oMaster)) oPlayer = oMaster;
-
-    if (!PerLoc_GetAreaDisabled(GetArea(oPlayer)))
-        PlayerDB_SetLocation(oPlayer, PERLOC_SCRIPT_NAME, "Location", GetLocation(oPlayer));
-}
+void PerLoc_SaveLocation(object oPlayer = OBJECT_SELF);
+void PerLoc_RestoreLocation(object oPlayer = OBJECT_SELF);
 
 // @NWNX[NWNX_ON_CLIENT_DISCONNECT_BEFORE]
 void PerLoc_OnClientDisconnectBefore()
@@ -41,16 +29,9 @@ void PerLoc_AreaLoadScreenFinished()
 }
 
 // @NWNX[NWNX_ON_ELC_VALIDATE_CHARACTER_AFTER]
-void PerLoc_RestoreLocation()
+void PerLoc_OnELCValidateCharacterAfter()
 {
-    object oPlayer = OBJECT_SELF;
-
-    if (GetIsDM(oPlayer))
-        return;
-
-    location locPlayer = PlayerDB_GetLocation(oPlayer, PERLOC_SCRIPT_NAME, "Location");
-    if (GetIsLocationValid(locPlayer))
-        NWNX_Player_SetSpawnLocation(oPlayer, locPlayer);
+    PerLoc_RestoreLocation();
 }
 
 int PerLoc_GetAreaDisabled(object oArea)
@@ -61,4 +42,26 @@ int PerLoc_GetAreaDisabled(object oArea)
 void PerLoc_SetAreaDisabled(object oArea)
 {
     SetLocalInt(oArea, PERLOC_AREA_DISABLED, TRUE);
+}
+
+void PerLoc_SaveLocation(object oPlayer = OBJECT_SELF)
+{
+    if (!GetIsObjectValid(oPlayer) || GetIsDM(oPlayer) || GetIsDMPossessed(oPlayer))
+        return;
+
+    object oMaster = GetMaster(oPlayer);
+    if (GetIsObjectValid(oMaster)) oPlayer = oMaster;
+
+    if (!PerLoc_GetAreaDisabled(GetArea(oPlayer)))
+        PlayerDB_SetLocation(oPlayer, PERLOC_SCRIPT_NAME, "Location", GetLocation(oPlayer));
+}
+
+void PerLoc_RestoreLocation(object oPlayer = OBJECT_SELF)
+{
+    if (GetIsDM(oPlayer))
+        return;
+
+    location locPlayer = PlayerDB_GetLocation(oPlayer, PERLOC_SCRIPT_NAME, "Location");
+    if (GetIsLocationValid(locPlayer))
+        NWNX_Player_SetSpawnLocation(oPlayer, locPlayer);
 }

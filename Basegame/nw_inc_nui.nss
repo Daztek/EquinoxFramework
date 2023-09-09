@@ -41,6 +41,24 @@ const float NUI_STYLE_TERTIARY_HEIGHT      = 30.0;
 const float NUI_STYLE_ROW_HEIGHT           = 25.0;
 
 // -----------------------
+// Bind params
+
+// These currently only affect presentation and serve as a
+// optimisation to let the client do the heavy lifting on this.
+// In particular, this enables you to bind an array of values and
+// transform them all at once on the client, instead of having to
+// have the server transform them before sending.
+
+// NB: These must be OR-ed together into a bitmask.
+
+const int NUI_NUMBER_FLAG_HEX              = 0x001;
+
+// NB: These must be OR-ed together into a bitmask.
+
+const int NUI_TEXT_FLAG_LOWERCASE          = 0x001;
+const int NUI_TEXT_FLAG_UPPERCASE          = 0x002;
+
+// -----------------------
 // Window
 
 // Special cases:
@@ -56,7 +74,9 @@ const float NUI_STYLE_ROW_HEIGHT           = 25.0;
 // - jTransparent: Bind:Bool, Do not render background
 // - jBorder: Bind:Bool, Render a border
 // - jAcceptsInput: Bind:Bool, Set JsonBool(FALSE) to disable all input. All hover, clicks and keypresses will fall through.
-json NuiWindow(json jRoot, json jTitle, json jGeometry, json jResizable, json jCollapsed, json jClosable, json jTransparent, json jBorder, json jAcceptsInput);
+// - jSizeConstraint: Bind:Rect, Constrains minimum and maximum size of window. Set x to minimum width, y to minimum height, w to maximum width, h to maximum height. Set any individual constraint to 0.0 to ignore that constraint.
+// - jEdgeConstraint: Bind:Rect, Prevents a form from being rendered within the specified margins. Set x to left margin, y to top margin, w to right margin, h to bottom margin. Set any individual constraint to 0.0 to ignore that constraint.
+json NuiWindow(json jRoot, json jTitle, json jGeometry, json jResizable, json jCollapsed, json jClosable, json jTransparent, json jBorder, json jAcceptsInput = JSON_TRUE, json jSizeConstraint = JSON_NULL, json jEdgeConstraint = JSON_NULL);
 
 // -----------------------
 // Values
@@ -66,7 +86,10 @@ json NuiWindow(json jRoot, json jTitle, json jGeometry, json jResizable, json jC
 //    NuiSetBind(.., "mybindlabel", JsonString("hi"));
 // To create static values, just use the json types directly:
 //    JsonString("hi");
-json NuiBind(string sId);
+// - nNumberFlags: bitmask of NUI_NUMBER_FLAG_*
+// - nNumberPadding: zero-left-pad numbers before printing
+// - nTextFlags: bitmask of NUI_TEXT_FLAG_*
+json NuiBind(string sId, int nNumberFlags = 0, int nNumberPadding = 0, int nTextFlags = 0);
 
 // Tag the given element with a id.
 // Only tagged elements will send events to the server.
@@ -151,7 +174,7 @@ json NuiRect(float x, float y, float w, float h);
 
 json NuiColor(int r, int g, int b, int a = 255);
 
-// Style the foreground color of the widget. This is dependent on the widget
+// Style the foreground color of a widget or window title. This is dependent on the widget
 // in question and only supports solid/full colors right now (no texture skinning).
 // For example, labels would style their text color; progress bars would style the bar.
 // - jElem: Element
@@ -208,7 +231,8 @@ json NuiCheck(json jLabel, json jBool);
 // - jVAlign: Bind:Int:NUI_VALIGN_*
 json NuiImage(json jResRef, json jAspect, json jHAlign, json jVAlign);
 
-// Optionally render only subregion of jImage.
+// Optionally render only subregion of jImage.  This property can be set on
+// NuiImage and NuiButtonImage widgets.
 // jRegion is a NuiRect (x, y, w, h) to indicate the render region inside the image.
 json NuiImageRegion(json jImage, json jRegion);
 
@@ -314,6 +338,7 @@ const int NUI_DRAW_LIST_ITEM_TYPE_ARC          = 3;
 const int NUI_DRAW_LIST_ITEM_TYPE_TEXT         = 4;
 const int NUI_DRAW_LIST_ITEM_TYPE_IMAGE        = 5;
 const int NUI_DRAW_LIST_ITEM_TYPE_LINE         = 6;
+const int NUI_DRAW_LIST_ITEM_TYPE_RECT         = 7;
 
 // You can order draw list items to be painted either before, or after the
 // builtin render of the widget in question. This enables you to paint "behind"
@@ -407,6 +432,15 @@ json NuiDrawListImageRegion(json jDrawListImage, json jRegion);
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
 json NuiDrawListLine(json jEnabled, json jColor, json jLineThickness, json jA, json jB, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS);
 
+// - jEnabled: Bind:Bool
+// - jColor: Bind:Color
+// - jFill: Bind:Bool
+// - jLineThickness: Bind:Float
+// - jRext: Bind:Rect
+// - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
+// - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
+json NuiDrawListRect(json jEnabled, json jColor, json jFill, json jLineThickness, json jRect, int  nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int  nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS);
+
 // - jElem: Element
 // - jScissor: Bind:Bool, Constrain painted elements to widget bounds.
 // - jList: DrawListItem[]
@@ -425,7 +459,9 @@ NuiWindow(
   json jClosable,
   json jTransparent,
   json jBorder,
-  json jAcceptsInput
+  json jAcceptsInput = JSON_TRUE,
+  json jWindowConstraint = JSON_NULL,
+  json jEdgeConstraint = JSON_NULL
 )
 {
   json ret = JsonObject();
@@ -440,6 +476,8 @@ NuiWindow(
   ret = JsonObjectSet(ret, "transparent", jTransparent);
   ret = JsonObjectSet(ret, "border", jBorder);
   ret = JsonObjectSet(ret, "accepts_input", jAcceptsInput);
+  ret = JsonObjectSet(ret, "size_constraint", jWindowConstraint);
+  ret = JsonObjectSet(ret, "edge_constraint", jEdgeConstraint);
   return ret;
 }
 
@@ -459,10 +497,18 @@ NuiElement(
 
 json
 NuiBind(
-  string sId
+  string sId,
+  int nNumberFlags = 0,
+  int nNumberPadding = 0,
+  int nTextFlags = 0
 )
 {
-  return JsonObjectSet(JsonObject(), "bind", JsonString(sId));
+  json ret = JsonObject();
+  ret = JsonObjectSet(ret, "bind", JsonString(sId));
+  ret = JsonObjectSet(ret, "number_flags", JsonInt(nNumberFlags));
+  ret = JsonObjectSet(ret, "number_padding", JsonInt(nNumberPadding));
+  ret = JsonObjectSet(ret, "text_flags", JsonInt(nTextFlags));
+  return ret;
 }
 
 json
@@ -1046,6 +1092,22 @@ NuiDrawListLine(
   json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_LINE, jEnabled, jColor, JsonNull(), jLineThickness, nOrder, nRender);
   ret = JsonObjectSet(ret, "a", jA);
   ret = JsonObjectSet(ret, "b", jB);
+  return ret;
+}
+
+json
+NuiDrawListRect(
+  json jEnabled,
+  json jColor,
+  json jFill,
+  json jLineThickness,
+  json jRect,
+  int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
+  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS
+)
+{
+  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_RECT, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender);
+  ret = JsonObjectSet(ret, "rect", jRect);
   return ret;
 }
 

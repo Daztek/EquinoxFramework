@@ -19,14 +19,25 @@ const int SA_AREA_LENGTH                            = 8;
 const int SA_AREA_CHUNK_SIZE                        = 2;
 const int SA_AREA_SINGLE_GROUP_TILE_CHANCE          = 2;
 
+// @CORE[EF_SYSTEM_INIT]
+void SA_Init()
+{
+    int nSeed = 25;
+    LogInfo("Seed: " + IntToString(nSeed));
+    SqlMersenneTwisterSetSeed(SA_SCRIPT_NAME, nSeed);
+}
+
 // @CORE[EF_SYSTEM_LOAD]
 void SA_Load()
 {
     object oArea = GetObjectByTag(SA_STARTING_AREA_TAG);
 
+    Call(Function("ef_s_grass", "Grass_SetGrass"), ObjectArg(oArea) + StringArg("trm02_grass3d"));
+
     AG_InitializeRandomArea(SA_AREA_ID, SA_AREA_TILESET, SA_AREA_DEFAULT_EDGE_TERRAIN, SA_AREA_LENGTH, SA_AREA_LENGTH);
     AG_InitializeAreaChunks(SA_AREA_ID, SA_AREA_CHUNK_SIZE);
 
+    AG_SetStringDataByKey(SA_AREA_ID, AG_DATA_KEY_GENERATION_RANDOM_NAME, SA_SCRIPT_NAME);
     AG_SetIntDataByKey(SA_AREA_ID, AG_DATA_KEY_GENERATION_LOG_STATUS, SA_DEBUG_LOG);
     AG_SetIntDataByKey(SA_AREA_ID, AG_DATA_KEY_MAX_ITERATIONS, SA_MAX_ITERATIONS);
     AG_SetIntDataByKey(SA_AREA_ID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, SA_AREA_SINGLE_GROUP_TILE_CHANCE);

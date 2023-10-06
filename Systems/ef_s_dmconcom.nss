@@ -199,3 +199,9 @@ void DMConCom_Kill()
 {
     ApplyEffectToObject(DURATION_TYPE_INSTANT, EffectDeath(), OBJECT_SELF);
 }
+
+// @CONSOLE[DestroyObject::Destroy an object]
+void DMConCom_DestroyObject(float fDelay = 0.0f)
+{
+    DestroyObject(OBJECT_SELF, fDelay);
+}

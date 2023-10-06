@@ -5,6 +5,10 @@
     Description: Equinox Framework SQLite Utility Include
 */
 
+#include "nwnx_nwsqliteext"
+
+const int SQL_ENABLE_MERSENNE_TWISTER               = TRUE;
+
 // Returns TRUE if sTableName exists in sDatabase.
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName);
 // Returns TRUE if sTableName exists on oObject.
@@ -35,6 +39,12 @@ void SqlCommitTransactionModule();
 int SqlGetUnixEpoch();
 // Execute the sql query and reset it
 void SqlStepAndReset(sqlquery sql);
+// Set the seed for a mersenne twister random number generator
+void SqlMersenneTwisterSetSeed(string sName, int nSeed);
+// Get a value from a mersenne twister random number generator
+int SqlMersenneTwisterGetValue(string sName, int nMaxInteger);
+// Discard nAmount of values from a mersenne twister random number generator
+void SqlMersenneTwisterDiscard(string sName, int nAmount);
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -126,4 +136,41 @@ void SqlStepAndReset(sqlquery sql)
 {
     SqlStep(sql);
     SqlResetQuery(sql, TRUE);
+}
+
+void SqlMersenneTwisterSetSeed(string sName, int nSeed)
+{
+    if (SQL_ENABLE_MERSENNE_TWISTER)
+    {
+        sqlquery sql = SqlPrepareQueryModule("SELECT MT_SEED(@name, @seed);");
+        SqlBindString(sql, "@name", sName);
+        SqlBindInt(sql, "@seed", nSeed);
+        SqlStep(sql);
+    }
+}
+
+int SqlMersenneTwisterGetValue(string sName, int nMaxInteger)
+{
+    if (SQL_ENABLE_MERSENNE_TWISTER)
+    {
+        sqlquery sql = SqlPrepareQueryModule("SELECT (MT_VALUE(@name) % @maxinteger);");
+        SqlBindString(sql, "@name", sName);
+        SqlBindInt(sql, "@maxinteger", nMaxInteger);
+        return SqlStep(sql) ? SqlGetInt(sql, 0) : Random(nMaxInteger);
+    }
+    else
+    {
+        return Random(nMaxInteger);
+    }
+}
+
+void SqlMersenneTwisterDiscard(string sName, int nAmount)
+{
+    if (SQL_ENABLE_MERSENNE_TWISTER)
+    {
+        sqlquery sql = SqlPrepareQueryModule("SELECT MT_DISCARD(@name, @amount);");
+        SqlBindString(sql, "@name", sName);
+        SqlBindInt(sql, "@amount", nAmount);
+        SqlStep(sql);
+    }
 }

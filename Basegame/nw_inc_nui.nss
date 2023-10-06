@@ -367,7 +367,8 @@ const int NUI_DRAW_LIST_ITEM_RENDER_MOUSE_MIDDLE = 5;
 // - jPoints: Bind:Float[] Always provide points in pairs
 // - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
-json NuiDrawListPolyLine(json jEnabled, json jColor, json jFill, json jLineThickness, json jPoints, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS);
+// - nBindArrays: Values in binds are considered arrays-of-values
+json NuiDrawListPolyLine(json jEnabled, json jColor, json jFill, json jLineThickness, json jPoints, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
 
 // - jEnabled: Bind:Bool
 // - jColor: Bind:Color
@@ -378,7 +379,8 @@ json NuiDrawListPolyLine(json jEnabled, json jColor, json jFill, json jLineThick
 // - jCtrl1: Bind:Vec2
 // - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
-json NuiDrawListCurve(json jEnabled, json jColor, json jLineThickness, json jA, json jB, json jCtrl0, json jCtrl1, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS);
+// - nBindArrays: Values in binds are considered arrays-of-values
+json NuiDrawListCurve(json jEnabled, json jColor, json jLineThickness, json jA, json jB, json jCtrl0, json jCtrl1, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
 
 // - jEnabled: Bind:Bool
 // - jColor: Bind:Color
@@ -387,7 +389,8 @@ json NuiDrawListCurve(json jEnabled, json jColor, json jLineThickness, json jA, 
 // - jRect: Bind:Rect
 // - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
-json NuiDrawListCircle(json jEnabled, json jColor, json jFill, json jLineThickness, json jRect, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS);
+// - nBindArrays: Values in binds are considered arrays-of-values
+json NuiDrawListCircle(json jEnabled, json jColor, json jFill, json jLineThickness, json jRect, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
 
 // - jEnabled: Bind:Bool
 // - jColor: Bind:Color
@@ -399,7 +402,8 @@ json NuiDrawListCircle(json jEnabled, json jColor, json jFill, json jLineThickne
 // - jAMax: Bind:Float
 // - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
-json NuiDrawListArc(json jEnabled, json jColor, json jFill, json jLineThickness, json jCenter, json jRadius, json jAMin, json jAMax, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS);
+// - nBindArrays: Values in binds are considered arrays-of-values
+json NuiDrawListArc(json jEnabled, json jColor, json jFill, json jLineThickness, json jCenter, json jRadius, json jAMin, json jAMax, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
 
 // - jEnabled: Bind:Bool
 // - jColor: Bind:Color
@@ -407,7 +411,8 @@ json NuiDrawListArc(json jEnabled, json jColor, json jFill, json jLineThickness,
 // - jText: Bind:String
 // - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
-json NuiDrawListText(json jEnabled, json jColor, json jRect, json jText, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS);
+// - nBindArrays: Values in binds are considered arrays-of-values
+json NuiDrawListText(json jEnabled, json jColor, json jRect, json jText, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
 
 // - jEnabled: Bind:Bool
 // - jResRef: Bind:String
@@ -417,7 +422,8 @@ json NuiDrawListText(json jEnabled, json jColor, json jRect, json jText, int nOr
 // - jVAlign: Bind:Int:NUI_VALIGN_*
 // - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
-json NuiDrawListImage(json jEnabled, json jResRef, json jPos, json jAspect, json jHAlign, json jVAlign, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS);
+// - nBindArrays: Values in binds are considered arrays-of-values
+json NuiDrawListImage(json jEnabled, json jResRef, json jPos, json jAspect, json jHAlign, json jVAlign, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
 
 // - jDrawListImage: DrawListItemImage
 // - jRegion: Bind:NuiRect
@@ -430,7 +436,8 @@ json NuiDrawListImageRegion(json jDrawListImage, json jRegion);
 // - jB: Bind:Vec2
 // - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
-json NuiDrawListLine(json jEnabled, json jColor, json jLineThickness, json jA, json jB, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS);
+// - nBindArrays: Values in binds are considered arrays-of-values
+json NuiDrawListLine(json jEnabled, json jColor, json jLineThickness, json jA, json jB, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
 
 // - jEnabled: Bind:Bool
 // - jColor: Bind:Color
@@ -439,7 +446,8 @@ json NuiDrawListLine(json jEnabled, json jColor, json jLineThickness, json jA, j
 // - jRext: Bind:Rect
 // - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
-json NuiDrawListRect(json jEnabled, json jColor, json jFill, json jLineThickness, json jRect, int  nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int  nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS);
+// - nBindArrays: Values in binds are considered arrays-of-values
+json NuiDrawListRect(json jEnabled, json jColor, json jFill, json jLineThickness, json jRect, int  nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int  nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
 
 // - jElem: Element
 // - jScissor: Bind:Bool, Constrain painted elements to widget bounds.
@@ -943,7 +951,8 @@ NuiDrawListItem(
   json jFill,
   json jLineThickness,
   int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
-  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS
+  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS,
+  int nBindArrays = FALSE
 )
 {
   json ret = JsonObject();
@@ -954,6 +963,7 @@ NuiDrawListItem(
   ret = JsonObjectSet(ret, "line_thickness", jLineThickness);
   ret = JsonObjectSet(ret, "order", JsonInt(nOrder));
   ret = JsonObjectSet(ret, "render", JsonInt(nRender));
+  ret = JsonObjectSet(ret, "arrayBinds", JsonBool(nBindArrays));
   return ret;
 }
 
@@ -965,10 +975,11 @@ NuiDrawListPolyLine(
   json jLineThickness,
   json jPoints,
   int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
-  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS
+  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS,
+  int nBindArrays = FALSE
 )
 {
-  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_POLYLINE, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender);
+  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_POLYLINE, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender, nBindArrays);
   ret = JsonObjectSet(ret, "points", jPoints);
   return ret;
 }
@@ -983,10 +994,11 @@ NuiDrawListCurve(
   json jCtrl0,
   json jCtrl1,
   int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
-  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS
+  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS,
+  int nBindArrays = FALSE
 )
 {
-  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_CURVE, jEnabled, jColor, JsonBool(0), jLineThickness, nOrder, nRender);
+  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_CURVE, jEnabled, jColor, JsonBool(0), jLineThickness, nOrder, nRender, nBindArrays);
   ret = JsonObjectSet(ret, "a", jA);
   ret = JsonObjectSet(ret, "b", jB);
   ret = JsonObjectSet(ret, "ctrl0", jCtrl0);
@@ -1002,10 +1014,11 @@ NuiDrawListCircle(
   json jLineThickness,
   json jRect,
   int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
-  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS
+  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS,
+  int nBindArrays = FALSE
 )
 {
-  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_CIRCLE, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender);
+  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_CIRCLE, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender, nBindArrays);
   ret = JsonObjectSet(ret, "rect", jRect);
   return ret;
 }
@@ -1021,10 +1034,11 @@ NuiDrawListArc(
   json jAMin,
   json jAMax,
   int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
-  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS
+  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS,
+  int nBindArrays = FALSE
 )
 {
-  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_ARC, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender);
+  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_ARC, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender, nBindArrays);
   ret = JsonObjectSet(ret, "c", jCenter);
   ret = JsonObjectSet(ret, "radius", jRadius);
   ret = JsonObjectSet(ret, "amin", jAMin);
@@ -1039,10 +1053,11 @@ NuiDrawListText(
   json jRect,
   json jText,
   int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
-  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS
+  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS,
+  int nBindArrays = FALSE
 )
 {
-  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_TEXT, jEnabled, jColor, JsonNull(), JsonNull(), nOrder, nRender);
+  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_TEXT, jEnabled, jColor, JsonNull(), JsonNull(), nOrder, nRender, nBindArrays);
   ret = JsonObjectSet(ret, "rect", jRect);
   ret = JsonObjectSet(ret, "text", jText);
   return ret;
@@ -1057,10 +1072,11 @@ NuiDrawListImage(
   json jHAlign,
   json jVAlign,
   int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
-  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS
+  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS,
+  int nBindArrays = FALSE
 )
 {
-  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_IMAGE, jEnabled, JsonNull(), JsonNull(), JsonNull(), nOrder, nRender);
+  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_IMAGE, jEnabled, JsonNull(), JsonNull(), JsonNull(), nOrder, nRender, nBindArrays);
   ret = JsonObjectSet(ret, "image", jResRef);
   ret = JsonObjectSet(ret, "rect", jRect);
   ret = JsonObjectSet(ret, "image_aspect", jAspect);
@@ -1086,10 +1102,11 @@ NuiDrawListLine(
   json jA,
   json jB,
   int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
-  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS
+  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS,
+  int nBindArrays = FALSE
 )
 {
-  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_LINE, jEnabled, jColor, JsonNull(), jLineThickness, nOrder, nRender);
+  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_LINE, jEnabled, jColor, JsonNull(), jLineThickness, nOrder, nRender, nBindArrays);
   ret = JsonObjectSet(ret, "a", jA);
   ret = JsonObjectSet(ret, "b", jB);
   return ret;
@@ -1103,10 +1120,11 @@ NuiDrawListRect(
   json jLineThickness,
   json jRect,
   int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
-  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS
+  int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS,
+  int nBindArrays = FALSE
 )
 {
-  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_RECT, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender);
+  json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_RECT, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender, nBindArrays);
   ret = JsonObjectSet(ret, "rect", jRect);
   return ret;
 }

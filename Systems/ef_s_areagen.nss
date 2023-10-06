@@ -14,6 +14,7 @@
 const string AG_SCRIPT_NAME                                     = "ef_s_areagen";
 const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject";
 
+const int AG_ENABLE_SEEDED_RANDOM                               = TRUE;
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
 const float AG_GENERATION_DELAY                                 = 0.1f;
 const int AG_GENERATION_TILE_BATCH                              = 32;
@@ -51,6 +52,7 @@ const string AG_DATA_KEY_GENERATION_CALLBACK                    = "GenerationCal
 const string AG_DATA_KEY_GENERATION_LOG_STATUS                  = "GenerationLogStatus";
 const string AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE    = "GenerationSingleGroupTileChance";
 const string AG_DATA_KEY_GENERATION_TYPE                        = "GenerationType";
+const string AG_DATA_KEY_GENERATION_RANDOM_NAME                 = "GenerationRandomName";
 
 const string AG_DATA_KEY_TILE_ID                                = "TileID";
 const string AG_DATA_KEY_TILE_LOCKED                            = "Locked";
@@ -1757,12 +1759,28 @@ object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex
 
 int AG_Random(string sAreaID, int nMaxInteger)
 {
-    return Random(nMaxInteger);
+    if (SQL_ENABLE_MERSENNE_TWISTER && AG_ENABLE_SEEDED_RANDOM)
+    {
+        string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME);
+        return sRandomName == "" ? Random(nMaxInteger) : SqlMersenneTwisterGetValue(sRandomName, nMaxInteger);
+    }
+    else
+    {
+        return Random(nMaxInteger);
+    }
 }
 
 string AG_GetRandomQueryString(string sAreaID)
 {
-    return "RANDOM()";
+    if (SQL_ENABLE_MERSENNE_TWISTER && AG_ENABLE_SEEDED_RANDOM)
+    {
+        string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME);
+        return sRandomName == "" ? "RANDOM()" : "MT_VALUE('" + sRandomName + "')";
+    }
+    else
+    {
+        return "RANDOM()";
+    }
 }
 
 json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHeight)

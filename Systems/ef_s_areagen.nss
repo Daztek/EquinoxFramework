@@ -879,6 +879,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
     {
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS) + 1);
         AG_GenerateArea(sAreaID);
+        //Profiler_Stop();
         return;
     }
 

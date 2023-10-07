@@ -4,52 +4,23 @@
 */
 
 #include "ef_i_core"
+#include "ef_s_eventman"
 #include "nwnx_object"
 
 const string PERAOE_SCRIPT_NAME                     = "ef_s_peraoe";
-
 const int AOE_MOB_CUSTOM                            = 37;
-
-const string PERAOE_SCRIPT_ON_ENTER                 = "ef_s_peraoe_oen";
-const string PERAOE_SCRIPT_ON_EXIT                  = "ef_s_peraoe_oex";
-const string PERAOE_SCRIPT_ON_HEARTBEAT             = "ef_s_peraoe_ohb";
 
 void PerAOE_Apply(object oTarget, float fRadius, string sEffectTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "");
 
-void PerAOE_AddScript(string sScript)
+void PerAOE_SetScriptChunk(object oAoE, int nEventScript, string sSystem, string sFunction)
 {
-    string sObjectSelf = nssObject("oSelf", nssFunction("GetAreaOfEffectCreator"));
-    string sGetLocalString = nssFunction("GetLocalString", "oSelf, " + nssEscape(sScript), FALSE);
-    string sExecuteScriptChunk = nssFunction("ExecuteScriptChunk", sGetLocalString + ", OBJECT_SELF, FALSE");
-    string sScriptChunk = sObjectSelf + sExecuteScriptChunk;
-
-    string sError = VMCompileScript(sScript, PERAOE_SCRIPT_NAME, sScriptChunk);
-
-    if (sError != "")
-        LogError("Failed to compile script '" + sScript + "' with error: " + sError);
-}
-
-// @CORE[EF_SYSTEM_INIT]
-void PerAOE_Init()
-{
-    PerAOE_AddScript(PERAOE_SCRIPT_ON_ENTER);
-    PerAOE_AddScript(PERAOE_SCRIPT_ON_EXIT);
-    PerAOE_AddScript(PERAOE_SCRIPT_ON_HEARTBEAT);
-}
-
-string PerAOE_SetScriptChunk(object oTarget, string sScript, string sSystem, string sFunction)
-{
-    if (sFunction == "")
+    if (sFunction != "")
     {
-        DeleteLocalString(oTarget, sScript);
-        return "";
+        string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
+        EFCore_CacheScriptChunk(sScriptChunk);
+        SetLocalString(oAoE, IntToString(nEventScript), sScriptChunk);
+        EM_SetObjectEventScript(oAoE, nEventScript, FALSE);
     }
-
-    string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
-    EFCore_CacheScriptChunk(sScriptChunk);
-    SetLocalString(oTarget, sScript, sScriptChunk);
-
-    return sScript;
 }
 
 void PerAOE_Apply(object oTarget, float fRadius, string sEffectTag, string sSystem, string sOnEnterFunction = "", string sOnExitFunction = "", string sOnHeartbeatFunction = "")
@@ -59,11 +30,7 @@ void PerAOE_Apply(object oTarget, float fRadius, string sEffectTag, string sSyst
     if (sOnEnterFunction == "" && sOnExitFunction == "" && sOnHeartbeatFunction == "")
         return;
 
-    sOnEnterFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_ENTER, sSystem, sOnEnterFunction);
-    sOnExitFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_EXIT, sSystem, sOnExitFunction);
-    sOnHeartbeatFunction = PerAOE_SetScriptChunk(oTarget, PERAOE_SCRIPT_ON_HEARTBEAT, sSystem, sOnHeartbeatFunction);
-
-    effect eAoE = EffectAreaOfEffect(AOE_MOB_CUSTOM, sOnEnterFunction, sOnHeartbeatFunction, sOnExitFunction);
+    effect eAoE = EffectAreaOfEffect(AOE_MOB_CUSTOM);
            eAoE = TagEffect(eAoE, sEffectTag);
            eAoE = ExtraordinaryEffect(eAoE);
 
@@ -71,5 +38,33 @@ void PerAOE_Apply(object oTarget, float fRadius, string sEffectTag, string sSyst
 
     object oAoE = NWNX_Util_GetLastCreatedObject(NWNX_OBJECT_TYPE_INTERNAL_AREAOFEFFECT);
     if (GetIsObjectValid(oAoE))
+    {
         NWNX_Object_SetAoEObjectRadius(oAoE, fRadius);
+        PerAOE_SetScriptChunk(oAoE, EVENT_SCRIPT_AREAOFEFFECT_ON_OBJECT_ENTER, sSystem, sOnEnterFunction);
+        PerAOE_SetScriptChunk(oAoE, EVENT_SCRIPT_AREAOFEFFECT_ON_OBJECT_EXIT, sSystem, sOnExitFunction);
+        PerAOE_SetScriptChunk(oAoE, EVENT_SCRIPT_AREAOFEFFECT_ON_HEARTBEAT, sSystem, sOnHeartbeatFunction);
+    }
+}
+
+void PerAOE_RunScript()
+{
+    ExecuteScriptChunk(GetLocalString(OBJECT_SELF, IntToString(GetCurrentlyRunningEvent())), OBJECT_SELF, FALSE);
+}
+
+// @EVENT[EVENT_SCRIPT_AREAOFEFFECT_ON_OBJECT_ENTER::]
+void PerAOE_OnEnter()
+{
+    PerAOE_RunScript();
+}
+
+// @EVENT[EVENT_SCRIPT_AREAOFEFFECT_ON_OBJECT_EXIT::]
+void PerAOE_OnExit()
+{
+    PerAOE_RunScript();
+}
+
+// @EVENT[EVENT_SCRIPT_AREAOFEFFECT_ON_HEARTBEAT::]
+void PerAOE_OnHeartbeat()
+{
+    PerAOE_RunScript();
 }

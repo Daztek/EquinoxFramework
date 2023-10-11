@@ -14,7 +14,7 @@ void Grass_SetGrass(object oArea, string sTexture);
 // @CORE[EF_SYSTEM_INIT]
 void Grass_Init()
 {
-    int nSeed = 25;
+    int nSeed = 100;
     LogInfo("Seed: " + IntToString(nSeed));
     SqlMersenneTwisterSetSeed(GRASS_SCRIPT_NAME, nSeed);
 }
@@ -27,7 +27,7 @@ void Grass_OnAreaPostProcessed()
 
 void Grass_SetGrass(object oArea, string sTexture)
 {
-    float fDensity = 1.0f + ((SqlMersenneTwisterGetValue(GRASS_SCRIPT_NAME, 140) + 1) / 10.0f);
+    float fDensity = 1.0f + ((SqlMersenneTwisterGetValue(GRASS_SCRIPT_NAME, 240) + 1) / 10.0f);
     float fHeight = 0.1f + ((SqlMersenneTwisterGetValue(GRASS_SCRIPT_NAME, 25) + 1) / 10.0f);
     vector vColor = Vector(1.0f, 1.0f, 1.0f);
 

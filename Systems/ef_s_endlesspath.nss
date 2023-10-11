@@ -34,6 +34,7 @@ const int EP_AREA_RIDGE_CHANCE                      = 20;
 const int EP_AREA_ROAD_CHANCE                       = 20;
 const int EP_AREA_GRASS2_CHANCE                     = 25;
 const int EP_AREA_WALL_CHANCE                       = 1;
+const int EP_AREA_CHASM_CHANCE                      = 10;
 
 const int EP_AREA_SINGLE_GROUP_TILE_CHANCE          = 2;
 
@@ -70,7 +71,7 @@ void EP_Init()
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
 
-    int nSeed = 13;//10;
+    int nSeed = 10;
     LogInfo("Seed: " + IntToString(nSeed));
     SqlMersenneTwisterSetSeed(EP_SCRIPT_NAME, nSeed);
 }
@@ -210,6 +211,7 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
         EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "RIDGE", EP_AREA_RIDGE_CHANCE);
         EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "GRASS2", EP_AREA_GRASS2_CHANCE);
         EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "WALL", EP_AREA_WALL_CHANCE);
+        EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "CHASM", EP_AREA_CHASM_CHANCE);
     }
 
     AG_AddPathDoorCrosserCombo(sAreaID, 80, "ROAD");
@@ -292,6 +294,8 @@ void EP_OnAreaGenerated(string sAreaID)
 
         SetTransitionTarget(oPreviousDoor, oEntranceDoor);
         SetTransitionTarget(oEntranceDoor, oPreviousDoor);
+
+        //AG_ExtractExitEdgeTerrains(sAreaID);
 
         LogInfo("Creating Area: " + GetTag(oArea) + " -> Generation Type: " + AG_GetGenerationTypeAsString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
 
@@ -431,5 +435,5 @@ string EP_TileInfo()
             "Height: " + IntToString(str.nHeight) + "\n" +
             "Orientation: " + IntToString(str.nOrientation) + "\n" +
             "Surface Material: " + Get2DAString("surfacemat", "Label", nSurfaceMaterial) +  " (" + IntToString(nSurfaceMaterial) + ")\n\n" +
-            TS_GetTileStructAsString(GetTilesetResRef(oArea), str.nID);
+            TS_GetTileStructAsString(GetTilesetResRef(oArea), str.nID, str.nOrientation);
 }

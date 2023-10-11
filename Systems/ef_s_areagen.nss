@@ -1354,7 +1354,7 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
 {
     int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
     int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
-    string nTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
+    string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
     int nExitTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
     int nExitEdge = AG_GetEdgeFromTile(sAreaID, nExitTile);
 
@@ -1369,8 +1369,9 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
             for (nCount = 0; nCount < nNumTiles; nCount++)
             {
                 int nTile = nStart + nCount;
+                int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
                 int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(nTileset, nTile, nOrientation);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
 
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTL));
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTR));
@@ -1385,8 +1386,9 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
             for (nCount = 0; nCount < nNumTiles; nCount++)
             {
                 int nTile = nStart + (nCount * nWidth);
+                int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
                 int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(nTileset, nTile, nOrientation);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
 
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTR));
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBR));
@@ -1401,8 +1403,9 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
             for (nCount = 0; nCount < nNumTiles; nCount++)
             {
                 int nTile = nStart + nCount;
+                int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
                 int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(nTileset, nTile, nOrientation);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
 
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBL));
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBR));
@@ -1417,8 +1420,9 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
             for (nCount = 0; nCount < nNumTiles; nCount++)
             {
                 int nTile = nStart + (nCount * nWidth);
+                int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
                 int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(nTileset, nTile, nOrientation);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
 
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTL));
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBL));
@@ -1428,6 +1432,8 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
     }
 
     AG_SetJsonDataByKey(sAreaID, AG_DATA_KEY_ARRAY_EXIT_EDGE_TERRAINS, jExitEdgeTerrains);
+
+    PrintString("Exit Terrain: " + JsonDump(jExitEdgeTerrains));
 }
 
 int AG_GetNextTile(int nAreaWidth, int nTile, int nEdge)

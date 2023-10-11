@@ -95,7 +95,7 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID);
 
 vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical);
 void TS_PrintTileStruct(struct TS_TileStruct str, int nTileID = -1);
-string TS_GetTileStructAsString(string sTileset, int nTileID);
+string TS_GetTileStructAsString(string sTileset, int nTileID, int nOrientation);
 
 // @CORE[EF_SYSTEM_INIT]
 void Tileset_Init()
@@ -839,15 +839,16 @@ void TS_PrintTileStruct(struct TS_TileStruct str, int nTileID = -1)
     PrintString("L: " + str.sL);
 }
 
-string TS_GetTileStructAsString(string sTileset, int nTileID)
+string TS_GetTileStructAsString(string sTileset, int nTileID, int nOrientation)
 {
-    struct NWNX_Tileset_TileEdgesAndCorners str = NWNX_Tileset_GetTileEdgesAndCorners(sTileset, nTileID);
-    return "TL: " + str.sTopLeft + "\n" +
-           "T: " + str.sTop + "\n" +
-           "TR: " + str.sTopRight + "\n" +
-           "R: " + str.sRight + "\n" +
-           "BR: " + str.sBottomRight + "\n" +
-           "B: " + str.sBottom + "\n" +
-           "BL: " + str.sBottomLeft + "\n" +
-           "L: " + str.sLeft;
+    struct TS_TileStruct str = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
+
+    return "TL: " + str.sTL + "\n" +
+           "T: " + str.sT + "\n" +
+           "TR: " + str.sTR + "\n" +
+           "R: " + str.sR + "\n" +
+           "BR: " + str.sBR + "\n" +
+           "B: " + str.sB + "\n" +
+           "BL: " + str.sBL + "\n" +
+           "L: " + str.sL;
 }

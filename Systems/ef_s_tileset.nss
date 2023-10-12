@@ -226,6 +226,28 @@ struct TS_TileStruct TS_UpperCaseTileStruct(struct TS_TileStruct str)
 struct TS_TileStruct TS_GetTileEdgesAndCorners(string sTileset, int nTileID)
 {
     struct NWNX_Tileset_TileEdgesAndCorners strTile = NWNX_Tileset_GetTileEdgesAndCorners(sTileset, nTileID);
+
+    if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
+    {
+        if (nTileID == 433)
+        {
+            strTile.sTopLeft = "grass2";
+            strTile.sTop = "ridge";
+            strTile.sTopRight = "grass+";
+            strTile.sRight = "ridge";
+            strTile.sBottomRight = "grass2";
+            strTile.sBottom = "ridge";
+            strTile.sBottomLeft = "grass+";
+            strTile.sLeft = "ridge";
+        }
+
+        if (nTileID == 204)
+        {
+            strTile.sLeft = "";
+            strTile.sRight = "";
+        }
+    }
+
     struct TS_TileStruct str;
     str.sTL = strTile.sTopLeft;
     str.sT = strTile.sTop;
@@ -700,19 +722,6 @@ void TS_ProcessTile(string sTileset, int nTileID)
 
         if (nTileID == 812 || nTileID == 773 || nTileID == 1021 || nTileID == 541)
             return;
-
-        if (nTileID == 433)
-        {
-            strTile.sTL = "grass2";
-            strTile.sT = "ridge";
-            strTile.sTR = "grass+";
-            strTile.sR = "ridge";
-            strTile.sBR = "grass2";
-            strTile.sB = "ridge";
-            strTile.sBL = "grass+";
-            strTile.sL = "ridge";
-            strTile = TS_UpperCaseTileStruct(strTile);
-        }
     }
 
     string sQuery = "INSERT INTO " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " (tile_id, orientation, height, tl, t, tr, r, br, b, bl, l, bitmask, is_group_tile) " +

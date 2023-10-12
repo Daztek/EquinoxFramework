@@ -18,6 +18,7 @@ const string AREAMUSIC_AREA_TOOLSET_TRACKLIST_NAME              = "AreaToolsetTr
 
 const string AREAMUSIC_AREA_MUSIC_EVENT                         = "AreaMusic";
 const int AREAMUSIC_AREA_MUSIC_EVENT_PRIORITY                   = 5;
+const float AREAMUSIC_UPDATE_TIMER                              = 600.0f;
 
 const int AREAMUSIC_MUSIC_TYPE_DAY                              = 1;
 const int AREAMUSIC_MUSIC_TYPE_NIGHT                            = 2;
@@ -42,6 +43,7 @@ json AreaMusic_GetAreaBattleMusicTrack(object oArea, object oDataObject = OBJECT
 void AreaMusic_DeleteAreaBattleMusicTrack(object oArea);
 void AreaMusic_InitializeToolsetTrackLists();
 void AreaMusic_UpdateTrackLists();
+void AreaMusic_UpdateTrackListsTimer();
 
 // @CORE[EF_SYSTEM_INIT]
 void AreaMusic_Init()
@@ -53,7 +55,7 @@ void AreaMusic_Init()
 void AreaMusic_Post()
 {
     AreaMusic_InitializeToolsetTrackLists();
-    AreaMusic_UpdateTrackLists();
+    AreaMusic_UpdateTrackListsTimer();
 }
 
 // @MUSICEVENT[AREAMUSIC_AREA_MUSIC_EVENT:AREAMUSIC_AREA_MUSIC_EVENT_PRIORITY:MUSMAN_DEFAULT_FADE_TIME]
@@ -69,12 +71,6 @@ json AreaMusic_GetAreaMusicTrack()
     }
     else
         return JsonNull();
-}
-
-// @NWNX[NWNX_ON_CALENDAR_HOUR]
-void AreaMusic_OnHour()
-{
-    AreaMusic_UpdateTrackLists();
 }
 
 // @NWNX[NWNX_ON_AREA_PLAY_BATTLE_MUSIC_BEFORE:DL]
@@ -265,4 +261,10 @@ void AreaMusic_UpdateTrackLists()
     }
 
     MusMan_UpdatePlayerMusicByEvent(AREAMUSIC_AREA_MUSIC_EVENT);
+}
+
+void AreaMusic_UpdateTrackListsTimer()
+{
+    AreaMusic_UpdateTrackLists();
+    DelayCommand(AREAMUSIC_UPDATE_TIMER, AreaMusic_UpdateTrackListsTimer());
 }

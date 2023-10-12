@@ -14,7 +14,7 @@ const string SA_STARTING_AREA_TAG                   = "AR_TOWN";
 const string SA_AREA_ID                             = "SAStartingArea";
 const string SA_AREA_TILESET                        = TILESET_RESREF_MEDIEVAL_RURAL_2;
 const int SA_MAX_ITERATIONS                         = 50;
-const string SA_AREA_DEFAULT_EDGE_TERRAIN           = "TREES";
+const string SA_AREA_DEFAULT_EDGE_TERRAIN           = "";
 const int SA_AREA_LENGTH                            = 8;
 const int SA_AREA_CHUNK_SIZE                        = 2;
 const int SA_AREA_SINGLE_GROUP_TILE_CHANCE          = 2;
@@ -22,7 +22,7 @@ const int SA_AREA_SINGLE_GROUP_TILE_CHANCE          = 2;
 // @CORE[EF_SYSTEM_INIT]
 void SA_Init()
 {
-    int nSeed = 25;
+    int nSeed = Random(1000000000);
     LogInfo("Seed: " + IntToString(nSeed));
     SqlMersenneTwisterSetSeed(SA_SCRIPT_NAME, nSeed);
 }

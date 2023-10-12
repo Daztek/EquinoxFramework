@@ -158,6 +158,8 @@ void AG_InitializeTileArrays(string sAreaID, int nWidth, int nHeight);
 void AG_InitializeRandomArea(string sAreaID, string sTileset, string sEdgeTerrain = "", int nWidth = AG_AREA_DEFAULT_WIDTH, int nHeight = AG_AREA_DEFAULT_HEIGHT);
 int AG_GetNeighborTile(string sAreaID, int nTile, int nDirection);
 void AG_ResetNeighborTiles(string sAreaID, int nTile);
+void AG_ResetNeighborTileChunk(string sAreaID, int nTile);
+void AG_ResetGrid(string sAreaID);
 struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDirection);
 string AG_ResolveCorner(string sCorner1, string sCorner2);
 string AG_SqlConstructCAEClause(struct TS_TileStruct str);
@@ -574,6 +576,38 @@ void AG_ResetNeighborTiles(string sAreaID, int nTile)
         AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
 }
 
+void AG_ResetNeighborTileChunk(string sAreaID, int nTile)
+{
+    int nNeighborTile = AG_GetNeighborTile(sAreaID, nTile, AG_NEIGHBOR_TILE_TOP_LEFT);
+    if (nNeighborTile != AG_INVALID_TILE_ID)
+        AG_ResetNeighborTiles(sAreaID, nNeighborTile);
+
+    nNeighborTile = AG_GetNeighborTile(sAreaID, nTile, AG_NEIGHBOR_TILE_TOP_RIGHT);
+    if (nNeighborTile != AG_INVALID_TILE_ID)
+        AG_ResetNeighborTiles(sAreaID, nNeighborTile);
+
+    nNeighborTile = AG_GetNeighborTile(sAreaID, nTile, AG_NEIGHBOR_TILE_BOTTOM_LEFT);
+    if (nNeighborTile != AG_INVALID_TILE_ID)
+        AG_ResetNeighborTiles(sAreaID, nNeighborTile);
+
+    nNeighborTile = AG_GetNeighborTile(sAreaID, nTile, AG_NEIGHBOR_TILE_BOTTOM_RIGHT);
+    if (nNeighborTile != AG_INVALID_TILE_ID)
+        AG_ResetNeighborTiles(sAreaID, nNeighborTile);
+
+    AG_ResetNeighborTiles(sAreaID, nTile);
+}
+
+void AG_ResetGrid(string sAreaID)
+{
+    int nTile, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
+    for (nTile = 0; nTile < nNumTiles; nTile++)
+    {
+        if (!AG_Tile_GetLocked(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile) &&
+            AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile) != AG_INVALID_TILE_ID)
+            AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+    }
+}
+
 struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDirection)
 {
     struct TS_TileStruct str;
@@ -604,9 +638,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
         }
 
         if (nHeight)
-        {
             str = TS_IncreaseTileHeight(sTileset, str, nHeight);
-        }
     }
     else
     {
@@ -886,6 +918,8 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
     int nGenerationType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE);
     int nCurrentMaxTiles = min(nCurrentTile + AG_GENERATION_TILE_BATCH, nNumTiles);
 
+    //PrintString("nCurrentMaxTiles: " + IntToString(nCurrentTile) + " nCurrentMaxTiles: " + IntToString(nCurrentMaxTiles));
+
     switch (nGenerationType)
     {
         case AG_GENERATION_TYPE_SPIRAL_INWARD:
@@ -1075,7 +1109,7 @@ void AG_GenerateArea(string sAreaID)
     {
         int nIteration = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS);
 
-        //PrintString("ITERATION: " + IntToString(nIteration));
+        //PrintString("ITERATION: " + IntToString(nIteration) + " " + sAreaID);
 
         if (!nIteration)
         {
@@ -1237,7 +1271,7 @@ void AG_CreatePathExitDoorTile(string sAreaID)
         nExitTile = nRandom * nWidth;
     }
 
-    int nExitHeight = 0;//clamp(AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nEntranceTile) + (AG_Random(sAreaID, 3) - 1), 0, TS_MAX_TILE_HEIGHT - 1);
+    int nExitHeight = clamp(AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nEntranceTile) + (AG_Random(sAreaID, 3) - 1), 0, TS_MAX_TILE_HEIGHT - 1);
     AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nExitTile, nPathDoorTileID, nOrientation, nExitHeight, TRUE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX, nExitTile);
 }
@@ -1433,7 +1467,7 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
 
     AG_SetJsonDataByKey(sAreaID, AG_DATA_KEY_ARRAY_EXIT_EDGE_TERRAINS, jExitEdgeTerrains);
 
-    PrintString("Exit Terrain: " + JsonDump(jExitEdgeTerrains));
+    //PrintString("Exit Terrain: " + JsonDump(jExitEdgeTerrains));
 }
 
 int AG_GetNextTile(int nAreaWidth, int nTile, int nEdge)

@@ -21,8 +21,8 @@ const int EP_POSTPROCESS_TILE_BATCH                 = 8;
 const string EP_EVENT_AREA_POST_PROCESS_FINISHED    = "EP_EVENT_AREA_POST_PROCESS_FINISHED";
 
 const string EP_AREA_TILESET                        = TILESET_RESREF_MEDIEVAL_RURAL_2;
-const int EP_MAX_ITERATIONS                         = 50;
-const string EP_AREA_DEFAULT_EDGE_TERRAIN           = "TREES";
+const int EP_MAX_ITERATIONS                         = 100;
+const string EP_AREA_DEFAULT_EDGE_TERRAIN           = "";
 const int EP_AREA_MINIMUM_LENGTH                    = 8;
 const int EP_AREA_RANDOM_LENGTH                     = 12;
 
@@ -46,6 +46,7 @@ string EP_GetLastDoorID();
 string EP_GetNextDoorID();
 void EP_SetLastGenerationData(object oArea, int nEdge, int nWidth, int nHeight);
 void EP_ToggleTerrainOrCrosser(string sAreaID, object oPreviousArea, string sCrosser, int nChance);
+void EP_SetGenerationType(string sAreaID);
 void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int nAreaWidth, int nAreaHeight);
 int EP_GetAreaNum(string sAreaID);
 int EP_GetIsEPArea(object oArea);
@@ -71,7 +72,7 @@ void EP_Init()
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
 
-    int nSeed = 10;
+    int nSeed = Random(1000000000);
     LogInfo("Seed: " + IntToString(nSeed));
     SqlMersenneTwisterSetSeed(EP_SCRIPT_NAME, nSeed);
 }
@@ -182,6 +183,26 @@ void EP_ToggleTerrainOrCrosser(string sAreaID, object oPreviousArea, string sCro
     }
 }
 
+void EP_SetGenerationType(string sAreaID)
+{
+    int nEntranceTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX);
+    int nEntranceEdge = AG_GetEdgeFromTile(sAreaID, nEntranceTile);
+    int nExitTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
+    int nExitEdge = AG_GetEdgeFromTile(sAreaID, nExitTile);
+    int nGenerationType = AG_GENERATION_TYPE_LINEAR_ASCENDING;
+
+    if ((nEntranceEdge == AG_AREA_EDGE_TOP && nExitEdge == AG_AREA_EDGE_BOTTOM) ||
+        (nEntranceEdge == AG_AREA_EDGE_BOTTOM && nExitEdge == AG_AREA_EDGE_TOP))
+        nGenerationType = AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD;
+    else if ((nEntranceEdge == AG_AREA_EDGE_RIGHT && nExitEdge == AG_AREA_EDGE_LEFT) ||
+             (nEntranceEdge == AG_AREA_EDGE_LEFT && nExitEdge == AG_AREA_EDGE_RIGHT))
+        nGenerationType = AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD;
+    else
+        nGenerationType = AG_GENERATION_TYPE_SPIRAL_INWARD;
+
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, nGenerationType);
+}
+
 void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int nAreaWidth, int nAreaHeight)
 {
     EP_SetLastGenerationData(oPreviousArea, nEdgeToCopy, nAreaWidth, nAreaHeight);
@@ -219,10 +240,11 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     AG_SetAreaPathDoorCrosserCombo(sAreaID, AG_Random(sAreaID, 100) < EP_AREA_ROAD_CHANCE ? 0 : 1);
 
     AG_CopyEdgeFromArea(sAreaID, oPreviousArea, nEdgeToCopy);
-    AG_GenerateEdge(sAreaID, AG_AREA_EDGE_TOP);
-    AG_GenerateEdge(sAreaID, AG_AREA_EDGE_RIGHT);
-    AG_GenerateEdge(sAreaID, AG_AREA_EDGE_BOTTOM);
-    AG_GenerateEdge(sAreaID, AG_AREA_EDGE_LEFT);
+    //AG_GenerateEdge(sAreaID, AG_AREA_EDGE_TOP);
+    //AG_GenerateEdge(sAreaID, AG_AREA_EDGE_RIGHT);
+    //AG_GenerateEdge(sAreaID, AG_AREA_EDGE_BOTTOM);
+    //AG_GenerateEdge(sAreaID, AG_AREA_EDGE_LEFT);
+    //EP_SetGenerationType(sAreaID);
     AG_PlotRoad(sAreaID);
 
     AG_GenerateArea(sAreaID);
@@ -295,9 +317,10 @@ void EP_OnAreaGenerated(string sAreaID)
         SetTransitionTarget(oPreviousDoor, oEntranceDoor);
         SetTransitionTarget(oEntranceDoor, oPreviousDoor);
 
-        //AG_ExtractExitEdgeTerrains(sAreaID);
+        AG_ExtractExitEdgeTerrains(sAreaID);
 
         LogInfo("Creating Area: " + GetTag(oArea) + " -> Generation Type: " + AG_GetGenerationTypeAsString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
+        LogInfo(" > Exit Height: " + IntToString( AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX))));
 
         DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea));
     }

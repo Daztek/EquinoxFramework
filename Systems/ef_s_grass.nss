@@ -28,7 +28,7 @@ void Grass_OnAreaPostProcessed()
 void Grass_SetGrass(object oArea, string sTexture)
 {
     float fDensity = 1.0f + ((SqlMersenneTwisterGetValue(GRASS_SCRIPT_NAME, 240) + 1) / 10.0f);
-    float fHeight = 0.1f + ((SqlMersenneTwisterGetValue(GRASS_SCRIPT_NAME, 25) + 1) / 10.0f);
+    float fHeight = 0.5f + ((SqlMersenneTwisterGetValue(GRASS_SCRIPT_NAME, 9) + 1) / 10.0f);
     vector vColor = Vector(1.0f, 1.0f, 1.0f);
 
     LogInfo("Setting Grass for Area: " + GetTag(oArea) + " - > Texture: " + sTexture + ", Density: " + FloatToString(fDensity, 0, 2) + ", Height: " + FloatToString(fHeight, 0, 2));

@@ -72,6 +72,10 @@ int clamp(int nValue, int nMin, int nMax);
 // Returns fValue bounded by fMin and fMax
 float clampf(float fValue, float fMin, float fMax);
 
+int floor(float f);
+int ceil(float f);
+int round(float f);
+
 // Delete oObject's local vector variable sVarName
 void DeleteLocalVector(object oObject, string sVarName);
 // Get oObject's local vector variable sVarname
@@ -364,6 +368,21 @@ int clamp(int nValue, int nMin, int nMax)
 float clampf(float fValue, float fMin, float fMax)
 {
     return fValue < fMin ? fMin : fValue > fMax ? fMax : fValue;
+}
+
+int floor(float f)
+{
+    return FloatToInt(f);
+}
+
+int ceil(float f)
+{
+    return FloatToInt(f + (IntToFloat(FloatToInt(f)) < f ? 1.0 : 0.0));
+}
+
+int round(float f)
+{
+    return FloatToInt(f + 0.5f);
 }
 
 void DeleteLocalVector(object oObject, string sVarName)

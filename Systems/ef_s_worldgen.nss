@@ -21,7 +21,7 @@ const string WG_WORLD_SEED_NAME                                 = "WG_WORLD_SEED
 const string WG_AREA_TILESET                                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
 const int WG_MAX_ITERATIONS                                     = 100;
 const string WG_AREA_DEFAULT_EDGE_TERRAIN                       = "";
-const int WG_AREA_LENGTH                                        = 9;
+const int WG_AREA_LENGTH                                        = 7;
 
 const int WG_NEIGHBOR_AREA_TOP_LEFT                             = 0;
 const int WG_NEIGHBOR_AREA_TOP                                  = 1;
@@ -52,7 +52,6 @@ int WG_QueueEmpty();
 int WG_GetQueuePosition(string sAreaID);
 
 void WG_GenerateArea();
-int WG_ValidateTile(string sAreaID, int nTile, int nTileID, int nOrientation, int nHeight);
 void WG_OnAreaGenerated(string sAreaID);
 object WG_CreateArea(string sAreaID);
 void WG_SetAreaModifiers(object oArea);
@@ -277,11 +276,13 @@ void WG_GenerateArea()
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "STREET");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "WALL");
 
+/*
     int nIgnoreTOCBitmask = TS_GetTCBitflag(WG_AREA_TILESET, "CHASM");
     AG_Tile_SetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, 0, nIgnoreTOCBitmask);
     AG_Tile_SetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, WG_AREA_LENGTH - 1, nIgnoreTOCBitmask);
     AG_Tile_SetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, WG_AREA_LENGTH * (WG_AREA_LENGTH - 1) , nIgnoreTOCBitmask);
     AG_Tile_SetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, (WG_AREA_LENGTH * WG_AREA_LENGTH) - 1 , nIgnoreTOCBitmask);
+*/
 
     if (sAreaID == WG_GetStartingAreaID())
     {
@@ -308,37 +309,6 @@ void WG_GenerateArea()
     }
 
     AG_GenerateArea(sAreaID);
-}
-
-int WG_CheckTileTerrain(string sTerrain1, string sTerrain2, string sTerrain3)
-{
-    return ((sTerrain1 == "GRASS" || sTerrain1 == "TREES" || sTerrain1 == "MOUNTAIN") &&
-            (sTerrain2 == "GRASS" || sTerrain2 == "TREES" || sTerrain2 == "MOUNTAIN") &&
-            (sTerrain3 == "GRASS" || sTerrain3 == "TREES" || sTerrain3 == "MOUNTAIN")
-           ) ||
-           ((sTerrain1 == "WATER" && sTerrain2== "WATER" && sTerrain3 == "WATER") ||
-            (sTerrain1 == "SAND" && sTerrain2 == "SAND" && sTerrain3 == "SAND"));
-}
-
-int WG_ValidateTile(string sAreaID, int nTile, int nTileID, int nOrientation, int nHeight)
-{
-    int bValid = TRUE;
-
-    if (nTile == 0 || nTile == (WG_AREA_LENGTH - 1) || nTile == (WG_AREA_LENGTH * (WG_AREA_LENGTH - 1)) || nTile == ((WG_AREA_LENGTH * WG_AREA_LENGTH) - 1))
-    {
-        struct TS_TileStruct str = TS_GetCornersAndEdgesByOrientation(WG_AREA_TILESET, nTileID, nOrientation);
-
-        if (nTile == 0)
-            bValid = WG_CheckTileTerrain(str.sTL, str.sBR, str.sBL);
-        else if (nTile == (WG_AREA_LENGTH - 1))
-            bValid = WG_CheckTileTerrain(str.sTR, str.sBL, str.sBR);
-        else if (nTile == (WG_AREA_LENGTH * (WG_AREA_LENGTH - 1)))
-            bValid = WG_CheckTileTerrain(str.sTR, str.sBL, str.sTL);
-        else if (nTile == ((WG_AREA_LENGTH * WG_AREA_LENGTH) - 1))
-            bValid = WG_CheckTileTerrain(str.sTL, str.sBR, str.sTR);
-    }
-
-    return bValid;
 }
 
 void WG_OnAreaGenerated(string sAreaID)

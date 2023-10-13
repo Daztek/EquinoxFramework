@@ -211,7 +211,7 @@ void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int 
 void AG_GenerateAreaChunk(string sAreaID, int nChunk);
 void AG_InitializeChunkFromArea(string sAreaID, object oArea, int nChunk);
 int AG_CheckCornerTileTerrain(string sTerrain1, string sTerrain2, string sTerrain3);
-int WG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile);
+int AG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile);
 
 object AG_GetAreaDataObject(string sAreaID)
 {
@@ -904,7 +904,7 @@ void AG_ProcessTile(string sAreaID, int nTile)
     if (tile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
         tile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE);
 
-    if (tile.nTileID == AG_INVALID_TILE_ID || !WG_ValidateCornerTile(sAreaID, nTile, tile))
+    if (tile.nTileID == AG_INVALID_TILE_ID || !AG_ValidateCornerTile(sAreaID, nTile, tile))
         IntArray_Insert(AG_GetAreaDataObject(sAreaID), AG_FAILED_TILES_ARRAY, nTile);
     else
         AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, tile.nTileID, tile.nOrientation, tile.nHeight);
@@ -2071,10 +2071,11 @@ int AG_CheckCornerTileTerrain(string sTerrain1, string sTerrain2, string sTerrai
             (sTerrain3 == "GRASS" || sTerrain3 == "TREES" || sTerrain3 == "MOUNTAIN")
            ) ||
            ((sTerrain1 == "WATER" && sTerrain2== "WATER" && sTerrain3 == "WATER") ||
-            (sTerrain1 == "SAND" && sTerrain2 == "SAND" && sTerrain3 == "SAND"));
+            (sTerrain1 == "SAND" && sTerrain2 == "SAND" && sTerrain3 == "SAND") ||
+            (sTerrain1 == "CHASM" && sTerrain2 == "CHASM" && sTerrain3 == "CHASM"));
 }
 
-int WG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile)
+int AG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile)
 {
     if (!AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR))
         return TRUE;

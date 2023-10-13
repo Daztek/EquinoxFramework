@@ -121,39 +121,14 @@ void WG_OnAreaEdgeEnter()
     if (!GetIsPC(oPlayer) || !WG_GetIsWGArea(oArea))
         return;
 
-    int bTop = EM_NWNXGetInt("TOP");
-    int bRight = EM_NWNXGetInt("RIGHT");
-    int bBottom = EM_NWNXGetInt("BOTTOM");
-    int bLeft = EM_NWNXGetInt("LEFT");
-
-    //LogInfo("WG_OnAreaEdgeEnter: " + GetName(oPlayer) + " (" + GetTag(oArea) +
-    //        ") T: " + IntToString(bTop) + ", R: " + IntToString(bRight) +
-    //        ", B: " + IntToString(bBottom) + ", L: " + IntToString(bLeft));
-
-    if (bTop)
+    if (EM_NWNXGetInt("TOP"))
         WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_TOP);
-    else if (bRight)
+    else if (EM_NWNXGetInt("RIGHT"))
         WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_RIGHT);
-    else if (bBottom)
+    else if (EM_NWNXGetInt("BOTTOM"))
         WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_BOTTOM);
-    else if (bLeft)
+    else if (EM_NWNXGetInt("LEFT"))
         WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_LEFT);
-}
-
-// @CONSOLE[WGTileInfo::]
-string WG_TileInfo()
-{
-    object oTarget = OBJECT_SELF;
-    object oArea = GetArea(oTarget);
-    vector vPosition = GetPosition(oTarget);
-    struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfo(oArea, vPosition.x, vPosition.y);
-    int nSurfaceMaterial = GetSurfaceMaterial(GetLocation(oTarget));
-    return "Tileset: " + GetTilesetResRef(oArea) + ", TileID: " + IntToString(str.nID) + "\n" +
-            "GridX: " + IntToString(str.nGridX) + ", GridY: " + IntToString(str.nGridY) + "\n" +
-            "Height: " + IntToString(str.nHeight) + "\n" +
-            "Orientation: " + IntToString(str.nOrientation) + "\n" +
-            "Surface Material: " + Get2DAString("surfacemat", "Label", nSurfaceMaterial) +  " (" + IntToString(nSurfaceMaterial) + ")\n\n" +
-            TS_GetTileStructAsString(GetTilesetResRef(oArea), str.nID, str.nOrientation);
 }
 
 // @CONSOLE[WGQueueContents::]
@@ -307,9 +282,6 @@ void WG_OnAreaGenerated(string sAreaID)
 {
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
     {
-        if (WG_DEBUG_LOG)
-            LogDebug("Area Generation Failure: " + sAreaID + ", retrying...");
-
         WG_GenerateArea();
     }
     else
@@ -340,7 +312,6 @@ void WG_OnAreaGenerated(string sAreaID)
         }
 
         WG_QueuePop();
-
         if (!WG_QueueEmpty())
             WG_GenerateArea();
     }
@@ -358,7 +329,6 @@ object WG_CreateArea(string sAreaID)
     jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicBattle", 0);
     jArea = GffReplaceInt(jArea, "ARE/value/WindPower", AG_Random(sAreaID, 2) + 1);
     jArea = GffAddList(jArea, "ARE/value/Tile_List", AG_GetTileList(sAreaID));
-
     return JsonToObject(jArea, GetStartingLocation());
 }
 

@@ -2072,6 +2072,7 @@ int AG_CheckCornerTileTerrain(string sTerrain1, string sTerrain2, string sTerrai
            ) ||
            ((sTerrain1 == "WATER" && sTerrain2== "WATER" && sTerrain3 == "WATER") ||
             (sTerrain1 == "SAND" && sTerrain2 == "SAND" && sTerrain3 == "SAND") ||
+            (sTerrain1 == "GRASS2" && sTerrain2 == "GRASS2" && sTerrain3 == "GRASS2") ||
             (sTerrain1 == "CHASM" && sTerrain2 == "CHASM" && sTerrain3 == "CHASM"));
 }
 

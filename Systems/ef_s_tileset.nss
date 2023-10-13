@@ -58,11 +58,13 @@ int TS_GetNumOfTerrainOrCrosser(struct TS_TileStruct str, string sType);
 struct TS_TileStruct TS_ReplaceTerrainOrCrosser(struct TS_TileStruct str, string sOld, string sNew);
 struct TS_TileStruct TS_ReplaceTerrain(struct TS_TileStruct str, string sOld, string sNew);
 struct TS_TileStruct TS_SetTerrain(struct TS_TileStruct str, string sTerrain);
+struct TS_TileStruct TS_StripHeightIndicatorFromStruct(struct TS_TileStruct str);
+int TS_GetTerrainIsUniform(struct TS_TileStruct str);
 int TS_GetTerrainIsOfType(struct TS_TileStruct str, string sTerrain);
 int TS_GetIsCrosser(string sTileset, string sEdge);
 struct TS_TileStruct TS_IncreaseTileHeight(string sTileset, struct TS_TileStruct str, int nHeight);
 string TS_StripHeightIndicator(string sTC);
-int TS_GetTCBitmask(string sTileset, string sTC);
+int TS_GetTCBitflag(string sTileset, string sTC);
 int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str);
 int TS_GetTerrainHeight(string sTC);
 int TS_GetIsUniformTile(struct TS_TileStruct str);
@@ -334,6 +336,24 @@ struct TS_TileStruct TS_SetTerrain(struct TS_TileStruct str, string sTerrain)
     return str;
 }
 
+struct TS_TileStruct TS_StripHeightIndicatorFromStruct(struct TS_TileStruct str)
+{
+    str.sTL = TS_StripHeightIndicator(str.sTL);
+    str.sT = TS_StripHeightIndicator(str.sT);
+    str.sTR = TS_StripHeightIndicator(str.sTR);
+    str.sR = TS_StripHeightIndicator(str.sR);
+    str.sBR = TS_StripHeightIndicator(str.sBR);
+    str.sB = TS_StripHeightIndicator(str.sB);
+    str.sBL = TS_StripHeightIndicator(str.sBL);
+    str.sL = TS_StripHeightIndicator(str.sL);
+    return str;
+}
+
+int TS_GetTerrainIsUniform(struct TS_TileStruct str)
+{
+    return str.sTL == str.sTR && str.sTL == str.sBR && str.sTL == str.sBL;
+}
+
 int TS_GetTerrainIsOfType(struct TS_TileStruct str, string sTerrain)
 {
     return (str.sTL == sTerrain) && (str.sTR == sTerrain) &&
@@ -374,7 +394,7 @@ string TS_StripHeightIndicator(string sTC)
     return sTC;
 }
 
-int TS_GetTCBitmask(string sTileset, string sTC)
+int TS_GetTCBitflag(string sTileset, string sTC)
 {
     json jIndex = JsonFind(TS_GetTilesetTerrainCrosserArray(sTileset), JsonString(TS_StripHeightIndicator(sTC)));
     return JsonGetType(jIndex) == JSON_TYPE_INTEGER ? 1 << JsonGetInt(jIndex) : 0;
@@ -384,14 +404,14 @@ int TS_GetTileTCBitmask(string sTileset, struct TS_TileStruct str)
 {
     int nBitmask;
 
-    nBitmask |= TS_GetTCBitmask(sTileset, str.sTL);
-    nBitmask |= TS_GetTCBitmask(sTileset, str.sT);
-    nBitmask |= TS_GetTCBitmask(sTileset, str.sTR);
-    nBitmask |= TS_GetTCBitmask(sTileset, str.sR);
-    nBitmask |= TS_GetTCBitmask(sTileset, str.sBR);
-    nBitmask |= TS_GetTCBitmask(sTileset, str.sB);
-    nBitmask |= TS_GetTCBitmask(sTileset, str.sBL);
-    nBitmask |= TS_GetTCBitmask(sTileset, str.sL);
+    nBitmask |= TS_GetTCBitflag(sTileset, str.sTL);
+    nBitmask |= TS_GetTCBitflag(sTileset, str.sT);
+    nBitmask |= TS_GetTCBitflag(sTileset, str.sTR);
+    nBitmask |= TS_GetTCBitflag(sTileset, str.sR);
+    nBitmask |= TS_GetTCBitflag(sTileset, str.sBR);
+    nBitmask |= TS_GetTCBitflag(sTileset, str.sB);
+    nBitmask |= TS_GetTCBitflag(sTileset, str.sBL);
+    nBitmask |= TS_GetTCBitflag(sTileset, str.sL);
 
     return nBitmask;
 }

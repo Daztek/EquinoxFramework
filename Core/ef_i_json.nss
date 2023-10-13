@@ -130,6 +130,12 @@ json StringJsonArrayElementsToJsonArray(string sValues);
 json GetJsonArrayOfSize(int nSize, json jDefaultValue);
 // Convert tokenized string sTokens with sDelimiter into a json array
 json GetJsonArrayFromTokenizedString(string sTokens, string sDelimiter = ":");
+// Modifies jArray in-place (with no memory copies needed).
+// jArray will have sValue inserted at position nIndex.
+// All succeeding elements in the array will move by one.
+// By default (-1), inserts elements at the end of the array ("push").
+// nIndex = 0 inserts at the beginning of the array.
+void JsonArrayInsertStringInplace(json jArray, string sValue, int nIndex = -1);
 
 json VectorToJson(vector vVector)
 {
@@ -403,4 +409,9 @@ json GetJsonArrayFromTokenizedString(string sTokens, string sDelimiter = ":")
 		jArray = JsonArrayInsertString(jArray, GetSubString(sTokens, nStart, nEnd - nStart));
 
 	return jArray;
+}
+
+void JsonArrayInsertStringInplace(json jArray, string sValue, int nIndex = -1)
+{
+    JsonArrayInsertInplace(jArray, JsonString(sValue), nIndex);
 }

@@ -74,13 +74,13 @@ void EC_OnAreaPostProcessed()
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@area_id", sParentAreaID);
 
-    int nMountainBitmask = TS_GetTCBitmask(EP_AREA_TILESET, "MOUNTAIN");
+    int nMountainBitflag = TS_GetTCBitflag(EP_AREA_TILESET, "MOUNTAIN");
     while (SqlStep(sql))
     {
         int nTileIndex = SqlGetInt(sql, 0);
         int nTileID = SqlGetInt(sql, 1);
 
-        if (nTileID == EC_AREA_PARENT_CLIFF_ENTRANCE_TILE || (TS_GetTileTCBitmask(EP_AREA_TILESET, TS_GetTileEdgesAndCorners(EP_AREA_TILESET, nTileID)) & nMountainBitmask))
+        if (nTileID == EC_AREA_PARENT_CLIFF_ENTRANCE_TILE || (TS_GetTileTCBitmask(EP_AREA_TILESET, TS_GetTileEdgesAndCorners(EP_AREA_TILESET, nTileID)) & nMountainBitflag))
         {
             string sCaveAreaID = EC_GetNextAreaID();
             json jCave = JsonObject();

@@ -53,11 +53,13 @@ const string AG_DATA_KEY_GENERATION_LOG_STATUS                  = "GenerationLog
 const string AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE    = "GenerationSingleGroupTileChance";
 const string AG_DATA_KEY_GENERATION_TYPE                        = "GenerationType";
 const string AG_DATA_KEY_GENERATION_RANDOM_NAME                 = "GenerationRandomName";
+const string AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR           = "EnableCornerTileValidator";
 
 const string AG_DATA_KEY_TILE_ID                                = "TileID";
 const string AG_DATA_KEY_TILE_LOCKED                            = "Locked";
 const string AG_DATA_KEY_TILE_ORIENTATION                       = "Orientation";
 const string AG_DATA_KEY_TILE_HEIGHT                            = "Height";
+const string AG_DATA_KEY_TILE_IGNORETOCBITMASK                  = "IgnoreTOCBitmask";
 
 const string AG_DATA_KEY_ENTRANCE_TILE_INDEX                    = "EntranceTileIndex";
 const string AG_DATA_KEY_EXIT_TILE_INDEX                        = "ExitTileIndex";
@@ -146,6 +148,8 @@ void AG_Tile_SetOrientation(string sAreaID, string sTileArray, int nTile, int nO
 int AG_Tile_GetOrientation(string sAreaID, string sTileArray, int nTile);
 void AG_Tile_SetHeight(string sAreaID, string sTileArray, int nTile, int nHeight);
 int AG_Tile_GetHeight(string sAreaID, string sTileArray, int nTile);
+void AG_Tile_SetIgnoreTOCBitmask(string sAreaID, string sTileArray, int nTile, int nBitmask);
+int AG_Tile_GetIgnoreTOCBitmask(string sAreaID, string sTileArray, int nTile);
 void AG_Tile_Set(string sAreaID, string sTileArray, int nTile, int nID, int nOrientation, int nHeight = 0, int bLocked = FALSE);
 void AG_Tile_Reset(string sAreaID, string sTileArray, int nTile);
 void AG_SetEdgeTileOverride(string sAreaID, string sEdge, int nTile, string sTC1, string sTC2, string sTC3);
@@ -206,6 +210,8 @@ void AG_ResetChunkTiles(string sAreaID, int nChunk);
 void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int nNumTiles = 0);
 void AG_GenerateAreaChunk(string sAreaID, int nChunk);
 void AG_InitializeChunkFromArea(string sAreaID, object oArea, int nChunk);
+int AG_CheckCornerTileTerrain(string sTerrain1, string sTerrain2, string sTerrain3);
+int WG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile);
 
 object AG_GetAreaDataObject(string sAreaID)
 {
@@ -339,6 +345,16 @@ void AG_Tile_SetHeight(string sAreaID, string sTileArray, int nTile, int nHeight
 int AG_Tile_GetHeight(string sAreaID, string sTileArray, int nTile)
 {
     return AG_GetIntDataByKey(sAreaID, sTileArray + AG_DATA_KEY_TILE_HEIGHT + IntToString(nTile));
+}
+
+void AG_Tile_SetIgnoreTOCBitmask(string sAreaID, string sTileArray, int nTile, int nBitmask)
+{
+    AG_SetIntDataByKey(sAreaID, sTileArray + AG_DATA_KEY_TILE_IGNORETOCBITMASK + IntToString(nTile), nBitmask);
+}
+
+int AG_Tile_GetIgnoreTOCBitmask(string sAreaID, string sTileArray, int nTile)
+{
+    return AG_GetIntDataByKey(sAreaID, sTileArray + AG_DATA_KEY_TILE_IGNORETOCBITMASK + IntToString(nTile));
 }
 
 void AG_Tile_Set(string sAreaID, string sTileArray, int nTile, int nID, int nOrientation, int nHeight = 0, int bLocked = FALSE)
@@ -856,8 +872,9 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
         if (bHasPath && sTOC == sPathCrosser)
             continue;
 
-        nBitmask |= TS_GetTCBitmask(sTileset, sTOC);
+        nBitmask |= TS_GetTCBitflag(sTileset, sTOC);
     }
+    nBitmask |= AG_Tile_GetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
     SqlBindInt(sql, "@tocbitmask", nBitmask);
 
     if (SqlStep(sql))
@@ -887,10 +904,10 @@ void AG_ProcessTile(string sAreaID, int nTile)
     if (tile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
         tile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE);
 
-    if (tile.nTileID != AG_INVALID_TILE_ID)
-        AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, tile.nTileID, tile.nOrientation, tile.nHeight);
-    else
+    if (tile.nTileID == AG_INVALID_TILE_ID || !WG_ValidateCornerTile(sAreaID, nTile, tile))
         IntArray_Insert(AG_GetAreaDataObject(sAreaID), AG_FAILED_TILES_ARRAY, nTile);
+    else
+        AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, tile.nTileID, tile.nOrientation, tile.nHeight);
 
     EFCore_ResetScriptInstructions();
 }
@@ -2045,4 +2062,40 @@ void AG_InitializeChunkFromArea(string sAreaID, object oArea, int nChunk)
         struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfoByTileIndex(oArea, nTileIndex);
         AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTileIndex, str.nID, str.nOrientation, str.nHeight, TRUE);
     }
+}
+
+int AG_CheckCornerTileTerrain(string sTerrain1, string sTerrain2, string sTerrain3)
+{
+    return ((sTerrain1 == "GRASS" || sTerrain1 == "TREES" || sTerrain1 == "MOUNTAIN") &&
+            (sTerrain2 == "GRASS" || sTerrain2 == "TREES" || sTerrain2 == "MOUNTAIN") &&
+            (sTerrain3 == "GRASS" || sTerrain3 == "TREES" || sTerrain3 == "MOUNTAIN")
+           ) ||
+           ((sTerrain1 == "WATER" && sTerrain2== "WATER" && sTerrain3 == "WATER") ||
+            (sTerrain1 == "SAND" && sTerrain2 == "SAND" && sTerrain3 == "SAND"));
+}
+
+int WG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile)
+{
+    if (!AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR))
+        return TRUE;
+
+    int bValid = TRUE;
+    int nAreaWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
+    int nAreaHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
+    if (nTile == 0 || nTile == (nAreaWidth - 1) || nTile == (nAreaWidth * (nAreaHeight - 1)) || nTile == ((nAreaWidth * nAreaHeight) - 1))
+    {
+        string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
+        struct TS_TileStruct str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
+
+        if (nTile == 0)
+            bValid = AG_CheckCornerTileTerrain(str.sTL, str.sBR, str.sBL);
+        else if (nTile == (nAreaWidth - 1))
+            bValid = AG_CheckCornerTileTerrain(str.sTR, str.sBL, str.sBR);
+        else if (nTile == (nAreaWidth * (nAreaHeight - 1)))
+            bValid = AG_CheckCornerTileTerrain(str.sTR, str.sBL, str.sTL);
+        else if (nTile == ((nAreaWidth * nAreaHeight) - 1))
+            bValid = AG_CheckCornerTileTerrain(str.sTL, str.sBR, str.sTR);
+    }
+
+    return bValid;
 }

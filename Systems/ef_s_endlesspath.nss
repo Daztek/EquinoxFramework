@@ -213,6 +213,7 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, EP_AREA_SINGLE_GROUP_TILE_CHANCE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10 + AG_Random(sAreaID, 16));
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_Random(sAreaID, 8));
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR, TRUE);
     AG_SetCallbackFunction(sAreaID, EP_SCRIPT_NAME, "EP_OnAreaGenerated");
 
     AG_AddEdgeTerrain(sAreaID, "WATER");
@@ -374,8 +375,8 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
                     "VALUES(@area_id, @tile_index, @tile_x, @tile_y, @tile_id, @entrance_dist, @exit_dist, @path_dist, @group_tile, @num_doors);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     int nCurrentMaxTiles = min(nCurrentTile + EP_POSTPROCESS_TILE_BATCH, nNumTiles);
-    int nGrassBitmask = TS_GetTCBitmask(EP_AREA_TILESET, "GRASS");
-    int nGrass2Bitmask = TS_GetTCBitmask(EP_AREA_TILESET, "GRASS2");
+    int nGrassBitflag = TS_GetTCBitflag(EP_AREA_TILESET, "GRASS");
+    int nGrass2Bitflag = TS_GetTCBitflag(EP_AREA_TILESET, "GRASS2");
 
     SqlBeginTransactionModule();
 
@@ -384,7 +385,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
         struct NWNX_Area_TileInfo strTileInfo = NWNX_Area_GetTileInfoByTileIndex(oArea, nCurrentTile);
         int nCAE = TS_GetTileTCBitmask(EP_AREA_TILESET, TS_GetTileEdgesAndCorners(EP_AREA_TILESET, strTileInfo.nID));
 
-        if ((nCAE & nGrassBitmask) || (nCAE & nGrass2Bitmask))
+        if ((nCAE & nGrassBitflag) || (nCAE & nGrass2Bitflag))
         {
             vector vTilePosition = GetTilePosition(strTileInfo.nGridX, strTileInfo.nGridY);
 

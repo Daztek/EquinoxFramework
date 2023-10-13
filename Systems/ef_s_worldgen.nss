@@ -21,7 +21,7 @@ const string WG_WORLD_SEED_NAME                                 = "WG_WORLD_SEED
 const string WG_AREA_TILESET                                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
 const int WG_MAX_ITERATIONS                                     = 100;
 const string WG_AREA_DEFAULT_EDGE_TERRAIN                       = "";
-const int WG_AREA_LENGTH                                        = 7;
+const int WG_AREA_LENGTH                                        = 8;
 
 const int WG_NEIGHBOR_AREA_TOP_LEFT                             = 0;
 const int WG_NEIGHBOR_AREA_TOP                                  = 1;
@@ -42,14 +42,14 @@ string WG_GetStartingAreaID();
 int WG_GetIsWGArea(object oArea);
 string WG_GetAreaIDFromDirection(string sAreaID, int nDirection);
 
-void WG_QueueInitialize();
-json WG_QueueGet();
+void WG_InitializeQueue();
+json WG_GetQueue();
 void WG_QueuePush(string sAreaID);
 void WG_QueuePop();
-string WG_QueueGetAreaID();
+string WG_QueueGet();
 int WG_QueueSize();
 int WG_QueueEmpty();
-int WG_GetQueuePosition(string sAreaID);
+int WG_QueuePosition(string sAreaID);
 
 void WG_GenerateArea();
 void WG_OnAreaGenerated(string sAreaID);
@@ -61,7 +61,7 @@ void WG_Init()
 {
     WG_InitializeTemplateArea();
     WG_SetWorldSeed();
-    WG_QueueInitialize();
+    WG_InitializeQueue();
 }
 
 // @CORE[EF_SYSTEM_LOAD]
@@ -108,7 +108,7 @@ void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection)
     }
     else
     {
-        FloatingTextStringOnCreature("Area not generated! Position in queue: " + IntToString(WG_GetQueuePosition(sNextAreaID)), oPlayer, FALSE, FALSE);
+        FloatingTextStringOnCreature("Area not generated! Position in queue: " + IntToString(WG_QueuePosition(sNextAreaID)), oPlayer, FALSE, FALSE);
     }
 }
 
@@ -118,7 +118,7 @@ void WG_OnAreaEdgeEnter()
     object oPlayer = OBJECT_SELF;
     object oArea = EM_NWNXGetObject("AREA");
 
-    if (!WG_GetIsWGArea(oArea))
+    if (!GetIsPC(oPlayer) || !WG_GetIsWGArea(oArea))
         return;
 
     int bTop = EM_NWNXGetInt("TOP");
@@ -159,7 +159,7 @@ string WG_TileInfo()
 // @CONSOLE[WGQueueContents::]
 string WG_QueueContents()
 {
-    return "World Gen Queue Size: " + IntToString(WG_QueueSize()) + "\n" + JsonDump(WG_QueueGet(), 0);
+    return "World Gen Queue Size: " + IntToString(WG_QueueSize()) + "\n" + JsonDump(WG_GetQueue(), 0);
 }
 
 void WG_InitializeTemplateArea()
@@ -214,36 +214,36 @@ string WG_GetAreaIDFromDirection(string sAreaID, int nDirection)
     return WG_AREA_TAG_PREFIX + IntToString(nX) + "_" + IntToString(nY);
 }
 
-void WG_QueueInitialize()
+void WG_InitializeQueue()
 {
     SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_AREA_GENERATION_QUEUE, JSON_ARRAY);
 }
 
-json WG_QueueGet()
+json WG_GetQueue()
 {
     return GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_AREA_GENERATION_QUEUE);
 }
 
 void WG_QueuePush(string sAreaID)
 {
-    json jQueue = WG_QueueGet();
+    json jQueue = WG_GetQueue();
     if (!JsonArrayContainsString(jQueue, sAreaID))
         JsonArrayInsertStringInplace(jQueue, sAreaID);
 }
 
 void WG_QueuePop()
 {
-    JsonArrayDelInplace(WG_QueueGet(), 0);
+    JsonArrayDelInplace(WG_GetQueue(), 0);
 }
 
-string WG_QueueGetAreaID()
+string WG_QueueGet()
 {
-    return JsonArrayGetString(WG_QueueGet(), 0);
+    return JsonArrayGetString(WG_GetQueue(), 0);
 }
 
 int WG_QueueSize()
 {
-    return JsonGetLength(WG_QueueGet());
+    return JsonGetLength(WG_GetQueue());
 }
 
 int WG_QueueEmpty()
@@ -251,15 +251,15 @@ int WG_QueueEmpty()
     return !WG_QueueSize();
 }
 
-int WG_GetQueuePosition(string sAreaID)
+int WG_QueuePosition(string sAreaID)
 {
-    json jPosition = JsonFind(WG_QueueGet(), JsonString(sAreaID));
+    json jPosition = JsonFind(WG_GetQueue(), JsonString(sAreaID));
     return !JsonGetType(jPosition) ? -1 : JsonGetInt(jPosition);
 }
 
 void WG_GenerateArea()
 {
-    string sAreaID = WG_QueueGetAreaID();
+    string sAreaID = WG_QueueGet();
 
     LogInfo("Generating Area: " + sAreaID);
 
@@ -276,14 +276,6 @@ void WG_GenerateArea()
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "STREET");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "WALL");
 
-/*
-    int nIgnoreTOCBitmask = TS_GetTCBitflag(WG_AREA_TILESET, "CHASM");
-    AG_Tile_SetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, 0, nIgnoreTOCBitmask);
-    AG_Tile_SetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, WG_AREA_LENGTH - 1, nIgnoreTOCBitmask);
-    AG_Tile_SetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, WG_AREA_LENGTH * (WG_AREA_LENGTH - 1) , nIgnoreTOCBitmask);
-    AG_Tile_SetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, (WG_AREA_LENGTH * WG_AREA_LENGTH) - 1 , nIgnoreTOCBitmask);
-*/
-
     if (sAreaID == WG_GetStartingAreaID())
     {
         int nCenterTile = (WG_AREA_LENGTH / 2) + (WG_AREA_LENGTH * (WG_AREA_LENGTH / 2));
@@ -291,21 +283,21 @@ void WG_GenerateArea()
     }
     else
     {
-        object oArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_TOP));
-        if (GetIsObjectValid(oArea))
-            AG_CopyEdgeFromArea(sAreaID, oArea, AG_AREA_EDGE_BOTTOM);
+        object oNeighborArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_TOP));
+        if (GetIsObjectValid(oNeighborArea))
+            AG_CopyEdgeFromArea(sAreaID, oNeighborArea, AG_AREA_EDGE_BOTTOM);
 
-        oArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_RIGHT));
-        if (GetIsObjectValid(oArea))
-            AG_CopyEdgeFromArea(sAreaID, oArea, AG_AREA_EDGE_LEFT);
+        oNeighborArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_RIGHT));
+        if (GetIsObjectValid(oNeighborArea))
+            AG_CopyEdgeFromArea(sAreaID, oNeighborArea, AG_AREA_EDGE_LEFT);
 
-        oArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_BOTTOM));
-        if (GetIsObjectValid(oArea))
-            AG_CopyEdgeFromArea(sAreaID, oArea, AG_AREA_EDGE_TOP);
+        oNeighborArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_BOTTOM));
+        if (GetIsObjectValid(oNeighborArea))
+            AG_CopyEdgeFromArea(sAreaID, oNeighborArea, AG_AREA_EDGE_TOP);
 
-        oArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_LEFT));
-        if (GetIsObjectValid(oArea))
-            AG_CopyEdgeFromArea(sAreaID, oArea, AG_AREA_EDGE_RIGHT);
+        oNeighborArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_LEFT));
+        if (GetIsObjectValid(oNeighborArea))
+            AG_CopyEdgeFromArea(sAreaID, oNeighborArea, AG_AREA_EDGE_RIGHT);
     }
 
     AG_GenerateArea(sAreaID);

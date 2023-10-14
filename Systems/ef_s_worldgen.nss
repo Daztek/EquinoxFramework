@@ -439,21 +439,12 @@ const string WG_MAP_BIND_COLOR              = "_color";
 json WG_CreateWindow()
 {
     float fWidth = ((WG_MAP_AREA_SIZE + 4.0f) * IntToFloat(WG_MAP_NUM_COLUMNS)) + 10.0f;
-    float fHeight = 33.0f + ((WG_MAP_AREA_SIZE + 8.0f) * IntToFloat(WG_MAP_NUM_ROWS + 1)) + 8.0f;
+    float fHeight = 33.0f + ((WG_MAP_AREA_SIZE + 8.0f) * IntToFloat(WG_MAP_NUM_ROWS)) + 8.0f;
     NB_InitializeWindow(NuiRect(-1.0f, -1.0f, fWidth, fHeight));
     NB_SetWindowTitle(JsonString("World Map"));
     NB_SetWindowTransparent(JsonBool(TRUE));
     NB_SetWindowBorder(JsonBool(FALSE));
         NB_StartColumn();
-            NB_StartRow();
-                NB_AddSpacer();
-                NB_StartElement(NuiButton(JsonString("Refresh")));
-                    NB_SetId(WG_MAP_BIND_BUTTON_REFRESH);
-                    NB_SetTooltip(JsonString("Select Target"));
-                    NB_SetDimensions(100.0f, (WG_MAP_AREA_SIZE + 4.0f));
-                NB_End();
-                NB_AddSpacer();
-            NB_End();
 
             int nRow;
             for (nRow = 0; nRow < WG_MAP_NUM_ROWS; nRow++)
@@ -470,6 +461,7 @@ json WG_CreateWindow()
                         string sAreaTag = WG_AREA_TAG_PREFIX + sX + "_" + sY;
 
                         NB_StartElement(NuiImage(JsonString("gui_inv_1x1_ol"), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
+                            NB_SetId(sAreaTag);
                             NB_SetDimensions(WG_MAP_AREA_SIZE, WG_MAP_AREA_SIZE);
                             NB_SetTooltip(JsonString(WG_AREA_TAG_PREFIX + sX + "_" + sY));
                             NB_StartDrawList(JsonBool(FALSE));
@@ -491,6 +483,19 @@ json WG_CreateWindow()
 
         NB_End();
     return NB_FinalizeWindow();
+}
+
+// @NWMEVENT[WG_MAP_WINDOW_ID:NUI_EVENT_MOUSEUP:WG_AREA_TAG_PREFIX]
+void WG_ClickMapArea()
+{
+    object oPlayer = OBJECT_SELF;
+    object oArea = GetObjectByTag(NuiGetEventElement());
+
+    if (GetIsObjectValid(oArea))
+    {
+        location loc = Location(oArea, GetAreaCenterPosition(oArea), GetFacing(oPlayer));
+        AssignCommand(oPlayer, JumpToLocation(loc));
+    }
 }
 
 void WG_UpdateMap(object oPlayer)

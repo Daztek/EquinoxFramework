@@ -179,6 +179,7 @@ void AG_CreatePathEntranceDoorTile(string sAreaID, int nTile, int nHeight);
 void AG_CreatePathExitDoorTile(string sAreaID);
 void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy);
 void AG_ExtractExitEdgeTerrains(string sAreaID);
+json AG_GetEdgeTOCs(string sAreaID, int nEdge);
 int AG_GetNextTile(int nAreaWidth, int nTile, int nEdge);
 struct TS_TileStruct AG_GetRoadTileStruct(string sAreaID, int nX1, int nY1, int nX2, int nY2);
 void AG_PlotRoad(string sAreaID);
@@ -1487,6 +1488,94 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
     //PrintString("Exit Terrain: " + JsonDump(jExitEdgeTerrains));
 }
 
+json AG_GetEdgeTOCs(string sAreaID, int nEdge)
+{
+    int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
+    int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
+    string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
+
+    json jEdgeTOCs = JsonArray();
+
+    switch (nEdge)
+    {
+        case AG_AREA_EDGE_TOP:
+        {
+            int nStart = nWidth * (nHeight - 1);
+            int nCount, nNumTiles = nWidth;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + nCount;
+                int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
+
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sTL));
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sT));
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sTR));
+            }
+            break;
+        }
+
+        case AG_AREA_EDGE_RIGHT:
+        {
+            int nStart = nWidth - 1;
+            int nCount, nNumTiles = nHeight;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + (nCount * nWidth);
+                int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
+
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sTR));
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sR));
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sBR));
+            }
+            break;
+        }
+
+        case AG_AREA_EDGE_BOTTOM:
+        {
+            int nStart = 0;
+            int nCount, nNumTiles = nWidth;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + nCount;
+                int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
+
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sBL));
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sB));
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sBR));
+            }
+            break;
+        }
+
+        case AG_AREA_EDGE_LEFT:
+        {
+            int nStart = 0;
+            int nCount, nNumTiles = nHeight;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + (nCount * nWidth);
+                int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+                struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
+
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sTL));
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sL));
+                jEdgeTOCs = JsonArrayInsertUniqueString(jEdgeTOCs, TS_StripHeightIndicator(strTC.sBL));
+            }
+            break;
+        }
+    }
+
+    //PrintString("Edge Terrain: " + JsonDump(jEdgeTOCs));
+
+    return jEdgeTOCs;
+}
+
 int AG_GetNextTile(int nAreaWidth, int nTile, int nEdge)
 {
     if (nEdge == AG_AREA_EDGE_TOP)
@@ -2066,14 +2155,17 @@ void AG_InitializeChunkFromArea(string sAreaID, object oArea, int nChunk)
 
 int AG_CheckCornerTileTerrain(string sTerrain1, string sTerrain2, string sTerrain3)
 {
-    return ((sTerrain1 == "GRASS" || sTerrain1 == "TREES" || sTerrain1 == "MOUNTAIN") &&
-            (sTerrain2 == "GRASS" || sTerrain2 == "TREES" || sTerrain2 == "MOUNTAIN") &&
-            (sTerrain3 == "GRASS" || sTerrain3 == "TREES" || sTerrain3 == "MOUNTAIN")
+    /**
+    return ((sTerrain1 == "GRASS" || sTerrain1 == "MOUNTAIN") &&
+            (sTerrain2 == "GRASS" || sTerrain2 == "MOUNTAIN") &&
+            (sTerrain3 == "GRASS" || sTerrain3 == "MOUNTAIN")
            ) ||
            ((sTerrain1 == "WATER" && sTerrain2== "WATER" && sTerrain3 == "WATER") ||
             (sTerrain1 == "SAND" && sTerrain2 == "SAND" && sTerrain3 == "SAND") ||
-            (sTerrain1 == "GRASS2" && sTerrain2 == "GRASS2" && sTerrain3 == "GRASS2") ||
+            (sTerrain1 == "TREES" && sTerrain2 == "TREES" && sTerrain3 == "TREES") ||
             (sTerrain1 == "CHASM" && sTerrain2 == "CHASM" && sTerrain3 == "CHASM"));
+    /**/
+    return sTerrain1 == sTerrain2 && sTerrain1 == sTerrain3;
 }
 
 int AG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile)
@@ -2097,6 +2189,9 @@ int AG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile)
             bValid = AG_CheckCornerTileTerrain(str.sTR, str.sBL, str.sTL);
         else if (nTile == ((nAreaWidth * nAreaHeight) - 1))
             bValid = AG_CheckCornerTileTerrain(str.sTL, str.sBR, str.sTR);
+
+        if (bValid)
+            AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, strTile.nTileID, strTile.nOrientation, strTile.nHeight, TRUE);
     }
 
     return bValid;

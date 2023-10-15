@@ -19,6 +19,8 @@ const string WG_TEMPLATE_AREA_JSON                              = "TemplateArea"
 const string WG_AREA_TAG_PREFIX                                 = "AR_W_";
 const int WG_AREA_STARTING_X                                    = 10000;
 const int WG_AREA_STARTING_Y                                    = 10000;
+const int WG_WORLD_WIDTH                                        = 15;
+const int WG_WORLD_HEIGHT                                       = 15;
 
 const string WG_GENERATED_AREAS_ARRAY                           = "GeneratedAreas";
 
@@ -49,20 +51,29 @@ const int WG_AREA_CHASM_CHANCE                                  = 10;
 const string WG_AREA_GENERATION_QUEUE                           = "AreaGenerationQueue";
 
 const string WG_MAP_WINDOW_ID                                   = "WORLDMAP";
-const float WG_MAP_AREA_SIZE                                    = 24.0f;
-const int WG_MAP_NUM_COLUMNS                                    = 15;
-const int WG_MAP_NUM_ROWS                                       = 15;
+const float WG_MAP_AREA_SIZE                                    = 20.0f;
 const string WG_MAP_BIND_BUTTON_REFRESH                         = "btn_refresh";
 const string WG_MAP_BIND_COLOR                                  = "_color";
+
 const int WG_MAP_COLOR_PLAYER                                   = 1;
 const int WG_MAP_COLOR_AVAILABLE                                = 2;
-const int WG_MAP_COLOR_UNAVAILABLE                              = 3;
+const int WG_MAP_COLOR_QUEUED                                   = 3;
+const int WG_MAP_COLOR_GENERATING                               = 4;
+
+struct WG_AreaCoordinates
+{
+    int nX;
+    int nY;
+};
 
 void WG_InitializeTemplateArea();
 json WG_GetTemplateAreaJson();
 void WG_SetWorldSeed();
 
+string WG_GetAreaID(int nX, int nY);
 string WG_GetStartingAreaID();
+struct WG_AreaCoordinates WG_GetAreaCoordinates(string sAreaID);
+int WG_GetAreaIDIsInWorldBounds(string sAreaID);
 int WG_GetIsWGArea(object oArea);
 string WG_GetAreaIDFromDirection(string sAreaID, int nDirection);
 void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection);
@@ -80,8 +91,6 @@ void WG_GenerateArea();
 void WG_OnAreaGenerated(string sAreaID);
 object WG_CreateArea(string sAreaID);
 void WG_SetAreaModifiers(object oArea);
-
-void WG_InsertGenerationType(int nGenerationType);
 
 json WG_GetAreaMapColor(int nColor);
 void WG_UpdateMapFull();
@@ -108,8 +117,8 @@ void WG_Load()
 // @NWMWINDOW[WG_MAP_WINDOW_ID]
 json WG_CreateWindow()
 {
-    float fWidth = ((WG_MAP_AREA_SIZE + 4.0f) * IntToFloat(WG_MAP_NUM_COLUMNS)) + 10.0f;
-    float fHeight = 33.0f + ((WG_MAP_AREA_SIZE + 8.0f) * IntToFloat(WG_MAP_NUM_ROWS)) + 8.0f;
+    float fWidth = ((WG_MAP_AREA_SIZE + 4.0f) * IntToFloat(WG_WORLD_WIDTH)) + 10.0f;
+    float fHeight = 33.0f + ((WG_MAP_AREA_SIZE + 8.0f) * IntToFloat(WG_WORLD_HEIGHT)) + 8.0f;
     NB_InitializeWindow(NuiRect(-1.0f, -1.0f, fWidth, fHeight));
     NB_SetWindowTitle(JsonString("World Map"));
     NB_SetWindowTransparent(JsonBool(TRUE));
@@ -117,31 +126,29 @@ json WG_CreateWindow()
         NB_StartColumn();
 
             int nRow;
-            for (nRow = 0; nRow < WG_MAP_NUM_ROWS; nRow++)
+            for (nRow = 0; nRow < WG_WORLD_HEIGHT; nRow++)
             {
                 NB_StartRow();
 
                     NB_AddSpacer();
 
                     int nColumn;
-                    for (nColumn = 0; nColumn < WG_MAP_NUM_COLUMNS; nColumn++)
+                    for (nColumn = 0; nColumn < WG_WORLD_WIDTH; nColumn++)
                     {
-                        string sX = IntToString(WG_AREA_STARTING_X - (WG_MAP_NUM_COLUMNS / 2) + nColumn);
-                        string sY = IntToString(WG_AREA_STARTING_Y + (WG_MAP_NUM_ROWS / 2) - nRow);
-                        string sAreaTag = WG_AREA_TAG_PREFIX + sX + "_" + sY;
+                        int nX = WG_AREA_STARTING_X - (WG_WORLD_WIDTH / 2) + nColumn;
+                        int nY = WG_AREA_STARTING_Y + (WG_WORLD_HEIGHT / 2) - nRow;
+                        string sAreaID = WG_GetAreaID(nX, nY);
 
                         NB_StartElement(NuiImage(JsonString("gui_inv_1x1_ol"), JsonInt(NUI_ASPECT_FIT), JsonInt(NUI_HALIGN_CENTER), JsonInt(NUI_VALIGN_MIDDLE)));
-                            NB_SetId(sAreaTag);
+                            NB_SetId(sAreaID);
                             NB_SetDimensions(WG_MAP_AREA_SIZE, WG_MAP_AREA_SIZE);
-                            NB_SetTooltip(JsonString(WG_AREA_TAG_PREFIX + sX + "_" + sY));
+                            NB_SetTooltip(JsonString(sAreaID));
                             NB_StartDrawList(JsonBool(FALSE));
                                 NB_AddDrawListItem(
                                     NuiDrawListRect(
-                                        JsonBool(TRUE), NuiBind(WG_MAP_BIND_COLOR + sAreaTag), JsonBool(TRUE), JsonFloat(1.0f),
+                                        JsonBool(TRUE), NuiBind(WG_MAP_BIND_COLOR + sAreaID), JsonBool(TRUE), JsonFloat(1.0f),
                                         NuiRect(0.0f, 0.0f, WG_MAP_AREA_SIZE, WG_MAP_AREA_SIZE),
-                                        NUI_DRAW_LIST_ITEM_ORDER_BEFORE,
-                                        NUI_DRAW_LIST_ITEM_RENDER_ALWAYS));
-
+                                        NUI_DRAW_LIST_ITEM_ORDER_BEFORE, NUI_DRAW_LIST_ITEM_RENDER_ALWAYS));
                             NB_End();
                         NB_End();
                     }
@@ -209,20 +216,6 @@ string WG_QueueContents()
     return "World Gen Queue Size: " + IntToString(WG_QueueSize()) + "\n" + JsonDump(WG_GetQueue(), 0);
 }
 
-// @CONSOLE[WGDisplayGenerationTypes::]
-string WG_DisplayGenerationTypes()
-{
-    object oDataObject = GetDataObject(WG_SCRIPT_NAME);
-    json jArray = GetLocalJsonOrDefault(oDataObject, "GenerationTypeList", GetJsonArrayOfSize(8, JsonInt(0)));
-    string sGenerationTypes;
-    int nType, nNumTypes = 8;
-    for (nType = 0; nType < nNumTypes; nType++)
-    {
-        sGenerationTypes += AG_GetGenerationTypeAsString(nType) + ": " + IntToString(JsonArrayGetInt(jArray, nType)) + "\n";
-    }
-    return sGenerationTypes;
-}
-
 // @PMBUTTON[World Map:Display the world map!]
 void WG_ShowMapWindow()
 {
@@ -249,14 +242,40 @@ json WG_GetTemplateAreaJson()
 
 void WG_SetWorldSeed()
 {
-    int nSeed = Random(1000000000);
+    int nSeed = Random(2147483647);
     SqlMersenneTwisterSetSeed(WG_WORLD_SEED_NAME, nSeed);
     LogInfo("World Seed: " + IntToString(nSeed));
 }
 
+string WG_GetAreaID(int nX, int nY)
+{
+    return WG_AREA_TAG_PREFIX + IntToString(nX) + "_" + IntToString(nY);
+}
+
 string WG_GetStartingAreaID()
 {
-    return WG_AREA_TAG_PREFIX + IntToString(WG_AREA_STARTING_X) + "_" + IntToString(WG_AREA_STARTING_Y);
+    return WG_GetAreaID(WG_AREA_STARTING_X, WG_AREA_STARTING_Y);
+}
+
+struct WG_AreaCoordinates WG_GetAreaCoordinates(string sAreaID)
+{
+    struct WG_AreaCoordinates str;
+    int nPrefixLength = GetStringLength(WG_AREA_TAG_PREFIX);
+    string sCoordinates = GetSubString(sAreaID, nPrefixLength, GetStringLength(sAreaID) - nPrefixLength);
+    int nDelimiter = FindSubString(sCoordinates, "_");
+    str.nX = StringToInt(GetSubString(sCoordinates, 0, nDelimiter));
+    str.nY = StringToInt(GetSubString(sCoordinates, nDelimiter + 1, GetStringLength(sCoordinates) - nDelimiter - 1));
+    return str;
+}
+
+int WG_GetAreaIDIsInWorldBounds(string sAreaID)
+{
+    int nMinX = WG_AREA_STARTING_X - (WG_WORLD_WIDTH / 2);
+    int nMaxX = nMinX + (WG_WORLD_WIDTH - 1);
+    int nMaxY = WG_AREA_STARTING_Y + (WG_WORLD_HEIGHT / 2);
+    int nMinY = nMaxY - (WG_WORLD_HEIGHT - 1);
+    struct WG_AreaCoordinates str = WG_GetAreaCoordinates(sAreaID);
+    return !(str.nX < nMinX || str.nX > nMaxX || str.nY < nMinY || str.nY > nMaxX);
 }
 
 int WG_GetIsWGArea(object oArea)
@@ -266,25 +285,19 @@ int WG_GetIsWGArea(object oArea)
 
 string WG_GetAreaIDFromDirection(string sAreaID, int nDirection)
 {
-    int nPrefixLength = GetStringLength(WG_AREA_TAG_PREFIX);
-    string sCoordinates = GetSubString(sAreaID, nPrefixLength, GetStringLength(sAreaID) - nPrefixLength);
-    int nDelimiter = FindSubString(sCoordinates, "_");
-    int nX = StringToInt(GetSubString(sCoordinates, 0, nDelimiter));
-    int nY = StringToInt(GetSubString(sCoordinates, nDelimiter + 1, GetStringLength(sCoordinates) - nDelimiter - 1));
-
+    struct WG_AreaCoordinates str = WG_GetAreaCoordinates(sAreaID);
     switch (nDirection)
     {
-        case WG_NEIGHBOR_AREA_TOP_LEFT:     { nX -= 1; nY += 1; break; }
-        case WG_NEIGHBOR_AREA_TOP:          {          nY += 1; break; }
-        case WG_NEIGHBOR_AREA_TOP_RIGHT:    { nX += 1; nY += 1; break; }
-        case WG_NEIGHBOR_AREA_RIGHT:        { nX += 1;          break; }
-        case WG_NEIGHBOR_AREA_BOTTOM_RIGHT: { nX += 1; nY -= 1; break; }
-        case WG_NEIGHBOR_AREA_BOTTOM:       {          nY -= 1; break; }
-        case WG_NEIGHBOR_AREA_BOTTOM_LEFT:  { nX -= 1; nY -= 1; break; }
-        case WG_NEIGHBOR_AREA_LEFT:         { nX -= 1;          break; }
+        case WG_NEIGHBOR_AREA_TOP_LEFT:     { str.nX -= 1; str.nY += 1; break; }
+        case WG_NEIGHBOR_AREA_TOP:          {          str.nY += 1; break; }
+        case WG_NEIGHBOR_AREA_TOP_RIGHT:    { str.nX += 1; str.nY += 1; break; }
+        case WG_NEIGHBOR_AREA_RIGHT:        { str.nX += 1;          break; }
+        case WG_NEIGHBOR_AREA_BOTTOM_RIGHT: { str.nX += 1; str.nY -= 1; break; }
+        case WG_NEIGHBOR_AREA_BOTTOM:       {          str.nY -= 1; break; }
+        case WG_NEIGHBOR_AREA_BOTTOM_LEFT:  { str.nX -= 1; str.nY -= 1; break; }
+        case WG_NEIGHBOR_AREA_LEFT:         { str.nX -= 1;          break; }
     }
-
-    return WG_AREA_TAG_PREFIX + IntToString(nX) + "_" + IntToString(nY);
+    return WG_GetAreaID(str.nX, str.nY);
 }
 
 void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection)
@@ -319,9 +332,13 @@ void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection)
 
         AssignCommand(oPlayer, JumpToLocation(loc));
     }
-    else
+    else if (WG_GetAreaIDIsInWorldBounds(sNextAreaID))
     {
         FloatingTextStringOnCreature("Area not generated! Position in queue: " + IntToString(WG_QueuePosition(sNextAreaID)), oPlayer, FALSE, FALSE);
+    }
+    else
+    {
+        FloatingTextStringOnCreature("You've reached the end of the world!", oPlayer, FALSE, FALSE);
     }
 }
 
@@ -437,8 +454,11 @@ void WG_QueueArea(string sAreaID)
 {
     if (!GetIsObjectValid(GetObjectByTag(sAreaID)))
     {
-        WG_QueuePush(sAreaID);
-        WG_UpdateMapArea(sAreaID, WG_MAP_COLOR_UNAVAILABLE);
+        if (WG_GetAreaIDIsInWorldBounds(sAreaID))
+        {
+            WG_QueuePush(sAreaID);
+            WG_UpdateMapArea(sAreaID, WG_MAP_COLOR_QUEUED);
+        }
     }
 }
 
@@ -459,7 +479,7 @@ void WG_OnAreaGenerated(string sAreaID)
         EM_ObjectDispatchListInsert(oArea, EM_GetObjectDispatchListId(WG_SCRIPT_NAME, EVENT_SCRIPT_AREA_ON_EXIT));
         WG_SetAreaModifiers(oArea);
         WG_UpdateMapArea(sAreaID, WG_MAP_COLOR_AVAILABLE);
-        WG_InsertGenerationType(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE));
+        InsertStringToLocalJsonArray(GetDataObject(WG_SCRIPT_NAME), WG_GENERATED_AREAS_ARRAY, sAreaID);
 
         //if (sAreaID == WG_GetStartingAreaID())
         {
@@ -469,12 +489,12 @@ void WG_OnAreaGenerated(string sAreaID)
             WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_LEFT));
         }
 
-        InsertStringToLocalJsonArray(GetDataObject(WG_SCRIPT_NAME), WG_GENERATED_AREAS_ARRAY, sAreaID);
-
         WG_QueuePop();
-
         if (!WG_QueueEmpty())
+        {
+            WG_UpdateMapArea(WG_QueueGet(), WG_MAP_COLOR_GENERATING);
             WG_GenerateArea();
+        }
     }
 }
 
@@ -501,21 +521,14 @@ void WG_SetAreaModifiers(object oArea)
     SetAreaGrassOverride(oArea, 3, "trm02_grass3d", 20.0f, 1.0f, Vector(1.0f, 1.0f, 1.0f), Vector(1.0f, 1.0f, 1.0f));
 }
 
-void WG_InsertGenerationType(int nGenerationType)
-{
-    object oDataObject = GetDataObject(WG_SCRIPT_NAME);
-    json jArray = GetLocalJsonOrDefault(oDataObject, "GenerationTypeList", GetJsonArrayOfSize(8, JsonInt(0)));
-    jArray = JsonArraySetInt(jArray, nGenerationType, JsonArrayGetInt(jArray, nGenerationType) + 1);
-    SetLocalJson(oDataObject, "GenerationTypeList", jArray);
-}
-
 json WG_GetAreaMapColor(int nColor)
 {
     switch (nColor)
     {
-        case WG_MAP_COLOR_PLAYER:       return NuiColor(0, 0, 225, 200);
-        case WG_MAP_COLOR_AVAILABLE:    return NuiColor(0, 225, 0, 200);
-        case WG_MAP_COLOR_UNAVAILABLE:  return NuiColor(225, 0, 0, 200);
+        case WG_MAP_COLOR_PLAYER:       return NuiColor(0, 0, 250, 200);
+        case WG_MAP_COLOR_AVAILABLE:    return NuiColor(0, 250, 0, 200);
+        case WG_MAP_COLOR_QUEUED:       return NuiColor(250, 0, 0, 200);
+        case WG_MAP_COLOR_GENERATING:   return NuiColor(250, 125, 0, 200);
     }
     return NuiColor(0, 0, 0, 0);
 }
@@ -531,11 +544,14 @@ void WG_UpdateMapFull()
     }
 
     json jQueuedAreas = WG_GetQueue();
-    jColor = WG_GetAreaMapColor(WG_MAP_COLOR_UNAVAILABLE);
+    jColor = WG_GetAreaMapColor(WG_MAP_COLOR_QUEUED);
     nNumAreas = JsonGetLength(jQueuedAreas);
     for (nArea = 0; nArea < nNumAreas; nArea++)
     {
-        NWM_SetBind(WG_MAP_BIND_COLOR + JsonArrayGetString(jQueuedAreas, nArea), jColor);
+        if (!nArea)
+            NWM_SetBind(WG_MAP_BIND_COLOR + JsonArrayGetString(jQueuedAreas, nArea), WG_GetAreaMapColor(WG_MAP_COLOR_GENERATING));
+        else
+            NWM_SetBind(WG_MAP_BIND_COLOR + JsonArrayGetString(jQueuedAreas, nArea), jColor);
     }
 
     object oArea = GetArea(NWM_GetPlayer());

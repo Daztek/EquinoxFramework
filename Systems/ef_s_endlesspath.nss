@@ -72,7 +72,7 @@ void EP_Init()
 
     SetLocalJson(GetDataObject(EP_SCRIPT_NAME), EP_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(GetArea(GetObjectByTag(EP_GetLastDoorID()))));
 
-    int nSeed = Random(1000000000);
+    int nSeed = Random(2147483647);
     LogInfo("Seed: " + IntToString(nSeed));
     SqlMersenneTwisterSetSeed(EP_SCRIPT_NAME, nSeed);
 }

@@ -901,14 +901,14 @@ void AG_ProcessTile(string sAreaID, int nTile)
 
     int bTrySingleGroupTile = AG_Random(sAreaID, 100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE);
 
-    struct AG_Tile tile = AG_GetRandomMatchingTile(sAreaID, nTile, bTrySingleGroupTile);
-    if (tile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
-        tile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE);
+    struct AG_Tile strTile = AG_GetRandomMatchingTile(sAreaID, nTile, bTrySingleGroupTile);
+    if (strTile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
+        strTile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE);
 
-    if (tile.nTileID == AG_INVALID_TILE_ID || !AG_ValidateCornerTile(sAreaID, nTile, tile))
+    if (strTile.nTileID == AG_INVALID_TILE_ID || !AG_ValidateCornerTile(sAreaID, nTile, strTile))
         IntArray_Insert(AG_GetAreaDataObject(sAreaID), AG_FAILED_TILES_ARRAY, nTile);
     else
-        AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, tile.nTileID, tile.nOrientation, tile.nHeight);
+        AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, strTile.nTileID, strTile.nOrientation, strTile.nHeight);
 
     EFCore_ResetScriptInstructions();
 }
@@ -2155,16 +2155,6 @@ void AG_InitializeChunkFromArea(string sAreaID, object oArea, int nChunk)
 
 int AG_CheckCornerTileTerrain(string sTerrain1, string sTerrain2, string sTerrain3)
 {
-    /**
-    return ((sTerrain1 == "GRASS" || sTerrain1 == "MOUNTAIN") &&
-            (sTerrain2 == "GRASS" || sTerrain2 == "MOUNTAIN") &&
-            (sTerrain3 == "GRASS" || sTerrain3 == "MOUNTAIN")
-           ) ||
-           ((sTerrain1 == "WATER" && sTerrain2== "WATER" && sTerrain3 == "WATER") ||
-            (sTerrain1 == "SAND" && sTerrain2 == "SAND" && sTerrain3 == "SAND") ||
-            (sTerrain1 == "TREES" && sTerrain2 == "TREES" && sTerrain3 == "TREES") ||
-            (sTerrain1 == "CHASM" && sTerrain2 == "CHASM" && sTerrain3 == "CHASM"));
-    /**/
     return sTerrain1 == sTerrain2 && sTerrain1 == sTerrain3;
 }
 
@@ -2189,9 +2179,6 @@ int AG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile)
             bValid = AG_CheckCornerTileTerrain(str.sTR, str.sBL, str.sTL);
         else if (nTile == ((nAreaWidth * nAreaHeight) - 1))
             bValid = AG_CheckCornerTileTerrain(str.sTL, str.sBR, str.sTR);
-
-        if (bValid)
-            AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, strTile.nTileID, strTile.nOrientation, strTile.nHeight, TRUE);
     }
 
     return bValid;

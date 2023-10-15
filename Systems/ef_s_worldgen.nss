@@ -48,6 +48,16 @@ const int WG_AREA_CHASM_CHANCE                                  = 10;
 
 const string WG_AREA_GENERATION_QUEUE                           = "AreaGenerationQueue";
 
+const string WG_MAP_WINDOW_ID                                   = "WORLDMAP";
+const float WG_MAP_AREA_SIZE                                    = 24.0f;
+const int WG_MAP_NUM_COLUMNS                                    = 15;
+const int WG_MAP_NUM_ROWS                                       = 15;
+const string WG_MAP_BIND_BUTTON_REFRESH                         = "btn_refresh";
+const string WG_MAP_BIND_COLOR                                  = "_color";
+const int WG_MAP_COLOR_PLAYER                                   = 1;
+const int WG_MAP_COLOR_AVAILABLE                                = 2;
+const int WG_MAP_COLOR_UNAVAILABLE                              = 3;
+
 void WG_InitializeTemplateArea();
 json WG_GetTemplateAreaJson();
 void WG_SetWorldSeed();
@@ -55,6 +65,7 @@ void WG_SetWorldSeed();
 string WG_GetStartingAreaID();
 int WG_GetIsWGArea(object oArea);
 string WG_GetAreaIDFromDirection(string sAreaID, int nDirection);
+void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection);
 
 void WG_InitializeQueue();
 json WG_GetQueue();
@@ -72,7 +83,9 @@ void WG_SetAreaModifiers(object oArea);
 
 void WG_InsertGenerationType(int nGenerationType);
 
-void WG_UpdateMap(object oPlayer);
+json WG_GetAreaMapColor(int nColor);
+void WG_UpdateMapFull();
+void WG_UpdateMapArea(string sAreaID, int nColor, object oPlayer = OBJECT_INVALID);
 
 // @CORE[EF_SYSTEM_INIT]
 void WG_Init()
@@ -91,349 +104,6 @@ void WG_Load()
     AreaMusic_AddTrackToTrackList(WG_SCRIPT_NAME, 128, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
     AreaMusic_AddTrackToTrackList(WG_SCRIPT_NAME, 136, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
 }
-
-void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection)
-{
-    string sCurrentAreaID = GetTag(oCurrentArea);
-    string sNextAreaID = WG_GetAreaIDFromDirection(sCurrentAreaID, nDirection);
-    object oNextArea = GetObjectByTag(sNextAreaID);
-
-    if (GetIsObjectValid(oNextArea))
-    {
-        vector vPosition, vCurrent = GetPosition(oPlayer);
-        switch (nDirection)
-        {
-            case WG_NEIGHBOR_AREA_TOP:
-                vPosition = Vector(vCurrent.x, 1.0f, vCurrent.z);
-            break;
-
-            case WG_NEIGHBOR_AREA_RIGHT:
-                vPosition = Vector(1.0f, vCurrent.y, vCurrent.z);
-            break;
-
-            case WG_NEIGHBOR_AREA_BOTTOM:
-                vPosition = Vector(vCurrent.x, (WG_AREA_LENGTH * 10.0f) - 1.0f, vCurrent.z);
-            break;
-
-            case WG_NEIGHBOR_AREA_LEFT:
-                vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 1.0f, vCurrent.y, vCurrent.z);
-            break;
-        }
-
-        location loc = Location(oNextArea, vPosition, GetFacing(oPlayer));
-
-        AssignCommand(oPlayer, JumpToLocation(loc));
-    }
-    else
-    {
-        FloatingTextStringOnCreature("Area not generated! Position in queue: " + IntToString(WG_QueuePosition(sNextAreaID)), oPlayer, FALSE, FALSE);
-    }
-}
-
-// @NWNX[NWNX_ON_CREATURE_ON_AREA_EDGE_ENTER]
-void WG_OnAreaEdgeEnter()
-{
-    object oPlayer = OBJECT_SELF;
-    object oArea = EM_NWNXGetObject("AREA");
-
-    if (!GetIsPC(oPlayer) || !WG_GetIsWGArea(oArea))
-        return;
-
-    if (EM_NWNXGetInt("TOP"))
-        WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_TOP);
-    else if (EM_NWNXGetInt("RIGHT"))
-        WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_RIGHT);
-    else if (EM_NWNXGetInt("BOTTOM"))
-        WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_BOTTOM);
-    else if (EM_NWNXGetInt("LEFT"))
-        WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_LEFT);
-}
-
-// @CONSOLE[WGQueueContents::]
-string WG_QueueContents()
-{
-    return "World Gen Queue Size: " + IntToString(WG_QueueSize()) + "\n" + JsonDump(WG_GetQueue(), 0);
-}
-
-void WG_InitializeTemplateArea()
-{
-    object oArea = GetObjectByTag(WG_TEMPLATE_AREA_TAG);
-    SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(oArea));
-    DestroyArea(oArea);
-}
-
-json WG_GetTemplateAreaJson()
-{
-    return GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_TEMPLATE_AREA_JSON);
-}
-
-void WG_SetWorldSeed()
-{
-    int nSeed = Random(1000000000);
-    SqlMersenneTwisterSetSeed(WG_WORLD_SEED_NAME, nSeed);
-    LogInfo("World Seed: " + IntToString(nSeed));
-}
-
-string WG_GetStartingAreaID()
-{
-    return WG_AREA_TAG_PREFIX + IntToString(WG_AREA_STARTING_X) + "_" + IntToString(WG_AREA_STARTING_Y);
-}
-
-int WG_GetIsWGArea(object oArea)
-{
-    return GetStringLeft(GetTag(oArea), GetStringLength(WG_AREA_TAG_PREFIX)) == WG_AREA_TAG_PREFIX;
-}
-
-string WG_GetAreaIDFromDirection(string sAreaID, int nDirection)
-{
-    int nPrefixLength = GetStringLength(WG_AREA_TAG_PREFIX);
-    string sCoordinates = GetSubString(sAreaID, nPrefixLength, GetStringLength(sAreaID) - nPrefixLength);
-    int nDelimiter = FindSubString(sCoordinates, "_");
-    int nX = StringToInt(GetSubString(sCoordinates, 0, nDelimiter));
-    int nY = StringToInt(GetSubString(sCoordinates, nDelimiter + 1, GetStringLength(sCoordinates) - nDelimiter - 1));
-
-    switch (nDirection)
-    {
-        case WG_NEIGHBOR_AREA_TOP_LEFT:     { nX -= 1; nY += 1; break; }
-        case WG_NEIGHBOR_AREA_TOP:          {          nY += 1; break; }
-        case WG_NEIGHBOR_AREA_TOP_RIGHT:    { nX += 1; nY += 1; break; }
-        case WG_NEIGHBOR_AREA_RIGHT:        { nX += 1;          break; }
-        case WG_NEIGHBOR_AREA_BOTTOM_RIGHT: { nX += 1; nY -= 1; break; }
-        case WG_NEIGHBOR_AREA_BOTTOM:       {          nY -= 1; break; }
-        case WG_NEIGHBOR_AREA_BOTTOM_LEFT:  { nX -= 1; nY -= 1; break; }
-        case WG_NEIGHBOR_AREA_LEFT:         { nX -= 1;          break; }
-    }
-
-    return WG_AREA_TAG_PREFIX + IntToString(nX) + "_" + IntToString(nY);
-}
-
-void WG_InitializeQueue()
-{
-    SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_AREA_GENERATION_QUEUE, JSON_ARRAY);
-}
-
-json WG_GetQueue()
-{
-    return GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_AREA_GENERATION_QUEUE);
-}
-
-void WG_QueuePush(string sAreaID)
-{
-    json jQueue = WG_GetQueue();
-    if (!JsonArrayContainsString(jQueue, sAreaID))
-        JsonArrayInsertStringInplace(jQueue, sAreaID);
-}
-
-void WG_QueuePop()
-{
-    JsonArrayDelInplace(WG_GetQueue(), 0);
-}
-
-string WG_QueueGet()
-{
-    return JsonArrayGetString(WG_GetQueue(), 0);
-}
-
-int WG_QueueSize()
-{
-    return JsonGetLength(WG_GetQueue());
-}
-
-int WG_QueueEmpty()
-{
-    return !WG_QueueSize();
-}
-
-int WG_QueuePosition(string sAreaID)
-{
-    json jPosition = JsonFind(WG_GetQueue(), JsonString(sAreaID));
-    return !JsonGetType(jPosition) ? -1 : JsonGetInt(jPosition);
-}
-
-void WG_ToggleTOCs(string sAreaID, json jEdgeTOCs, string sTOC, int nChance)
-{
-    if (!JsonArrayContainsString(jEdgeTOCs, sTOC))
-    {
-        AG_SetIgnoreTerrainOrCrosser(sAreaID, sTOC, !(AG_Random(sAreaID, 100) < nChance));
-    }
-}
-
-void WG_GenerateArea()
-{
-    string sAreaID = WG_QueueGet();
-    LogInfo("Processing Area: " + sAreaID);
-
-    AG_InitializeRandomArea(sAreaID, WG_AREA_TILESET, WG_AREA_DEFAULT_EDGE_TERRAIN, WG_AREA_LENGTH, WG_AREA_LENGTH);
-    AG_SetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, WG_WORLD_SEED_NAME);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, WG_DEBUG_LOG);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, WG_MAX_ITERATIONS);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_Random(WG_WORLD_SEED_NAME, 8));
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR, TRUE);
-    AG_SetCallbackFunction(sAreaID, WG_SCRIPT_NAME, "WG_OnAreaGenerated");
-
-    AG_SetIgnoreTerrainOrCrosser(sAreaID, "ROAD");
-    AG_SetIgnoreTerrainOrCrosser(sAreaID, "BRIDGE");
-    AG_SetIgnoreTerrainOrCrosser(sAreaID, "STREET");
-    AG_SetIgnoreTerrainOrCrosser(sAreaID, "WALL");
-
-    json jEdgeTOCs = JsonArray();
-
-    if (sAreaID == WG_GetStartingAreaID())
-    {
-        int nCenterTile = (WG_AREA_LENGTH / 2) + (WG_AREA_LENGTH * (WG_AREA_LENGTH / 2));
-        AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nCenterTile, 1215, AG_Random(WG_WORLD_SEED_NAME, 4), 0, TRUE);
-    }
-    else
-    {
-        object oNeighborArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_TOP));
-        if (GetIsObjectValid(oNeighborArea))
-        {
-            AG_CopyEdgeFromArea(sAreaID, oNeighborArea, AG_AREA_EDGE_BOTTOM);
-            jEdgeTOCs = JsonSetOp(jEdgeTOCs, JSON_SET_UNION, AG_GetEdgeTOCs(GetTag(oNeighborArea), AG_AREA_EDGE_BOTTOM));
-        }
-
-        oNeighborArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_RIGHT));
-        if (GetIsObjectValid(oNeighborArea))
-        {
-            AG_CopyEdgeFromArea(sAreaID, oNeighborArea, AG_AREA_EDGE_LEFT);
-            jEdgeTOCs = JsonSetOp(jEdgeTOCs, JSON_SET_UNION, AG_GetEdgeTOCs(GetTag(oNeighborArea), AG_AREA_EDGE_LEFT));
-        }
-
-        oNeighborArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_BOTTOM));
-        if (GetIsObjectValid(oNeighborArea))
-        {
-            AG_CopyEdgeFromArea(sAreaID, oNeighborArea, AG_AREA_EDGE_TOP);
-            jEdgeTOCs = JsonSetOp(jEdgeTOCs, JSON_SET_UNION, AG_GetEdgeTOCs(GetTag(oNeighborArea), AG_AREA_EDGE_TOP));
-        }
-
-        oNeighborArea = GetObjectByTag(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_LEFT));
-        if (GetIsObjectValid(oNeighborArea))
-        {
-            AG_CopyEdgeFromArea(sAreaID, oNeighborArea, AG_AREA_EDGE_RIGHT);
-            jEdgeTOCs = JsonSetOp(jEdgeTOCs, JSON_SET_UNION, AG_GetEdgeTOCs(GetTag(oNeighborArea), AG_AREA_EDGE_RIGHT));
-        }
-
-        jEdgeTOCs = JsonArrayTransform(jEdgeTOCs, JSON_ARRAY_UNIQUE);
-    }
-
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "SAND", WG_AREA_SAND_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "WATER", WG_AREA_WATER_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "MOUNTAIN", WG_AREA_MOUNTAIN_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "STREAM", WG_AREA_STREAM_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "RIDGE", WG_AREA_RIDGE_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "GRASS2", WG_AREA_GRASS2_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "CHASM", WG_AREA_CHASM_CHANCE);
-
-    AG_GenerateArea(sAreaID);
-}
-
-void WG_OnAreaGenerated(string sAreaID)
-{
-    if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
-    {
-        WG_GenerateArea();
-    }
-    else
-    {
-        object oArea = WG_CreateArea(sAreaID);
-        EM_SetAreaEventScripts(oArea);
-        WG_SetAreaModifiers(oArea);
-
-        LogInfo("Generated Area: " + GetTag(oArea));
-
-        //if (sAreaID == WG_GetStartingAreaID())
-        {
-            string sNextAreaID = WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_TOP);
-            if (!GetIsObjectValid(GetObjectByTag(sNextAreaID)))
-                WG_QueuePush(sNextAreaID);
-
-            sNextAreaID = WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_RIGHT);
-            if (!GetIsObjectValid(GetObjectByTag(sNextAreaID)))
-                WG_QueuePush(sNextAreaID);
-
-            sNextAreaID = WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_BOTTOM);
-            if (!GetIsObjectValid(GetObjectByTag(sNextAreaID)))
-                WG_QueuePush(sNextAreaID);
-
-            sNextAreaID = WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_LEFT);
-            if (!GetIsObjectValid(GetObjectByTag(sNextAreaID)))
-                WG_QueuePush(sNextAreaID);
-        }
-
-        InsertStringToLocalJsonArray(GetDataObject(WG_SCRIPT_NAME), WG_GENERATED_AREAS_ARRAY, sAreaID);
-        WG_InsertGenerationType(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE));
-
-        WG_QueuePop();
-
-        WG_UpdateMap(GetFirstPC());
-
-        if (!WG_QueueEmpty())
-            WG_GenerateArea();
-    }
-}
-
-object WG_CreateArea(string sAreaID)
-{
-    json jArea = WG_GetTemplateAreaJson();
-    jArea = GffReplaceString(jArea, "ARE/value/Tag", sAreaID);
-    jArea = GffReplaceInt(jArea, "ARE/value/Height", AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT));
-    jArea = GffReplaceInt(jArea, "ARE/value/Width", AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH));
-    jArea = GffReplaceLocString(jArea, "ARE/value/Name", sAreaID);
-    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicDay", 0);
-    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicNight", 0);
-    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicBattle", 0);
-    jArea = GffReplaceInt(jArea, "ARE/value/WindPower", AG_Random(sAreaID, 2) + 1);
-    jArea = GffAddList(jArea, "ARE/value/Tile_List", AG_GetTileList(sAreaID));
-    return JsonToObject(jArea, GetStartingLocation());
-}
-
-void WG_SetAreaModifiers(object oArea)
-{
-    // Don't persist player locations in WG areas
-    Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oArea));
-    // Setup dynamic lighting
-    Call(Function("ef_s_dynlight", "DynLight_InitArea"), ObjectArg(oArea));
-    // Assign Track List
-    AreaMusic_SetAreaTrackList(oArea, WG_SCRIPT_NAME);
-
-    // Grass
-    float fDensity = 20.0f;
-    float fHeight = 1.0f;
-    vector vColor = Vector(1.0f, 1.0f, 1.0f);
-    SetAreaGrassOverride(oArea, 3, "trm02_grass3d", fDensity, fHeight, vColor, vColor);
-}
-
-void WG_InsertGenerationType(int nGenerationType)
-{
-    object oDataObject = GetDataObject(WG_SCRIPT_NAME);
-    json jArray = GetLocalJsonOrDefault(oDataObject, "GenerationTypeList", GetJsonArrayOfSize(8, JsonInt(0)));
-    jArray = JsonArraySetInt(jArray, nGenerationType, JsonArrayGetInt(jArray, nGenerationType) + 1);
-    SetLocalJson(oDataObject, "GenerationTypeList", jArray);
-}
-
-// @CONSOLE[WGDisplayGenerationTypes::]
-string WG_DisplayGenerationTypes()
-{
-    object oDataObject = GetDataObject(WG_SCRIPT_NAME);
-    json jArray = GetLocalJsonOrDefault(oDataObject, "GenerationTypeList", GetJsonArrayOfSize(8, JsonInt(0)));
-    string sGenerationTypes;
-    int nType, nNumTypes = 8;
-    for (nType = 0; nType < nNumTypes; nType++)
-    {
-        sGenerationTypes += AG_GetGenerationTypeAsString(nType) + ": " + IntToString(JsonArrayGetInt(jArray, nType)) + "\n";
-    }
-    return sGenerationTypes;
-}
-
-// WORLD MAP
-
-const string WG_MAP_WINDOW_ID               = "WORLDMAP";
-const float WG_MAP_AREA_SIZE                = 24.0f;
-const int WG_MAP_NUM_COLUMNS                = 15;
-const int WG_MAP_NUM_ROWS                   = 15;
-
-const string WG_MAP_BIND_BUTTON_REFRESH     = "btn_refresh";
-const string WG_MAP_BIND_COLOR              = "_color";
 
 // @NWMWINDOW[WG_MAP_WINDOW_ID]
 json WG_CreateWindow()
@@ -498,30 +168,59 @@ void WG_ClickMapArea()
     }
 }
 
-void WG_UpdateMap(object oPlayer)
+// @EVENT[EVENT_SCRIPT_AREA_ON_ENTER:DL:]
+void WG_OnAreaEnter()
 {
-    if (NWM_GetIsWindowOpen(oPlayer, WG_MAP_WINDOW_ID, TRUE))
+    object oPlayer = GetEnteringObject();
+    if (GetIsPC(oPlayer))
+        WG_UpdateMapArea(GetTag(OBJECT_SELF), WG_MAP_COLOR_PLAYER, oPlayer);
+}
+
+// @EVENT[EVENT_SCRIPT_AREA_ON_EXIT:DL:]
+void WG_OnAreaExit()
+{
+    object oPlayer = GetEnteringObject();
+    if (GetIsPC(oPlayer))
+        WG_UpdateMapArea(GetTag(OBJECT_SELF), WG_MAP_COLOR_AVAILABLE, oPlayer);
+}
+
+// @NWNX[NWNX_ON_CREATURE_ON_AREA_EDGE_ENTER]
+void WG_OnAreaEdgeEnter()
+{
+    object oPlayer = OBJECT_SELF;
+    object oArea = EM_NWNXGetObject("AREA");
+
+    if (!GetIsPC(oPlayer) || !WG_GetIsWGArea(oArea))
+        return;
+
+    if (EM_NWNXGetInt("TOP"))
+        WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_TOP);
+    else if (EM_NWNXGetInt("RIGHT"))
+        WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_RIGHT);
+    else if (EM_NWNXGetInt("BOTTOM"))
+        WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_BOTTOM);
+    else if (EM_NWNXGetInt("LEFT"))
+        WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_LEFT);
+}
+
+// @CONSOLE[WGQueueContents::]
+string WG_QueueContents()
+{
+    return "World Gen Queue Size: " + IntToString(WG_QueueSize()) + "\n" + JsonDump(WG_GetQueue(), 0);
+}
+
+// @CONSOLE[WGDisplayGenerationTypes::]
+string WG_DisplayGenerationTypes()
+{
+    object oDataObject = GetDataObject(WG_SCRIPT_NAME);
+    json jArray = GetLocalJsonOrDefault(oDataObject, "GenerationTypeList", GetJsonArrayOfSize(8, JsonInt(0)));
+    string sGenerationTypes;
+    int nType, nNumTypes = 8;
+    for (nType = 0; nType < nNumTypes; nType++)
     {
-        json jGeneratedAreas = GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_GENERATED_AREAS_ARRAY);
-        int nArea, nNumAreas = JsonGetLength(jGeneratedAreas);
-        for (nArea = 0; nArea < nNumAreas; nArea++)
-        {
-            NWM_SetBind(WG_MAP_BIND_COLOR + JsonArrayGetString(jGeneratedAreas, nArea), NuiColor(0, 225, 0, 200));
-        }
-
-        json jQueuedAreas = WG_GetQueue();
-        nNumAreas = JsonGetLength(jQueuedAreas);
-        for (nArea = 0; nArea < nNumAreas; nArea++)
-        {
-            NWM_SetBind(WG_MAP_BIND_COLOR + JsonArrayGetString(jQueuedAreas, nArea), NuiColor(225, 0, 0, 200));
-        }
-
-        object oArea = GetArea(oPlayer);
-        if (WG_GetIsWGArea(oArea))
-        {
-            NWM_SetBind(WG_MAP_BIND_COLOR + GetTag(oArea), NuiColor(0, 0, 225, 200));
-        }
+        sGenerationTypes += AG_GetGenerationTypeAsString(nType) + ": " + IntToString(JsonArrayGetInt(jArray, nType)) + "\n";
     }
+    return sGenerationTypes;
 }
 
 // @PMBUTTON[World Map:Display the world map!]
@@ -532,14 +231,335 @@ void WG_ShowMapWindow()
         NWM_CloseWindow(oPlayer, WG_MAP_WINDOW_ID);
     else if (NWM_OpenWindow(oPlayer, WG_MAP_WINDOW_ID))
     {
-        WG_UpdateMap(oPlayer);
+        WG_UpdateMapFull();
     }
 }
 
-// @EVENT[EVENT_SCRIPT_AREA_ON_ENTER::]
-void WG_OnAreaEnter()
+void WG_InitializeTemplateArea()
 {
-    object oPlayer = GetEnteringObject();
-    if (WG_GetIsWGArea(OBJECT_SELF))
-        WG_UpdateMap(oPlayer);
+    object oArea = GetObjectByTag(WG_TEMPLATE_AREA_TAG);
+    SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_TEMPLATE_AREA_JSON, GffTools_GetScrubbedAreaTemplate(oArea));
+    DestroyArea(oArea);
+}
+
+json WG_GetTemplateAreaJson()
+{
+    return GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_TEMPLATE_AREA_JSON);
+}
+
+void WG_SetWorldSeed()
+{
+    int nSeed = Random(1000000000);
+    SqlMersenneTwisterSetSeed(WG_WORLD_SEED_NAME, nSeed);
+    LogInfo("World Seed: " + IntToString(nSeed));
+}
+
+string WG_GetStartingAreaID()
+{
+    return WG_AREA_TAG_PREFIX + IntToString(WG_AREA_STARTING_X) + "_" + IntToString(WG_AREA_STARTING_Y);
+}
+
+int WG_GetIsWGArea(object oArea)
+{
+    return GetStringLeft(GetTag(oArea), GetStringLength(WG_AREA_TAG_PREFIX)) == WG_AREA_TAG_PREFIX;
+}
+
+string WG_GetAreaIDFromDirection(string sAreaID, int nDirection)
+{
+    int nPrefixLength = GetStringLength(WG_AREA_TAG_PREFIX);
+    string sCoordinates = GetSubString(sAreaID, nPrefixLength, GetStringLength(sAreaID) - nPrefixLength);
+    int nDelimiter = FindSubString(sCoordinates, "_");
+    int nX = StringToInt(GetSubString(sCoordinates, 0, nDelimiter));
+    int nY = StringToInt(GetSubString(sCoordinates, nDelimiter + 1, GetStringLength(sCoordinates) - nDelimiter - 1));
+
+    switch (nDirection)
+    {
+        case WG_NEIGHBOR_AREA_TOP_LEFT:     { nX -= 1; nY += 1; break; }
+        case WG_NEIGHBOR_AREA_TOP:          {          nY += 1; break; }
+        case WG_NEIGHBOR_AREA_TOP_RIGHT:    { nX += 1; nY += 1; break; }
+        case WG_NEIGHBOR_AREA_RIGHT:        { nX += 1;          break; }
+        case WG_NEIGHBOR_AREA_BOTTOM_RIGHT: { nX += 1; nY -= 1; break; }
+        case WG_NEIGHBOR_AREA_BOTTOM:       {          nY -= 1; break; }
+        case WG_NEIGHBOR_AREA_BOTTOM_LEFT:  { nX -= 1; nY -= 1; break; }
+        case WG_NEIGHBOR_AREA_LEFT:         { nX -= 1;          break; }
+    }
+
+    return WG_AREA_TAG_PREFIX + IntToString(nX) + "_" + IntToString(nY);
+}
+
+void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection)
+{
+    string sCurrentAreaID = GetTag(oCurrentArea);
+    string sNextAreaID = WG_GetAreaIDFromDirection(sCurrentAreaID, nDirection);
+    object oNextArea = GetObjectByTag(sNextAreaID);
+
+    if (GetIsObjectValid(oNextArea))
+    {
+        vector vPosition, vCurrent = GetPosition(oPlayer);
+        switch (nDirection)
+        {
+            case WG_NEIGHBOR_AREA_TOP:
+                vPosition = Vector(vCurrent.x, 1.0f, vCurrent.z);
+            break;
+
+            case WG_NEIGHBOR_AREA_RIGHT:
+                vPosition = Vector(1.0f, vCurrent.y, vCurrent.z);
+            break;
+
+            case WG_NEIGHBOR_AREA_BOTTOM:
+                vPosition = Vector(vCurrent.x, (WG_AREA_LENGTH * 10.0f) - 1.0f, vCurrent.z);
+            break;
+
+            case WG_NEIGHBOR_AREA_LEFT:
+                vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 1.0f, vCurrent.y, vCurrent.z);
+            break;
+        }
+
+        location loc = Location(oNextArea, vPosition, GetFacing(oPlayer));
+
+        AssignCommand(oPlayer, JumpToLocation(loc));
+    }
+    else
+    {
+        FloatingTextStringOnCreature("Area not generated! Position in queue: " + IntToString(WG_QueuePosition(sNextAreaID)), oPlayer, FALSE, FALSE);
+    }
+}
+
+void WG_InitializeQueue()
+{
+    SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_AREA_GENERATION_QUEUE, JSON_ARRAY);
+}
+
+json WG_GetQueue()
+{
+    return GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_AREA_GENERATION_QUEUE);
+}
+
+void WG_QueuePush(string sAreaID)
+{
+    json jQueue = WG_GetQueue();
+    if (!JsonArrayContainsString(jQueue, sAreaID))
+        JsonArrayInsertStringInplace(jQueue, sAreaID);
+}
+
+void WG_QueuePop()
+{
+    JsonArrayDelInplace(WG_GetQueue(), 0);
+}
+
+string WG_QueueGet()
+{
+    return JsonArrayGetString(WG_GetQueue(), 0);
+}
+
+int WG_QueueSize()
+{
+    return JsonGetLength(WG_GetQueue());
+}
+
+int WG_QueueEmpty()
+{
+    return !WG_QueueSize();
+}
+
+int WG_QueuePosition(string sAreaID)
+{
+    json jPosition = JsonFind(WG_GetQueue(), JsonString(sAreaID));
+    return !JsonGetType(jPosition) ? -1 : JsonGetInt(jPosition);
+}
+
+void WG_ToggleTOCs(string sAreaID, json jEdgeTOCs, string sTOC, int nChance)
+{
+    if (!JsonArrayContainsString(jEdgeTOCs, sTOC))
+    {
+        AG_SetIgnoreTerrainOrCrosser(sAreaID, sTOC, !(AG_Random(sAreaID, 100) < nChance));
+    }
+}
+
+json WG_CopyAreaEdge(string sAreaID, int nNeighborDirection, int nDestinationEdge, json jEdgeTOCs)
+{
+    string sNeighborAreaID = WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection);
+    object oNeighborArea = GetObjectByTag(sNeighborAreaID);
+    if (GetIsObjectValid(oNeighborArea))
+    {
+        AG_CopyEdgeFromArea(sAreaID, oNeighborArea, nDestinationEdge);
+        jEdgeTOCs = JsonSetOp(jEdgeTOCs, JSON_SET_UNION, AG_GetEdgeTOCs(sNeighborAreaID, nDestinationEdge));
+    }
+    return jEdgeTOCs;
+}
+
+void WG_GenerateArea()
+{
+    string sAreaID = WG_QueueGet();
+    LogInfo("Processing Area: " + sAreaID);
+
+    AG_InitializeRandomArea(sAreaID, WG_AREA_TILESET, WG_AREA_DEFAULT_EDGE_TERRAIN, WG_AREA_LENGTH, WG_AREA_LENGTH);
+    AG_SetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, WG_WORLD_SEED_NAME);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, WG_DEBUG_LOG);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, WG_MAX_ITERATIONS);
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_Random(WG_WORLD_SEED_NAME, 8));
+    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR, TRUE);
+    AG_SetCallbackFunction(sAreaID, WG_SCRIPT_NAME, "WG_OnAreaGenerated");
+
+    AG_SetIgnoreTerrainOrCrosser(sAreaID, "ROAD");
+    AG_SetIgnoreTerrainOrCrosser(sAreaID, "BRIDGE");
+    AG_SetIgnoreTerrainOrCrosser(sAreaID, "STREET");
+    AG_SetIgnoreTerrainOrCrosser(sAreaID, "WALL");
+
+    json jEdgeTOCs = JsonArray();
+
+    if (sAreaID == WG_GetStartingAreaID())
+    {
+        int nCenterTile = (WG_AREA_LENGTH / 2) + (WG_AREA_LENGTH * (WG_AREA_LENGTH / 2));
+        AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nCenterTile, 1215, AG_Random(WG_WORLD_SEED_NAME, 4), 0, TRUE);
+    }
+    else
+    {
+        jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_TOP, AG_AREA_EDGE_BOTTOM, jEdgeTOCs);
+        jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_RIGHT, AG_AREA_EDGE_LEFT, jEdgeTOCs);
+        jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM, AG_AREA_EDGE_TOP, jEdgeTOCs);
+        jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_LEFT, AG_AREA_EDGE_RIGHT, jEdgeTOCs);
+        jEdgeTOCs = JsonArrayTransform(jEdgeTOCs, JSON_ARRAY_UNIQUE);
+    }
+
+    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "SAND", WG_AREA_SAND_CHANCE);
+    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "WATER", WG_AREA_WATER_CHANCE);
+    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "MOUNTAIN", WG_AREA_MOUNTAIN_CHANCE);
+    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "STREAM", WG_AREA_STREAM_CHANCE);
+    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "RIDGE", WG_AREA_RIDGE_CHANCE);
+    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "GRASS2", WG_AREA_GRASS2_CHANCE);
+    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "CHASM", WG_AREA_CHASM_CHANCE);
+
+    AG_GenerateArea(sAreaID);
+}
+
+void WG_QueueArea(string sAreaID)
+{
+    if (!GetIsObjectValid(GetObjectByTag(sAreaID)))
+    {
+        WG_QueuePush(sAreaID);
+        WG_UpdateMapArea(sAreaID, WG_MAP_COLOR_UNAVAILABLE);
+    }
+}
+
+void WG_OnAreaGenerated(string sAreaID)
+{
+    if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
+    {
+        WG_GenerateArea();
+    }
+    else
+    {
+        object oArea = WG_CreateArea(sAreaID);
+
+        LogInfo("Generated Area: " + GetTag(oArea));
+
+        EM_SetAreaEventScripts(oArea);
+        EM_ObjectDispatchListInsert(oArea, EM_GetObjectDispatchListId(WG_SCRIPT_NAME, EVENT_SCRIPT_AREA_ON_ENTER));
+        EM_ObjectDispatchListInsert(oArea, EM_GetObjectDispatchListId(WG_SCRIPT_NAME, EVENT_SCRIPT_AREA_ON_EXIT));
+        WG_SetAreaModifiers(oArea);
+        WG_UpdateMapArea(sAreaID, WG_MAP_COLOR_AVAILABLE);
+        WG_InsertGenerationType(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE));
+
+        //if (sAreaID == WG_GetStartingAreaID())
+        {
+            WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_TOP));
+            WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_RIGHT));
+            WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_BOTTOM));
+            WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_LEFT));
+        }
+
+        InsertStringToLocalJsonArray(GetDataObject(WG_SCRIPT_NAME), WG_GENERATED_AREAS_ARRAY, sAreaID);
+
+        WG_QueuePop();
+
+        if (!WG_QueueEmpty())
+            WG_GenerateArea();
+    }
+}
+
+object WG_CreateArea(string sAreaID)
+{
+    json jArea = WG_GetTemplateAreaJson();
+    jArea = GffReplaceString(jArea, "ARE/value/Tag", sAreaID);
+    jArea = GffReplaceInt(jArea, "ARE/value/Height", AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT));
+    jArea = GffReplaceInt(jArea, "ARE/value/Width", AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH));
+    jArea = GffReplaceLocString(jArea, "ARE/value/Name", sAreaID);
+    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicDay", 0);
+    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicNight", 0);
+    jArea = GffReplaceInt(jArea, "GIT/value/AreaProperties/value/MusicBattle", 0);
+    jArea = GffReplaceInt(jArea, "ARE/value/WindPower", AG_Random(sAreaID, 2) + 1);
+    jArea = GffAddList(jArea, "ARE/value/Tile_List", AG_GetTileList(sAreaID));
+    return JsonToObject(jArea, GetStartingLocation());
+}
+
+void WG_SetAreaModifiers(object oArea)
+{
+    Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oArea));
+    Call(Function("ef_s_dynlight", "DynLight_InitArea"), ObjectArg(oArea));
+    AreaMusic_SetAreaTrackList(oArea, WG_SCRIPT_NAME);
+    SetAreaGrassOverride(oArea, 3, "trm02_grass3d", 20.0f, 1.0f, Vector(1.0f, 1.0f, 1.0f), Vector(1.0f, 1.0f, 1.0f));
+}
+
+void WG_InsertGenerationType(int nGenerationType)
+{
+    object oDataObject = GetDataObject(WG_SCRIPT_NAME);
+    json jArray = GetLocalJsonOrDefault(oDataObject, "GenerationTypeList", GetJsonArrayOfSize(8, JsonInt(0)));
+    jArray = JsonArraySetInt(jArray, nGenerationType, JsonArrayGetInt(jArray, nGenerationType) + 1);
+    SetLocalJson(oDataObject, "GenerationTypeList", jArray);
+}
+
+json WG_GetAreaMapColor(int nColor)
+{
+    switch (nColor)
+    {
+        case WG_MAP_COLOR_PLAYER:       return NuiColor(0, 0, 225, 200);
+        case WG_MAP_COLOR_AVAILABLE:    return NuiColor(0, 225, 0, 200);
+        case WG_MAP_COLOR_UNAVAILABLE:  return NuiColor(225, 0, 0, 200);
+    }
+    return NuiColor(0, 0, 0, 0);
+}
+
+void WG_UpdateMapFull()
+{
+    json jGeneratedAreas = GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_GENERATED_AREAS_ARRAY);
+    json jColor = WG_GetAreaMapColor(WG_MAP_COLOR_AVAILABLE);
+    int nArea, nNumAreas = JsonGetLength(jGeneratedAreas);
+    for (nArea = 0; nArea < nNumAreas; nArea++)
+    {
+        NWM_SetBind(WG_MAP_BIND_COLOR + JsonArrayGetString(jGeneratedAreas, nArea), jColor);
+    }
+
+    json jQueuedAreas = WG_GetQueue();
+    jColor = WG_GetAreaMapColor(WG_MAP_COLOR_UNAVAILABLE);
+    nNumAreas = JsonGetLength(jQueuedAreas);
+    for (nArea = 0; nArea < nNumAreas; nArea++)
+    {
+        NWM_SetBind(WG_MAP_BIND_COLOR + JsonArrayGetString(jQueuedAreas, nArea), jColor);
+    }
+
+    object oArea = GetArea(NWM_GetPlayer());
+    if (WG_GetIsWGArea(oArea))
+    {
+        NWM_SetBind(WG_MAP_BIND_COLOR + GetTag(oArea), WG_GetAreaMapColor(WG_MAP_COLOR_PLAYER));
+    }
+}
+
+void WG_UpdateMapArea(string sAreaID, int nColor, object oPlayer = OBJECT_INVALID)
+{
+    if (oPlayer != OBJECT_INVALID)
+    {
+        if (NWM_GetIsWindowOpen(oPlayer, WG_MAP_WINDOW_ID, TRUE))
+            NWM_SetBind(WG_MAP_BIND_COLOR + sAreaID, WG_GetAreaMapColor(nColor));
+    }
+    else
+    {
+        oPlayer = GetFirstPC();
+        while (GetIsObjectValid(oPlayer))
+        {
+            if (NWM_GetIsWindowOpen(oPlayer, WG_MAP_WINDOW_ID, TRUE))
+                NWM_SetBind(WG_MAP_BIND_COLOR + sAreaID, WG_GetAreaMapColor(nColor));
+            oPlayer = GetNextPC();
+        }
+    }
 }

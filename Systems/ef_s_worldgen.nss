@@ -40,10 +40,10 @@ const int WG_NEIGHBOR_AREA_BOTTOM                               = 5;
 const int WG_NEIGHBOR_AREA_BOTTOM_LEFT                          = 6;
 const int WG_NEIGHBOR_AREA_LEFT                                 = 7;
 
-const int WG_AREA_SAND_CHANCE                                   = 20;
-const int WG_AREA_WATER_CHANCE                                  = 30;
+const int WG_AREA_SAND_CHANCE                                   = 15;
+const int WG_AREA_WATER_CHANCE                                  = 25;
 const int WG_AREA_MOUNTAIN_CHANCE                               = 35;
-const int WG_AREA_STREAM_CHANCE                                 = 15;
+const int WG_AREA_STREAM_CHANCE                                 = 10;
 const int WG_AREA_RIDGE_CHANCE                                  = 20;
 const int WG_AREA_GRASS2_CHANCE                                 = 25;
 const int WG_AREA_CHASM_CHANCE                                  = 10;
@@ -186,7 +186,7 @@ void WG_OnAreaEnter()
 // @EVENT[EVENT_SCRIPT_AREA_ON_EXIT:DL:]
 void WG_OnAreaExit()
 {
-    object oPlayer = GetEnteringObject();
+    object oPlayer = GetExitingObject();
     if (GetIsPC(oPlayer))
         WG_UpdateMapArea(GetTag(OBJECT_SELF), WG_MAP_COLOR_AVAILABLE, oPlayer);
 }
@@ -275,7 +275,7 @@ int WG_GetAreaIDIsInWorldBounds(string sAreaID)
     int nMaxY = WG_AREA_STARTING_Y + (WG_WORLD_HEIGHT / 2);
     int nMinY = nMaxY - (WG_WORLD_HEIGHT - 1);
     struct WG_AreaCoordinates str = WG_GetAreaCoordinates(sAreaID);
-    return !(str.nX < nMinX || str.nX > nMaxX || str.nY < nMinY || str.nY > nMaxX);
+    return !(str.nX < nMinX || str.nX > nMaxX || str.nY < nMinY || str.nY > nMaxY);
 }
 
 int WG_GetIsWGArea(object oArea)

@@ -15,13 +15,23 @@ const string WG_SCRIPT_NAME                                     = "ef_s_worldgen
 const int WG_DEBUG_LOG                                          = FALSE;
 const int WG_ENABLE_AREA_CACHING                                = TRUE;
 
+const int WG_AREA_LENGTH                                        = 9;
+const int WG_WORLD_WIDTH                                        = 15;
+const int WG_WORLD_HEIGHT                                       = 15;
+
+const int WG_AREA_SAND_CHANCE                                   = 15;
+const int WG_AREA_WATER_CHANCE                                  = 25;
+const int WG_AREA_MOUNTAIN_CHANCE                               = 35;
+const int WG_AREA_STREAM_CHANCE                                 = 10;
+const int WG_AREA_RIDGE_CHANCE                                  = 20;
+const int WG_AREA_GRASS2_CHANCE                                 = 25;
+const int WG_AREA_CHASM_CHANCE                                  = 10;
+
 const string WG_TEMPLATE_AREA_TAG                               = "AR_TEMPLATEAREA";
 const string WG_TEMPLATE_AREA_JSON                              = "TemplateArea";
 const string WG_AREA_TAG_PREFIX                                 = "AR_W_";
 const int WG_AREA_STARTING_X                                    = 10000;
 const int WG_AREA_STARTING_Y                                    = 10000;
-const int WG_WORLD_WIDTH                                        = 15;
-const int WG_WORLD_HEIGHT                                       = 15;
 
 const string WG_GENERATED_AREAS_ARRAY                           = "GeneratedAreas";
 
@@ -30,7 +40,6 @@ const string WG_WORLD_SEED_NAME                                 = "WG_WORLD_SEED
 const string WG_AREA_TILESET                                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
 const int WG_MAX_ITERATIONS                                     = 100;
 const string WG_AREA_DEFAULT_EDGE_TERRAIN                       = "";
-const int WG_AREA_LENGTH                                        = 9;
 
 const int WG_NEIGHBOR_AREA_TOP_LEFT                             = 0;
 const int WG_NEIGHBOR_AREA_TOP                                  = 1;
@@ -40,14 +49,6 @@ const int WG_NEIGHBOR_AREA_BOTTOM_RIGHT                         = 4;
 const int WG_NEIGHBOR_AREA_BOTTOM                               = 5;
 const int WG_NEIGHBOR_AREA_BOTTOM_LEFT                          = 6;
 const int WG_NEIGHBOR_AREA_LEFT                                 = 7;
-
-const int WG_AREA_SAND_CHANCE                                   = 15;
-const int WG_AREA_WATER_CHANCE                                  = 25;
-const int WG_AREA_MOUNTAIN_CHANCE                               = 35;
-const int WG_AREA_STREAM_CHANCE                                 = 10;
-const int WG_AREA_RIDGE_CHANCE                                  = 20;
-const int WG_AREA_GRASS2_CHANCE                                 = 25;
-const int WG_AREA_CHASM_CHANCE                                  = 10;
 
 const string WG_AREA_GENERATION_QUEUE                           = "AreaGenerationQueue";
 
@@ -72,7 +73,7 @@ int WG_GetStateHash();
 string WG_GetAreaID(int nX, int nY);
 string WG_GetStartingAreaID();
 struct AG_TilePosition WG_GetAreaCoordinates(string sAreaID);
-int WG_GetAreaIDIsInWorldBounds(string sAreaID);
+int WG_GetAreaOutOfBounds(string sAreaID);
 int WG_GetIsWGArea(object oArea);
 string WG_GetAreaIDFromDirection(string sAreaID, int nDirection);
 void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection);
@@ -292,14 +293,14 @@ struct AG_TilePosition WG_GetAreaCoordinates(string sAreaID)
     return str;
 }
 
-int WG_GetAreaIDIsInWorldBounds(string sAreaID)
+int WG_GetAreaOutOfBounds(string sAreaID)
 {
     int nMinX = WG_AREA_STARTING_X - (WG_WORLD_WIDTH / 2);
     int nMaxX = nMinX + (WG_WORLD_WIDTH - 1);
     int nMaxY = WG_AREA_STARTING_Y + (WG_WORLD_HEIGHT / 2);
     int nMinY = nMaxY - (WG_WORLD_HEIGHT - 1);
     struct AG_TilePosition str = WG_GetAreaCoordinates(sAreaID);
-    return !(str.nX < nMinX || str.nX > nMaxX || str.nY < nMinY || str.nY > nMaxY);
+    return str.nX < nMinX || str.nX > nMaxX || str.nY < nMinY || str.nY > nMaxY;
 }
 
 int WG_GetIsWGArea(object oArea)
@@ -356,7 +357,7 @@ void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection)
 
         AssignCommand(oPlayer, JumpToLocation(loc));
     }
-    else if (WG_GetAreaIDIsInWorldBounds(sNextAreaID))
+    else if (!WG_GetAreaOutOfBounds(sNextAreaID))
     {
         FloatingTextStringOnCreature("Area not generated! Position in queue: " + IntToString(WG_QueuePosition(sNextAreaID)), oPlayer, FALSE, FALSE);
     }
@@ -480,13 +481,10 @@ void WG_GenerateArea()
 
 void WG_QueueArea(string sAreaID)
 {
-    if (!GetIsObjectValid(GetObjectByTag(sAreaID)))
+    if (!GetIsObjectValid(GetObjectByTag(sAreaID)) && !WG_GetAreaOutOfBounds(sAreaID))
     {
-        if (WG_GetAreaIDIsInWorldBounds(sAreaID))
-        {
-            WG_QueuePush(sAreaID);
-            WG_UpdateMapArea(sAreaID, WG_MAP_COLOR_QUEUED);
-        }
+        WG_QueuePush(sAreaID);
+        WG_UpdateMapArea(sAreaID, WG_MAP_COLOR_QUEUED);
     }
 }
 
@@ -501,8 +499,7 @@ void WG_OnAreaGenerated(string sAreaID)
         object oArea = WG_CreateArea(sAreaID);
         int bCached = WG_GetAreaIsCached(sAreaID);
 
-        LogInfo("Generated Area: " + sAreaID);
-        LogInfo(" > From Cache: " + (bCached ? "TRUE" : "FALSE"));
+        LogInfo("Generated Area " + (bCached ? "From Cache" : "") +  ": " + sAreaID);
 
         if (!bCached)
             WG_CacheArea(sAreaID);

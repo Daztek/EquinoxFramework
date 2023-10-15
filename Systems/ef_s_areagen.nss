@@ -127,6 +127,7 @@ struct AG_TilePosition
 };
 
 object AG_GetAreaDataObject(string sAreaID);
+void AG_SetAreaDataObject(string sAreaID, object oDataObject);
 void AG_SetJsonData(string sAreaID, json jData);
 json AG_GetJsonData(string sAreaID);
 void AG_SetJsonDataByKey(string sAreaID, string sKey, json jValue);
@@ -217,6 +218,11 @@ int AG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile);
 object AG_GetAreaDataObject(string sAreaID)
 {
     return GetDataObject(AG_GENERATOR_DATAOBJECT + sAreaID);
+}
+
+void AG_SetAreaDataObject(string sAreaID, object oDataObject)
+{
+    SetDataObject(AG_GENERATOR_DATAOBJECT + sAreaID, oDataObject);
 }
 
 void AG_SetJsonData(string sAreaID, json jData)

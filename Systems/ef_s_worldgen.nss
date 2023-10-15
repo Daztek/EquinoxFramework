@@ -13,6 +13,7 @@
 
 const string WG_SCRIPT_NAME                                     = "ef_s_worldgen";
 const int WG_DEBUG_LOG                                          = FALSE;
+const int WG_ENABLE_AREA_CACHING                                = TRUE;
 
 const string WG_TEMPLATE_AREA_TAG                               = "AR_TEMPLATEAREA";
 const string WG_TEMPLATE_AREA_JSON                              = "TemplateArea";
@@ -60,19 +61,17 @@ const int WG_MAP_COLOR_AVAILABLE                                = 2;
 const int WG_MAP_COLOR_QUEUED                                   = 3;
 const int WG_MAP_COLOR_GENERATING                               = 4;
 
-struct WG_AreaCoordinates
-{
-    int nX;
-    int nY;
-};
+const string WG_AREA_CACHE_TABLE_NAME                           = "area_cache";
 
 void WG_InitializeTemplateArea();
 json WG_GetTemplateAreaJson();
-void WG_SetWorldSeed();
+void WG_SetWorldSeed(int nSeed);
+int WG_GetWorldSeed();
+int WG_GetStateHash();
 
 string WG_GetAreaID(int nX, int nY);
 string WG_GetStartingAreaID();
-struct WG_AreaCoordinates WG_GetAreaCoordinates(string sAreaID);
+struct AG_TilePosition WG_GetAreaCoordinates(string sAreaID);
 int WG_GetAreaIDIsInWorldBounds(string sAreaID);
 int WG_GetIsWGArea(object oArea);
 string WG_GetAreaIDFromDirection(string sAreaID, int nDirection);
@@ -96,12 +95,18 @@ json WG_GetAreaMapColor(int nColor);
 void WG_UpdateMapFull();
 void WG_UpdateMapArea(string sAreaID, int nColor, object oPlayer = OBJECT_INVALID);
 
+void WG_InitializeAreaCache();
+int WG_GetAreaIsCached(string sAreaID);
+void WG_CacheArea(string sAreaID);
+int WG_GetCachedArea(string sAreaID);
+
 // @CORE[EF_SYSTEM_INIT]
 void WG_Init()
 {
     WG_InitializeTemplateArea();
-    WG_SetWorldSeed();
+    WG_SetWorldSeed(15);// Random(2147483647));
     WG_InitializeQueue();
+    WG_InitializeAreaCache();
 }
 
 // @CORE[EF_SYSTEM_LOAD]
@@ -240,11 +245,30 @@ json WG_GetTemplateAreaJson()
     return GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_TEMPLATE_AREA_JSON);
 }
 
-void WG_SetWorldSeed()
+void WG_SetWorldSeed(int nSeed)
 {
-    int nSeed = Random(2147483647);
+    SetLocalInt(GetDataObject(WG_SCRIPT_NAME), WG_WORLD_SEED_NAME, nSeed);
     SqlMersenneTwisterSetSeed(WG_WORLD_SEED_NAME, nSeed);
     LogInfo("World Seed: " + IntToString(nSeed));
+}
+
+int WG_GetWorldSeed()
+{
+    return GetLocalInt(GetDataObject(WG_SCRIPT_NAME), WG_WORLD_SEED_NAME);
+}
+
+int WG_GetStateHash()
+{
+    int nHash = GetLocalInt(GetDataObject(WG_SCRIPT_NAME), "StateHash");
+    if (!nHash)
+    {
+        nHash = HashString("SEED:" + IntToString(WG_GetWorldSeed()) +
+                           "AREASIZE:" + IntToString(WG_AREA_LENGTH) +
+                           "WSX:" + IntToString(WG_AREA_STARTING_X) +
+                           "WSY:" + IntToString(WG_AREA_STARTING_Y));
+        SetLocalInt(GetDataObject(WG_SCRIPT_NAME), "StateHash", nHash);
+    }
+    return nHash;
 }
 
 string WG_GetAreaID(int nX, int nY)
@@ -257,9 +281,9 @@ string WG_GetStartingAreaID()
     return WG_GetAreaID(WG_AREA_STARTING_X, WG_AREA_STARTING_Y);
 }
 
-struct WG_AreaCoordinates WG_GetAreaCoordinates(string sAreaID)
+struct AG_TilePosition WG_GetAreaCoordinates(string sAreaID)
 {
-    struct WG_AreaCoordinates str;
+    struct AG_TilePosition str;
     int nPrefixLength = GetStringLength(WG_AREA_TAG_PREFIX);
     string sCoordinates = GetSubString(sAreaID, nPrefixLength, GetStringLength(sAreaID) - nPrefixLength);
     int nDelimiter = FindSubString(sCoordinates, "_");
@@ -274,7 +298,7 @@ int WG_GetAreaIDIsInWorldBounds(string sAreaID)
     int nMaxX = nMinX + (WG_WORLD_WIDTH - 1);
     int nMaxY = WG_AREA_STARTING_Y + (WG_WORLD_HEIGHT / 2);
     int nMinY = nMaxY - (WG_WORLD_HEIGHT - 1);
-    struct WG_AreaCoordinates str = WG_GetAreaCoordinates(sAreaID);
+    struct AG_TilePosition str = WG_GetAreaCoordinates(sAreaID);
     return !(str.nX < nMinX || str.nX > nMaxX || str.nY < nMinY || str.nY > nMaxY);
 }
 
@@ -285,17 +309,17 @@ int WG_GetIsWGArea(object oArea)
 
 string WG_GetAreaIDFromDirection(string sAreaID, int nDirection)
 {
-    struct WG_AreaCoordinates str = WG_GetAreaCoordinates(sAreaID);
+    struct AG_TilePosition str = WG_GetAreaCoordinates(sAreaID);
     switch (nDirection)
     {
         case WG_NEIGHBOR_AREA_TOP_LEFT:     { str.nX -= 1; str.nY += 1; break; }
-        case WG_NEIGHBOR_AREA_TOP:          {          str.nY += 1; break; }
+        case WG_NEIGHBOR_AREA_TOP:          {              str.nY += 1; break; }
         case WG_NEIGHBOR_AREA_TOP_RIGHT:    { str.nX += 1; str.nY += 1; break; }
-        case WG_NEIGHBOR_AREA_RIGHT:        { str.nX += 1;          break; }
+        case WG_NEIGHBOR_AREA_RIGHT:        { str.nX += 1;              break; }
         case WG_NEIGHBOR_AREA_BOTTOM_RIGHT: { str.nX += 1; str.nY -= 1; break; }
-        case WG_NEIGHBOR_AREA_BOTTOM:       {          str.nY -= 1; break; }
+        case WG_NEIGHBOR_AREA_BOTTOM:       {              str.nY -= 1; break; }
         case WG_NEIGHBOR_AREA_BOTTOM_LEFT:  { str.nX -= 1; str.nY -= 1; break; }
-        case WG_NEIGHBOR_AREA_LEFT:         { str.nX -= 1;          break; }
+        case WG_NEIGHBOR_AREA_LEFT:         { str.nX -= 1;              break; }
     }
     return WG_GetAreaID(str.nX, str.nY);
 }
@@ -408,46 +432,50 @@ json WG_CopyAreaEdge(string sAreaID, int nNeighborDirection, int nDestinationEdg
 void WG_GenerateArea()
 {
     string sAreaID = WG_QueueGet();
+
     LogInfo("Processing Area: " + sAreaID);
 
-    AG_InitializeRandomArea(sAreaID, WG_AREA_TILESET, WG_AREA_DEFAULT_EDGE_TERRAIN, WG_AREA_LENGTH, WG_AREA_LENGTH);
-    AG_SetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, WG_WORLD_SEED_NAME);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, WG_DEBUG_LOG);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, WG_MAX_ITERATIONS);
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_Random(WG_WORLD_SEED_NAME, 8));
-    AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR, TRUE);
-    AG_SetCallbackFunction(sAreaID, WG_SCRIPT_NAME, "WG_OnAreaGenerated");
-
-    AG_SetIgnoreTerrainOrCrosser(sAreaID, "ROAD");
-    AG_SetIgnoreTerrainOrCrosser(sAreaID, "BRIDGE");
-    AG_SetIgnoreTerrainOrCrosser(sAreaID, "STREET");
-    AG_SetIgnoreTerrainOrCrosser(sAreaID, "WALL");
-
-    json jEdgeTOCs = JsonArray();
-
-    if (sAreaID == WG_GetStartingAreaID())
+    if (!WG_GetCachedArea(sAreaID))
     {
-        int nCenterTile = (WG_AREA_LENGTH / 2) + (WG_AREA_LENGTH * (WG_AREA_LENGTH / 2));
-        AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nCenterTile, 1215, AG_Random(WG_WORLD_SEED_NAME, 4), 0, TRUE);
-    }
-    else
-    {
-        jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_TOP, AG_AREA_EDGE_BOTTOM, jEdgeTOCs);
-        jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_RIGHT, AG_AREA_EDGE_LEFT, jEdgeTOCs);
-        jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM, AG_AREA_EDGE_TOP, jEdgeTOCs);
-        jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_LEFT, AG_AREA_EDGE_RIGHT, jEdgeTOCs);
-        jEdgeTOCs = JsonArrayTransform(jEdgeTOCs, JSON_ARRAY_UNIQUE);
+        AG_InitializeRandomArea(sAreaID, WG_AREA_TILESET, WG_AREA_DEFAULT_EDGE_TERRAIN, WG_AREA_LENGTH, WG_AREA_LENGTH);
+        AG_SetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, WG_WORLD_SEED_NAME);
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, WG_DEBUG_LOG);
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, WG_MAX_ITERATIONS);
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_Random(WG_WORLD_SEED_NAME, 8));
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR, TRUE);
+        AG_SetCallbackFunction(sAreaID, WG_SCRIPT_NAME, "WG_OnAreaGenerated");
+
+        AG_SetIgnoreTerrainOrCrosser(sAreaID, "ROAD");
+        AG_SetIgnoreTerrainOrCrosser(sAreaID, "BRIDGE");
+        AG_SetIgnoreTerrainOrCrosser(sAreaID, "STREET");
+        AG_SetIgnoreTerrainOrCrosser(sAreaID, "WALL");
+
+        json jEdgeTOCs = JsonArray();
+
+        if (sAreaID == WG_GetStartingAreaID())
+        {
+            int nCenterTile = (WG_AREA_LENGTH / 2) + (WG_AREA_LENGTH * (WG_AREA_LENGTH / 2));
+            AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nCenterTile, 1215, AG_Random(WG_WORLD_SEED_NAME, 4), 0, TRUE);
+        }
+        else
+        {
+            jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_TOP, AG_AREA_EDGE_BOTTOM, jEdgeTOCs);
+            jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_RIGHT, AG_AREA_EDGE_LEFT, jEdgeTOCs);
+            jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM, AG_AREA_EDGE_TOP, jEdgeTOCs);
+            jEdgeTOCs = WG_CopyAreaEdge(sAreaID, WG_NEIGHBOR_AREA_LEFT, AG_AREA_EDGE_RIGHT, jEdgeTOCs);
+            jEdgeTOCs = JsonArrayTransform(jEdgeTOCs, JSON_ARRAY_UNIQUE);
+        }
+
+        WG_ToggleTOCs(sAreaID, jEdgeTOCs, "SAND", WG_AREA_SAND_CHANCE);
+        WG_ToggleTOCs(sAreaID, jEdgeTOCs, "WATER", WG_AREA_WATER_CHANCE);
+        WG_ToggleTOCs(sAreaID, jEdgeTOCs, "MOUNTAIN", WG_AREA_MOUNTAIN_CHANCE);
+        WG_ToggleTOCs(sAreaID, jEdgeTOCs, "STREAM", WG_AREA_STREAM_CHANCE);
+        WG_ToggleTOCs(sAreaID, jEdgeTOCs, "RIDGE", WG_AREA_RIDGE_CHANCE);
+        WG_ToggleTOCs(sAreaID, jEdgeTOCs, "GRASS2", WG_AREA_GRASS2_CHANCE);
+        WG_ToggleTOCs(sAreaID, jEdgeTOCs, "CHASM", WG_AREA_CHASM_CHANCE);
     }
 
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "SAND", WG_AREA_SAND_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "WATER", WG_AREA_WATER_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "MOUNTAIN", WG_AREA_MOUNTAIN_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "STREAM", WG_AREA_STREAM_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "RIDGE", WG_AREA_RIDGE_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "GRASS2", WG_AREA_GRASS2_CHANCE);
-    WG_ToggleTOCs(sAreaID, jEdgeTOCs, "CHASM", WG_AREA_CHASM_CHANCE);
-
-    AG_GenerateArea(sAreaID);
+    DelayCommand(0.5f, AG_GenerateArea(sAreaID));
 }
 
 void WG_QueueArea(string sAreaID)
@@ -471,8 +499,13 @@ void WG_OnAreaGenerated(string sAreaID)
     else
     {
         object oArea = WG_CreateArea(sAreaID);
+        int bCached = WG_GetAreaIsCached(sAreaID);
 
-        LogInfo("Generated Area: " + GetTag(oArea));
+        LogInfo("Generated Area: " + sAreaID);
+        LogInfo(" > From Cache: " + (bCached ? "TRUE" : "FALSE"));
+
+        if (!bCached)
+            WG_CacheArea(sAreaID);
 
         EM_SetAreaEventScripts(oArea);
         EM_ObjectDispatchListInsert(oArea, EM_GetObjectDispatchListId(WG_SCRIPT_NAME, EVENT_SCRIPT_AREA_ON_ENTER));
@@ -578,4 +611,63 @@ void WG_UpdateMapArea(string sAreaID, int nColor, object oPlayer = OBJECT_INVALI
             oPlayer = GetNextPC();
         }
     }
+}
+
+void WG_InitializeAreaCache()
+{
+    if (!WG_ENABLE_AREA_CACHING)
+        return;
+
+    string sQuery = "CREATE TABLE IF NOT EXISTS " + WG_AREA_CACHE_TABLE_NAME + "(" +
+                    "area_id TEXT NOT NULL, " +
+                    "hash INT NOT NULL, " +
+                    "dataobject BLOB NOT NULL, " +
+                    "PRIMARY KEY(area_id, hash));";
+    SqlStep(SqlPrepareQueryCampaign(WG_SCRIPT_NAME, sQuery));
+}
+
+int WG_GetAreaIsCached(string sAreaID)
+{
+    if (!WG_ENABLE_AREA_CACHING)
+        return FALSE;
+
+    string sQuery = "SELECT area_id FROM " + WG_AREA_CACHE_TABLE_NAME + " " +
+                    "WHERE area_id = @area_id AND hash = @hash;";
+    sqlquery sql = SqlPrepareQueryCampaign(WG_SCRIPT_NAME, sQuery);
+    SqlBindString(sql, "@area_id", sAreaID);
+    SqlBindInt(sql, "@hash", WG_GetStateHash());
+    return SqlStep(sql);
+}
+
+void WG_CacheArea(string sAreaID)
+{
+    if (!WG_ENABLE_AREA_CACHING)
+        return;
+
+    string sQuery = "INSERT INTO " + WG_AREA_CACHE_TABLE_NAME + "(area_id, hash, dataobject) " +
+                    "VALUES(@area_id, @hash, @dataobject);";
+    sqlquery sql = SqlPrepareQueryCampaign(WG_SCRIPT_NAME, sQuery);
+    SqlBindString(sql, "@area_id", sAreaID);
+    SqlBindInt(sql, "@hash", WG_GetStateHash());
+    SqlBindJson(sql, "@dataobject", ObjectToJson(AG_GetAreaDataObject(sAreaID), TRUE));
+    SqlStep(sql);
+}
+
+int WG_GetCachedArea(string sAreaID)
+{
+    if (!WG_ENABLE_AREA_CACHING)
+        return FALSE;
+
+    string sQuery = "SELECT dataobject FROM " + WG_AREA_CACHE_TABLE_NAME + " " +
+                    "WHERE area_id = @area_id AND hash = @hash;";
+    sqlquery sql = SqlPrepareQueryCampaign(WG_SCRIPT_NAME, sQuery);
+    SqlBindString(sql, "@area_id", sAreaID);
+    SqlBindInt(sql, "@hash", WG_GetStateHash());
+    if (SqlStep(sql))
+    {
+        AG_SetAreaDataObject(sAreaID, JsonToObject(SqlGetJson(sql, 0), GetStartingLocation(), OBJECT_INVALID, TRUE));
+        return TRUE;
+    }
+
+    return FALSE;
 }

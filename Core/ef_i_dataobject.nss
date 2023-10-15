@@ -11,6 +11,8 @@ const string EF_DATAOBJECT_TAG_PREFIX       = "EFDO_";
 
 // Create a waypoint at locLocation with sTag
 object CreateWaypoint(location locLocation, string sTag);
+// Manually set a data object to sTag
+void SetDataObject(string sTag, object oDataObject);
 // Create a new data object with sTag
 object CreateDataObject(string sTag, int bDestroyExisting = TRUE);
 // Destroy a data object with sTag
@@ -25,13 +27,18 @@ object CreateWaypoint(location locLocation, string sTag)
     return CreateObject(OBJECT_TYPE_WAYPOINT, "nw_waypoint001", locLocation, FALSE, sTag);
 }
 
+void SetDataObject(string sTag, object oDataObject)
+{
+    SetLocalObject(GetModule(), EF_DATAOBJECT_TAG_PREFIX + sTag, oDataObject);
+}
+
 object CreateDataObject(string sTag, int bDestroyExisting = TRUE)
 {
     if (bDestroyExisting)
         DestroyDataObject(sTag);
 
     object oDataObject = CreateWaypoint(GetStartingLocation(), EF_DATAOBJECT_TAG_PREFIX + sTag);
-    SetLocalObject(GetModule(), EF_DATAOBJECT_TAG_PREFIX + sTag, oDataObject);
+    SetDataObject(sTag, oDataObject);
 
     return oDataObject;
 }

@@ -10,12 +10,16 @@
 #include "ef_s_areamusic"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
+#include "ef_s_gfftools"
+
+#include "nwnx_player"
 
 const string WG_SCRIPT_NAME                                     = "ef_s_worldgen";
 const int WG_DEBUG_LOG                                          = FALSE;
-const int WG_ENABLE_AREA_CACHING                                = TRUE;
+const int WG_ENABLE_AREA_CACHING                                = FALSE;
+const int WG_ENABLE_VFX_EDGE                                    = TRUE;
 
-const int WG_AREA_LENGTH                                        = 9;
+const int WG_AREA_LENGTH                                        = 5;
 const int WG_WORLD_WIDTH                                        = 15;
 const int WG_WORLD_HEIGHT                                       = 15;
 
@@ -41,14 +45,14 @@ const string WG_AREA_TILESET                                    = TILESET_RESREF
 const int WG_MAX_ITERATIONS                                     = 100;
 const string WG_AREA_DEFAULT_EDGE_TERRAIN                       = "";
 
-const int WG_NEIGHBOR_AREA_TOP_LEFT                             = 0;
-const int WG_NEIGHBOR_AREA_TOP                                  = 1;
-const int WG_NEIGHBOR_AREA_TOP_RIGHT                            = 2;
-const int WG_NEIGHBOR_AREA_RIGHT                                = 3;
-const int WG_NEIGHBOR_AREA_BOTTOM_RIGHT                         = 4;
-const int WG_NEIGHBOR_AREA_BOTTOM                               = 5;
-const int WG_NEIGHBOR_AREA_BOTTOM_LEFT                          = 6;
-const int WG_NEIGHBOR_AREA_LEFT                                 = 7;
+const int WG_NEIGHBOR_AREA_TOP                                  = 0;
+const int WG_NEIGHBOR_AREA_RIGHT                                = 1;
+const int WG_NEIGHBOR_AREA_BOTTOM                               = 2;
+const int WG_NEIGHBOR_AREA_LEFT                                 = 3;
+const int WG_NEIGHBOR_AREA_TOP_LEFT                             = 4;
+const int WG_NEIGHBOR_AREA_TOP_RIGHT                            = 5;
+const int WG_NEIGHBOR_AREA_BOTTOM_RIGHT                         = 6;
+const int WG_NEIGHBOR_AREA_BOTTOM_LEFT                          = 7;
 
 const string WG_AREA_GENERATION_QUEUE                           = "AreaGenerationQueue";
 
@@ -63,6 +67,13 @@ const int WG_MAP_COLOR_QUEUED                                   = 3;
 const int WG_MAP_COLOR_GENERATING                               = 4;
 
 const string WG_AREA_CACHE_TABLE_NAME                           = "area_cache";
+
+const string WG_VFX_PLACEABLE_TEMPLATE                          = "VFXPlaceableTemplate";
+const string WG_VFX_PLACEABLE_TAG                               = "VFCPLC";
+const string WG_VFX_TILE_ID_ARRAY                               = "VFXTileIDArray_";
+const string WG_VFX_TILE_MODEL_ARRAY                            = "VFXTileModelArray_";
+const int WG_VFX_START_ROW                                      = 1000;
+const string WG_VFX_DUMMY_NAME                                  = "dummy_tile_";
 
 void WG_InitializeTemplateArea();
 json WG_GetTemplateAreaJson();
@@ -101,11 +112,18 @@ int WG_GetAreaIsCached(string sAreaID);
 void WG_CacheArea(string sAreaID);
 int WG_GetCachedArea(string sAreaID);
 
+json WG_GetVFXPlaceableTemplate();
+json WG_GetAreaTileIDArray(string sAreaID);
+json WG_GetAreaTileModelArray(string sAreaID);
+void WG_ApplyTileModelVFX(object oPlaceable, string sAreaID, struct AG_Tile strTile, string sTileModel);
+void WG_SpawnVFXEdge(string sAreaID, string sOtherAreaID, int nEdge);
+void WG_SpawnVFXEdgeCorner(string sAreaID, int nNeighborDirection);
+
 // @CORE[EF_SYSTEM_INIT]
 void WG_Init()
 {
     WG_InitializeTemplateArea();
-    WG_SetWorldSeed(15);// Random(2147483647));
+    WG_SetWorldSeed(Random(2147483647));
     WG_InitializeQueue();
     WG_InitializeAreaCache();
 }
@@ -216,6 +234,27 @@ void WG_OnAreaEdgeEnter()
         WG_MoveToArea(oPlayer, oArea, WG_NEIGHBOR_AREA_LEFT);
 }
 
+// @NWNX[NWNX_ON_SERVER_SEND_AREA_BEFORE]
+void WG_OnServerSendAreaBefore()
+{
+    object oPlayer = OBJECT_SELF;
+    object oArea = EM_NWNXGetObject("AREA");
+
+    if (WG_GetIsWGArea(oArea))
+    {
+        string sAreaID = GetTag(oArea);
+        json jTileIDArray = WG_GetAreaTileIDArray(sAreaID);
+        json jTileModelArray = WG_GetAreaTileModelArray(sAreaID);
+        int nModel, nNumModels = JsonGetLength(jTileIDArray);
+        for (nModel = 0; nModel < nNumModels; nModel++)
+        {
+            int nTileID = JsonArrayGetInt(jTileIDArray, nModel);
+            string sTileModel = JsonArrayGetString(jTileModelArray, nModel);
+            NWNX_Player_SetResManOverride(oPlayer, 2002, WG_VFX_DUMMY_NAME + IntToString(nTileID), sTileModel);
+        }
+    }
+}
+
 // @CONSOLE[WGQueueContents::]
 string WG_QueueContents()
 {
@@ -313,14 +352,14 @@ string WG_GetAreaIDFromDirection(string sAreaID, int nDirection)
     struct AG_TilePosition str = WG_GetAreaCoordinates(sAreaID);
     switch (nDirection)
     {
-        case WG_NEIGHBOR_AREA_TOP_LEFT:     { str.nX -= 1; str.nY += 1; break; }
         case WG_NEIGHBOR_AREA_TOP:          {              str.nY += 1; break; }
-        case WG_NEIGHBOR_AREA_TOP_RIGHT:    { str.nX += 1; str.nY += 1; break; }
         case WG_NEIGHBOR_AREA_RIGHT:        { str.nX += 1;              break; }
-        case WG_NEIGHBOR_AREA_BOTTOM_RIGHT: { str.nX += 1; str.nY -= 1; break; }
         case WG_NEIGHBOR_AREA_BOTTOM:       {              str.nY -= 1; break; }
-        case WG_NEIGHBOR_AREA_BOTTOM_LEFT:  { str.nX -= 1; str.nY -= 1; break; }
         case WG_NEIGHBOR_AREA_LEFT:         { str.nX -= 1;              break; }
+        case WG_NEIGHBOR_AREA_TOP_LEFT:     { str.nX -= 1; str.nY += 1; break; }
+        case WG_NEIGHBOR_AREA_TOP_RIGHT:    { str.nX += 1; str.nY += 1; break; }
+        case WG_NEIGHBOR_AREA_BOTTOM_RIGHT: { str.nX += 1; str.nY -= 1; break; }
+        case WG_NEIGHBOR_AREA_BOTTOM_LEFT:  { str.nX -= 1; str.nY -= 1; break; }
     }
     return WG_GetAreaID(str.nX, str.nY);
 }
@@ -488,6 +527,26 @@ void WG_QueueArea(string sAreaID)
     }
 }
 
+void WG_CreateFakeEdge(string sAreaID, int nNeighborDirection)
+{
+    string sNeighborAreaID = WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection);
+    if (GetIsObjectValid(GetObjectByTag(sNeighborAreaID)))
+    {
+        WG_SpawnVFXEdge(sAreaID, sNeighborAreaID, nNeighborDirection);
+        WG_SpawnVFXEdge(sNeighborAreaID, sAreaID, (nNeighborDirection + 2) % 4);
+    }
+}
+
+void WG_CreateFakeEdgeCorner(string sAreaID, int nNeighborDirection)
+{
+    string sNeighborAreaID = WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection);
+    if (GetIsObjectValid(GetObjectByTag(sNeighborAreaID)))
+    {
+        WG_SpawnVFXEdgeCorner(sAreaID, nNeighborDirection);
+        WG_SpawnVFXEdgeCorner(sNeighborAreaID, (((nNeighborDirection - 4) + 2) % 4) + 4);
+    }
+}
+
 void WG_OnAreaGenerated(string sAreaID)
 {
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
@@ -519,6 +578,18 @@ void WG_OnAreaGenerated(string sAreaID)
             WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_LEFT));
         }
 
+        if (WG_ENABLE_VFX_EDGE && sAreaID != WG_GetStartingAreaID())
+        {
+            WG_CreateFakeEdge(sAreaID, WG_NEIGHBOR_AREA_TOP);
+            WG_CreateFakeEdge(sAreaID, WG_NEIGHBOR_AREA_RIGHT);
+            WG_CreateFakeEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM);
+            WG_CreateFakeEdge(sAreaID, WG_NEIGHBOR_AREA_LEFT);
+            WG_CreateFakeEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_TOP_LEFT);
+            WG_CreateFakeEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_TOP_RIGHT);
+            WG_CreateFakeEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_RIGHT);
+            WG_CreateFakeEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_LEFT);
+        }
+
         WG_QueuePop();
         if (!WG_QueueEmpty())
         {
@@ -548,7 +619,7 @@ void WG_SetAreaModifiers(object oArea)
     Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oArea));
     Call(Function("ef_s_dynlight", "DynLight_InitArea"), ObjectArg(oArea));
     AreaMusic_SetAreaTrackList(oArea, WG_SCRIPT_NAME);
-    SetAreaGrassOverride(oArea, 3, "trm02_grass3d", 20.0f, 1.0f, Vector(1.0f, 1.0f, 1.0f), Vector(1.0f, 1.0f, 1.0f));
+    SetAreaGrassOverride(oArea, 3, "trm02_grass3d", 10.0f, 1.0f, Vector(1.0f, 1.0f, 1.0f), Vector(1.0f, 1.0f, 1.0f));
 }
 
 json WG_GetAreaMapColor(int nColor)
@@ -667,4 +738,278 @@ int WG_GetCachedArea(string sAreaID)
     }
 
     return FALSE;
+}
+
+json WG_GetVFXPlaceableTemplate()
+{
+    json jTemplate = GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_VFX_PLACEABLE_TEMPLATE);
+    if (!JsonGetType(jTemplate))
+    {
+        struct GffTools_PlaceableData pd;
+        pd.nModel = GFFTOOLS_INVISIBLE_PLACEABLE_MODEL_ID;
+        pd.sName = "VFXPlaceable";
+        pd.sTag = WG_VFX_PLACEABLE_TAG;
+        pd.bPlot = TRUE;
+        jTemplate = GffTools_GeneratePlaceable(pd);
+        SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_VFX_PLACEABLE_TEMPLATE, GffTools_GeneratePlaceable(pd));
+    }
+
+    return jTemplate;
+}
+
+json WG_GetAreaTileIDArray(string sAreaID)
+{
+    json jArray = GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_VFX_TILE_ID_ARRAY + sAreaID);
+    if (!JsonGetType(jArray))
+    {
+        jArray = JsonArray();
+        SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_VFX_TILE_ID_ARRAY + sAreaID, jArray);
+    }
+    return jArray;
+}
+
+json WG_GetAreaTileModelArray(string sAreaID)
+{
+    json jArray = GetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_VFX_TILE_MODEL_ARRAY + sAreaID);
+    if (!JsonGetType(jArray))
+    {
+        jArray = JsonArray();
+        SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_VFX_TILE_MODEL_ARRAY + sAreaID, jArray);
+    }
+    return jArray;
+}
+
+void WG_ApplyTileModelVFX(object oPlaceable, string sAreaID, struct AG_Tile strTile, string sTileModel)
+{
+    object oPlayer = GetFirstPC();
+    while (oPlayer != OBJECT_INVALID)
+    {
+        if (GetTag(GetArea(oPlayer)) == sAreaID)
+        {
+            NWNX_Player_SetResManOverride(oPlayer, 2002, WG_VFX_DUMMY_NAME + IntToString(strTile.nTileID), sTileModel);
+        }
+        oPlayer = GetNextPC();
+    }
+
+    float fZ = strTile.nHeight * TS_GetTilesetHeightTransition(WG_AREA_TILESET);
+    vector vTranslate = Vector(0.0f, 0.0f, fZ);
+    vector vRotate = Vector(90.0f + (strTile.nOrientation * 90.0f), 0.0f, 0.0f);
+    effect eTile = EffectVisualEffect(WG_VFX_START_ROW + strTile.nTileID, FALSE, 1.0f, vTranslate, vRotate);
+    DelayCommand(0.25f, ApplyEffectToObject(DURATION_TYPE_PERMANENT, eTile, oPlaceable));
+}
+
+void WG_SpawnVFXEdge(string sAreaID, string sOtherAreaID, int nEdge)
+{
+    object oArea = GetObjectByTag(sAreaID);
+    json jPlaceable = WG_GetVFXPlaceableTemplate();
+    json jTileIDArray = WG_GetAreaTileIDArray(sAreaID);
+    json jTileModelArray = WG_GetAreaTileModelArray(sAreaID);
+    int nEdgeToCopyFrom = (nEdge + 2) % 4;
+
+    switch (nEdgeToCopyFrom)
+    {
+        case AG_AREA_EDGE_TOP:
+        {
+            int nStart = WG_AREA_LENGTH * (WG_AREA_LENGTH - 1);
+            int nCount, nNumTiles = WG_AREA_LENGTH;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + nCount;
+                struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
+                string sTileModel = NWNX_Tileset_GetTileModel(WG_AREA_TILESET, strTile.nTileID);
+
+                if (!JsonArrayContainsInt(jTileIDArray, strTile.nTileID))
+                {
+                    JsonArrayInsertIntInplace(jTileIDArray, strTile.nTileID);
+                    JsonArrayInsertStringInplace(jTileModelArray, sTileModel);
+                }
+
+                // BOTTOM
+                vector vPosition = Vector(5.0f + (nCount * 10.0f), 5.0f, 0.0f);
+                object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
+                SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f);
+                WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
+            }
+            break;
+        }
+
+        case AG_AREA_EDGE_RIGHT:
+        {
+            int nStart = WG_AREA_LENGTH - 1;
+            int nCount, nNumTiles = WG_AREA_LENGTH;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + (nCount * WG_AREA_LENGTH);
+                struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
+                string sTileModel = NWNX_Tileset_GetTileModel(WG_AREA_TILESET, strTile.nTileID);
+
+                if (!JsonArrayContainsInt(jTileIDArray, strTile.nTileID))
+                {
+                    JsonArrayInsertIntInplace(jTileIDArray, strTile.nTileID);
+                    JsonArrayInsertStringInplace(jTileModelArray, sTileModel);
+                }
+
+                // LEFT
+                vector vPosition = Vector(5.0f, 5.0f + (nCount * 10.0f), 0.0f);
+                object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
+                SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f);
+                WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
+            }
+            break;
+        }
+
+        case AG_AREA_EDGE_BOTTOM:
+        {
+            int nStart = 0;
+            int nCount, nNumTiles = WG_AREA_LENGTH;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + nCount;
+                struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
+                string sTileModel = NWNX_Tileset_GetTileModel(WG_AREA_TILESET, strTile.nTileID);
+
+                if (!JsonArrayContainsInt(jTileIDArray, strTile.nTileID))
+                {
+                    JsonArrayInsertIntInplace(jTileIDArray, strTile.nTileID);
+                    JsonArrayInsertStringInplace(jTileModelArray, sTileModel);
+                }
+
+                // TOP
+                vector vPosition = Vector(5.0f + (nCount * 10.0f), (WG_AREA_LENGTH * 10.0f) - 5.0f, 0.0f);
+                object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
+                SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f);
+                WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
+            }
+            break;
+        }
+
+        case AG_AREA_EDGE_LEFT:
+        {
+            int nStart = 0;
+            int nCount, nNumTiles = WG_AREA_LENGTH;
+            for (nCount = 0; nCount < nNumTiles; nCount++)
+            {
+                int nTile = nStart + (nCount * WG_AREA_LENGTH);
+                struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
+                string sTileModel = NWNX_Tileset_GetTileModel(WG_AREA_TILESET, strTile.nTileID);
+
+                if (!JsonArrayContainsInt(jTileIDArray, strTile.nTileID))
+                {
+                    JsonArrayInsertIntInplace(jTileIDArray, strTile.nTileID);
+                    JsonArrayInsertStringInplace(jTileModelArray, sTileModel);
+                }
+
+                // RIGHT
+                vector vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 5.0f, 5.0f + (nCount * 10.0f), 0.0f);
+                object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
+                SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f);
+                WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
+            }
+            break;
+        }
+    }
+}
+
+void WG_SpawnVFXEdgeCorner(string sAreaID, int nNeighborDirection)
+{
+    object oArea = GetObjectByTag(sAreaID);
+    json jPlaceable = WG_GetVFXPlaceableTemplate();
+    json jTileIDArray = WG_GetAreaTileIDArray(sAreaID);
+    json jTileModelArray = WG_GetAreaTileModelArray(sAreaID);
+    string sOtherAreaID = WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection);
+
+    switch (nNeighborDirection)
+    {
+        case WG_NEIGHBOR_AREA_TOP_LEFT:
+        {
+            // BOTTOM RIGHT
+            int nTile = WG_AREA_LENGTH - 1;
+            struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
+            string sTileModel = NWNX_Tileset_GetTileModel(WG_AREA_TILESET, strTile.nTileID);
+
+            if (!JsonArrayContainsInt(jTileIDArray, strTile.nTileID))
+            {
+                JsonArrayInsertIntInplace(jTileIDArray, strTile.nTileID);
+                JsonArrayInsertStringInplace(jTileModelArray, sTileModel);
+            }
+
+            vector vPosition = Vector(5.0f, (WG_AREA_LENGTH * 10.0f) - 5.0f, 0.0f);
+            object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
+            SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+            SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f);
+            SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f);
+            WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
+            break;
+        }
+
+        case WG_NEIGHBOR_AREA_TOP_RIGHT:
+        {
+            // BOTTOM LEFT
+            int nTile = 0;
+            struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
+            string sTileModel = NWNX_Tileset_GetTileModel(WG_AREA_TILESET, strTile.nTileID);
+
+            if (!JsonArrayContainsInt(jTileIDArray, strTile.nTileID))
+            {
+                JsonArrayInsertIntInplace(jTileIDArray, strTile.nTileID);
+                JsonArrayInsertStringInplace(jTileModelArray, sTileModel);
+            }
+
+            vector vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 5.0f, (WG_AREA_LENGTH * 10.0f) - 5.0f, 0.0f);
+            object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
+            SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+            SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f);
+            SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f);
+            WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
+            break;
+        }
+
+        case WG_NEIGHBOR_AREA_BOTTOM_RIGHT:
+        {
+            // TOP LEFT
+            int nTile = WG_AREA_LENGTH * (WG_AREA_LENGTH - 1);
+            struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
+            string sTileModel = NWNX_Tileset_GetTileModel(WG_AREA_TILESET, strTile.nTileID);
+
+            if (!JsonArrayContainsInt(jTileIDArray, strTile.nTileID))
+            {
+                JsonArrayInsertIntInplace(jTileIDArray, strTile.nTileID);
+                JsonArrayInsertStringInplace(jTileModelArray, sTileModel);
+            }
+
+            vector vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 5.0f, 5.0f, 0.0f);
+            object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
+            SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+            SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f);
+            SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f);
+            WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
+            break;
+        }
+
+        case WG_NEIGHBOR_AREA_BOTTOM_LEFT:
+        {
+            // TOP LEFT
+            int nTile = (WG_AREA_LENGTH * WG_AREA_LENGTH) - 1;
+            struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
+            string sTileModel = NWNX_Tileset_GetTileModel(WG_AREA_TILESET, strTile.nTileID);
+
+            if (!JsonArrayContainsInt(jTileIDArray, strTile.nTileID))
+            {
+                JsonArrayInsertIntInplace(jTileIDArray, strTile.nTileID);
+                JsonArrayInsertStringInplace(jTileModelArray, sTileModel);
+            }
+
+            vector vPosition = Vector(5.0f, 5.0f, 0.0f);
+            object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
+            SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+            SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f);
+            SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f);
+            WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
+            break;
+        }
+    }
 }

@@ -453,19 +453,19 @@ void AG_InitializeTileArrays(string sAreaID, int nWidth, int nHeight)
 
     for (nTile = 0; nTile < nNumTiles; nTile++)
     {
-        AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+        AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, AG_INVALID_TILE_ID);
     }
 
     for (nTile = 0; nTile < nWidth; nTile++)
     {
-        AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TOP, nTile);
-        AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, nTile);
+        AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TOP, nTile, AG_INVALID_TILE_ID);
+        AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, nTile, AG_INVALID_TILE_ID);
     }
 
     for (nTile = 0; nTile < nHeight; nTile++)
     {
-        AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_EDGE_LEFT, nTile);
-        AG_Tile_Reset(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, nTile);
+        AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_EDGE_LEFT, nTile, AG_INVALID_TILE_ID);
+        AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, nTile, AG_INVALID_TILE_ID);
     }
 }
 

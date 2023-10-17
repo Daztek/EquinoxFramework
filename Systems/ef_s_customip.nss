@@ -1,6 +1,8 @@
 /*
     Script: ef_s_customip
     Author: Daz
+
+     @SKIPSYSTEM
 */
 
 #include "ef_i_core"

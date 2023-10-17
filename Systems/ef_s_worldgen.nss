@@ -125,7 +125,7 @@ void WG_SpawnVFXEdgeCorner(string sAreaID, int nNeighborDirection);
 void WG_Init()
 {
     WG_InitializeTemplateArea();
-    WG_SetWorldSeed(125);//Random(2147483647));
+    WG_SetWorldSeed(Random(2147483647));
     WG_InitializeQueue();
     WG_InitializeAreaCache();
 }
@@ -530,7 +530,7 @@ void WG_QueueArea(string sAreaID)
     }
 }
 
-void WG_CreateFakeEdge(string sAreaID, int nNeighborDirection)
+void WG_CreateVFXEdge(string sAreaID, int nNeighborDirection)
 {
     string sNeighborAreaID = WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection);
     if (GetIsObjectValid(GetObjectByTag(sNeighborAreaID)))
@@ -540,7 +540,7 @@ void WG_CreateFakeEdge(string sAreaID, int nNeighborDirection)
     }
 }
 
-void WG_CreateFakeEdgeCorner(string sAreaID, int nNeighborDirection)
+void WG_CreateVFXEdgeCorner(string sAreaID, int nNeighborDirection)
 {
     string sNeighborAreaID = WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection);
     if (GetIsObjectValid(GetObjectByTag(sNeighborAreaID)))
@@ -583,14 +583,14 @@ void WG_OnAreaGenerated(string sAreaID)
 
         if (WG_ENABLE_VFX_EDGE && sAreaID != WG_GetStartingAreaID())
         {
-            WG_CreateFakeEdge(sAreaID, WG_NEIGHBOR_AREA_TOP);
-            WG_CreateFakeEdge(sAreaID, WG_NEIGHBOR_AREA_RIGHT);
-            WG_CreateFakeEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM);
-            WG_CreateFakeEdge(sAreaID, WG_NEIGHBOR_AREA_LEFT);
-            WG_CreateFakeEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_TOP_LEFT);
-            WG_CreateFakeEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_TOP_RIGHT);
-            WG_CreateFakeEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_RIGHT);
-            WG_CreateFakeEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_LEFT);
+            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_TOP);
+            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_RIGHT);
+            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM);
+            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_LEFT);
+            WG_CreateVFXEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_TOP_LEFT);
+            WG_CreateVFXEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_TOP_RIGHT);
+            WG_CreateVFXEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_RIGHT);
+            WG_CreateVFXEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_LEFT);
         }
 
         WG_QueuePop();

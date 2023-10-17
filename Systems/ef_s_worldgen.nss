@@ -754,6 +754,7 @@ json WG_GetVFXPlaceableTemplate()
         pd.sName = "VFXPlaceable";
         pd.sTag = WG_VFX_PLACEABLE_TAG;
         pd.bPlot = TRUE;
+        pd.fFacingAdjustment = 180.0f;
         jTemplate = GffTools_GeneratePlaceable(pd);
         SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_VFX_PLACEABLE_TEMPLATE, GffTools_GeneratePlaceable(pd));
     }
@@ -797,7 +798,7 @@ void WG_ApplyTileModelVFX(object oPlaceable, string sAreaID, struct AG_Tile strT
 
     float fZ = strTile.nHeight * TS_GetTilesetHeightTransition(WG_AREA_TILESET);
     vector vTranslate = Vector(0.0f, 0.0f, fZ);
-    vector vRotate = Vector(90.0f + (strTile.nOrientation * 90.0f), 0.0f, 0.0f);
+    vector vRotate = Vector(-90.0f + (strTile.nOrientation * 90.0f), 0.0f, 0.0f);
     effect eTile = EffectVisualEffect(WG_VFX_START_ROW + strTile.nTileID, FALSE, 1.0f, vTranslate, vRotate);
     DelayCommand(0.25f, ApplyEffectToObject(DURATION_TYPE_PERMANENT, eTile, oPlaceable));
 }
@@ -835,7 +836,7 @@ void WG_SpawnVFXEdge(string sAreaID, string sOtherAreaID, int nEdge)
                     vector vPosition = Vector(5.0f + (nCount * 10.0f), 5.0f, 0.0f);
                     object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
                     SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f * (nBorderRow + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f * (nBorderRow + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
             }
@@ -865,7 +866,7 @@ void WG_SpawnVFXEdge(string sAreaID, string sOtherAreaID, int nEdge)
                     vector vPosition = Vector(5.0f, 5.0f + (nCount * 10.0f), 0.0f);
                     object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
                     SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f * (nBorderRow + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f * (nBorderRow + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
             }
@@ -895,7 +896,7 @@ void WG_SpawnVFXEdge(string sAreaID, string sOtherAreaID, int nEdge)
                     vector vPosition = Vector(5.0f + (nCount * 10.0f), (WG_AREA_LENGTH * 10.0f) - 5.0f, 0.0f);
                     object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
                     SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f * (nBorderRow + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f * (nBorderRow + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
             }
@@ -925,7 +926,7 @@ void WG_SpawnVFXEdge(string sAreaID, string sOtherAreaID, int nEdge)
                     vector vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 5.0f, 5.0f + (nCount * 10.0f), 0.0f);
                     object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
                     SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f * (nBorderRow + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f * (nBorderRow + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
             }
@@ -964,8 +965,8 @@ void WG_SpawnVFXEdgeCorner(string sAreaID, int nNeighborDirection)
                     vector vPosition = Vector(5.0f, (WG_AREA_LENGTH * 10.0f) - 5.0f, 0.0f);
                     object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
                     SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f * (nY + 1));
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f * (nX + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f * (nY + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f * (nX + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
             }
@@ -992,8 +993,8 @@ void WG_SpawnVFXEdgeCorner(string sAreaID, int nNeighborDirection)
                     vector vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 5.0f, (WG_AREA_LENGTH * 10.0f) - 5.0f, 0.0f);
                     object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
                     SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f * (nY + 1));
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f * (nX + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f * (nY + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f * (nX + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
             }
@@ -1020,8 +1021,8 @@ void WG_SpawnVFXEdgeCorner(string sAreaID, int nNeighborDirection)
                     vector vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 5.0f, 5.0f, 0.0f);
                     object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
                     SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f * (nY + 1));
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f * (nX + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f * (nY + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f * (nX + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
             }
@@ -1048,8 +1049,8 @@ void WG_SpawnVFXEdgeCorner(string sAreaID, int nNeighborDirection)
                     vector vPosition = Vector(5.0f, 5.0f, 0.0f);
                     object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
                     SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f * (nY + 1));
-                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f * (nX + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f * (nY + 1));
+                    SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f * (nX + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
             }

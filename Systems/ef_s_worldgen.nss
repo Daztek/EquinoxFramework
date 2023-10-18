@@ -19,10 +19,12 @@ const int WG_DEBUG_LOG                                          = FALSE;
 const int WG_ENABLE_AREA_CACHING                                = FALSE;
 const int WG_ENABLE_VFX_EDGE                                    = TRUE;
 
-const int WG_AREA_LENGTH                                        = 5;
+const int WG_AREA_LENGTH                                        = 7;
 const int WG_WORLD_WIDTH                                        = 15;
 const int WG_WORLD_HEIGHT                                       = 15;
-const int WG_VFX_TILE_BORDER_SIZE                               = 5;
+const int WG_VFX_TILE_BORDER_SIZE                               = 7;
+
+const int WG_AREA_SINGLE_GROUP_TILE_CHANCE                      = 1;
 
 const int WG_AREA_SAND_CHANCE                                   = 15;
 const int WG_AREA_WATER_CHANCE                                  = 25;
@@ -118,8 +120,7 @@ json WG_GetVFXPlaceableTemplate();
 json WG_GetAreaTileIDArray(string sAreaID);
 json WG_GetAreaTileModelArray(string sAreaID);
 void WG_ApplyTileModelVFX(object oPlaceable, string sAreaID, struct AG_Tile strTile, string sTileModel);
-void WG_SpawnVFXEdge(string sAreaID, string sOtherAreaID, int nEdge);
-void WG_SpawnVFXEdgeCorner(string sAreaID, int nNeighborDirection);
+void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection);
 
 // @CORE[EF_SYSTEM_INIT]
 void WG_Init()
@@ -483,6 +484,7 @@ void WG_GenerateArea()
         AG_SetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, WG_WORLD_SEED_NAME);
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, WG_DEBUG_LOG);
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, WG_MAX_ITERATIONS);
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, WG_AREA_SINGLE_GROUP_TILE_CHANCE);
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_Random(WG_WORLD_SEED_NAME, 8));
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR, TRUE);
         AG_SetCallbackFunction(sAreaID, WG_SCRIPT_NAME, "WG_OnAreaGenerated");
@@ -535,18 +537,12 @@ void WG_CreateVFXEdge(string sAreaID, int nNeighborDirection)
     string sNeighborAreaID = WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection);
     if (GetIsObjectValid(GetObjectByTag(sNeighborAreaID)))
     {
-        WG_SpawnVFXEdge(sAreaID, sNeighborAreaID, nNeighborDirection);
-        WG_SpawnVFXEdge(sNeighborAreaID, sAreaID, (nNeighborDirection + 2) % 4);
-    }
-}
-
-void WG_CreateVFXEdgeCorner(string sAreaID, int nNeighborDirection)
-{
-    string sNeighborAreaID = WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection);
-    if (GetIsObjectValid(GetObjectByTag(sNeighborAreaID)))
-    {
-        WG_SpawnVFXEdgeCorner(sAreaID, nNeighborDirection);
-        WG_SpawnVFXEdgeCorner(sNeighborAreaID, (((nNeighborDirection - 4) + 2) % 4) + 4);
+        WG_SpawnVFXEdge(sAreaID, nNeighborDirection);
+        if (nNeighborDirection < WG_NEIGHBOR_AREA_TOP_LEFT)
+            nNeighborDirection = (nNeighborDirection + 2) % 4;
+        else
+            nNeighborDirection = (((nNeighborDirection - 4) + 2) % 4) + 4;
+        WG_SpawnVFXEdge(sNeighborAreaID, nNeighborDirection);
     }
 }
 
@@ -587,10 +583,10 @@ void WG_OnAreaGenerated(string sAreaID)
             WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_RIGHT);
             WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM);
             WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_LEFT);
-            WG_CreateVFXEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_TOP_LEFT);
-            WG_CreateVFXEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_TOP_RIGHT);
-            WG_CreateVFXEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_RIGHT);
-            WG_CreateVFXEdgeCorner(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_LEFT);
+            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_TOP_LEFT);
+            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_TOP_RIGHT);
+            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_RIGHT);
+            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_LEFT);
         }
 
         WG_QueuePop();
@@ -756,7 +752,7 @@ json WG_GetVFXPlaceableTemplate()
         pd.bPlot = TRUE;
         pd.fFacingAdjustment = 180.0f;
         jTemplate = GffTools_GeneratePlaceable(pd);
-        SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_VFX_PLACEABLE_TEMPLATE, GffTools_GeneratePlaceable(pd));
+        SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_VFX_PLACEABLE_TEMPLATE, jTemplate);
     }
 
     return jTemplate;
@@ -803,15 +799,18 @@ void WG_ApplyTileModelVFX(object oPlaceable, string sAreaID, struct AG_Tile strT
     DelayCommand(0.25f, ApplyEffectToObject(DURATION_TYPE_PERMANENT, eTile, oPlaceable));
 }
 
-void WG_SpawnVFXEdge(string sAreaID, string sOtherAreaID, int nEdge)
+void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
 {
     object oArea = GetObjectByTag(sAreaID);
+    string sOtherAreaID = WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection);
     json jPlaceable = WG_GetVFXPlaceableTemplate();
     json jTileIDArray = WG_GetAreaTileIDArray(sAreaID);
     json jTileModelArray = WG_GetAreaTileModelArray(sAreaID);
-    int nEdgeToCopyFrom = (nEdge + 2) % 4;
 
-    switch (nEdgeToCopyFrom)
+    if (nNeighborDirection < WG_NEIGHBOR_AREA_TOP_LEFT)
+        nNeighborDirection = (nNeighborDirection + 2) % 4;
+
+    switch (nNeighborDirection)
     {
         case AG_AREA_EDGE_TOP:
         {
@@ -932,19 +931,7 @@ void WG_SpawnVFXEdge(string sAreaID, string sOtherAreaID, int nEdge)
             }
             break;
         }
-    }
-}
 
-void WG_SpawnVFXEdgeCorner(string sAreaID, int nNeighborDirection)
-{
-    object oArea = GetObjectByTag(sAreaID);
-    json jPlaceable = WG_GetVFXPlaceableTemplate();
-    json jTileIDArray = WG_GetAreaTileIDArray(sAreaID);
-    json jTileModelArray = WG_GetAreaTileModelArray(sAreaID);
-    string sOtherAreaID = WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection);
-
-    switch (nNeighborDirection)
-    {
         case WG_NEIGHBOR_AREA_TOP_LEFT:
         {
             int nX, nY;

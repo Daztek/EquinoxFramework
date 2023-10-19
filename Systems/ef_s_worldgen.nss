@@ -73,7 +73,7 @@ const int WG_MAP_COLOR_GENERATING                               = 4;
 const string WG_AREA_CACHE_TABLE_NAME                           = "area_cache";
 
 const string WG_VFX_PLACEABLE_TEMPLATE                          = "VFXPlaceableTemplate";
-const string WG_VFX_PLACEABLE_TAG                               = "VFCPLC";
+const string WG_VFX_PLACEABLE_TAG                               = "VFXPLC_";
 const string WG_VFX_TILE_ID_ARRAY                               = "VFXTileIDArray_";
 const string WG_VFX_TILE_MODEL_ARRAY                            = "VFXTileModelArray_";
 const int WG_VFX_START_ROW                                      = 1000;
@@ -136,7 +136,9 @@ void WG_Load()
 {
     WG_QueuePush(WG_GetStartingAreaID());
     WG_GenerateArea();
+    AreaMusic_AddTrackToTrackList(WG_SCRIPT_NAME, 65, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
     AreaMusic_AddTrackToTrackList(WG_SCRIPT_NAME, 109, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
+    AreaMusic_AddTrackToTrackList(WG_SCRIPT_NAME, 118, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
     AreaMusic_AddTrackToTrackList(WG_SCRIPT_NAME, 128, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
     AreaMusic_AddTrackToTrackList(WG_SCRIPT_NAME, 136, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
 }
@@ -619,7 +621,7 @@ void WG_SetAreaModifiers(object oArea)
     Call(Function("ef_s_perloc", "PerLoc_SetAreaDisabled"), ObjectArg(oArea));
     Call(Function("ef_s_dynlight", "DynLight_InitArea"), ObjectArg(oArea));
     AreaMusic_SetAreaTrackList(oArea, WG_SCRIPT_NAME);
-    SetAreaGrassOverride(oArea, 3, "trm02_grass3d", 10.0f, 1.0f, Vector(1.0f, 1.0f, 1.0f), Vector(1.0f, 1.0f, 1.0f));
+    SetAreaGrassOverride(oArea, 3, "trm02_grass3d", 20.0f, 1.0f, Vector(1.0f, 1.0f, 1.0f), Vector(1.0f, 1.0f, 1.0f));
 }
 
 json WG_GetAreaMapColor(int nColor)
@@ -806,13 +808,15 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
     json jPlaceable = WG_GetVFXPlaceableTemplate();
     json jTileIDArray = WG_GetAreaTileIDArray(sAreaID);
     json jTileModelArray = WG_GetAreaTileModelArray(sAreaID);
+    string sTag = WG_VFX_PLACEABLE_TAG + sAreaID;
+    float fVisibleDistance = (WG_AREA_LENGTH * 2) * 10.0f;
 
     if (nNeighborDirection < WG_NEIGHBOR_AREA_TOP_LEFT)
         nNeighborDirection = (nNeighborDirection + 2) % 4;
 
     switch (nNeighborDirection)
     {
-        case AG_AREA_EDGE_TOP:
+        case WG_NEIGHBOR_AREA_TOP:
         {
             int nBorderRow;
             for (nBorderRow = 0; nBorderRow < WG_VFX_TILE_BORDER_SIZE; nBorderRow++)
@@ -833,8 +837,8 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
 
                     // BOTTOM
                     vector vPosition = Vector(5.0f + (nCount * 10.0f), 5.0f, 0.0f);
-                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
-                    SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), sTag);
+                    SetObjectVisibleDistance(oPlaceable, fVisibleDistance);
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f * (nBorderRow + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
@@ -842,7 +846,7 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
             break;
         }
 
-        case AG_AREA_EDGE_RIGHT:
+        case WG_NEIGHBOR_AREA_RIGHT:
         {
             int nBorderRow;
             for (nBorderRow = 0; nBorderRow < WG_VFX_TILE_BORDER_SIZE; nBorderRow++)
@@ -863,8 +867,8 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
 
                     // LEFT
                     vector vPosition = Vector(5.0f, 5.0f + (nCount * 10.0f), 0.0f);
-                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
-                    SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), sTag);
+                    SetObjectVisibleDistance(oPlaceable, fVisibleDistance);
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f * (nBorderRow + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
@@ -872,7 +876,7 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
             break;
         }
 
-        case AG_AREA_EDGE_BOTTOM:
+        case WG_NEIGHBOR_AREA_BOTTOM:
         {
             int nBorderRow;
             for (nBorderRow = 0; nBorderRow < WG_VFX_TILE_BORDER_SIZE; nBorderRow++)
@@ -893,8 +897,8 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
 
                     // TOP
                     vector vPosition = Vector(5.0f + (nCount * 10.0f), (WG_AREA_LENGTH * 10.0f) - 5.0f, 0.0f);
-                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
-                    SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), sTag);
+                    SetObjectVisibleDistance(oPlaceable, fVisibleDistance);
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f * (nBorderRow + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
@@ -902,7 +906,7 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
             break;
         }
 
-        case AG_AREA_EDGE_LEFT:
+        case WG_NEIGHBOR_AREA_LEFT:
         {
             int nBorderRow;
             for (nBorderRow = 0; nBorderRow < WG_VFX_TILE_BORDER_SIZE; nBorderRow++)
@@ -923,8 +927,8 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
 
                     // RIGHT
                     vector vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 5.0f, 5.0f + (nCount * 10.0f), 0.0f);
-                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
-                    SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), sTag);
+                    SetObjectVisibleDistance(oPlaceable, fVisibleDistance);
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f * (nBorderRow + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
                 }
@@ -950,8 +954,8 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
                     }
 
                     vector vPosition = Vector(5.0f, (WG_AREA_LENGTH * 10.0f) - 5.0f, 0.0f);
-                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
-                    SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), sTag);
+                    SetObjectVisibleDistance(oPlaceable, fVisibleDistance);
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f * (nY + 1));
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f * (nX + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
@@ -978,8 +982,8 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
                     }
 
                     vector vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 5.0f, (WG_AREA_LENGTH * 10.0f) - 5.0f, 0.0f);
-                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
-                    SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), sTag);
+                    SetObjectVisibleDistance(oPlaceable, fVisibleDistance);
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, 10.0f * (nY + 1));
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f * (nX + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
@@ -1006,8 +1010,8 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
                     }
 
                     vector vPosition = Vector((WG_AREA_LENGTH * 10.0f) - 5.0f, 5.0f, 0.0f);
-                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
-                    SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), sTag);
+                    SetObjectVisibleDistance(oPlaceable, fVisibleDistance);
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f * (nY + 1));
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, -10.0f * (nX + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);
@@ -1034,8 +1038,8 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
                     }
 
                     vector vPosition = Vector(5.0f, 5.0f, 0.0f);
-                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), WG_VFX_PLACEABLE_TAG);
-                    SetObjectVisibleDistance(oPlaceable, (WG_AREA_LENGTH * 2) * 10.0f);
+                    object oPlaceable = GffTools_CreatePlaceable(jPlaceable, Location(oArea, vPosition, 0.0f), sTag);
+                    SetObjectVisibleDistance(oPlaceable, fVisibleDistance);
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_X, -10.0f * (nY + 1));
                     SetObjectVisualTransform(oPlaceable, OBJECT_VISUAL_TRANSFORM_TRANSLATE_Y, 10.0f * (nX + 1));
                     WG_ApplyTileModelVFX(oPlaceable, sAreaID, strTile, sTileModel);

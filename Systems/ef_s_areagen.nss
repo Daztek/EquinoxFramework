@@ -201,6 +201,7 @@ object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex
 int AG_Random(string sAreaID, int nMaxInteger);
 string AG_GetRandomQueryString(string sAreaID);
 json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHeight);
+json AG_GetSetTileJsonArray(string sAreaID);
 string AG_GetGenerationTypeAsString(int nGenerationType);
 int AG_GetChunkIndexFromTile(string sAreaID, int nTile);
 void AG_SetChunkArray(string sAreaID, int nChunk, json jArray);
@@ -1939,11 +1940,26 @@ string AG_GetRandomQueryString(string sAreaID)
 json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHeight)
 {
     json jTile = JsonObject();
-         jTile = JsonObjectSetInt(jTile, "index", nIndex);
-         jTile = JsonObjectSetInt(jTile, "tileid", nTileID);
-         jTile = JsonObjectSetInt(jTile, "orientation", nOrientation);
-         jTile = JsonObjectSetInt(jTile, "height", nHeight);
+    JsonObjectSetIntInplace(jTile, "index", nIndex);
+    JsonObjectSetIntInplace(jTile, "tileid", nTileID);
+    JsonObjectSetIntInplace(jTile, "orientation", nOrientation);
+    JsonObjectSetIntInplace(jTile, "height", nHeight);
     return jTile;
+}
+
+json AG_GetSetTileJsonArray(string sAreaID)
+{
+    json jArray = JsonArray();
+    int nTile, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
+    for (nTile = 0; nTile < nNumTiles; nTile++)
+    {
+        int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+        int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+        int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+
+        JsonArrayInsertInplace(jArray, AG_GetSetTileTileObject(nTile, nTileID, nOrientation, nHeight));
+    }
+    return jArray;
 }
 
 string AG_GetGenerationTypeAsString(int nGenerationType)

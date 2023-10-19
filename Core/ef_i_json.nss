@@ -142,6 +142,9 @@ void JsonArrayInsertStringInplace(json jArray, string sValue, int nIndex = -1);
 // By default (-1), inserts elements at the end of the array ("push").
 // nIndex = 0 inserts at the beginning of the array.
 void JsonArrayInsertIntInplace(json jArray, int nValue, int nIndex = -1);
+// Modifies jObject in-place (with no memory copies of the full object).
+// jObject will have the key at sKey set to nValue.
+void JsonObjectSetIntInplace(json jObject, string sKey, int nValue);
 
 json VectorToJson(vector vVector)
 {
@@ -425,4 +428,9 @@ void JsonArrayInsertStringInplace(json jArray, string sValue, int nIndex = -1)
 void JsonArrayInsertIntInplace(json jArray, int nValue, int nIndex = -1)
 {
     JsonArrayInsertInplace(jArray, JsonInt(nValue), nIndex);
+}
+
+void JsonObjectSetIntInplace(json jObject, string sKey, int nValue)
+{
+    JsonObjectSetInplace(jObject, sKey, JsonInt(nValue));
 }

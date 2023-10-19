@@ -22,7 +22,7 @@ const int SA_AREA_SINGLE_GROUP_TILE_CHANCE          = 2;
 // @CORE[EF_SYSTEM_INIT]
 void SA_Init()
 {
-    int nSeed = Random(1000000000);
+    int nSeed = Random(2147483647);
     LogInfo("Seed: " + IntToString(nSeed));
     SqlMersenneTwisterSetSeed(SA_SCRIPT_NAME, nSeed);
 }
@@ -107,7 +107,7 @@ void SA_OnAreaGenerated(string sAreaID)
                         int nTileIndex = JsonArrayGetInt(jChunk, nCount);
                         struct AG_Tile str = AG_GetTile(sAreaID, nTileIndex);
                         json jTile = AG_GetSetTileTileObject(nTileIndex, str.nTileID, str.nOrientation, str.nHeight);
-                        jTileData = JsonArrayInsert(jTileData, jTile);
+                        JsonArrayInsertInplace(jTileData, jTile);
                     }
                     break;
                 }

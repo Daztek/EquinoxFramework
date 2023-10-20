@@ -94,7 +94,7 @@ void AV_ClickGenerateButton()
     CassowarySuggestValue(AV_GetXSolver(), "LENGTH", IntToFloat(nWidth));
     CassowarySuggestValue(AV_GetYSolver(), "LENGTH", IntToFloat(nHeight));
 
-    AG_InitializeRandomArea(AV_AREA_ID, AV_AREA_TILESET, AV_AREA_EDGE_TERRAIN, nWidth, nHeight);
+    AG_InitializeAreaDataObject(AV_AREA_ID, AV_AREA_TILESET, AV_AREA_EDGE_TERRAIN, nWidth, nHeight);
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_MAX_ITERATIONS, AV_MAX_ITERATIONS);
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_GENERATION_LOG_STATUS, TRUE);
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, 10);

@@ -195,7 +195,7 @@ void EC_GenerateCave(json jCave)
     int nAreaWidth = JsonArrayGetInt(jAreaSize, 0);
     int nAreaHeight = JsonArrayGetInt(jAreaSize, 1);
 
-    AG_InitializeRandomArea(sAreaID, EC_AREA_TILESET, EC_AREA_DEFAULT_EDGE_TERRAIN, nAreaWidth, nAreaHeight);
+    AG_InitializeAreaDataObject(sAreaID, EC_AREA_TILESET, EC_AREA_DEFAULT_EDGE_TERRAIN, nAreaWidth, nAreaHeight);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, EC_DEBUG_LOG);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, EC_MAX_ITERATIONS);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_GENERATION_TYPE_SPIRAL_OUTWARD);

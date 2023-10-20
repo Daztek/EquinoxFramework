@@ -10,7 +10,7 @@
 
 const string DYNLIGHT_SCRIPT_NAME                       = "ef_s_dynlight";
 
-const int DYNLIGHT_ENABLE_DYNAMIC_LIGHTING              = TRUE;
+const int DYNLIGHT_ENABLE_DYNAMIC_LIGHTING              = FALSE;
 
 const string DYNLIGHT_AREA_DYNAMIC_LIGHTING_ENABLED     = "DynLightAreaDynamicLightingEnabled";
 const float DYNLIGHT_UPDATE_INTERVAL                    = 15.0f;

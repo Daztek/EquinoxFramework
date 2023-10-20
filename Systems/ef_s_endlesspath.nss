@@ -206,7 +206,7 @@ void EP_SetGenerationType(string sAreaID)
 void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int nAreaWidth, int nAreaHeight)
 {
     EP_SetLastGenerationData(oPreviousArea, nEdgeToCopy, nAreaWidth, nAreaHeight);
-    AG_InitializeRandomArea(sAreaID, EP_AREA_TILESET, EP_AREA_DEFAULT_EDGE_TERRAIN, nAreaWidth, nAreaHeight);
+    AG_InitializeAreaDataObject(sAreaID, EP_AREA_TILESET, EP_AREA_DEFAULT_EDGE_TERRAIN, nAreaWidth, nAreaHeight);
     AG_SetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, EP_SCRIPT_NAME);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, EP_DEBUG_LOG);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, EP_MAX_ITERATIONS);

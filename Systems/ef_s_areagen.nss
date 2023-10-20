@@ -160,7 +160,7 @@ int AG_GetHasTileOverride(string sAreaID, int nTile);
 void AG_SetTileOverride(string sAreaID, int nTile, struct TS_TileStruct strTile);
 struct TS_TileStruct AG_GetTileOverride(string sAreaID, int nTile);
 void AG_InitializeTileArrays(string sAreaID, int nWidth, int nHeight);
-void AG_InitializeRandomArea(string sAreaID, string sTileset, string sEdgeTerrain = "", int nWidth = AG_AREA_DEFAULT_WIDTH, int nHeight = AG_AREA_DEFAULT_HEIGHT);
+void AG_InitializeAreaDataObject(string sAreaID, string sTileset, string sEdgeTerrain = "", int nWidth = AG_AREA_DEFAULT_WIDTH, int nHeight = AG_AREA_DEFAULT_HEIGHT);
 int AG_GetNeighborTile(string sAreaID, int nTile, int nDirection);
 void AG_ResetNeighborTiles(string sAreaID, int nTile);
 void AG_ResetNeighborTileChunk(string sAreaID, int nTile);
@@ -470,7 +470,7 @@ void AG_InitializeTileArrays(string sAreaID, int nWidth, int nHeight)
     }
 }
 
-void AG_InitializeRandomArea(string sAreaID, string sTileset, string sEdgeTerrain = "", int nWidth = AG_AREA_DEFAULT_WIDTH, int nHeight = AG_AREA_DEFAULT_HEIGHT)
+void AG_InitializeAreaDataObject(string sAreaID, string sTileset, string sEdgeTerrain = "", int nWidth = AG_AREA_DEFAULT_WIDTH, int nHeight = AG_AREA_DEFAULT_HEIGHT)
 {
     DestroyDataObject(AG_GENERATOR_DATAOBJECT + sAreaID);
 

@@ -22,7 +22,7 @@ const int WG_ENABLE_VFX_EDGE                                    = TRUE;
 const int WG_AREA_LENGTH                                        = 7;
 const int WG_WORLD_WIDTH                                        = 15;
 const int WG_WORLD_HEIGHT                                       = 15;
-const int WG_VFX_TILE_BORDER_SIZE                               = 7;
+const int WG_VFX_TILE_BORDER_SIZE                               = WG_AREA_LENGTH;
 
 const int WG_AREA_SINGLE_GROUP_TILE_CHANCE                      = 1;
 
@@ -308,6 +308,7 @@ int WG_GetStateHash()
     if (!nHash)
     {
         nHash = HashString("SEED:" + IntToString(WG_GetWorldSeed()) +
+                           "TILESET:" + WG_AREA_TILESET +
                            "AREASIZE:" + IntToString(WG_AREA_LENGTH) +
                            "WSX:" + IntToString(WG_AREA_STARTING_X) +
                            "WSY:" + IntToString(WG_AREA_STARTING_Y));
@@ -482,7 +483,7 @@ void WG_GenerateArea()
 
     if (!WG_GetCachedArea(sAreaID))
     {
-        AG_InitializeRandomArea(sAreaID, WG_AREA_TILESET, WG_AREA_DEFAULT_EDGE_TERRAIN, WG_AREA_LENGTH, WG_AREA_LENGTH);
+        AG_InitializeAreaDataObject(sAreaID, WG_AREA_TILESET, WG_AREA_DEFAULT_EDGE_TERRAIN, WG_AREA_LENGTH, WG_AREA_LENGTH);
         AG_SetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, WG_WORLD_SEED_NAME);
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, WG_DEBUG_LOG);
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, WG_MAX_ITERATIONS);
@@ -500,8 +501,13 @@ void WG_GenerateArea()
 
         if (sAreaID == WG_GetStartingAreaID())
         {
-            int nCenterTile = (WG_AREA_LENGTH / 2) + (WG_AREA_LENGTH * (WG_AREA_LENGTH / 2));
-            AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nCenterTile, 1215, AG_Random(WG_WORLD_SEED_NAME, 4), 0, TRUE);
+            if (WG_AREA_TILESET == TILESET_RESREF_MEDIEVAL_RURAL_2)
+            {
+                int nCenterTile = (WG_AREA_LENGTH / 2) + (WG_AREA_LENGTH * (WG_AREA_LENGTH / 2));
+                int nOrientation = AG_Random(WG_WORLD_SEED_NAME, 4);
+                int nHeight = AG_Random(WG_WORLD_SEED_NAME, TS_MAX_TILE_HEIGHT);
+                AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nCenterTile, 1215, nOrientation, nHeight, TRUE);
+            }
         }
         else
         {
@@ -545,6 +551,8 @@ void WG_CreateVFXEdge(string sAreaID, int nNeighborDirection)
         else
             nNeighborDirection = (((nNeighborDirection - 4) + 2) % 4) + 4;
         WG_SpawnVFXEdge(sNeighborAreaID, nNeighborDirection);
+
+        EFCore_ResetScriptInstructions();
     }
 }
 
@@ -571,24 +579,22 @@ void WG_OnAreaGenerated(string sAreaID)
         WG_UpdateMapArea(sAreaID, WG_MAP_COLOR_AVAILABLE);
         InsertStringToLocalJsonArray(GetDataObject(WG_SCRIPT_NAME), WG_GENERATED_AREAS_ARRAY, sAreaID);
 
+        int nNeighborDirection;
         //if (sAreaID == WG_GetStartingAreaID())
         {
-            WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_TOP));
-            WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_RIGHT));
-            WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_BOTTOM));
-            WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, WG_NEIGHBOR_AREA_LEFT));
+            for (nNeighborDirection = WG_NEIGHBOR_AREA_TOP; nNeighborDirection <= WG_NEIGHBOR_AREA_LEFT; nNeighborDirection++)
+            {
+                WG_QueueArea(WG_GetAreaIDFromDirection(sAreaID, nNeighborDirection));
+            }
         }
 
         if (WG_ENABLE_VFX_EDGE && sAreaID != WG_GetStartingAreaID())
         {
-            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_TOP);
-            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_RIGHT);
-            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM);
-            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_LEFT);
-            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_TOP_LEFT);
-            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_TOP_RIGHT);
-            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_RIGHT);
-            WG_CreateVFXEdge(sAreaID, WG_NEIGHBOR_AREA_BOTTOM_LEFT);
+            int nNeighborDirection;
+            for (nNeighborDirection = WG_NEIGHBOR_AREA_TOP; nNeighborDirection <= WG_NEIGHBOR_AREA_BOTTOM_LEFT; nNeighborDirection++)
+            {
+                WG_CreateVFXEdge(sAreaID, nNeighborDirection);
+            }
         }
 
         WG_QueuePop();
@@ -701,8 +707,7 @@ int WG_GetAreaIsCached(string sAreaID)
     if (!WG_ENABLE_AREA_CACHING)
         return FALSE;
 
-    string sQuery = "SELECT area_id FROM " + WG_AREA_CACHE_TABLE_NAME + " " +
-                    "WHERE area_id = @area_id AND hash = @hash;";
+    string sQuery = "SELECT area_id FROM " + WG_AREA_CACHE_TABLE_NAME + " WHERE area_id = @area_id AND hash = @hash;";
     sqlquery sql = SqlPrepareQueryCampaign(WG_SCRIPT_NAME, sQuery);
     SqlBindString(sql, "@area_id", sAreaID);
     SqlBindInt(sql, "@hash", WG_GetStateHash());
@@ -714,8 +719,7 @@ void WG_CacheArea(string sAreaID)
     if (!WG_ENABLE_AREA_CACHING)
         return;
 
-    string sQuery = "INSERT INTO " + WG_AREA_CACHE_TABLE_NAME + "(area_id, hash, dataobject) " +
-                    "VALUES(@area_id, @hash, @dataobject);";
+    string sQuery = "INSERT INTO " + WG_AREA_CACHE_TABLE_NAME + "(area_id, hash, dataobject) VALUES(@area_id, @hash, @dataobject);";
     sqlquery sql = SqlPrepareQueryCampaign(WG_SCRIPT_NAME, sQuery);
     SqlBindString(sql, "@area_id", sAreaID);
     SqlBindInt(sql, "@hash", WG_GetStateHash());
@@ -728,8 +732,7 @@ int WG_GetCachedArea(string sAreaID)
     if (!WG_ENABLE_AREA_CACHING)
         return FALSE;
 
-    string sQuery = "SELECT dataobject FROM " + WG_AREA_CACHE_TABLE_NAME + " " +
-                    "WHERE area_id = @area_id AND hash = @hash;";
+    string sQuery = "SELECT dataobject FROM " + WG_AREA_CACHE_TABLE_NAME + " WHERE area_id = @area_id AND hash = @hash;";
     sqlquery sql = SqlPrepareQueryCampaign(WG_SCRIPT_NAME, sQuery);
     SqlBindString(sql, "@area_id", sAreaID);
     SqlBindInt(sql, "@hash", WG_GetStateHash());
@@ -788,9 +791,7 @@ void WG_ApplyTileModelVFX(object oPlaceable, string sAreaID, struct AG_Tile strT
     while (oPlayer != OBJECT_INVALID)
     {
         if (GetTag(GetArea(oPlayer)) == sAreaID)
-        {
             NWNX_Player_SetResManOverride(oPlayer, 2002, WG_VFX_DUMMY_NAME + IntToString(strTile.nTileID), sTileModel);
-        }
         oPlayer = GetNextPC();
     }
 
@@ -809,7 +810,7 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
     json jTileIDArray = WG_GetAreaTileIDArray(sAreaID);
     json jTileModelArray = WG_GetAreaTileModelArray(sAreaID);
     string sTag = WG_VFX_PLACEABLE_TAG + sAreaID;
-    float fVisibleDistance = (WG_AREA_LENGTH * 2) * 10.0f;
+    float fVisibleDistance = (WG_AREA_LENGTH * 4) * 10.0f;
 
     if (nNeighborDirection < WG_NEIGHBOR_AREA_TOP_LEFT)
         nNeighborDirection = (nNeighborDirection + 2) % 4;

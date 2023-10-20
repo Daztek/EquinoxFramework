@@ -34,7 +34,7 @@ void SA_Load()
 
     Call(Function("ef_s_grass", "Grass_SetGrass"), ObjectArg(oArea) + StringArg("trm02_grass3d"));
 
-    AG_InitializeRandomArea(SA_AREA_ID, SA_AREA_TILESET, SA_AREA_DEFAULT_EDGE_TERRAIN, SA_AREA_LENGTH, SA_AREA_LENGTH);
+    AG_InitializeAreaDataObject(SA_AREA_ID, SA_AREA_TILESET, SA_AREA_DEFAULT_EDGE_TERRAIN, SA_AREA_LENGTH, SA_AREA_LENGTH);
     AG_InitializeAreaChunks(SA_AREA_ID, SA_AREA_CHUNK_SIZE);
 
     AG_SetStringDataByKey(SA_AREA_ID, AG_DATA_KEY_GENERATION_RANDOM_NAME, SA_SCRIPT_NAME);

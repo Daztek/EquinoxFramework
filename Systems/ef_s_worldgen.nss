@@ -488,7 +488,7 @@ void WG_GenerateArea()
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, WG_DEBUG_LOG);
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_MAX_ITERATIONS, WG_MAX_ITERATIONS);
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, WG_AREA_SINGLE_GROUP_TILE_CHANCE);
-        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_Random(WG_WORLD_SEED_NAME, 8));
+        AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, AG_Random(sAreaID, 8));
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR, TRUE);
         AG_SetCallbackFunction(sAreaID, WG_SCRIPT_NAME, "WG_OnAreaGenerated");
 
@@ -504,8 +504,8 @@ void WG_GenerateArea()
             if (WG_AREA_TILESET == TILESET_RESREF_MEDIEVAL_RURAL_2)
             {
                 int nCenterTile = (WG_AREA_LENGTH / 2) + (WG_AREA_LENGTH * (WG_AREA_LENGTH / 2));
-                int nOrientation = AG_Random(WG_WORLD_SEED_NAME, 4);
-                int nHeight = AG_Random(WG_WORLD_SEED_NAME, TS_MAX_TILE_HEIGHT);
+                int nOrientation = AG_Random(sAreaID, 4);
+                int nHeight = AG_Random(sAreaID, TS_MAX_TILE_HEIGHT);
                 AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nCenterTile, 1215, nOrientation, nHeight, TRUE);
             }
         }

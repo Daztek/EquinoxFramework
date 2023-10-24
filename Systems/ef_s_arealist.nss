@@ -48,8 +48,8 @@ void AL_RefreshAreaList()
     object oArea = GetFirstArea();
     while (GetIsObjectValid(oArea))
     {
-        jAreaNames = JsonArrayInsertString(jAreaNames, GetName(oArea) + " (" + GetTag(oArea) + ")");
-        jAreaIds = JsonArrayInsertString(jAreaIds, ObjectToString(oArea));
+        JsonArrayInsertStringInplace(jAreaNames, GetName(oArea) + " (" + GetTag(oArea) + ")");
+        JsonArrayInsertStringInplace(jAreaIds, ObjectToString(oArea));
         oArea = GetNextArea();
     }
 

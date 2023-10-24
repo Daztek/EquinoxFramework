@@ -145,6 +145,9 @@ void JsonArrayInsertIntInplace(json jArray, int nValue, int nIndex = -1);
 // Modifies jObject in-place (with no memory copies of the full object).
 // jObject will have the key at sKey set to nValue.
 void JsonObjectSetIntInplace(json jObject, string sKey, int nValue);
+// Modifies jObject in-place (with no memory copies of the full object).
+// jObject will have the key at sKey set to sValue.
+void JsonObjectSetStringInplace(json jObject, string sKey, string sValue);
 
 json VectorToJson(vector vVector)
 {
@@ -433,4 +436,9 @@ void JsonArrayInsertIntInplace(json jArray, int nValue, int nIndex = -1)
 void JsonObjectSetIntInplace(json jObject, string sKey, int nValue)
 {
     JsonObjectSetInplace(jObject, sKey, JsonInt(nValue));
+}
+
+void JsonObjectSetStringInplace(json jObject, string sKey, string sValue)
+{
+    JsonObjectSetInplace(jObject, sKey, JsonString(sValue));
 }

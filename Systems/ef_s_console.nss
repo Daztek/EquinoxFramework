@@ -207,10 +207,10 @@ void Console_UpdateCommandList(string sSearch)
 
     while (SqlStep(sql))
     {
-        jIdArray = JsonArrayInsertInt(jIdArray, SqlGetInt(sql, 0));
-        jNameArray = JsonArrayInsertString(jNameArray, SqlGetString(sql, 1));
-        jIconArray = JsonArrayInsertString(jIconArray, SqlGetString(sql, 2));
-        jTooltipArray = JsonArrayInsertString(jTooltipArray, SqlGetString(sql, 3));
+        JsonArrayInsertIntInplace(jIdArray, SqlGetInt(sql, 0));
+        JsonArrayInsertStringInplace(jNameArray, SqlGetString(sql, 1));
+        JsonArrayInsertStringInplace(jIconArray, SqlGetString(sql, 2));
+        JsonArrayInsertStringInplace(jTooltipArray, SqlGetString(sql, 3));
     }
 
     NWM_SetBind(CONSOLE_BIND_LIST_COMMAND_NAME, jNameArray);
@@ -227,15 +227,15 @@ void Console_UpdateSystemCombo()
 
     int nIndex;
     json jSystems = JsonArray();
-         jSystems = JsonArrayInsertString(jSystems, "");
     json jComboEntries = JsonArray();
-         jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry("", nIndex++));
+    JsonArrayInsertStringInplace(jSystems, "");
+    JsonArrayInsertInplace(jComboEntries, NuiComboEntry("", nIndex++));
 
     while (SqlStep(sql))
     {
         string sSystem = SqlGetString(sql, 0);
-        jSystems = JsonArrayInsertString(jSystems, sSystem);
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry(sSystem, nIndex++));
+        JsonArrayInsertStringInplace(jSystems, sSystem);
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry(sSystem, nIndex++));
     }
 
     NWM_SetBind(CONSOLE_BIND_COMBO_SYSTEM_ENTRIES, jComboEntries);
@@ -273,9 +273,9 @@ void Console_SelectCommand(int nCommand)
             string sName = JsonObjectGetString(jParameter, "name");
             string sDefault = JsonObjectGetString(jParameter, "default");
 
-            jArgNameArray = JsonArrayInsert(jArgNameArray, JsonObjectGet(jParameter, "name"));
-            jArgValueArray = JsonArrayInsert(jArgValueArray, JsonObjectGet(jParameter, "default"));
-            jArgTooltipArray = JsonArrayInsert(jArgTooltipArray, JsonObjectGet(jParameter, "type"));
+            JsonArrayInsertInplace(jArgNameArray, JsonObjectGet(jParameter, "name"));
+            JsonArrayInsertInplace(jArgValueArray, JsonObjectGet(jParameter, "default"));
+            JsonArrayInsertInplace(jArgTooltipArray, JsonObjectGet(jParameter, "type"));
         }
 
         NWM_SetUserData("selected_command", JsonInt(nCommand));
@@ -358,11 +358,11 @@ void Console_ClickClearArgsButton()
 {
     json jValues = NWM_GetBind(CONSOLE_BIND_LIST_ARG_VALUE);
     int nArgument, nNumArguments = JsonGetLength(jValues);
-    json jArgumentValueArray;
+    json jArgumentValueArray = JsonArray();
 
     for (nArgument = 0; nArgument < nNumArguments; nArgument++)
     {
-        jArgumentValueArray = JsonArrayInsertString(jArgumentValueArray, "");
+        JsonArrayInsertStringInplace(jArgumentValueArray, "");
     }
 
     NWM_SetBind(CONSOLE_BIND_LIST_ARG_VALUE, jArgumentValueArray);
@@ -466,11 +466,10 @@ void Console_RegisterCommand(struct AnnotationData str)
             if (sType == "s" && GetStringLength(sDefault))
                 sDefault = GetSubString(sDefault, 1, GetStringLength(sDefault) - 2);
 
-            jParameter = JsonObjectSetString(jParameter, "type", sType);
-            jParameter = JsonObjectSetString(jParameter, "name", sVarName);
-            jParameter = JsonObjectSetString(jParameter, "default", sDefault);
-
-            jParameters = JsonArrayInsert(jParameters, jParameter);
+            JsonObjectSetStringInplace(jParameter, "type", sType);
+            JsonObjectSetStringInplace(jParameter, "name", sVarName);
+            JsonObjectSetStringInplace(jParameter, "default", sDefault);
+            JsonArrayInsertInplace(jParameters, jParameter);
         }
     }
 

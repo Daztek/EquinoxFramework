@@ -79,10 +79,14 @@ const string WG_VFX_TILE_MODEL_ARRAY                            = "VFXTileModelA
 const int WG_VFX_START_ROW                                      = 1000;
 const string WG_VFX_DUMMY_NAME                                  = "dummy_tile_";
 
+const string WG_PAUSE_STATE                                     = "PauseState";
+
 void WG_InitializeTemplateArea();
 json WG_GetTemplateAreaJson();
 void WG_SetWorldSeed(int nSeed);
 int WG_GetWorldSeed();
+void WG_SetPauseState(int bPaused);
+int WG_GetPauseState();
 int WG_GetStateHash();
 
 string WG_GetAreaID(int nX, int nY);
@@ -135,7 +139,7 @@ void WG_Init()
 void WG_Load()
 {
     WG_QueuePush(WG_GetStartingAreaID());
-    WG_GenerateArea();
+    WG_SetPauseState(TRUE);
     AreaMusic_AddTrackToTrackList(WG_SCRIPT_NAME, 65, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
     AreaMusic_AddTrackToTrackList(WG_SCRIPT_NAME, 109, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
     AreaMusic_AddTrackToTrackList(WG_SCRIPT_NAME, 118, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
@@ -266,6 +270,28 @@ string WG_QueueContents()
     return "World Gen Queue Size: " + IntToString(WG_QueueSize()) + "\n" + JsonDump(WG_GetQueue(), 0);
 }
 
+// @CONSOLE[WGGetPauseState::]
+string WG_GetWorldGenPauseState()
+{
+    return WG_GetPauseState() ? "WorldGen: Paused" : "WorldGen: Unpaused";
+}
+
+// @CONSOLE[WGTogglePauseState::]
+string WG_ToggleWorldGenPauseState()
+{
+    if (WG_GetPauseState())
+    {
+        WG_SetPauseState(FALSE);
+        WG_GenerateArea();
+        return WG_GetWorldGenPauseState();
+    }
+    else
+    {
+        WG_SetPauseState(TRUE);
+        return WG_GetWorldGenPauseState();
+    }
+}
+
 // @PMBUTTON[World Map:Display the world map!]
 void WG_ShowMapWindow()
 {
@@ -300,6 +326,16 @@ void WG_SetWorldSeed(int nSeed)
 int WG_GetWorldSeed()
 {
     return GetLocalInt(GetDataObject(WG_SCRIPT_NAME), WG_WORLD_SEED_NAME);
+}
+
+void WG_SetPauseState(int bPaused)
+{
+    SetLocalInt(GetDataObject(WG_SCRIPT_NAME), WG_PAUSE_STATE, bPaused);
+}
+
+int WG_GetPauseState()
+{
+    return GetLocalInt(GetDataObject(WG_SCRIPT_NAME), WG_PAUSE_STATE);
 }
 
 int WG_GetStateHash()
@@ -598,7 +634,7 @@ void WG_OnAreaGenerated(string sAreaID)
         }
 
         WG_QueuePop();
-        if (!WG_QueueEmpty())
+        if (!WG_QueueEmpty() && !WG_GetPauseState())
         {
             WG_UpdateMapArea(WG_QueueGet(), WG_MAP_COLOR_GENERATING);
             WG_GenerateArea();

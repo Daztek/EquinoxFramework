@@ -55,7 +55,7 @@ json NWM_GetEvents(string sWindowId, string sEventType, string sElement);
 json NWM_GetPrefixArray(string sWindowId);
 void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string sElement);
 void NWM_Destroy();
-void NWM_SetRootWindowLayout(string sOtherWindowId);
+void NWM_SetRootWindowLayout(json jLayout);
 
 // @CORE[EF_SYSTEM_INIT]
 void NWM_Init()
@@ -436,7 +436,7 @@ void NWM_Destroy()
     NuiDestroy(oPlayer, nToken);
 }
 
-void NWM_SetRootWindowLayout(string sOtherWindowId)
+void NWM_SetRootWindowLayout(json jLayout)
 {
-    NuiSetGroupLayout(NWM_GetPlayer(), NWM_GetToken(), NUI_WINDOW_ROOT_GROUP, NWM_GetWindowRootJson(sOtherWindowId));
+    NuiSetGroupLayout(NWM_GetPlayer(), NWM_GetToken(), NUI_WINDOW_ROOT_GROUP, jLayout);
 }

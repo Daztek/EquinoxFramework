@@ -107,6 +107,8 @@ int DecrementLocalInt(object oObject, string sVarName);
 // Convert a vector to a {x.x, y.y, z.z} string.
 string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2);
 
+int log2(int n);
+
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
 {
     json jArray = JsonArray();
@@ -462,4 +464,9 @@ string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2)
     return "{" + FloatToString(v.x, nWidth, nDecimals) + ", " +
                  FloatToString(v.y, nWidth, nDecimals) + ", " +
                  FloatToString(v.z, nWidth, nDecimals) + "}";
+}
+
+int log2(int n)
+{
+    int ret; while (n >>= 1) { ret++; } return ret;
 }

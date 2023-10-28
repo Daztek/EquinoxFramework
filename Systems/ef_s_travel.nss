@@ -33,7 +33,7 @@ void Travel_OnMaterialChange()
 {
     object oPlayer = OBJECT_SELF;
     if (!GetIsPC(oPlayer) || GetIsDM(oPlayer)) return;
-    int nMaterial = EM_GetNWNXInt("MATERIAL_TYPE");
+    int nMaterial = EM_NWNXGetInt("MATERIAL_TYPE");
     effect eEffect;
 
     switch (nMaterial)

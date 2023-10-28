@@ -148,6 +148,16 @@ void JsonObjectSetIntInplace(json jObject, string sKey, int nValue);
 // Modifies jObject in-place (with no memory copies of the full object).
 // jObject will have the key at sKey set to sValue.
 void JsonObjectSetStringInplace(json jObject, string sKey, string sValue);
+// Modifies jArray in-place (with no memory copies needed).
+// jArray will have bValue inserted at position nIndex.
+// All succeeding elements in the array will move by one.
+// By default (-1), inserts elements at the end of the array ("push").
+// nIndex = 0 inserts at the beginning of the array.
+void JsonArrayInsertBoolInplace(json jArray, int bValue, int nIndex = -1);
+// Modifies jArray in-place (with no memory copies needed).
+// jArray will have bValue set at position nIndex.
+// Will do nothing if jArray is not an array or nIndex is out of range.
+void JsonArraySetBoolInplace(json jArray, int nIndex, int bValue);
 
 json VectorToJson(vector vVector)
 {
@@ -441,4 +451,14 @@ void JsonObjectSetIntInplace(json jObject, string sKey, int nValue)
 void JsonObjectSetStringInplace(json jObject, string sKey, string sValue)
 {
     JsonObjectSetInplace(jObject, sKey, JsonString(sValue));
+}
+
+void JsonArrayInsertBoolInplace(json jArray, int bValue, int nIndex = -1)
+{
+    JsonArrayInsertInplace(jArray, JsonBool(bValue), nIndex);
+}
+
+void JsonArraySetBoolInplace(json jArray, int nIndex, int bValue)
+{
+    JsonArraySetInplace(jArray, nIndex, JsonBool(bValue));
 }

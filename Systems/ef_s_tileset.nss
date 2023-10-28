@@ -54,7 +54,7 @@ struct TS_TileStruct TS_GetTileEdgesAndCorners(string sTileset, int nTileID);
 struct TS_TileStruct TS_GetCornersAndEdgesByOrientation(string sTileset, int nTileID, int nOrientation);
 int TS_GetHasTerrainOrCrosser(struct TS_TileStruct str, string sType);
 int TS_GetTerrainAndCrosserIsType(struct TS_TileStruct str, string sTerrainType, string sCrosserType);
-int TS_GetNumOfTerrainOrCrosser(struct TS_TileStruct str, string sType);
+int TS_GetNumOfTerrainOrCrosser(struct TS_TileStruct str, string sType, int bStripHeightIndicator = FALSE);
 struct TS_TileStruct TS_ReplaceTerrainOrCrosser(struct TS_TileStruct str, string sOld, string sNew);
 struct TS_TileStruct TS_ReplaceTerrain(struct TS_TileStruct str, string sOld, string sNew);
 struct TS_TileStruct TS_SetTerrain(struct TS_TileStruct str, string sTerrain);
@@ -297,11 +297,15 @@ int TS_GetTerrainAndCrosserIsType(struct TS_TileStruct str, string sTerrainType,
             str.sBR == sTerrainType && str.sB == sCrosserType && str.sBL == sTerrainType && str.sL == sCrosserType);
 }
 
-int TS_GetNumOfTerrainOrCrosser(struct TS_TileStruct str, string sType)
+int TS_GetNumOfTerrainOrCrosser(struct TS_TileStruct str, string sType, int bStripHeightIndicator = FALSE)
 {
+    if (bStripHeightIndicator)
+        str = TS_StripHeightIndicatorFromStruct(str);
+
     return (str.sTL == sType) + (str.sT == sType) + (str.sTR == sType) + (str.sR == sType) +
            (str.sBR == sType) + (str.sB == sType) + (str.sBL == sType) + (str.sL == sType);
 }
+
 
 struct TS_TileStruct TS_ReplaceTerrainOrCrosser(struct TS_TileStruct str, string sOld, string sNew)
 {
@@ -554,7 +558,6 @@ struct TS_DoorStruct TS_GetTilesetTileDoor(string sTileset, int nTileID, int nIn
     return str;
 }
 
-
 int TS_GetIsTilesetGroupTile(string sTileset, int nTileID)
 {
     string sQuery = "SELECT tile_id FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUP_TILES) + " WHERE tile_id = @tile_id;";
@@ -570,10 +573,6 @@ void TS_LoadTilesetData(string sTileset)
         return;
 
     object oTDO = TS_GetTilesetDataObject(sTileset);
-
-    SqlBeginTransactionModule();
-
-    TS_CreateTilesetTables(sTileset);
 
     struct NWNX_Tileset_TilesetData str = NWNX_Tileset_GetTilesetData(sTileset);
     SetLocalInt(oTDO, "NumTiles", str.nNumTileData);
@@ -595,8 +594,8 @@ void TS_LoadTilesetData(string sTileset)
     {
         string sTerrain = GetStringUpperCase(NWNX_Tileset_GetTilesetTerrain(sTileset, nTerrainNum));
         SetLocalString(oTDO, "Terrain" + IntToString(nTerrainNum), sTerrain);
-        jTC = JsonArrayInsertString(jTC, sTerrain);
-        jTerrain = JsonArrayInsertString(jTerrain, sTerrain);
+        JsonArrayInsertStringInplace(jTC, sTerrain);
+        JsonArrayInsertStringInplace(jTerrain, sTerrain);
     }
 
     int nCrosserNum;
@@ -604,13 +603,17 @@ void TS_LoadTilesetData(string sTileset)
     {
         string sCrosser = GetStringUpperCase(NWNX_Tileset_GetTilesetCrosser(sTileset, nCrosserNum));
         SetLocalString(oTDO, "Crosser" + IntToString(nCrosserNum), sCrosser);
-        jTC = JsonArrayInsertString(jTC, sCrosser);
-        jCrosser = JsonArrayInsertString(jCrosser, sCrosser);
+        JsonArrayInsertStringInplace(jTC, sCrosser);
+        JsonArrayInsertStringInplace(jCrosser, sCrosser);
     }
 
     SetLocalJson(oTDO, "TerrainCrosserArray", jTC);
     SetLocalJson(oTDO, "TerrainArray", jTerrain);
     SetLocalJson(oTDO, "CrosserArray", jTerrain);
+
+    SqlBeginTransactionModule();
+
+    TS_CreateTilesetTables(sTileset);
 
     TS_ProcessTilesetGroups(sTileset);
 

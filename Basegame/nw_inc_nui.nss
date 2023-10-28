@@ -474,18 +474,18 @@ NuiWindow(
 {
   json ret = JsonObject();
   // Currently hardcoded and here to catch backwards-incompatible data in the future.
-  ret = JsonObjectSet(ret, "version", JsonInt(1));
-  ret = JsonObjectSet(ret, "title", jTitle);
-  ret = JsonObjectSet(ret, "root", jRoot);
-  ret = JsonObjectSet(ret, "geometry", jGeometry);
-  ret = JsonObjectSet(ret, "resizable", jResizable);
-  ret = JsonObjectSet(ret, "collapsed", jCollapsed);
-  ret = JsonObjectSet(ret, "closable", jClosable);
-  ret = JsonObjectSet(ret, "transparent", jTransparent);
-  ret = JsonObjectSet(ret, "border", jBorder);
-  ret = JsonObjectSet(ret, "accepts_input", jAcceptsInput);
-  ret = JsonObjectSet(ret, "size_constraint", jWindowConstraint);
-  ret = JsonObjectSet(ret, "edge_constraint", jEdgeConstraint);
+  JsonObjectSetInplace(ret, "version", JsonInt(1));
+  JsonObjectSetInplace(ret, "title", jTitle);
+  JsonObjectSetInplace(ret, "root", jRoot);
+  JsonObjectSetInplace(ret, "geometry", jGeometry);
+  JsonObjectSetInplace(ret, "resizable", jResizable);
+  JsonObjectSetInplace(ret, "collapsed", jCollapsed);
+  JsonObjectSetInplace(ret, "closable", jClosable);
+  JsonObjectSetInplace(ret, "transparent", jTransparent);
+  JsonObjectSetInplace(ret, "border", jBorder);
+  JsonObjectSetInplace(ret, "accepts_input", jAcceptsInput);
+  JsonObjectSetInplace(ret, "size_constraint", jWindowConstraint);
+  JsonObjectSetInplace(ret, "edge_constraint", jEdgeConstraint);
   return ret;
 }
 
@@ -497,9 +497,9 @@ NuiElement(
 )
 {
     json ret = JsonObject();
-    ret = JsonObjectSet(ret, "type", JsonString(sType));
-    ret = JsonObjectSet(ret, "label", jLabel);
-    ret = JsonObjectSet(ret, "value", jValue);
+    JsonObjectSetInplace(ret, "type", JsonString(sType));
+    JsonObjectSetInplace(ret, "label", jLabel);
+    JsonObjectSetInplace(ret, "value", jValue);
     return ret;
 }
 
@@ -512,10 +512,10 @@ NuiBind(
 )
 {
   json ret = JsonObject();
-  ret = JsonObjectSet(ret, "bind", JsonString(sId));
-  ret = JsonObjectSet(ret, "number_flags", JsonInt(nNumberFlags));
-  ret = JsonObjectSet(ret, "number_padding", JsonInt(nNumberPadding));
-  ret = JsonObjectSet(ret, "text_flags", JsonInt(nTextFlags));
+  JsonObjectSetInplace(ret, "bind", JsonString(sId));
+  JsonObjectSetInplace(ret, "number_flags", JsonInt(nNumberFlags));
+  JsonObjectSetInplace(ret, "number_padding", JsonInt(nNumberPadding));
+  JsonObjectSetInplace(ret, "text_flags", JsonInt(nTextFlags));
   return ret;
 }
 
@@ -534,7 +534,7 @@ NuiStrRef(
 )
 {
     json ret = JsonObject();
-    ret = JsonObjectSet(ret, "strref", JsonInt(nStrRef));
+    JsonObjectSetInplace(ret, "strref", JsonInt(nStrRef));
     return ret;
 }
 
@@ -562,9 +562,9 @@ NuiGroup(
 )
 {
   json ret = NuiElement("group", JsonNull(), JsonNull());
-  ret = JsonObjectSet(ret, "children", JsonArrayInsert(JsonArray(), jChild));
-  ret = JsonObjectSet(ret, "border", JsonBool(bBorder));
-  ret = JsonObjectSet(ret, "scrollbars", JsonInt(nScroll));
+  JsonObjectSetInplace(ret, "children", JsonArrayInsert(JsonArray(), jChild));
+  JsonObjectSetInplace(ret, "border", JsonBool(bBorder));
+  JsonObjectSetInplace(ret, "scrollbars", JsonInt(nScroll));
   return ret;
 }
 
@@ -653,8 +653,8 @@ json
 NuiVec(float x, float y)
 {
   json ret = JsonObject();
-  ret = JsonObjectSet(ret, "x", JsonFloat(x));
-  ret = JsonObjectSet(ret, "y", JsonFloat(y));
+  JsonObjectSetInplace(ret, "x", JsonFloat(x));
+  JsonObjectSetInplace(ret, "y", JsonFloat(y));
   return ret;
 }
 
@@ -662,10 +662,10 @@ json
 NuiRect(float x, float y, float w, float h)
 {
   json ret = JsonObject();
-  ret = JsonObjectSet(ret, "x", JsonFloat(x));
-  ret = JsonObjectSet(ret, "y", JsonFloat(y));
-  ret = JsonObjectSet(ret, "w", JsonFloat(w));
-  ret = JsonObjectSet(ret, "h", JsonFloat(h));
+  JsonObjectSetInplace(ret, "x", JsonFloat(x));
+  JsonObjectSetInplace(ret, "y", JsonFloat(y));
+  JsonObjectSetInplace(ret, "w", JsonFloat(w));
+  JsonObjectSetInplace(ret, "h", JsonFloat(h));
   return ret;
 }
 
@@ -673,10 +673,10 @@ json
 NuiColor(int r, int g, int b, int a = 255)
 {
   json ret = JsonObject();
-  ret = JsonObjectSet(ret, "r", JsonInt(r));
-  ret = JsonObjectSet(ret, "g", JsonInt(g));
-  ret = JsonObjectSet(ret, "b", JsonInt(b));
-  ret = JsonObjectSet(ret, "a", JsonInt(a));
+  JsonObjectSetInplace(ret, "r", JsonInt(r));
+  JsonObjectSetInplace(ret, "g", JsonInt(g));
+  JsonObjectSetInplace(ret, "b", JsonInt(b));
+  JsonObjectSetInplace(ret, "a", JsonInt(a));
   return ret;
 }
 
@@ -703,8 +703,8 @@ NuiLabel(
 )
 {
   json ret = NuiElement("label", JsonNull(), jValue);
-  ret = JsonObjectSet(ret, "text_halign", jHAlign);
-  ret = JsonObjectSet(ret, "text_valign", jVAlign);
+  JsonObjectSetInplace(ret, "text_halign", jHAlign);
+  JsonObjectSetInplace(ret, "text_valign", jVAlign);
   return ret;
 }
 
@@ -716,8 +716,8 @@ NuiText(
 )
 {
   json ret = NuiElement("text", JsonNull(), jValue);
-  ret = JsonObjectSet(ret, "border", JsonBool(bBorder));
-  ret = JsonObjectSet(ret, "scrollbars", JsonInt(nScroll));
+  JsonObjectSetInplace(ret, "border", JsonBool(bBorder));
+  JsonObjectSetInplace(ret, "scrollbars", JsonInt(nScroll));
   return ret;
 }
 
@@ -806,9 +806,9 @@ NuiSliderFloat(
 )
 {
   json ret = NuiElement("sliderf", JsonNull(), jValue);
-  ret = JsonObjectSet(ret, "min", jMin);
-  ret = JsonObjectSet(ret, "max", jMax);
-  ret = JsonObjectSet(ret, "step", jStepSize);
+  JsonObjectSetInplace(ret, "min", jMin);
+  JsonObjectSetInplace(ret, "max", jMax);
+  JsonObjectSetInplace(ret, "step", jStepSize);
   return ret;
 }
 
@@ -821,9 +821,9 @@ NuiSlider(
 )
 {
   json ret = NuiElement("slider", JsonNull(), jValue);
-  ret = JsonObjectSet(ret, "min", jMin);
-  ret = JsonObjectSet(ret, "max", jMax);
-  ret = JsonObjectSet(ret, "step", jStepSize);
+  JsonObjectSetInplace(ret, "min", jMin);
+  JsonObjectSetInplace(ret, "max", jMax);
+  JsonObjectSetInplace(ret, "step", jStepSize);
   return ret;
 }
 
@@ -845,9 +845,9 @@ NuiTextEdit(
 )
 {
   json ret = NuiElement("textedit", jPlaceholder, jValue);
-  ret = JsonObjectSet(ret, "max", JsonInt(nMaxLength));
-  ret = JsonObjectSet(ret, "multiline", JsonBool(bMultiline));
-  ret = JsonObjectSet(ret, "wordwrap", JsonBool(bWordWrap));
+  JsonObjectSetInplace(ret, "max", JsonInt(nMaxLength));
+  JsonObjectSetInplace(ret, "multiline", JsonBool(bMultiline));
+  JsonObjectSetInplace(ret, "wordwrap", JsonBool(bWordWrap));
   return ret;
 }
 
@@ -861,11 +861,11 @@ NuiList(
 )
 {
   json ret = NuiElement("list", JsonNull(), JsonNull());
-  ret = JsonObjectSet(ret, "row_template", jTemplate);
-  ret = JsonObjectSet(ret, "row_count", jRowCount);
-  ret = JsonObjectSet(ret, "row_height", JsonFloat(fRowHeight));
-  ret = JsonObjectSet(ret, "border", JsonBool(bBorder));
-  ret = JsonObjectSet(ret, "scrollbars", JsonInt(nScroll));
+  JsonObjectSetInplace(ret, "row_template", jTemplate);
+  JsonObjectSetInplace(ret, "row_count", jRowCount);
+  JsonObjectSetInplace(ret, "row_height", JsonFloat(fRowHeight));
+  JsonObjectSetInplace(ret, "border", JsonBool(bBorder));
+  JsonObjectSetInplace(ret, "scrollbars", JsonInt(nScroll));
   return ret;
 }
 
@@ -900,8 +900,8 @@ NuiOptions(
 )
 {
   json ret = NuiElement("options", JsonNull(), jValue);
-  ret = JsonObjectSet(ret, "direction", JsonInt(nDirection));
-  ret = JsonObjectSet(ret, "elements", jElements);
+  JsonObjectSetInplace(ret, "direction", JsonInt(nDirection));
+  JsonObjectSetInplace(ret, "elements", jElements);
   return ret;
 }
 
@@ -913,8 +913,8 @@ NuiToggles(
 )
 {
   json ret = NuiElement("tabbar", JsonNull(), jValue);
-  ret = JsonObjectSet(ret, "direction", JsonInt(nDirection));
-  ret = JsonObjectSet(ret, "elements", jElements);
+  JsonObjectSetInplace(ret, "direction", JsonInt(nDirection));
+  JsonObjectSetInplace(ret, "elements", jElements);
   return ret;
 }
 
@@ -927,10 +927,10 @@ NuiChartSlot(
 )
 {
   json ret = JsonObject();
-  ret = JsonObjectSet(ret, "type", JsonInt(nType));
-  ret = JsonObjectSet(ret, "legend", jLegend);
-  ret = JsonObjectSet(ret, "color", jColor);
-  ret = JsonObjectSet(ret, "data", jData);
+  JsonObjectSetInplace(ret, "type", JsonInt(nType));
+  JsonObjectSetInplace(ret, "legend", jLegend);
+  JsonObjectSetInplace(ret, "color", jColor);
+  JsonObjectSetInplace(ret, "data", jData);
   return ret;
 }
 
@@ -956,14 +956,14 @@ NuiDrawListItem(
 )
 {
   json ret = JsonObject();
-  ret = JsonObjectSet(ret, "type", JsonInt(nType));
-  ret = JsonObjectSet(ret, "enabled", jEnabled);
-  ret = JsonObjectSet(ret, "color", jColor);
-  ret = JsonObjectSet(ret, "fill", jFill);
-  ret = JsonObjectSet(ret, "line_thickness", jLineThickness);
-  ret = JsonObjectSet(ret, "order", JsonInt(nOrder));
-  ret = JsonObjectSet(ret, "render", JsonInt(nRender));
-  ret = JsonObjectSet(ret, "arrayBinds", JsonBool(nBindArrays));
+  JsonObjectSetInplace(ret, "type", JsonInt(nType));
+  JsonObjectSetInplace(ret, "enabled", jEnabled);
+  JsonObjectSetInplace(ret, "color", jColor);
+  JsonObjectSetInplace(ret, "fill", jFill);
+  JsonObjectSetInplace(ret, "line_thickness", jLineThickness);
+  JsonObjectSetInplace(ret, "order", JsonInt(nOrder));
+  JsonObjectSetInplace(ret, "render", JsonInt(nRender));
+  JsonObjectSetInplace(ret, "arrayBinds", JsonBool(nBindArrays));
   return ret;
 }
 
@@ -980,7 +980,7 @@ NuiDrawListPolyLine(
 )
 {
   json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_POLYLINE, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender, nBindArrays);
-  ret = JsonObjectSet(ret, "points", jPoints);
+  JsonObjectSetInplace(ret, "points", jPoints);
   return ret;
 }
 
@@ -999,10 +999,10 @@ NuiDrawListCurve(
 )
 {
   json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_CURVE, jEnabled, jColor, JsonBool(0), jLineThickness, nOrder, nRender, nBindArrays);
-  ret = JsonObjectSet(ret, "a", jA);
-  ret = JsonObjectSet(ret, "b", jB);
-  ret = JsonObjectSet(ret, "ctrl0", jCtrl0);
-  ret = JsonObjectSet(ret, "ctrl1", jCtrl1);
+  JsonObjectSetInplace(ret, "a", jA);
+  JsonObjectSetInplace(ret, "b", jB);
+  JsonObjectSetInplace(ret, "ctrl0", jCtrl0);
+  JsonObjectSetInplace(ret, "ctrl1", jCtrl1);
   return ret;
 }
 
@@ -1019,7 +1019,7 @@ NuiDrawListCircle(
 )
 {
   json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_CIRCLE, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender, nBindArrays);
-  ret = JsonObjectSet(ret, "rect", jRect);
+  JsonObjectSetInplace(ret, "rect", jRect);
   return ret;
 }
 
@@ -1039,10 +1039,10 @@ NuiDrawListArc(
 )
 {
   json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_ARC, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender, nBindArrays);
-  ret = JsonObjectSet(ret, "c", jCenter);
-  ret = JsonObjectSet(ret, "radius", jRadius);
-  ret = JsonObjectSet(ret, "amin", jAMin);
-  ret = JsonObjectSet(ret, "amax", jAMax);
+  JsonObjectSetInplace(ret, "c", jCenter);
+  JsonObjectSetInplace(ret, "radius", jRadius);
+  JsonObjectSetInplace(ret, "amin", jAMin);
+  JsonObjectSetInplace(ret, "amax", jAMax);
   return ret;
 }
 
@@ -1058,8 +1058,8 @@ NuiDrawListText(
 )
 {
   json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_TEXT, jEnabled, jColor, JsonNull(), JsonNull(), nOrder, nRender, nBindArrays);
-  ret = JsonObjectSet(ret, "rect", jRect);
-  ret = JsonObjectSet(ret, "text", jText);
+  JsonObjectSetInplace(ret, "rect", jRect);
+  JsonObjectSetInplace(ret, "text", jText);
   return ret;
 }
 
@@ -1077,11 +1077,11 @@ NuiDrawListImage(
 )
 {
   json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_IMAGE, jEnabled, JsonNull(), JsonNull(), JsonNull(), nOrder, nRender, nBindArrays);
-  ret = JsonObjectSet(ret, "image", jResRef);
-  ret = JsonObjectSet(ret, "rect", jRect);
-  ret = JsonObjectSet(ret, "image_aspect", jAspect);
-  ret = JsonObjectSet(ret, "image_halign", jHAlign);
-  ret = JsonObjectSet(ret, "image_valign", jVAlign);
+  JsonObjectSetInplace(ret, "image", jResRef);
+  JsonObjectSetInplace(ret, "rect", jRect);
+  JsonObjectSetInplace(ret, "image_aspect", jAspect);
+  JsonObjectSetInplace(ret, "image_halign", jHAlign);
+  JsonObjectSetInplace(ret, "image_valign", jVAlign);
   return ret;
 }
 
@@ -1107,8 +1107,8 @@ NuiDrawListLine(
 )
 {
   json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_LINE, jEnabled, jColor, JsonNull(), jLineThickness, nOrder, nRender, nBindArrays);
-  ret = JsonObjectSet(ret, "a", jA);
-  ret = JsonObjectSet(ret, "b", jB);
+  JsonObjectSetInplace(ret, "a", jA);
+  JsonObjectSetInplace(ret, "b", jB);
   return ret;
 }
 
@@ -1125,7 +1125,7 @@ NuiDrawListRect(
 )
 {
   json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_RECT, jEnabled, jColor, jFill, jLineThickness, nOrder, nRender, nBindArrays);
-  ret = JsonObjectSet(ret, "rect", jRect);
+  JsonObjectSetInplace(ret, "rect", jRect);
   return ret;
 }
 
@@ -1137,7 +1137,7 @@ NuiDrawList(
 )
 {
   json ret = JsonObjectSet(jElem, "draw_list", jList);
-  ret = JsonObjectSet(ret, "draw_list_scissor", jScissor);
+  JsonObjectSetInplace(ret, "draw_list_scissor", jScissor);
   return ret;
 }
 

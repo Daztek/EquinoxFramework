@@ -321,7 +321,7 @@ void EFCore_ParseSystemsForAnnotationData()
         int nAnnotation;
         for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
         {
-            string sAnnotation = "@(" + JsonArrayGetString(jAnnotations, nAnnotation) + ")\\[(.*)\\][\\n|\\r]+([a-z]+)\\s([\\w]+)\\((.*)\\)";
+            string sAnnotation = "@(" + JsonArrayGetString(jAnnotations, nAnnotation) + ")\\[(.*)\\][\\n|\\r]+(?://\\s@.+\\[.*\\][\n|\r])*([a-z]+)\\s([\\w]+)\\((.*)\\)";
             json jMatches = RegExpIterate(sAnnotation, sScriptData);
 
             int nMatch, nNumMatches = JsonGetLength(jMatches);

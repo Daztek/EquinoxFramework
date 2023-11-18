@@ -267,11 +267,11 @@ struct MusMan_MusicEventTrack MusMan_GetMusicEventTrackData(json jTrack)
 json MusMan_JsonTrack(int nTrackId, int nStartTime = 0, int bPlayStinger = FALSE, int bLooping = TRUE, float fVolume = 1.0f)
 {
     json jTrack = JsonObject();
-         jTrack = JsonObjectSetInt(jTrack, "trackid", nTrackId);
-         jTrack = JsonObjectSetInt(jTrack, "starttime", nStartTime);
-         jTrack = JsonObjectSetInt(jTrack, "playstinger", bPlayStinger);
-         jTrack = JsonObjectSetInt(jTrack, "looping", bLooping);
-         jTrack = JsonObjectSetFloat(jTrack, "volume", fVolume);
+         JsonObjectSetIntInplace(jTrack, "trackid", nTrackId);
+         JsonObjectSetIntInplace(jTrack, "starttime", nStartTime);
+         JsonObjectSetIntInplace(jTrack, "playstinger", bPlayStinger);
+         JsonObjectSetIntInplace(jTrack, "looping", bLooping);
+         JsonObjectSetFloatInplace(jTrack, "volume", fVolume);
     return jTrack;
 }
 

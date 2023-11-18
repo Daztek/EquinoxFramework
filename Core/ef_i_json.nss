@@ -148,6 +148,9 @@ void JsonObjectSetIntInplace(json jObject, string sKey, int nValue);
 // Modifies jObject in-place (with no memory copies of the full object).
 // jObject will have the key at sKey set to sValue.
 void JsonObjectSetStringInplace(json jObject, string sKey, string sValue);
+// Modifies jObject in-place (with no memory copies of the full object).
+// jObject will have the key at sKey set to jValue.
+void JsonObjectSetFloatInplace(json jObject, string sKey, float fValue);
 // Modifies jArray in-place (with no memory copies needed).
 // jArray will have bValue inserted at position nIndex.
 // All succeeding elements in the array will move by one.
@@ -451,6 +454,11 @@ void JsonObjectSetIntInplace(json jObject, string sKey, int nValue)
 void JsonObjectSetStringInplace(json jObject, string sKey, string sValue)
 {
     JsonObjectSetInplace(jObject, sKey, JsonString(sValue));
+}
+
+void JsonObjectSetFloatInplace(json jObject, string sKey, float fValue)
+{
+    JsonObjectSetInplace(jObject, sKey, JsonFloat(fValue));
 }
 
 void JsonArrayInsertBoolInplace(json jArray, int bValue, int nIndex = -1)

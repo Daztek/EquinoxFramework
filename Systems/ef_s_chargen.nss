@@ -1006,7 +1006,7 @@ void CG_LoadRaceComboBox()
         if (nInitialId == -1)
             nInitialId = nId;
 
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry(sName, nId));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry(sName, nId));
     }
 
     NWM_SetBind(CG_BIND_COMBO_ENTRIES_RACE, jComboEntries);
@@ -1060,7 +1060,7 @@ void CG_LoadClassComboBox()
         if (nInitialId == -1)
             nInitialId = nId;
 
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry(sName, nId));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry(sName, nId));
     }
 
     NWM_SetBind(CG_BIND_COMBO_ENTRIES_CLASS, jComboEntries);
@@ -1115,25 +1115,25 @@ void CG_UpdateAlignmentComboBox()
     json jComboEntries = JsonArray();
 
     if (CG_GetIsAlignmentAllowed(nClass, ALIGNMENT_LAWFUL, ALIGNMENT_GOOD))
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry("Lawful Good", CG_CombineAlignmentConstants(ALIGNMENT_LAWFUL, ALIGNMENT_GOOD)));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry("Lawful Good", CG_CombineAlignmentConstants(ALIGNMENT_LAWFUL, ALIGNMENT_GOOD)));
     if (CG_GetIsAlignmentAllowed(nClass, ALIGNMENT_NEUTRAL, ALIGNMENT_GOOD))
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry("Neutral Good", CG_CombineAlignmentConstants(ALIGNMENT_NEUTRAL, ALIGNMENT_GOOD)));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry("Neutral Good", CG_CombineAlignmentConstants(ALIGNMENT_NEUTRAL, ALIGNMENT_GOOD)));
     if (CG_GetIsAlignmentAllowed(nClass, ALIGNMENT_CHAOTIC, ALIGNMENT_GOOD))
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry("Chaotic Good", CG_CombineAlignmentConstants(ALIGNMENT_CHAOTIC, ALIGNMENT_GOOD)));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry("Chaotic Good", CG_CombineAlignmentConstants(ALIGNMENT_CHAOTIC, ALIGNMENT_GOOD)));
 
     if (CG_GetIsAlignmentAllowed(nClass, ALIGNMENT_LAWFUL, ALIGNMENT_NEUTRAL))
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry("Lawful Neutral", CG_CombineAlignmentConstants(ALIGNMENT_LAWFUL, ALIGNMENT_NEUTRAL)));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry("Lawful Neutral", CG_CombineAlignmentConstants(ALIGNMENT_LAWFUL, ALIGNMENT_NEUTRAL)));
     if (CG_GetIsAlignmentAllowed(nClass, ALIGNMENT_NEUTRAL, ALIGNMENT_NEUTRAL))
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry("True Neutral", CG_CombineAlignmentConstants(ALIGNMENT_NEUTRAL, ALIGNMENT_NEUTRAL)));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry("True Neutral", CG_CombineAlignmentConstants(ALIGNMENT_NEUTRAL, ALIGNMENT_NEUTRAL)));
     if (CG_GetIsAlignmentAllowed(nClass, ALIGNMENT_CHAOTIC, ALIGNMENT_NEUTRAL))
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry("Chaotic Neutral", CG_CombineAlignmentConstants(ALIGNMENT_CHAOTIC, ALIGNMENT_NEUTRAL)));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry("Chaotic Neutral", CG_CombineAlignmentConstants(ALIGNMENT_CHAOTIC, ALIGNMENT_NEUTRAL)));
 
     if (CG_GetIsAlignmentAllowed(nClass, ALIGNMENT_LAWFUL, ALIGNMENT_EVIL))
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry("Lawful Evil", CG_CombineAlignmentConstants(ALIGNMENT_LAWFUL, ALIGNMENT_EVIL)));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry("Lawful Evil", CG_CombineAlignmentConstants(ALIGNMENT_LAWFUL, ALIGNMENT_EVIL)));
     if (CG_GetIsAlignmentAllowed(nClass, ALIGNMENT_NEUTRAL, ALIGNMENT_EVIL))
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry("Neutral Evil", CG_CombineAlignmentConstants(ALIGNMENT_NEUTRAL, ALIGNMENT_EVIL)));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry("Neutral Evil", CG_CombineAlignmentConstants(ALIGNMENT_NEUTRAL, ALIGNMENT_EVIL)));
     if (CG_GetIsAlignmentAllowed(nClass, ALIGNMENT_CHAOTIC, ALIGNMENT_EVIL))
-        jComboEntries = JsonArrayInsert(jComboEntries, NuiComboEntry("Chaotic Evil", CG_CombineAlignmentConstants(ALIGNMENT_CHAOTIC, ALIGNMENT_EVIL)));
+        JsonArrayInsertInplace(jComboEntries, NuiComboEntry("Chaotic Evil", CG_CombineAlignmentConstants(ALIGNMENT_CHAOTIC, ALIGNMENT_EVIL)));
 
     NWM_SetBind(CG_BIND_COMBO_ENTRIES_ALIGNMENT, jComboEntries);
 }
@@ -1216,7 +1216,7 @@ void CG_SetAbilityNames()
     int nAbility;
     for (nAbility = 0; nAbility < 6; nAbility++)
     {
-        jAbilityNames = JsonArrayInsertString(jAbilityNames, AbilityConstantToName(nAbility) + ":");
+        JsonArrayInsertStringInplace(jAbilityNames, AbilityConstantToName(nAbility) + ":");
     }
     NWM_SetBind(CG_BIND_LIST_NAMES, jAbilityNames);
 }
@@ -1231,7 +1231,7 @@ void CG_UpdateAbilityValues()
     {
         int nAbilityValue = CG_GetAdjustedAbilityScore(nRace, nClass, nAbility);
         int nModifier = CG_CalculateAbilityModifier(nAbilityValue);
-        jAbilityValues = JsonArrayInsertString(jAbilityValues, IntToString(nAbilityValue) + " (" + (nModifier >= 0 ? "+" : "" ) + IntToString(nModifier) + ")");
+        JsonArrayInsertStringInplace(jAbilityValues, IntToString(nAbilityValue) + " (" + (nModifier >= 0 ? "+" : "" ) + IntToString(nModifier) + ")");
     }
 
     NWM_SetBind(CG_BIND_LIST_VALUES, jAbilityValues);
@@ -1414,10 +1414,10 @@ void CG_SetSkillData(json jSkillRanks)
 
         if (bAllClassesCanUse || CG_GetClassHasSkill(nSkill))
         {
-            jSkillArray = JsonArrayInsertInt(jSkillArray, nSkill);
-            jIconsArray = JsonArrayInsertString(jIconsArray, sIcon);
-            jNamesArray = JsonArrayInsertString(jNamesArray, sName + (CG_GetIsClassSkill(nSkill) ? " (Class Skill)" : ""));
-            jValuesArray = JsonArrayInsertInt(jValuesArray, JsonArrayGetInt(jSkillRanks, nSkill));
+            JsonArrayInsertIntInplace(jSkillArray, nSkill);
+            JsonArrayInsertStringInplace(jIconsArray, sIcon);
+            JsonArrayInsertStringInplace(jNamesArray, sName + (CG_GetIsClassSkill(nSkill) ? " (Class Skill)" : ""));
+            JsonArrayInsertIntInplace(jValuesArray, JsonArrayGetInt(jSkillRanks, nSkill));
         }
     }
     NWM_SetUserData(CG_USERDATA_CLASS_AVAILABLE_SKILLS, jSkillArray);
@@ -1664,8 +1664,8 @@ void CG_UpdateGrantedFeatsList()
 
     while (SqlStep(sql))
     {
-        jNamesArray = JsonArrayInsertString(jNamesArray, SqlGetString(sql, 0));
-        jIconsArray = JsonArrayInsertString(jIconsArray, SqlGetString(sql, 1));
+        JsonArrayInsertStringInplace(jNamesArray, SqlGetString(sql, 0));
+        JsonArrayInsertStringInplace(jIconsArray, SqlGetString(sql, 1));
     }
 
     NWM_SetBind(CG_BIND_LIST_GRANTED_FEATS_PREFIX + CG_BIND_LIST_ICONS, jIconsArray);
@@ -1832,19 +1832,19 @@ void CG_UpdateAvailableFeatsList()
 
                 if (SqlStep(sqlMasterFeat))
                 {
-                    jFeatsArray = JsonArrayInsertInt(jFeatsArray, EF_UNSET_INTEGER_VALUE - nMasterFeat);
-                    jNamesArray = JsonArrayInsertString(jNamesArray, SqlGetString(sqlMasterFeat, 0));
-                    jIconsArray = JsonArrayInsertString(jIconsArray, SqlGetString(sqlMasterFeat, 1));
-                    jMasterFeats = JsonArrayInsertInt(jMasterFeats, nMasterFeat);
+                    JsonArrayInsertIntInplace(jFeatsArray, EF_UNSET_INTEGER_VALUE - nMasterFeat);
+                    JsonArrayInsertStringInplace(jNamesArray, SqlGetString(sqlMasterFeat, 0));
+                    JsonArrayInsertStringInplace(jIconsArray, SqlGetString(sqlMasterFeat, 1));
+                    JsonArrayInsertIntInplace(jMasterFeats, nMasterFeat);
                 }
             }
             else
             {
                 if (CG_CanChooseFeat(nRace, nClass, nFeat, nList, nTotalNumNormalFeats, nTotalNumBonusFeats, jChosenFeats, jChosenFeatsListType))
                 {
-                    jFeatsArray = JsonArrayInsertInt(jFeatsArray, nFeat);
-                    jNamesArray = JsonArrayInsertString(jNamesArray, SqlGetString(sqlFeats, 3));
-                    jIconsArray = JsonArrayInsertString(jIconsArray, SqlGetString(sqlFeats, 4));
+                    JsonArrayInsertIntInplace(jFeatsArray, nFeat);
+                    JsonArrayInsertStringInplace(jNamesArray, SqlGetString(sqlFeats, 3));
+                    JsonArrayInsertStringInplace(jIconsArray, SqlGetString(sqlFeats, 4));
                 }
             }
         }
@@ -1864,8 +1864,8 @@ void CG_UpdateChosenFeatsList()
     for (nFeatIndex = 0; nFeatIndex < nNumFeats; nFeatIndex++)
     {
         int nFeat = JsonArrayGetInt(jChosenFeats, nFeatIndex);
-        jNamesArray = JsonArrayInsertString(jNamesArray, Get2DAStrRefString("feat", "FEAT", nFeat));
-        jIconsArray = JsonArrayInsertString(jIconsArray, Get2DAString("feat", "ICON", nFeat));
+        JsonArrayInsertStringInplace(jNamesArray, Get2DAStrRefString("feat", "FEAT", nFeat));
+        JsonArrayInsertStringInplace(jIconsArray, Get2DAString("feat", "ICON", nFeat));
     }
 
     NWM_SetBind(CG_BIND_LIST_CHOSEN_FEATS_PREFIX + CG_BIND_LIST_ICONS, jIconsArray);
@@ -1983,9 +1983,9 @@ void CG_UpdateAvailableMasterFeatsList()
 
         if (CG_CanChooseFeat(nRace, nClass, nFeat, nList, nTotalNumNormalFeats, nTotalNumBonusFeats, jChosenFeats, jChosenFeatsListType))
         {
-            jFeatsArray = JsonArrayInsertInt(jFeatsArray, nFeat);
-            jNamesArray = JsonArrayInsertString(jNamesArray, SqlGetString(sqlFeats, 2));
-            jIconsArray = JsonArrayInsertString(jIconsArray, SqlGetString(sqlFeats, 3));
+            JsonArrayInsertIntInplace(jFeatsArray, nFeat);
+            JsonArrayInsertStringInplace(jNamesArray, SqlGetString(sqlFeats, 2));
+            JsonArrayInsertStringInplace(jIconsArray, SqlGetString(sqlFeats, 3));
         }
     }
 

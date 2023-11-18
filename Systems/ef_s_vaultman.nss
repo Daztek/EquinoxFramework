@@ -487,9 +487,9 @@ void VMan_LoadCharacterList()
 
     while (SqlStep(sql))
     {
-        jIds = JsonArrayInsertInt(jIds, SqlGetInt(sql, 0));
-        jPortraits = JsonArrayInsertString(jPortraits, SqlGetString(sql, 3) + "t");
-        jNames = JsonArrayInsertString(jNames, SqlGetString(sql, 2) + (SqlGetString(sql, 1) != sCDKey ? " (Shared)" : ""));
+        JsonArrayInsertIntInplace(jIds, SqlGetInt(sql, 0));
+        JsonArrayInsertStringInplace(jPortraits, SqlGetString(sql, 3) + "t");
+        JsonArrayInsertStringInplace(jNames, SqlGetString(sql, 2) + (SqlGetString(sql, 1) != sCDKey ? " (Shared)" : ""));
     }
 
     NWM_SetUserData(VMAN_NUI_USERDATA_IDS, jIds);
@@ -647,8 +647,8 @@ void VMan_UpdateEventLog(int nCharacterId, string sName)
     {
         int nEvent = SqlGetInt(sql, 1);
 
-        jIcons = JsonArrayInsertString(jIcons, VMan_EventToIcon(nEvent));
-        jLabels = JsonArrayInsertString(jLabels, "[" + SqlGetString(sql, 2) + "] " + SqlGetString(sql, 0) + ": " + VMan_EventToString(nEvent));
+        JsonArrayInsertStringInplace(jIcons, VMan_EventToIcon(nEvent));
+        JsonArrayInsertStringInplace(jLabels, "[" + SqlGetString(sql, 2) + "] " + SqlGetString(sql, 0) + ": " + VMan_EventToString(nEvent));
     }
 
     NWM_SetBindString(VMAN_BIND_WINDOW_NAME, "Event Log: " + sName);
@@ -736,8 +736,8 @@ void VMan_UpdateItems(int nCharacterId, string sName)
         int nModelPart1 = SqlGetInt(sql, 3);
         json jProperties = SqlGetJson(sql, 4);
 
-        jIcons = JsonArrayInsertString(jIcons, VMan_GetItemIconResref(nBaseItemType, nModelPart1, jProperties));
-        jLabels = JsonArrayInsertString(jLabels, sName);
+        JsonArrayInsertStringInplace(jIcons, VMan_GetItemIconResref(nBaseItemType, nModelPart1, jProperties));
+        JsonArrayInsertStringInplace(jLabels, sName);
     }
 
     NWM_SetBindString(VMAN_BIND_WINDOW_NAME, "Inventory: " + sName);

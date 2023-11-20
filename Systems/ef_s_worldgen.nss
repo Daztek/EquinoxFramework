@@ -664,6 +664,7 @@ void WG_SetAreaModifiers(object oArea)
     Call(Function("ef_s_dynlight", "DynLight_InitArea"), ObjectArg(oArea));
     AreaMusic_SetAreaTrackList(oArea, WG_SCRIPT_NAME);
     SetAreaGrassOverride(oArea, 3, "trm02_grass3d", 20.0f, 1.0f, Vector(1.0f, 1.0f, 1.0f), Vector(1.0f, 1.0f, 1.0f));
+    SetAreaTileBorderDisabled(oArea, TRUE);
 }
 
 json WG_GetAreaMapColor(int nColor)

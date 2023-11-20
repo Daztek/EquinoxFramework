@@ -70,6 +70,7 @@ void NB_SetId(string sId);
 void NB_SetMargin(float fMargin);
 void NB_SetPadding(float fPadding);
 void NB_SetForegroundColor(json jColor);
+void NB_SetFont(json jFont);
 void NB_SetTooltip(json jTooltip);
 void NB_SetDisabledTooltip(json jDisabledTooltip);
 void NB_SetEncouraged(json jEncouraged);
@@ -91,6 +92,7 @@ void NB_SetWindowTransparent(json jTransparent);
 void NB_SetWindowBorder(json jBorder);
 void NB_SetWindowAcceptsInput(json jAcceptsInput);
 void NB_SetWindowTitlebarHidden();
+void NB_SetWindowFont(json jFont);
 json NB_FinalizeWindow();
 
 void NB_LogDebug(string sDebug)
@@ -418,6 +420,11 @@ void NB_SetForegroundColor(json jColor)
     NB_SetData(NuiStyleForegroundColor(NB_GetData(), jColor));
 }
 
+void NB_SetFont(json jFont)
+{
+    NB_SetData(NuiStyleFont(NB_GetData(), jFont));
+}
+
 void NB_SetTooltip(json jTooltip)
 {
     NB_SetData(NuiTooltip(NB_GetData(), jTooltip));
@@ -522,6 +529,11 @@ void NB_SetWindowTitlebarHidden()
     NB_SetWindowTitle(JsonBool(FALSE));
     NB_SetWindowCollapsed(JsonBool(FALSE));
     NB_SetWindowClosable(JsonBool(FALSE));
+}
+
+void NB_SetWindowFont(json jFont)
+{
+    NB_SetWindow(JsonObjectSet(NB_GetWindow(), "font", jFont));
 }
 
 json NB_FinalizeWindow()

@@ -76,7 +76,8 @@ const int NUI_TEXT_FLAG_UPPERCASE          = 0x002;
 // - jAcceptsInput: Bind:Bool, Set JsonBool(FALSE) to disable all input. All hover, clicks and keypresses will fall through.
 // - jSizeConstraint: Bind:Rect, Constrains minimum and maximum size of window. Set x to minimum width, y to minimum height, w to maximum width, h to maximum height. Set any individual constraint to 0.0 to ignore that constraint.
 // - jEdgeConstraint: Bind:Rect, Prevents a form from being rendered within the specified margins. Set x to left margin, y to top margin, w to right margin, h to bottom margin. Set any individual constraint to 0.0 to ignore that constraint.
-json NuiWindow(json jRoot, json jTitle, json jGeometry, json jResizable, json jCollapsed, json jClosable, json jTransparent, json jBorder, json jAcceptsInput = JSON_TRUE, json jSizeConstraint = JSON_NULL, json jEdgeConstraint = JSON_NULL);
+// - jFont: Bind:String, Override font used on window, including decorations. See NuiStyleFont() for details.
+json NuiWindow(json jRoot, json jTitle, json jGeometry, json jResizable, json jCollapsed, json jClosable, json jTransparent, json jBorder, json jAcceptsInput = JSON_TRUE, json jSizeConstraint = JSON_NULL, json jEdgeConstraint = JSON_NULL, json jFont = JSON_STRING);
 
 // -----------------------
 // Values
@@ -180,6 +181,12 @@ json NuiColor(int r, int g, int b, int a = 255);
 // - jElem: Element
 // - jColor: Bind:Color
 json NuiStyleForegroundColor(json jElem, json jColor);
+
+// Override the font used for this element. The font and it's properties needs to be listed in
+// nui_skin.tml, as all fonts are pre-baked into a texture atlas at content load.
+// - jElem: Element
+// - jColor: Bind:String ([[fonts]].name in nui_skin.tml)
+json NuiStyleFont(json jElem, json jFont);
 
 // -----------------------
 // Widgets
@@ -412,7 +419,8 @@ json NuiDrawListArc(json jEnabled, json jColor, json jFill, json jLineThickness,
 // - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
 // - nBindArrays: Values in binds are considered arrays-of-values
-json NuiDrawListText(json jEnabled, json jColor, json jRect, json jText, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
+// - jFont: Bind:String
+json NuiDrawListText(json jEnabled, json jColor, json jRect, json jText, int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE, json jFont = JSON_STRING);
 
 // - jEnabled: Bind:Bool
 // - jResRef: Bind:String
@@ -469,7 +477,8 @@ NuiWindow(
   json jBorder,
   json jAcceptsInput = JSON_TRUE,
   json jWindowConstraint = JSON_NULL,
-  json jEdgeConstraint = JSON_NULL
+  json jEdgeConstraint = JSON_NULL,
+  json jFont = JSON_STRING
 )
 {
   json ret = JsonObject();
@@ -486,6 +495,7 @@ NuiWindow(
   JsonObjectSetInplace(ret, "accepts_input", jAcceptsInput);
   JsonObjectSetInplace(ret, "size_constraint", jWindowConstraint);
   JsonObjectSetInplace(ret, "edge_constraint", jEdgeConstraint);
+  JsonObjectSetInplace(ret, "font", jFont);
   return ret;
 }
 
@@ -687,6 +697,15 @@ NuiStyleForegroundColor(
 )
 {
   return JsonObjectSet(jElem, "foreground_color", jColor);
+}
+
+json
+NuiStyleFont(
+  json jElem,
+  json jFont
+)
+{
+  return JsonObjectSet(jElem, "font", jFont);
 }
 
 json
@@ -1054,12 +1073,14 @@ NuiDrawListText(
   json jText,
   int nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER,
   int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS,
-  int nBindArrays = FALSE
+  int nBindArrays = FALSE,
+  json jFont = JSON_STRING
 )
 {
   json ret = NuiDrawListItem(NUI_DRAW_LIST_ITEM_TYPE_TEXT, jEnabled, jColor, JsonNull(), JsonNull(), nOrder, nRender, nBindArrays);
   JsonObjectSetInplace(ret, "rect", jRect);
   JsonObjectSetInplace(ret, "text", jText);
+  JsonObjectSetInplace(ret, "font", jFont);
   return ret;
 }
 

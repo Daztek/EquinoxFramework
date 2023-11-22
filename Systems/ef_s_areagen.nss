@@ -179,7 +179,7 @@ int AG_GetTileOrientationFromEdge(string sAreaID, int nEdge, int nTileID);
 void AG_CreatePathEntranceDoorTile(string sAreaID, int nTile, int nHeight);
 void AG_CreatePathExitDoorTile(string sAreaID);
 void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy);
-void AG_ExtractExitEdgeTerrains(string sAreaID);
+void AG_ExtractExitEdgeTerrains(string sAreaID, int nEdgeOverride = -1);
 json AG_GetEdgeTOCs(string sAreaID, int nEdge);
 int AG_GetNextTile(int nAreaWidth, int nTile, int nEdge);
 struct TS_TileStruct AG_GetRoadTileStruct(string sAreaID, int nX1, int nY1, int nX2, int nY2);
@@ -1409,13 +1409,16 @@ void AG_CopyEdgeFromArea(string sAreaID, object oArea, int nEdgeToCopy)
     }
 }
 
-void AG_ExtractExitEdgeTerrains(string sAreaID)
+void AG_ExtractExitEdgeTerrains(string sAreaID, int nEdgeOverride = -1)
 {
     int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
     int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
     string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
     int nExitTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
     int nExitEdge = AG_GetEdgeFromTile(sAreaID, nExitTile);
+
+    if (nEdgeOverride != -1)
+        nExitEdge = nEdgeOverride;
 
     json jExitEdgeTerrains = AG_GetJsonDataByKey(sAreaID, AG_DATA_KEY_ARRAY_EXIT_EDGE_TERRAINS);
 
@@ -1433,6 +1436,7 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
                 struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
 
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTL));
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sT));
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTR));
             }
             break;
@@ -1450,6 +1454,7 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
                 struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
 
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTR));
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sR));
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBR));
             }
             break;
@@ -1467,6 +1472,7 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
                 struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
 
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBL));
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sB));
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBR));
             }
             break;
@@ -1484,6 +1490,7 @@ void AG_ExtractExitEdgeTerrains(string sAreaID)
                 struct TS_TileStruct strTC = TS_GetCornersAndEdgesByOrientation(sTileset, nTileID, nOrientation);
 
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sTL));
+                jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sL));
                 jExitEdgeTerrains = JsonArrayInsertUniqueString(jExitEdgeTerrains, TS_StripHeightIndicator(strTC.sBL));
             }
             break;

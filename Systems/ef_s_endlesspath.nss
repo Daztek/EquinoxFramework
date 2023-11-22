@@ -21,7 +21,7 @@ const int EP_POSTPROCESS_TILE_BATCH                 = 8;
 const string EP_EVENT_AREA_POST_PROCESS_FINISHED    = "EP_EVENT_AREA_POST_PROCESS_FINISHED";
 
 const string EP_AREA_TILESET                        = TILESET_RESREF_MEDIEVAL_RURAL_2;
-const int EP_MAX_ITERATIONS                         = 100;
+const int EP_MAX_ITERATIONS                         = 50;
 const string EP_AREA_DEFAULT_EDGE_TERRAIN           = "";
 const int EP_AREA_MINIMUM_LENGTH                    = 8;
 const int EP_AREA_RANDOM_LENGTH                     = 8;
@@ -216,35 +216,25 @@ void EP_GenerateArea(string sAreaID, object oPreviousArea, int nEdgeToCopy, int 
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR, TRUE);
     AG_SetCallbackFunction(sAreaID, EP_SCRIPT_NAME, "EP_OnAreaGenerated");
 
-    AG_AddEdgeTerrain(sAreaID, "WATER");
-    AG_AddEdgeTerrain(sAreaID, "MOUNTAIN");
-
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "ROAD");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "BRIDGE");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "STREET");
     AG_SetIgnoreTerrainOrCrosser(sAreaID, "WALL");
 
-    if (sAreaID != EP_AREA_TAG_PREFIX + "1")
-    {
-        EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "SAND", EP_AREA_SAND_CHANCE);
-        EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "WATER", EP_AREA_WATER_CHANCE);
-        EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "MOUNTAIN", EP_AREA_MOUNTAIN_CHANCE);
-        EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "STREAM", EP_AREA_STREAM_CHANCE);
-        EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "RIDGE", EP_AREA_RIDGE_CHANCE);
-        EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "GRASS2", EP_AREA_GRASS2_CHANCE);
-        EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "WALL", EP_AREA_WALL_CHANCE);
-        EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "CHASM", EP_AREA_CHASM_CHANCE);
-    }
+    EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "SAND", EP_AREA_SAND_CHANCE);
+    EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "WATER", EP_AREA_WATER_CHANCE);
+    EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "MOUNTAIN", EP_AREA_MOUNTAIN_CHANCE);
+    EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "STREAM", EP_AREA_STREAM_CHANCE);
+    EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "RIDGE", EP_AREA_RIDGE_CHANCE);
+    EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "GRASS2", EP_AREA_GRASS2_CHANCE);
+    EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "WALL", EP_AREA_WALL_CHANCE);
+    EP_ToggleTerrainOrCrosser(sAreaID, oPreviousArea, "CHASM", EP_AREA_CHASM_CHANCE);
 
     AG_AddPathDoorCrosserCombo(sAreaID, 80, "ROAD");
     AG_AddPathDoorCrosserCombo(sAreaID, 1161, "STREET");
     AG_SetAreaPathDoorCrosserCombo(sAreaID, AG_Random(sAreaID, 100) < EP_AREA_ROAD_CHANCE ? 0 : 1);
 
     AG_CopyEdgeFromArea(sAreaID, oPreviousArea, nEdgeToCopy);
-    //AG_GenerateEdge(sAreaID, AG_AREA_EDGE_TOP);
-    //AG_GenerateEdge(sAreaID, AG_AREA_EDGE_RIGHT);
-    //AG_GenerateEdge(sAreaID, AG_AREA_EDGE_BOTTOM);
-    //AG_GenerateEdge(sAreaID, AG_AREA_EDGE_LEFT);
     //EP_SetGenerationType(sAreaID);
     AG_PlotRoad(sAreaID);
 
@@ -321,7 +311,8 @@ void EP_OnAreaGenerated(string sAreaID)
         AG_ExtractExitEdgeTerrains(sAreaID);
 
         LogInfo("Creating Area: " + GetTag(oArea) + " -> Generation Type: " + AG_GetGenerationTypeAsString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
-        LogInfo(" > Exit Height: " + IntToString( AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX))));
+        LogInfo(" > Iterations: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS)) +
+                ", Exit Height: " + IntToString( AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX))));
 
         DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea));
     }

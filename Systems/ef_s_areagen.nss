@@ -821,8 +821,6 @@ string AG_SqlConstructCAEClause(struct TS_TileStruct str)
 
 struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile)
 {
-    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
-    string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
     struct AG_Tile tile; tile.nTileID = AG_INVALID_TILE_ID;
     struct TS_TileStruct strQuery;
     struct TS_TileStruct strTop = AG_GetNeighborTileStruct(sAreaID, nTile, AG_NEIGHBOR_TILE_TOP);
@@ -847,18 +845,31 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     strQuery.sB = TS_SetEdge(strBottom.sT, strQuery.sBL, strQuery.sBR);
     strQuery.sL = TS_SetEdge(strLeft.sR, strQuery.sTL, strQuery.sBL);
 
-    string sPathCrosser = AG_GetAreaPathCrosserType(sAreaID);
-    int bHasPath = TS_GetHasTerrainOrCrosser(strQuery, sPathCrosser);
-
-    string sQuery;
+    string sQuery, sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
 
     if (bSingleGroupTile)
         sQuery = "SELECT tile_id, orientation, height FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES) + " WHERE 1=1 ";
     else
         sQuery = "SELECT tile_id, orientation, height FROM " + TS_GetTableName(sTileset, TS_TABLE_NAME_TILES) + " WHERE is_group_tile=0 ";
 
-    sQuery += AG_SqlConstructCAEClause(strQuery);
     sQuery += "AND (bitmask & @tocbitmask) = 0 ";
+
+    if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR))
+    {
+        int nAreaWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
+        int nAreaHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
+
+        if (nTile == 0)
+            sQuery += "AND (tl = br AND tl = bl) ";
+        else if (nTile == (nAreaWidth - 1))
+            sQuery += "AND (tr = bl AND tr = br) ";
+        else if (nTile == (nAreaWidth * (nAreaHeight - 1)))
+            sQuery += "AND (tr = bl AND tr = tl) ";
+        else if (nTile == ((nAreaWidth * nAreaHeight) - 1))
+            sQuery += "AND (tr = br AND tl = tr) ";
+    }
+
+    sQuery += AG_SqlConstructCAEClause(strQuery);
     sQuery += "ORDER BY " + AG_GetRandomQueryString(sAreaID) + " LIMIT 1;";
 
     sqlquery sql = SqlPrepareQueryModule(sQuery);
@@ -872,7 +883,10 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     if (strQuery.sBL != "") SqlBindString(sql, "@bl", strQuery.sBL);
     if (strQuery.sL != "")  SqlBindString(sql, "@l", strQuery.sL);
 
+    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
     int nTOC, nNumTOC = StringArray_Size(oAreaDataObject, AG_IGNORE_TOC_ARRAY), nBitmask;
+    string sPathCrosser = AG_GetAreaPathCrosserType(sAreaID);
+    int bHasPath = TS_GetHasTerrainOrCrosser(strQuery, sPathCrosser);
     for (nTOC = 0; nTOC < nNumTOC; nTOC++)
     {
         string sTOC = StringArray_At(oAreaDataObject, AG_IGNORE_TOC_ARRAY, nTOC);
@@ -912,7 +926,7 @@ void AG_ProcessTile(string sAreaID, int nTile)
     if (strTile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
         strTile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE);
 
-    if (strTile.nTileID == AG_INVALID_TILE_ID || !AG_ValidateCornerTile(sAreaID, nTile, strTile))
+    if (strTile.nTileID == AG_INVALID_TILE_ID)// || !AG_ValidateCornerTile(sAreaID, nTile, strTile))
         IntArray_Insert(AG_GetAreaDataObject(sAreaID), AG_FAILED_TILES_ARRAY, nTile);
     else
         AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, strTile.nTileID, strTile.nOrientation, strTile.nHeight);
@@ -1277,22 +1291,22 @@ void AG_CreatePathExitDoorTile(string sAreaID)
 
     if (nExitEdge == AG_AREA_EDGE_TOP)
     {
-        nRandom = min((nWidth / 4) + AG_Random(sAreaID, (nWidth / 2) + 1), nWidth - 2);
+        nRandom = AG_Random(sAreaID, nWidth - 2) + 1;
         nExitTile = (nWidth * (nHeight - 1)) + nRandom;
     }
     else if (nExitEdge == AG_AREA_EDGE_RIGHT)
     {
-        nRandom = min((nHeight / 4) + AG_Random(sAreaID, (nHeight / 2) + 1), nHeight - 2);
+        nRandom = AG_Random(sAreaID, nHeight - 2) + 1;
         nExitTile = (nWidth - 1) + (nRandom * nWidth);
     }
     else if (nExitEdge == AG_AREA_EDGE_BOTTOM)
     {
-        nRandom = min((nWidth / 4) + AG_Random(sAreaID, (nWidth / 2) + 1), nWidth - 2);
+        nRandom = AG_Random(sAreaID, nWidth - 2) + 1;
         nExitTile = nRandom;
     }
     else if (nExitEdge == AG_AREA_EDGE_LEFT)
     {
-        nRandom = min((nHeight / 4) + AG_Random(sAreaID, (nHeight / 2) + 1), nHeight - 2);
+        nRandom = AG_Random(sAreaID, nHeight - 2) + 1;
         nExitTile = nRandom * nWidth;
     }
 

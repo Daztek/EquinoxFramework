@@ -18,7 +18,7 @@ const string TS_TABLE_NAME_GROUPS               = "groups";
 const string TS_TABLE_NAME_GROUP_TILES          = "grouptiles";
 const string TS_TABLE_NAME_SINGLE_GROUP_TILES   = "singlegrouptiles";
 
-const int TS_MAX_TILE_HEIGHT                    = 2;
+const int TS_MAX_TILE_HEIGHT                    = 3;
 
 struct TS_TileStruct
 {

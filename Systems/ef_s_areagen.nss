@@ -17,7 +17,7 @@ const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject"
 const int AG_ENABLE_SEEDED_RANDOM                               = TRUE;
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
 const float AG_GENERATION_DELAY                                 = 0.1f;
-const int AG_GENERATION_TILE_BATCH                              = 32;
+const int AG_GENERATION_MAX_TILE_BATCH_TIME                     = 10000;
 const int AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE                 = 25;
 
 const int AG_INVALID_TILE_ID                                    = -1;
@@ -821,6 +821,8 @@ string AG_SqlConstructCAEClause(struct TS_TileStruct str)
 
 struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile)
 {
+    //Profiler_Start("AG_GetRandomMatchingTile");
+
     struct AG_Tile tile; tile.nTileID = AG_INVALID_TILE_ID;
     struct TS_TileStruct strQuery;
     struct TS_TileStruct strTop = AG_GetNeighborTileStruct(sAreaID, nTile, AG_NEIGHBOR_TILE_TOP);
@@ -874,14 +876,14 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
 
     sqlquery sql = SqlPrepareQueryModule(sQuery);
 
-    if (strQuery.sTL != "") SqlBindString(sql, "@tl", strQuery.sTL);
-    if (strQuery.sT != "")  SqlBindString(sql, "@t", strQuery.sT);
-    if (strQuery.sTR != "") SqlBindString(sql, "@tr", strQuery.sTR);
-    if (strQuery.sR != "")  SqlBindString(sql, "@r", strQuery.sR);
-    if (strQuery.sBR != "") SqlBindString(sql, "@br", strQuery.sBR);
-    if (strQuery.sB != "")  SqlBindString(sql, "@b", strQuery.sB);
-    if (strQuery.sBL != "") SqlBindString(sql, "@bl", strQuery.sBL);
-    if (strQuery.sL != "")  SqlBindString(sql, "@l", strQuery.sL);
+    if (strQuery.sTL != "") SqlBindInt(sql, "@tl", HashString(strQuery.sTL));
+    if (strQuery.sT != "")  SqlBindInt(sql, "@t", HashString(strQuery.sT));
+    if (strQuery.sTR != "") SqlBindInt(sql, "@tr", HashString(strQuery.sTR));
+    if (strQuery.sR != "")  SqlBindInt(sql, "@r", HashString(strQuery.sR));
+    if (strQuery.sBR != "") SqlBindInt(sql, "@br", HashString(strQuery.sBR));
+    if (strQuery.sB != "")  SqlBindInt(sql, "@b", HashString(strQuery.sB));
+    if (strQuery.sBL != "") SqlBindInt(sql, "@bl", HashString(strQuery.sBL));
+    if (strQuery.sL != "")  SqlBindInt(sql, "@l", HashString(strQuery.sL));
 
     object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
     int nTOC, nNumTOC = StringArray_Size(oAreaDataObject, AG_IGNORE_TOC_ARRAY), nBitmask;
@@ -911,6 +913,8 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
         tile.nOrientation = 0;
         tile.nHeight = 0;
     }
+
+    //Profiler_Stop();
 
     return tile;
 }
@@ -950,59 +954,67 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
     {
         AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS) + 1);
         AG_GenerateArea(sAreaID);
-        //Profiler_Stop();
-        return;
     }
-
-    int nGenerationType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE);
-    int nCurrentMaxTiles = min(nCurrentTile + AG_GENERATION_TILE_BATCH, nNumTiles);
-
-    //PrintString("nCurrentMaxTiles: " + IntToString(nCurrentTile) + " nCurrentMaxTiles: " + IntToString(nCurrentMaxTiles));
-
-    switch (nGenerationType)
+    else
     {
-        case AG_GENERATION_TYPE_SPIRAL_INWARD:
-        case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD:
-        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD:
+        int nGenerationType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE);
+        int nStart, nTotal;
+
+        switch (nGenerationType)
         {
-            for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
+            case AG_GENERATION_TYPE_SPIRAL_INWARD:
+            case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD:
+            case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD:
             {
-                AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCurrentTile));
+                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
+                {
+                    nStart = GetMicrosecondCounter();
+                    AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCurrentTile));
+                    nTotal += GetMicrosecondCounter() - nStart;
+                }
+                break;
             }
-            break;
+
+            case AG_GENERATION_TYPE_SPIRAL_OUTWARD:
+            case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD:
+            case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD:
+            {
+                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
+                {
+                    nStart = GetMicrosecondCounter();
+                    AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nNumTiles - 1) - nCurrentTile));
+                    nTotal += GetMicrosecondCounter() - nStart;
+                }
+                break;
+            }
+
+            case AG_GENERATION_TYPE_LINEAR_ASCENDING:
+            {
+                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
+                {
+                    nStart = GetMicrosecondCounter();
+                    AG_ProcessTile(sAreaID, nCurrentTile);
+                    nTotal += GetMicrosecondCounter() - nStart;
+                }
+                break;
+            }
+
+            case AG_GENERATION_TYPE_LINEAR_DESCENDING:
+            {
+                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
+                {
+                    nStart = GetMicrosecondCounter();
+                    AG_ProcessTile(sAreaID, (nNumTiles - 1) - nCurrentTile);
+                    nTotal += GetMicrosecondCounter() - nStart;
+                }
+                break;
+            }
         }
 
-        case AG_GENERATION_TYPE_SPIRAL_OUTWARD:
-        case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD:
-        case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD:
-        {
-            for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
-            {
-                AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nNumTiles - 1) - nCurrentTile));
-            }
-            break;
-        }
+        //PrintString("Total: " + IntToString(nTotal));
 
-        case AG_GENERATION_TYPE_LINEAR_ASCENDING:
-        {
-            for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
-            {
-                AG_ProcessTile(sAreaID, nCurrentTile);
-            }
-            break;
-        }
-
-        case AG_GENERATION_TYPE_LINEAR_DESCENDING:
-        {
-            for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
-            {
-                AG_ProcessTile(sAreaID, (nNumTiles - 1) - nCurrentTile);
-            }
-            break;
-        }
+        DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID, nCurrentTile, nNumTiles));
     }
-
-    DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID, nCurrentTile, nNumTiles));
 
     //Profiler_Stop();
 }
@@ -2094,12 +2106,14 @@ void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int 
         return;
     }
 
-    int nCurrentMaxTiles = min(nCurrentTile + AG_GENERATION_TILE_BATCH, nNumTiles);
+    int nStart, nTotal;
     json jChunkArray = AG_GetChunkArray(sAreaID, nChunk);
 
-    for (nCurrentTile; nCurrentTile < nCurrentMaxTiles; nCurrentTile++)
+    for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
     {
+        nStart = GetMicrosecondCounter();
         AG_ProcessTile(sAreaID, JsonArrayGetInt(jChunkArray, nCurrentTile));
+        nTotal += GetMicrosecondCounter() - nStart;
     }
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTileChunk(sAreaID, nChunk, nCurrentTile, nNumTiles));

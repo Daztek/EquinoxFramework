@@ -42,6 +42,7 @@ struct TS_DoorStruct
 
 object TS_GetTilesetDataObject(string sTileset);
 string TS_GetTableName(string sTileset, string sType);
+void TS_CreateTOCIndexes(string sTableName);
 void TS_CreateTilesetTables(string sTileset);
 json TS_GetLoadedTilesets();
 void TS_SetTilesetLoaded(string sTileset);
@@ -131,6 +132,38 @@ int TS_GetTilesetLoaded(string sTileset)
     return JsonArrayContainsString(TS_GetLoadedTilesets(), sTileset);
 }
 
+void TS_CreateTOCIndexes(string sTableName)
+{
+    string sQuery;
+
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_all_tl ON " + sTableName + " (tl, t, tr, r, br, b, bl, l);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_all_tr ON " + sTableName + " (tr, r, br, b, bl, l, tl, t);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_all_br ON " + sTableName + " (br, b, bl, l, tl, t, tr, r);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_all_bl ON " + sTableName + " (bl, l, tl, t, tr, r, br, b);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_top ON " + sTableName + " (tl, t, tr);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_right ON " + sTableName + " (tr, r, br);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_bottom ON " + sTableName + " (bl, b, br);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_left ON " + sTableName + " (tl, l, bl);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_tl_tr ON " + sTableName + " (tl, tr);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_tr_br ON " + sTableName + " (tr, br);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_br_lr ON " + sTableName + " (br, bl);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_bl_tl ON " + sTableName + " (bl, tl);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+}
+
 void TS_CreateTilesetTables(string sTileset)
 {
     string sQuery; sqlquery sql;
@@ -139,18 +172,19 @@ void TS_CreateTilesetTables(string sTileset)
              "tile_id INTEGER NOT NULL, " +
              "orientation INTEGER NOT NULL, " +
              "height INTEGER NOT NULL, " +
-             "tl TEXT NOT NULL, " +
-             "t TEXT NOT NULL, " +
-             "tr TEXT NOT NULL, " +
-             "r TEXT NOT NULL, " +
-             "br TEXT NOT NULL, " +
-             "b TEXT NOT NULL, " +
-             "bl TEXT NOT NULL, " +
-             "l TEXT NOT NULL, " +
+             "tl INTEGER NOT NULL, " +
+             "t INTEGER NOT NULL, " +
+             "tr INTEGER NOT NULL, " +
+             "r INTEGER NOT NULL, " +
+             "br INTEGER NOT NULL, " +
+             "b INTEGER NOT NULL, " +
+             "bl INTEGER NOT NULL, " +
+             "l INTEGER NOT NULL, " +
              "bitmask INTEGER NOT NULL, " +
              "is_group_tile INTEGER NOT NULL, " +
              "PRIMARY KEY(tile_id, orientation, height));";
     SqlStep(SqlPrepareQueryModule(sQuery));
+    TS_CreateTOCIndexes(TS_GetTableName(sTileset, TS_TABLE_NAME_TILES));
 
     sQuery = "CREATE TABLE IF NOT EXISTS " + TS_GetTableName(sTileset, TS_TABLE_NAME_GROUPS) + " (" +
              "group_id INTEGER NOT NULL PRIMARY KEY, " +
@@ -172,17 +206,18 @@ void TS_CreateTilesetTables(string sTileset)
              "tile_id INTEGER NOT NULL, " +
              "orientation INTEGER NOT NULL, " +
              "height INTEGER NOT NULL, " +
-             "tl TEXT NOT NULL, " +
-             "t TEXT NOT NULL, " +
-             "tr TEXT NOT NULL, " +
-             "r TEXT NOT NULL, " +
-             "br TEXT NOT NULL, " +
-             "b TEXT NOT NULL, " +
-             "bl TEXT NOT NULL, " +
-             "l TEXT NOT NULL, " +
+             "tl INTEGER NOT NULL, " +
+             "t INTEGER NOT NULL, " +
+             "tr INTEGER NOT NULL, " +
+             "r INTEGER NOT NULL, " +
+             "br INTEGER NOT NULL, " +
+             "b INTEGER NOT NULL, " +
+             "bl INTEGER NOT NULL, " +
+             "l INTEGER NOT NULL, " +
              "bitmask INTEGER NOT NULL, " +
              "PRIMARY KEY(tile_id, orientation, height));";
     SqlStep(SqlPrepareQueryModule(sQuery));
+    TS_CreateTOCIndexes(TS_GetTableName(sTileset, TS_TABLE_NAME_SINGLE_GROUP_TILES));
 }
 
 // TILE STRUCT FUNCTIONS
@@ -718,14 +753,14 @@ void TS_InsertTile(sqlquery sql, string sTileset, int nTileID, int nOrientation,
     SqlBindInt(sql, "@tile_id", nTileID);
     SqlBindInt(sql, "@orientation", nOrientation);
     SqlBindInt(sql, "@height", nHeight);
-    SqlBindString(sql, "@tl", str.sTL);
-    SqlBindString(sql, "@t", str.sT);
-    SqlBindString(sql, "@tr", str.sTR);
-    SqlBindString(sql, "@r", str.sR);
-    SqlBindString(sql, "@br", str.sBR);
-    SqlBindString(sql, "@b", str.sB);
-    SqlBindString(sql, "@bl", str.sBL);
-    SqlBindString(sql, "@l", str.sL);
+    SqlBindInt(sql, "@tl", HashString(str.sTL));
+    SqlBindInt(sql, "@t", HashString(str.sT));
+    SqlBindInt(sql, "@tr", HashString(str.sTR));
+    SqlBindInt(sql, "@r", HashString(str.sR));
+    SqlBindInt(sql, "@br", HashString(str.sBR));
+    SqlBindInt(sql, "@b", HashString(str.sB));
+    SqlBindInt(sql, "@bl", HashString(str.sBL));
+    SqlBindInt(sql, "@l", HashString(str.sL));
     SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, str));
     SqlBindInt(sql, "@is_group_tile", TS_GetIsTilesetGroupTile(sTileset, nTileID));
     SqlStepAndReset(sql);
@@ -772,14 +807,14 @@ void TS_InsertSingleGroupTile(sqlquery sql, string sTileset, int nTileID, int nO
     SqlBindInt(sql, "@tile_id", nTileID);
     SqlBindInt(sql, "@orientation", nOrientation);
     SqlBindInt(sql, "@height", nHeight);
-    SqlBindString(sql, "@tl", str.sTL);
-    SqlBindString(sql, "@t", str.sT);
-    SqlBindString(sql, "@tr", str.sTR);
-    SqlBindString(sql, "@r", str.sR);
-    SqlBindString(sql, "@br", str.sBR);
-    SqlBindString(sql, "@b", str.sB);
-    SqlBindString(sql, "@bl", str.sBL);
-    SqlBindString(sql, "@l", str.sL);
+    SqlBindInt(sql, "@tl", HashString(str.sTL));
+    SqlBindInt(sql, "@t", HashString(str.sT));
+    SqlBindInt(sql, "@tr", HashString(str.sTR));
+    SqlBindInt(sql, "@r", HashString(str.sR));
+    SqlBindInt(sql, "@br", HashString(str.sBR));
+    SqlBindInt(sql, "@b", HashString(str.sB));
+    SqlBindInt(sql, "@bl", HashString(str.sBL));
+    SqlBindInt(sql, "@l", HashString(str.sL));
     SqlBindInt(sql, "@bitmask", TS_GetTileTCBitmask(sTileset, str));
     SqlStepAndReset(sql);
 }

@@ -169,7 +169,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, int nTile, int nDi
 string AG_ResolveCorner(string sCorner1, string sCorner2);
 string AG_SqlConstructCAEClause(struct TS_TileStruct str);
 struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGroupTile);
-void AG_ProcessTile(string sAreaID, int nTileID);
+int AG_ProcessTile(string sAreaID, int nTileID);
 void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0);
 void AG_GenerateGenerationTileArray(string sAreaID);
 void AG_GenerateArea(string sAreaID);
@@ -213,8 +213,6 @@ void AG_ResetChunkTiles(string sAreaID, int nChunk);
 void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int nNumTiles = 0);
 void AG_GenerateAreaChunk(string sAreaID, int nChunk);
 void AG_InitializeChunkFromArea(string sAreaID, object oArea, int nChunk);
-int AG_CheckCornerTileTerrain(string sTerrain1, string sTerrain2, string sTerrain3);
-int AG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile);
 
 object AG_GetAreaDataObject(string sAreaID)
 {
@@ -919,23 +917,24 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     return tile;
 }
 
-void AG_ProcessTile(string sAreaID, int nTile)
+int AG_ProcessTile(string sAreaID, int nTile)
 {
-    if (AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile) != AG_INVALID_TILE_ID)
-        return;
+    int nStart = GetMicrosecondCounter();
+    if (AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile) == AG_INVALID_TILE_ID)
+    {
+        int bTrySingleGroupTile = AG_Random(sAreaID, 100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE);
+        struct AG_Tile strTile = AG_GetRandomMatchingTile(sAreaID, nTile, bTrySingleGroupTile);
+        if (strTile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
+            strTile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE);
 
-    int bTrySingleGroupTile = AG_Random(sAreaID, 100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE);
+        if (strTile.nTileID == AG_INVALID_TILE_ID)
+            IntArray_Insert(AG_GetAreaDataObject(sAreaID), AG_FAILED_TILES_ARRAY, nTile);
+        else
+            AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, strTile.nTileID, strTile.nOrientation, strTile.nHeight);
 
-    struct AG_Tile strTile = AG_GetRandomMatchingTile(sAreaID, nTile, bTrySingleGroupTile);
-    if (strTile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
-        strTile = AG_GetRandomMatchingTile(sAreaID, nTile, FALSE);
-
-    if (strTile.nTileID == AG_INVALID_TILE_ID)// || !AG_ValidateCornerTile(sAreaID, nTile, strTile))
-        IntArray_Insert(AG_GetAreaDataObject(sAreaID), AG_FAILED_TILES_ARRAY, nTile);
-    else
-        AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, strTile.nTileID, strTile.nOrientation, strTile.nHeight);
-
-    EFCore_ResetScriptInstructions();
+        EFCore_ResetScriptInstructions();
+    }
+    return GetMicrosecondCounter() - nStart;
 }
 
 void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
@@ -957,9 +956,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
     }
     else
     {
-        int nGenerationType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE);
-        int nStart, nTotal;
-
+        int nTotal, nGenerationType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE);
         switch (nGenerationType)
         {
             case AG_GENERATION_TYPE_SPIRAL_INWARD:
@@ -968,9 +965,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
             {
                 for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
                 {
-                    nStart = GetMicrosecondCounter();
-                    AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCurrentTile));
-                    nTotal += GetMicrosecondCounter() - nStart;
+                    nTotal += AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCurrentTile));
                 }
                 break;
             }
@@ -981,9 +976,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
             {
                 for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
                 {
-                    nStart = GetMicrosecondCounter();
-                    AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nNumTiles - 1) - nCurrentTile));
-                    nTotal += GetMicrosecondCounter() - nStart;
+                    nTotal += AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nNumTiles - 1) - nCurrentTile));
                 }
                 break;
             }
@@ -992,9 +985,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
             {
                 for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
                 {
-                    nStart = GetMicrosecondCounter();
-                    AG_ProcessTile(sAreaID, nCurrentTile);
-                    nTotal += GetMicrosecondCounter() - nStart;
+                    nTotal += AG_ProcessTile(sAreaID, nCurrentTile);
                 }
                 break;
             }
@@ -1003,9 +994,7 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
             {
                 for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
                 {
-                    nStart = GetMicrosecondCounter();
-                    AG_ProcessTile(sAreaID, (nNumTiles - 1) - nCurrentTile);
-                    nTotal += GetMicrosecondCounter() - nStart;
+                    nTotal += AG_ProcessTile(sAreaID, (nNumTiles - 1) - nCurrentTile);
                 }
                 break;
             }
@@ -2106,14 +2095,12 @@ void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int 
         return;
     }
 
-    int nStart, nTotal;
+    int nTotal;
     json jChunkArray = AG_GetChunkArray(sAreaID, nChunk);
 
     for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
     {
-        nStart = GetMicrosecondCounter();
-        AG_ProcessTile(sAreaID, JsonArrayGetInt(jChunkArray, nCurrentTile));
-        nTotal += GetMicrosecondCounter() - nStart;
+        nTotal += AG_ProcessTile(sAreaID, JsonArrayGetInt(jChunkArray, nCurrentTile));
     }
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTileChunk(sAreaID, nChunk, nCurrentTile, nNumTiles));
@@ -2208,35 +2195,4 @@ void AG_InitializeChunkFromArea(string sAreaID, object oArea, int nChunk)
         struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfoByTileIndex(oArea, nTileIndex);
         AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTileIndex, str.nID, str.nOrientation, str.nHeight, TRUE);
     }
-}
-
-int AG_CheckCornerTileTerrain(string sTerrain1, string sTerrain2, string sTerrain3)
-{
-    return sTerrain1 == sTerrain2 && sTerrain1 == sTerrain3;
-}
-
-int AG_ValidateCornerTile(string sAreaID, int nTile, struct AG_Tile strTile)
-{
-    if (!AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENABLE_CORNER_TILE_VALIDATOR))
-        return TRUE;
-
-    int bValid = TRUE;
-    int nAreaWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
-    int nAreaHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
-    if (nTile == 0 || nTile == (nAreaWidth - 1) || nTile == (nAreaWidth * (nAreaHeight - 1)) || nTile == ((nAreaWidth * nAreaHeight) - 1))
-    {
-        string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
-        struct TS_TileStruct str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
-
-        if (nTile == 0)
-            bValid = AG_CheckCornerTileTerrain(str.sTL, str.sBR, str.sBL);
-        else if (nTile == (nAreaWidth - 1))
-            bValid = AG_CheckCornerTileTerrain(str.sTR, str.sBL, str.sBR);
-        else if (nTile == (nAreaWidth * (nAreaHeight - 1)))
-            bValid = AG_CheckCornerTileTerrain(str.sTR, str.sBL, str.sTL);
-        else if (nTile == ((nAreaWidth * nAreaHeight) - 1))
-            bValid = AG_CheckCornerTileTerrain(str.sTL, str.sBR, str.sTR);
-    }
-
-    return bValid;
 }

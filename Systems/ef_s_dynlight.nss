@@ -10,7 +10,7 @@
 
 const string DYNLIGHT_SCRIPT_NAME                       = "ef_s_dynlight";
 
-const int DYNLIGHT_ENABLE_DYNAMIC_LIGHTING              = FALSE;
+const int DYNLIGHT_ENABLE_DYNAMIC_LIGHTING              = TRUE;
 
 const string DYNLIGHT_AREA_DYNAMIC_LIGHTING_ENABLED     = "DynLightAreaDynamicLightingEnabled";
 const float DYNLIGHT_UPDATE_INTERVAL                    = 15.0f;
@@ -48,6 +48,10 @@ void DynLight_InitArea(object oArea)
 
 void DynLight_UpdateAreaLight(object oArea, float fFadeTime = 0.0f)
 {
+    // The lighting goes weird around noon and I don't feel like figuring out why, so we just don't update for a little while 8)
+    if (fFadeTime != 0.0f && GetTimeHour() == 12 && GetTimeMinute() <= 1)
+        return;
+
     if (fFadeTime > 0.0f)
         fFadeTime += NW_DYNAMIC_LIGHT_FADE_TIME_OVERLAP;
 
@@ -72,7 +76,7 @@ void DynLight_IntervalHandler()
             !JsonArrayContainsString(jUpdatedAreas, ObjectToString(oArea)))
         {
             DynLight_UpdateAreaLight(oArea, DYNLIGHT_UPDATE_INTERVAL);
-            jUpdatedAreas = JsonArrayInsertString(jUpdatedAreas, ObjectToString(oArea));
+            JsonArrayInsertStringInplace(jUpdatedAreas, ObjectToString(oArea));
         }
 
         oPlayer = GetNextPC();
@@ -85,7 +89,6 @@ void DynLight_IntervalHandler()
 void DynLight_OnAreaEnter()
 {
     object oArea = OBJECT_SELF;
-
     if (GetIsPC(GetEnteringObject()) &&
         GetLocalInt(oArea, DYNLIGHT_AREA_DYNAMIC_LIGHTING_ENABLED) &&
         NWNX_Area_GetNumberOfPlayersInArea(oArea) == 1)

@@ -74,7 +74,6 @@ const string AG_DATA_KEY_PATH_CROSSER_TYPE                      = "PathCrosserTy
 
 const string AG_GENERATION_TILE_ARRAY                           = "GenerationTileArray";
 const string AG_FAILED_TILES_ARRAY                              = "FailedTilesArray";
-const string AG_IGNORE_TOC_ARRAY                                = "IgnoreTOCArray";
 
 const string AG_DATA_KEY_CHUNK_SIZE                             = "ChunkSize";
 const string AG_DATA_KEY_CHUNK_AMOUNT                           = "ChunkAmount";
@@ -864,9 +863,9 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
         else if (nTile == (nAreaWidth - 1))
             sQuery += "AND (tr = bl AND tr = br) ";
         else if (nTile == (nAreaWidth * (nAreaHeight - 1)))
-            sQuery += "AND (tr = bl AND tr = tl) ";
+            sQuery += "AND (tl = tr AND tl = bl) ";
         else if (nTile == ((nAreaWidth * nAreaHeight) - 1))
-            sQuery += "AND (tr = br AND tl = tr) ";
+            sQuery += "AND (tl = tr AND tl = br) ";
     }
 
     sQuery += AG_SqlConstructCAEClause(strQuery);
@@ -883,14 +882,13 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, int nTile, int bSingleGr
     if (strQuery.sBL != "") SqlBindInt(sql, "@bl", HashString(strQuery.sBL));
     if (strQuery.sL != "")  SqlBindInt(sql, "@l", HashString(strQuery.sL));
 
-    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
-    int nTOC, nNumTOC = StringArray_Size(oAreaDataObject, AG_IGNORE_TOC_ARRAY), nBitmask;
+    json jIgnoredTOCArray = AG_GetJsonDataByKey(sAreaID, AG_DATA_KEY_IGNORE_TOC);
+    int nTOC, nNumTOC = JsonGetLength(jIgnoredTOCArray);
     string sPathCrosser = AG_GetAreaPathCrosserType(sAreaID);
-    int bHasPath = TS_GetHasTerrainOrCrosser(strQuery, sPathCrosser);
+    int nBitmask, bHasPath = TS_GetHasTerrainOrCrosser(strQuery, sPathCrosser);
     for (nTOC = 0; nTOC < nNumTOC; nTOC++)
     {
-        string sTOC = StringArray_At(oAreaDataObject, AG_IGNORE_TOC_ARRAY, nTOC);
-
+        string sTOC = JsonArrayGetString(jIgnoredTOCArray, nTOC);
         if (bHasPath && sTOC == sPathCrosser)
             continue;
 
@@ -956,16 +954,16 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
     }
     else
     {
-        int nTotal, nGenerationType = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE);
-        switch (nGenerationType)
+        int nTotalTime;
+        switch (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE))
         {
             case AG_GENERATION_TYPE_SPIRAL_INWARD:
             case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD:
             case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD:
             {
-                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
+                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
                 {
-                    nTotal += AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCurrentTile));
+                    nTotalTime += AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCurrentTile));
                 }
                 break;
             }
@@ -974,27 +972,27 @@ void AG_GenerateTiles(string sAreaID, int nCurrentTile = 0, int nNumTiles = 0)
             case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD:
             case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD:
             {
-                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
+                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
                 {
-                    nTotal += AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nNumTiles - 1) - nCurrentTile));
+                    nTotalTime += AG_ProcessTile(sAreaID, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nNumTiles - 1) - nCurrentTile));
                 }
                 break;
             }
 
             case AG_GENERATION_TYPE_LINEAR_ASCENDING:
             {
-                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
+                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
                 {
-                    nTotal += AG_ProcessTile(sAreaID, nCurrentTile);
+                    nTotalTime += AG_ProcessTile(sAreaID, nCurrentTile);
                 }
                 break;
             }
 
             case AG_GENERATION_TYPE_LINEAR_DESCENDING:
             {
-                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
+                for (nCurrentTile; (nCurrentTile < nNumTiles && nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
                 {
-                    nTotal += AG_ProcessTile(sAreaID, (nNumTiles - 1) - nCurrentTile);
+                    nTotalTime += AG_ProcessTile(sAreaID, (nNumTiles - 1) - nCurrentTile);
                 }
                 break;
             }
@@ -1160,14 +1158,6 @@ void AG_GenerateArea(string sAreaID)
                          ", Width: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH)) +
                          ", Height: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT)));
                 LogInfo("> Generation Type: " + AG_GetGenerationTypeAsString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
-            }
-
-            object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
-            json jIgnoredTOCArray = AG_GetJsonDataByKey(sAreaID, AG_DATA_KEY_IGNORE_TOC);
-            int nTOC, nNumTOC = JsonGetLength(jIgnoredTOCArray);
-            for (nTOC = 0; nTOC < nNumTOC; nTOC++)
-            {
-                StringArray_Insert(oAreaDataObject, AG_IGNORE_TOC_ARRAY, JsonArrayGetString(jIgnoredTOCArray, nTOC));
             }
 
             AG_GenerateGenerationTileArray(sAreaID);
@@ -2095,12 +2085,11 @@ void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int 
         return;
     }
 
-    int nTotal;
+    int nTotalTime;
     json jChunkArray = AG_GetChunkArray(sAreaID, nChunk);
-
-    for (nCurrentTile; (nCurrentTile < nNumTiles && nTotal < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
+    for (nCurrentTile; (nCurrentTile < nNumTiles && nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME); nCurrentTile++)
     {
-        nTotal += AG_ProcessTile(sAreaID, JsonArrayGetInt(jChunkArray, nCurrentTile));
+        nTotalTime += AG_ProcessTile(sAreaID, JsonArrayGetInt(jChunkArray, nCurrentTile));
     }
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTileChunk(sAreaID, nChunk, nCurrentTile, nNumTiles));
@@ -2144,14 +2133,6 @@ void AG_GenerateAreaChunk(string sAreaID, int nChunk)
                 LogInfo("> Tileset: " + AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET) +
                          ", Width: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH)) +
                          ", Height: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT)));
-            }
-
-            object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
-            json jIgnoredTOCArray = AG_GetJsonDataByKey(sAreaID, AG_DATA_KEY_IGNORE_TOC);
-            int nTOC, nNumTOC = JsonGetLength(jIgnoredTOCArray);
-            for (nTOC = 0; nTOC < nNumTOC; nTOC++)
-            {
-                StringArray_Insert(oAreaDataObject, AG_IGNORE_TOC_ARRAY, JsonArrayGetString(jIgnoredTOCArray, nTOC));
             }
 
             AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_CURRENT_CHUNK, nChunk);

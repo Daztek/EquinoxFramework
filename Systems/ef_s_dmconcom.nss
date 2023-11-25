@@ -182,10 +182,10 @@ string DMConCom_ToggleCutsceneInvisibility()
 }
 
 // @CONSOLE[SetTimeHour::Set the hour]
-void DMConCom_SetTimeHour(int nHour = 8)
+void DMConCom_SetTimeHour(int nHour = 8, int nMinute = 0)
 {
-    if (nHour >= 0 && nHour <= 23)
-        SetTime(nHour, 0, 0, 0);
+    if (nHour >= 0 && nHour <= 23 && nMinute >= 0 && (nMinute * 60.0f) < HoursToSeconds(1))
+        SetTime(nHour, nMinute, 0, 0);
 }
 
 // @CONSOLE[GetTickRate::Get the server tick rate]

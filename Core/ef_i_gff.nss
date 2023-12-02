@@ -8,6 +8,10 @@
 #include "ef_i_json"
 #include "nw_inc_gff"
 
+const int GFF_LOCAL_VAR_TYPE_INT    = 1;
+const int GFF_LOCAL_VAR_TYPE_FLOAT  = 2;
+const int GFF_LOCAL_VAR_TYPE_STRING = 3;
+
 // Create a json local int object
 json GffLocalVarInt(string sName, int nValue);
 // Create a json local float object
@@ -17,34 +21,34 @@ json GffLocalVarString(string sName, string sValue);
 // Add a local variable to a non-area json gff object's vartable
 json GffAddLocalVariable(json jGff, json jVariable);
 // Add a tile to a tile list
-json GffAddTile(json jTileList, int nTileID, int nOrientation, int nHeight);
+void GffAddTile(json jTileList, int nTileID, int nOrientation, int nHeight, int nAnimLoop1 = TRUE, int nAnimLoop2 = TRUE, int nAnimLoop3 = TRUE);
 // Set an area's lighting scheme
 json GffSetLightingScheme(json jArea, int nIndex);
 
 json GffLocalVarInt(string sName, int nValue)
 {
     json j = JsonObject();
-         j = GffAddString(j, "Name", sName);
-         j = GffAddDword(j, "Type", 1);
-         j = GffAddInt(j, "Value", nValue);
+    JsonObjectSetInplace(j, "Name", GffGetFieldObject(GFF_FIELD_TYPE_STRING, JsonString(sName)));
+    JsonObjectSetInplace(j, "Type", GffGetFieldObject(GFF_FIELD_TYPE_DWORD, JsonInt(GFF_LOCAL_VAR_TYPE_INT)));
+    JsonObjectSetInplace(j, "Value", GffGetFieldObject(GFF_FIELD_TYPE_INT, JsonInt(nValue)));
     return j;
 }
 
 json GffLocalVarFloat(string sName, float fValue)
 {
     json j = JsonObject();
-         j = GffAddString(j, "Name", sName);
-         j = GffAddDword(j, "Type", 2);
-         j = GffAddFloat(j, "Value", fValue);
+    JsonObjectSetInplace(j, "Name", GffGetFieldObject(GFF_FIELD_TYPE_STRING, JsonString(sName)));
+    JsonObjectSetInplace(j, "Type", GffGetFieldObject(GFF_FIELD_TYPE_DWORD, JsonInt(GFF_LOCAL_VAR_TYPE_FLOAT)));
+    JsonObjectSetInplace(j, "Value", GffGetFieldObject(GFF_FIELD_TYPE_FLOAT, JsonFloat(fValue)));
     return j;
 }
 
 json GffLocalVarString(string sName, string sValue)
 {
     json j = JsonObject();
-         j = GffAddString(j, "Name", sName);
-         j = GffAddDword(j, "Type", 3);
-         j = GffAddString(j, "Value", sValue);
+    JsonObjectSetInplace(j, "Name", GffGetFieldObject(GFF_FIELD_TYPE_STRING, JsonString(sName)));
+    JsonObjectSetInplace(j, "Type", GffGetFieldObject(GFF_FIELD_TYPE_DWORD, JsonInt(GFF_LOCAL_VAR_TYPE_STRING)));
+    JsonObjectSetInplace(j, "Value", GffGetFieldObject(GFF_FIELD_TYPE_STRING, JsonString(sValue)));
     return j;
 }
 
@@ -58,31 +62,16 @@ json GffAddLocalVariable(json jGff, json jLocalVariable)
     return jGff;
 }
 
-json GffAddTile(json jTileList, int nTileID, int nOrientation, int nHeight)
+void GffAddTile(json jTileList, int nTileID, int nOrientation, int nHeight, int nAnimLoop1 = TRUE, int nAnimLoop2 = TRUE, int nAnimLoop3 = TRUE)
 {
-    json jTile = GetLocalJson(GetModule(), "GFF_TILE_TEMPLATE");
-    if (!JsonGetType(jTile))
-    {
-        jTile = JsonObject();
-        jTile = GffAddInt(jTile, "Tile_ID", 0);
-        jTile = GffAddInt(jTile, "Tile_Orientation", 0);
-        jTile = GffAddInt(jTile, "Tile_Height", 0);
-
-        jTile = GffAddByte(jTile, "Tile_AnimLoop1", TRUE);
-        jTile = GffAddByte(jTile, "Tile_AnimLoop2", TRUE);
-        jTile = GffAddByte(jTile, "Tile_AnimLoop3", TRUE);
-
-        SetLocalJson(GetModule(), "GFF_TILE_TEMPLATE", jTile);
-    }
-
-    if (nTileID)
-        jTile = GffReplaceInt(jTile, "Tile_ID", nTileID);
-    if (nOrientation)
-        jTile = GffReplaceInt(jTile, "Tile_Orientation", nOrientation);
-    if (nHeight)
-        jTile = GffReplaceInt(jTile, "Tile_Height", nHeight);
-
-    return JsonArrayInsert(jTileList, jTile);
+    json jTile = JsonObject();
+    JsonObjectSetInplace(jTile, "Tile_ID", GffGetFieldObject(GFF_FIELD_TYPE_INT, JsonInt(nTileID)));
+    JsonObjectSetInplace(jTile, "Tile_Orientation", GffGetFieldObject(GFF_FIELD_TYPE_INT, JsonInt(nOrientation)));
+    JsonObjectSetInplace(jTile, "Tile_Height", GffGetFieldObject(GFF_FIELD_TYPE_INT, JsonInt(nHeight)));
+    JsonObjectSetInplace(jTile, "Tile_AnimLoop1", GffGetFieldObject(GFF_FIELD_TYPE_BYTE, JsonInt(nAnimLoop1)));
+    JsonObjectSetInplace(jTile, "Tile_AnimLoop2", GffGetFieldObject(GFF_FIELD_TYPE_BYTE, JsonInt(nAnimLoop2)));
+    JsonObjectSetInplace(jTile, "Tile_AnimLoop3", GffGetFieldObject(GFF_FIELD_TYPE_BYTE, JsonInt(nAnimLoop3)));
+    JsonArrayInsertInplace(jTileList, jTile);
 }
 
 int GetEnvironmentColor(int nIndex, string sColor)

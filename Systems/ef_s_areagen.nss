@@ -16,7 +16,7 @@ const string AG_GENERATOR_DATAOBJECT                            = "AGDataObject"
 
 const int AG_ENABLE_SEEDED_RANDOM                               = TRUE;
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
-const float AG_GENERATION_DELAY                                 = 0.05f;
+const float AG_GENERATION_DELAY                                 = 0.1f;
 const int AG_GENERATION_MAX_TILE_BATCH_TIME                     = 10000;
 const int AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE                 = 25;
 
@@ -139,7 +139,7 @@ void AG_SetCallbackFunction(string sAreaID, string sSystem, string sFunction);
 string AG_GetCallbackFunction(string sAreaID);
 int AG_GetIgnoreTerrainOrCrosser(string sAreaID, string sTOC);
 void AG_SetIgnoreTerrainOrCrosser(string sAreaID, string sTOC, int bIgnore = TRUE);
-struct AG_Tile AG_GetTile(string sAreaID, int nTile, string sTileArray = AG_DATA_KEY_ARRAY_TILES);
+struct AG_Tile AG_GetTile(string sAreaID, int nTile, string sTileArray = AG_DATA_KEY_ARRAY_TILES, object oAreaDataObject = OBJECT_INVALID);
 void AG_Tile_SetID(string sAreaID, string sTileArray, int nTile, int nTileID);
 int AG_Tile_GetID(string sAreaID, string sTileArray, int nTile, object oAreaDataObject = OBJECT_INVALID);
 void AG_Tile_SetLocked(string sAreaID, string sTileArray, int nTile, int bLocked);
@@ -197,8 +197,8 @@ struct AG_TilePosition AG_GetTilePosition(string sAreaID, int nTile);
 void AG_CreateRandomEntrance(string sAreaID, int nEntranceTileID);
 json AG_GetTileList(string sAreaID);
 object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex = 0);
-int AG_Random(string sAreaID, int nMaxInteger);
-string AG_GetRandomQueryString(string sAreaID);
+int AG_Random(string sAreaID, int nMaxInteger, object oAreaDataObject = OBJECT_INVALID);
+string AG_GetRandomQueryString(string sAreaID, object oAreaDataObject = OBJECT_INVALID);
 json AG_GetSetTileTileObject(int nIndex, int nTileID, int nOrientation, int nHeight);
 json AG_GetSetTileJsonArray(string sAreaID);
 string AG_GetGenerationTypeAsString(int nGenerationType);
@@ -309,14 +309,14 @@ void AG_SetIgnoreTerrainOrCrosser(string sAreaID, string sTOC, int bIgnore = TRU
     }
 }
 
-struct AG_Tile AG_GetTile(string sAreaID, int nTile, string sTileArray = AG_DATA_KEY_ARRAY_TILES)
+struct AG_Tile AG_GetTile(string sAreaID, int nTile, string sTileArray = AG_DATA_KEY_ARRAY_TILES, object oAreaDataObject = OBJECT_INVALID)
 {
+    if (oAreaDataObject == OBJECT_INVALID) oAreaDataObject = AG_GetAreaDataObject(sAreaID);
     struct AG_Tile str;
-    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
     string sTile = IntToString(nTile);
-    str.nTileID = GetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_ID + sTile);
-    str.nOrientation = GetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_ORIENTATION + sTile);
-    str.nHeight = GetLocalInt(oAreaDataObject, sTileArray + AG_DATA_KEY_TILE_HEIGHT + sTile);
+    str.nTileID = AG_Tile_GetID(sAreaID, sTileArray, nTile, oAreaDataObject);
+    str.nOrientation = AG_Tile_GetOrientation(sAreaID, sTileArray, nTile, oAreaDataObject);
+    str.nHeight = AG_Tile_GetHeight(sAreaID, sTileArray, nTile, oAreaDataObject);
     return str;
 }
 
@@ -881,7 +881,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     }
 
     sQuery += AG_SqlConstructCAEClause(strQuery);
-    sQuery += "ORDER BY " + AG_GetRandomQueryString(sAreaID) + " LIMIT 1;";
+    sQuery += "ORDER BY " + AG_GetRandomQueryString(sAreaID, oAreaDataObject) + " LIMIT 1;";
 
     sqlquery sql = SqlPrepareQueryModule(sQuery);
 
@@ -906,7 +906,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
 
         nBitmask |= TS_GetTCBitflag(sTileset, sTOC);
     }
-    nBitmask |= AG_Tile_GetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
+    nBitmask |= AG_Tile_GetIgnoreTOCBitmask(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, oAreaDataObject);
     SqlBindInt(sql, "@tocbitmask", nBitmask);
 
     if (SqlStep(sql))
@@ -932,7 +932,7 @@ int AG_ProcessTile(string sAreaID, object oAreaDataObject, int nTile)
     int nStart = GetMicrosecondCounter();
     if (AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, oAreaDataObject) == AG_INVALID_TILE_ID)
     {
-        int bTrySingleGroupTile = AG_Random(sAreaID, 100) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE);
+        int bTrySingleGroupTile = AG_Random(sAreaID, 100, oAreaDataObject) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, oAreaDataObject);
         struct AG_Tile strTile = AG_GetRandomMatchingTile(sAreaID, oAreaDataObject, nTile, bTrySingleGroupTile);
         if (strTile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
             strTile = AG_GetRandomMatchingTile(sAreaID, oAreaDataObject, nTile, FALSE);
@@ -1892,21 +1892,16 @@ void AG_CreateRandomEntrance(string sAreaID, int nEntranceTileID)
 
 json AG_GetTileList(string sAreaID)
 {
-    string sTiles;
-    int nTile, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES);
+    object oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+    json jTiles = JsonArray();
+    int nTile, nNumTiles = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_NUM_TILES, oAreaDataObject);
     for (nTile = 0; nTile < nNumTiles; nTile++)
     {
-        int nTileID = AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-        int nOrientation = AG_Tile_GetOrientation(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-        int nHeight = AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile);
-
-        sTiles += "{\"Tile_AnimLoop1\":{\"type\":\"byte\",\"value\":1},\"Tile_AnimLoop2\":{\"type\":\"byte\",\"value\":1},\"" +
-                  "Tile_AnimLoop3\":{\"type\":\"byte\",\"value\":1},\"Tile_Height\":{\"type\":\"int\",\"value\":" + IntToString(nHeight) +
-                  "},\"Tile_ID\":{\"type\":\"int\",\"value\":" + IntToString(nTileID) +
-                  " },\"Tile_Orientation\":{\"type\":\"int\",\"value\":" + IntToString(nOrientation) + "}},";
+        struct AG_Tile strTile = AG_GetTile(sAreaID, nTile, AG_DATA_KEY_ARRAY_TILES, oAreaDataObject);
+        GffAddTile(jTiles, strTile.nTileID, strTile.nOrientation, strTile.nHeight);
     }
 
-    return StringJsonArrayElementsToJsonArray(sTiles);
+    return jTiles;
 }
 
 object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex = 0)
@@ -1935,11 +1930,12 @@ object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex
     return GffTools_CreateDoor(strDoor.nType, locSpawn, sTag);
 }
 
-int AG_Random(string sAreaID, int nMaxInteger)
+int AG_Random(string sAreaID, int nMaxInteger, object oAreaDataObject = OBJECT_INVALID)
 {
     if (SQL_ENABLE_MERSENNE_TWISTER && AG_ENABLE_SEEDED_RANDOM)
     {
-        string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME);
+        if (oAreaDataObject == OBJECT_INVALID) oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+        string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, oAreaDataObject);
         return sRandomName == "" ? Random(nMaxInteger) : SqlMersenneTwisterGetValue(sRandomName, nMaxInteger);
     }
     else
@@ -1948,11 +1944,12 @@ int AG_Random(string sAreaID, int nMaxInteger)
     }
 }
 
-string AG_GetRandomQueryString(string sAreaID)
+string AG_GetRandomQueryString(string sAreaID, object oAreaDataObject = OBJECT_INVALID)
 {
     if (SQL_ENABLE_MERSENNE_TWISTER && AG_ENABLE_SEEDED_RANDOM)
     {
-        string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME);
+        if (oAreaDataObject == OBJECT_INVALID) oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+        string sRandomName = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, oAreaDataObject);
         return sRandomName == "" ? "RANDOM()" : "MT_VALUE('" + sRandomName + "')";
     }
     else

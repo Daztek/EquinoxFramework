@@ -57,7 +57,7 @@ void DestroyDataObject(string sTag)
 object GetDataObject(string sTag, int bCreateIfNotExists = TRUE)
 {
     object oDataObject = GetLocalObject(GetModule(), EF_DATAOBJECT_TAG_PREFIX + sTag);
-    return GetIsObjectValid(oDataObject) ? oDataObject : bCreateIfNotExists ? CreateDataObject(sTag) : OBJECT_INVALID;
+    return oDataObject != OBJECT_INVALID ? oDataObject : bCreateIfNotExists ? CreateDataObject(sTag) : OBJECT_INVALID;
 }
 
 object GetSystemDataObject(string sTag = "")

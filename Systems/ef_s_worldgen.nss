@@ -46,7 +46,7 @@ const string WG_GENERATED_AREAS_ARRAY                           = "GeneratedArea
 const string WG_WORLD_SEED_NAME                                 = "WG_WORLD_SEED";
 
 const string WG_AREA_TILESET                                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
-const int WG_MAX_ITERATIONS                                     = 100;
+const int WG_MAX_ITERATIONS                                     = 50;
 const string WG_AREA_DEFAULT_EDGE_TERRAIN                       = "";
 
 const int WG_NEIGHBOR_AREA_TOP                                  = 0;
@@ -118,7 +118,7 @@ void WG_UpdateMapArea(string sAreaID, int nColor, object oPlayer = OBJECT_INVALI
 void WG_InitializeAreaCache();
 int WG_GetAreaIsCached(string sAreaID);
 void WG_CacheArea(string sAreaID);
-int WG_GetCachedArea(string sAreaID);
+int WG_InitializeAreaFromCache(string sAreaID);
 
 json WG_GetVFXPlaceableTemplate();
 json WG_GetAreaTileIDArray(string sAreaID);
@@ -259,7 +259,7 @@ void WG_OnServerSendAreaBefore()
         {
             int nTileID = JsonArrayGetInt(jTileIDArray, nModel);
             string sTileModel = JsonArrayGetString(jTileModelArray, nModel);
-            NWNX_Player_SetResManOverride(oPlayer, 2002, WG_VFX_DUMMY_NAME + IntToString(nTileID), sTileModel);
+            NWNX_Player_SetResManOverride(oPlayer, RESTYPE_MDL, WG_VFX_DUMMY_NAME + IntToString(nTileID), sTileModel);
         }
     }
 }
@@ -517,7 +517,7 @@ void WG_GenerateArea()
 
     LogInfo("Processing Area: " + sAreaID);
 
-    if (!WG_GetCachedArea(sAreaID))
+    if (!WG_InitializeAreaFromCache(sAreaID))
     {
         AG_InitializeAreaDataObject(sAreaID, WG_AREA_TILESET, WG_AREA_DEFAULT_EDGE_TERRAIN, WG_AREA_LENGTH, WG_AREA_LENGTH);
         AG_SetStringDataByKey(sAreaID, AG_DATA_KEY_GENERATION_RANDOM_NAME, WG_WORLD_SEED_NAME);
@@ -764,7 +764,7 @@ void WG_CacheArea(string sAreaID)
     SqlStep(sql);
 }
 
-int WG_GetCachedArea(string sAreaID)
+int WG_InitializeAreaFromCache(string sAreaID)
 {
     if (!WG_ENABLE_AREA_CACHING)
         return FALSE;
@@ -828,12 +828,11 @@ void WG_ApplyTileModelVFX(object oPlaceable, string sAreaID, struct AG_Tile strT
     while (oPlayer != OBJECT_INVALID)
     {
         if (GetTag(GetArea(oPlayer)) == sAreaID)
-            NWNX_Player_SetResManOverride(oPlayer, 2002, WG_VFX_DUMMY_NAME + IntToString(strTile.nTileID), sTileModel);
+            NWNX_Player_SetResManOverride(oPlayer, RESTYPE_MDL, WG_VFX_DUMMY_NAME + IntToString(strTile.nTileID), sTileModel);
         oPlayer = GetNextPC();
     }
 
-    float fZ = strTile.nHeight * TS_GetTilesetHeightTransition(WG_AREA_TILESET);
-    vector vTranslate = Vector(0.0f, 0.0f, fZ);
+    vector vTranslate = Vector(0.0f, 0.0f, strTile.nHeight * TS_GetTilesetHeightTransition(WG_AREA_TILESET));
     vector vRotate = Vector(-90.0f + (strTile.nOrientation * 90.0f), 0.0f, 0.0f);
     effect eTile = EffectVisualEffect(WG_VFX_START_ROW + strTile.nTileID, FALSE, 1.0f, vTranslate, vRotate);
     DelayCommand(0.25f, ApplyEffectToObject(DURATION_TYPE_PERMANENT, eTile, oPlaceable));

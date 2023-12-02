@@ -220,7 +220,7 @@ void AV_OnAreaGenerated(string sAreaID)
             if (nHeight > 1)
                 PrintString("WoW! Tile @ " + IntToString(nHeight));
 
-            NWNX_Player_SetResManOverride(GetFirstPC(), 2002, AV_VISUALEFFECT_DUMMY_NAME + IntToString(nTile), sModel);
+            NWNX_Player_SetResManOverride(GetFirstPC(), RESTYPE_MDL, AV_VISUALEFFECT_DUMMY_NAME + IntToString(nTile), sModel);
             DelayCommand(0.01f * nTile, AG_DelayedApplyEffect(oDisplay, nTile, nTileID, nOrientation, nHeight));
         }
     }

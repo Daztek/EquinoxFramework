@@ -18,6 +18,8 @@ const string TS_TABLE_NAME_GROUPS               = "groups";
 const string TS_TABLE_NAME_GROUP_TILES          = "grouptiles";
 const string TS_TABLE_NAME_SINGLE_GROUP_TILES   = "singlegrouptiles";
 
+const string TS_EMPTY_CROSSER_NAME              = "TSEMPTY";
+
 const int TS_MAX_TILE_HEIGHT                    = 3;
 
 struct TS_TileStruct
@@ -240,10 +242,7 @@ struct TS_TileStruct TS_RotateTileStruct(struct TS_TileStruct strTile)
 
 string TS_SetEdge(string sEdge, string sCorner1, string sCorner2)
 {
-    if (sCorner1 == "" && sCorner2 == "" && sEdge == "")
-        return "";
-    else
-        return sEdge == "" ? "[NONE]" : sEdge;
+    return sEdge == "" ? TS_EMPTY_CROSSER_NAME : sEdge;
 }
 
 struct TS_TileStruct TS_UpperCaseTileStruct(struct TS_TileStruct str)
@@ -634,9 +633,14 @@ void TS_LoadTilesetData(string sTileset)
     }
 
     int nCrosserNum;
-    for (nCrosserNum = 0; nCrosserNum < str.nNumCrossers; nCrosserNum++)
+    for (nCrosserNum = 0; nCrosserNum < str.nNumCrossers + 1; nCrosserNum++)
     {
-        string sCrosser = GetStringUpperCase(NWNX_Tileset_GetTilesetCrosser(sTileset, nCrosserNum));
+        string sCrosser;
+        if (nCrosserNum == str.nNumCrossers)
+            sCrosser = TS_EMPTY_CROSSER_NAME;
+        else
+            sCrosser = GetStringUpperCase(NWNX_Tileset_GetTilesetCrosser(sTileset, nCrosserNum));
+
         SetLocalString(oTDO, "Crosser" + IntToString(nCrosserNum), sCrosser);
         JsonArrayInsertStringInplace(jTC, sCrosser);
         JsonArrayInsertStringInplace(jCrosser, sCrosser);
@@ -644,7 +648,7 @@ void TS_LoadTilesetData(string sTileset)
 
     SetLocalJson(oTDO, "TerrainCrosserArray", jTC);
     SetLocalJson(oTDO, "TerrainArray", jTerrain);
-    SetLocalJson(oTDO, "CrosserArray", jTerrain);
+    SetLocalJson(oTDO, "CrosserArray", jCrosser);
 
     SqlBeginTransactionModule();
 

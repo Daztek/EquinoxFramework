@@ -799,6 +799,11 @@ string AG_ResolveCorner(string sCorner1, string sCorner2)
     return "ERROR";
 }
 
+string AG_ResolveEdge(string sEdge, string sCorner1, string sCorner2)
+{
+    return sEdge;
+}
+
 string AG_SqlConstructCAEClause(struct TS_TileStruct str)
 {
     string sWhere;
@@ -813,9 +818,12 @@ string AG_SqlConstructCAEClause(struct TS_TileStruct str)
     return sWhere;
 }
 
+const int AG_PROFILE_GETRANDOMMATCHINGTILE = FALSE;
+
 struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, int nTile, int bSingleGroupTile)
 {
-    //Profiler_Start("AG_GetRandomMatchingTile");
+    if (AG_PROFILE_GETRANDOMMATCHINGTILE)
+        Profiler_Start("AG_GetRandomMatchingTile");
 
     struct AG_Tile tile; tile.nTileID = AG_INVALID_TILE_ID;
     struct TS_TileStruct strQuery;
@@ -829,32 +837,32 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     strQuery.sTL = AG_ResolveCorner(strTop.sBL, strLeft.sTR);
     if (strQuery.sTL == "ERROR")
     {
-        //Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
      }
     strQuery.sTR = AG_ResolveCorner(strTop.sBR, strRight.sTL);
     if (strQuery.sTR == "ERROR")
     {
-        //Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
     }
     strQuery.sBR = AG_ResolveCorner(strRight.sBL, strBottom.sTR);
     if (strQuery.sBR == "ERROR")
     {
-        //Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
     }
     strQuery.sBL = AG_ResolveCorner(strBottom.sTL, strLeft.sBR);
     if (strQuery.sBL == "ERROR")
     {
-        //Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
     }
 
-    strQuery.sT = TS_SetEdge(strTop.sB, strQuery.sTL, strQuery.sTR);
-    strQuery.sR = TS_SetEdge(strRight.sL, strQuery.sTR, strQuery.sBR);
-    strQuery.sB = TS_SetEdge(strBottom.sT, strQuery.sBL, strQuery.sBR);
-    strQuery.sL = TS_SetEdge(strLeft.sR, strQuery.sTL, strQuery.sBL);
+    strQuery.sT = AG_ResolveEdge(strTop.sB, strQuery.sTL, strQuery.sTR);
+    strQuery.sR = AG_ResolveEdge(strRight.sL, strQuery.sTR, strQuery.sBR);
+    strQuery.sB = AG_ResolveEdge(strBottom.sT, strQuery.sBL, strQuery.sBR);
+    strQuery.sL = AG_ResolveEdge(strLeft.sR, strQuery.sTL, strQuery.sBL);
 
     string sQuery;
 
@@ -922,7 +930,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
         tile.nHeight = 0;
     }
 
-    //Profiler_Stop();
+    if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
 
     return tile;
 }

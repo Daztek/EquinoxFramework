@@ -105,6 +105,8 @@ const int AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD           = 5;
 const int AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD         = 6;
 const int AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD        = 7;
 
+const string AG_INVALID_CORNER                                  = "INVALID_CORNER";
+
 struct AG_Tile
 {
     int nTileID;
@@ -164,8 +166,8 @@ int AG_GetNeighborTile(string sAreaID, int nTile, int nDirection);
 void AG_ResetNeighborTiles(string sAreaID, int nTile, object oAreaDataObject = OBJECT_INVALID);
 void AG_ResetNeighborTileChunk(string sAreaID, int nTile);
 void AG_ResetGrid(string sAreaID);
-struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, int nTile, int nDirection);
-string AG_ResolveCorner(string sCorner1, string sCorner2);
+struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, int nTile, int nDirection, object oAreaDataObject = OBJECT_INVALID);
+string AG_ResolveCorner(string sCorner1, string sCorner2, string sCorner3);
 string AG_SqlConstructCAEClause(struct TS_TileStruct str);
 struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, int nTile, int bSingleGroupTile);
 int AG_ProcessTile(string sAreaID, object oAreaDataObject, int nTileID);
@@ -643,20 +645,22 @@ void AG_ResetGrid(string sAreaID)
     }
 }
 
-struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, int nTile, int nDirection)
+struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, int nTile, int nDirection, object oAreaDataObject = OBJECT_INVALID)
 {
+    if (oAreaDataObject == OBJECT_INVALID) oAreaDataObject = AG_GetAreaDataObject(sAreaID);
+
     struct TS_TileStruct str;
     int nNeighborTile = AG_GetNeighborTile(sAreaID, nTile, nDirection);
 
     if (nNeighborTile != AG_INVALID_TILE_ID)
     {
-        struct AG_Tile strTile = AG_GetTile(sAreaID, nNeighborTile);
+        struct AG_Tile strTile = AG_GetTile(sAreaID, nNeighborTile, AG_DATA_KEY_ARRAY_TILES, oAreaDataObject);
         if (strTile.nTileID != AG_INVALID_TILE_ID)
             str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
 
         if (AG_GetHasTileOverride(sAreaID, nNeighborTile))
         {
-            struct TS_TileStruct strOverride = AG_GetTileOverride(sAreaID, nNeighborTile);
+            struct TS_TileStruct strOverride = AG_GetTileOverride(sAreaID, nNeighborTile, oAreaDataObject);
 
             if (strOverride.sT != "") str.sT = strOverride.sT;
             if (strOverride.sB != "") str.sB = strOverride.sB;
@@ -675,11 +679,16 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
     {
         struct AG_TilePosition strTilePos = AG_GetTilePosition(sAreaID, nTile);
 
+        if (strTilePos.nX == AG_INVALID_TILE_ID && strTilePos.nY == AG_INVALID_TILE_ID)
+        {
+            LogWarning("INVALID TILE POSITION -> nTile: " + IntToString(nTile) + ", Direction: " + IntToString(nDirection));
+        }
+
         switch (nDirection)
         {
             case AG_NEIGHBOR_TILE_TOP:
             {
-                struct AG_Tile strTile = AG_GetTile(sAreaID, strTilePos.nX, AG_DATA_KEY_ARRAY_EDGE_TOP);
+                struct AG_Tile strTile = AG_GetTile(sAreaID, strTilePos.nX, AG_DATA_KEY_ARRAY_EDGE_TOP, oAreaDataObject);
                 if (strTile.nTileID != AG_INVALID_TILE_ID)
                 {
                     str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
@@ -695,7 +704,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
                 }
                 else
                 {
-                    string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN);
+                    string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN, oAreaDataObject);
                     str.sBL = sEdgeTerrain;
                     str.sBR = sEdgeTerrain;
                 }
@@ -704,7 +713,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
 
             case AG_NEIGHBOR_TILE_RIGHT:
             {
-                struct AG_Tile strTile = AG_GetTile(sAreaID, strTilePos.nY, AG_DATA_KEY_ARRAY_EDGE_RIGHT);
+                struct AG_Tile strTile = AG_GetTile(sAreaID, strTilePos.nY, AG_DATA_KEY_ARRAY_EDGE_RIGHT, oAreaDataObject);
                 if (strTile.nTileID != AG_INVALID_TILE_ID)
                 {
                     str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
@@ -720,7 +729,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
                 }
                 else
                 {
-                    string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN);
+                    string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN, oAreaDataObject);
                     str.sTL = sEdgeTerrain;
                     str.sBL = sEdgeTerrain;
                 }
@@ -729,7 +738,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
 
             case AG_NEIGHBOR_TILE_BOTTOM:
             {
-                struct AG_Tile strTile = AG_GetTile(sAreaID, strTilePos.nX, AG_DATA_KEY_ARRAY_EDGE_BOTTOM);
+                struct AG_Tile strTile = AG_GetTile(sAreaID, strTilePos.nX, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, oAreaDataObject);
                 if (strTile.nTileID != AG_INVALID_TILE_ID)
                 {
                     str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
@@ -745,7 +754,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
                 }
                 else
                 {
-                    string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN);
+                    string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN, oAreaDataObject);
                     str.sTL = sEdgeTerrain;
                     str.sTR = sEdgeTerrain;
                 }
@@ -754,7 +763,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
 
             case AG_NEIGHBOR_TILE_LEFT:
             {
-                struct AG_Tile strTile = AG_GetTile(sAreaID, strTilePos.nY, AG_DATA_KEY_ARRAY_EDGE_LEFT);
+                struct AG_Tile strTile = AG_GetTile(sAreaID, strTilePos.nY, AG_DATA_KEY_ARRAY_EDGE_LEFT, oAreaDataObject);
                 if (strTile.nTileID != AG_INVALID_TILE_ID)
                 {
                     str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
@@ -770,9 +779,161 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
                 }
                 else
                 {
-                    string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN);
+                    string sEdgeTerrain = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN, oAreaDataObject);
                     str.sTR = sEdgeTerrain;
                     str.sBR = sEdgeTerrain;
+                }
+                break;
+            }
+
+            case AG_NEIGHBOR_TILE_TOP_LEFT:
+            {
+                str.sBR = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN, oAreaDataObject);
+
+                int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH, oAreaDataObject);
+                int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT, oAreaDataObject);
+
+                if (strTilePos.nY == (nHeight - 1))
+                {
+                    int nX = strTilePos.nX - 1;
+                    if (nX >= 0 && nX < nWidth)
+                    {
+                        struct AG_Tile strTile = AG_GetTile(sAreaID, nX, AG_DATA_KEY_ARRAY_EDGE_TOP, oAreaDataObject);
+                        if (strTile.nTileID != AG_INVALID_TILE_ID)
+                        {
+                            str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
+                            if (strTile.nHeight)
+                                str = TS_IncreaseTileHeight(sTileset, str, strTile.nHeight);
+                        }
+                    }
+                }
+                else if (strTilePos.nX == 0)
+                {
+                    int nY = strTilePos.nY + 1;
+                    if (nY >= 0 && nY < nHeight)
+                    {
+                        struct AG_Tile strTile = AG_GetTile(sAreaID, nY, AG_DATA_KEY_ARRAY_EDGE_LEFT, oAreaDataObject);
+                        if (strTile.nTileID != AG_INVALID_TILE_ID)
+                        {
+                            str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
+                            if (strTile.nHeight)
+                                str = TS_IncreaseTileHeight(sTileset, str, strTile.nHeight);
+                        }
+                    }
+                }
+                break;
+            }
+
+            case AG_NEIGHBOR_TILE_BOTTOM_LEFT:
+            {
+                str.sTR = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN, oAreaDataObject);
+
+                int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH, oAreaDataObject);
+                int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT, oAreaDataObject);
+
+                if (strTilePos.nY == 0)
+                {
+                    int nX = strTilePos.nX - 1;
+                    if (nX >= 0 && nX < nWidth)
+                    {
+                        struct AG_Tile strTile = AG_GetTile(sAreaID, nX, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, oAreaDataObject);
+                        if (strTile.nTileID != AG_INVALID_TILE_ID)
+                        {
+                            str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
+                            if (strTile.nHeight)
+                                str = TS_IncreaseTileHeight(sTileset, str, strTile.nHeight);
+                        }
+                    }
+                }
+                else if (strTilePos.nX == 0)
+                {
+                    int nY = strTilePos.nY - 1;
+                    if (nY >= 0 && nY < nHeight)
+                    {
+                        struct AG_Tile strTile = AG_GetTile(sAreaID, nY, AG_DATA_KEY_ARRAY_EDGE_LEFT, oAreaDataObject);
+                        if (strTile.nTileID != AG_INVALID_TILE_ID)
+                        {
+                            str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
+                            if (strTile.nHeight)
+                                str = TS_IncreaseTileHeight(sTileset, str, strTile.nHeight);
+                        }
+                    }
+                }
+                break;
+            }
+
+            case AG_NEIGHBOR_TILE_TOP_RIGHT:
+            {
+                str.sBL = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN, oAreaDataObject);
+
+                int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH, oAreaDataObject);
+                int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT, oAreaDataObject);
+
+                if (strTilePos.nY == (nHeight - 1))
+                {
+                    int nX = strTilePos.nX + 1;
+                    if (nX >= 0 && nX < nWidth)
+                    {
+                        struct AG_Tile strTile = AG_GetTile(sAreaID, nX, AG_DATA_KEY_ARRAY_EDGE_TOP, oAreaDataObject);
+                        if (strTile.nTileID != AG_INVALID_TILE_ID)
+                        {
+                            str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
+                            if (strTile.nHeight)
+                                str = TS_IncreaseTileHeight(sTileset, str, strTile.nHeight);
+                        }
+                    }
+                }
+                else if (strTilePos.nX == (nWidth - 1))
+                {
+                    int nY = strTilePos.nY + 1;
+                    if (nY >= 0 && nY < nHeight)
+                    {
+                        struct AG_Tile strTile = AG_GetTile(sAreaID, nY, AG_DATA_KEY_ARRAY_EDGE_RIGHT, oAreaDataObject);
+                        if (strTile.nTileID != AG_INVALID_TILE_ID)
+                        {
+                            str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
+                            if (strTile.nHeight)
+                                str = TS_IncreaseTileHeight(sTileset, str, strTile.nHeight);
+                        }
+                    }
+                }
+                break;
+            }
+
+            case AG_NEIGHBOR_TILE_BOTTOM_RIGHT:
+            {
+                str.sTL = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_EDGE_TERRAIN, oAreaDataObject);
+
+                int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH, oAreaDataObject);
+                int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT, oAreaDataObject);
+
+                if (strTilePos.nY == 0)
+                {
+                    int nX = strTilePos.nX + 1;
+                    if (nX >= 0 && nX < nWidth)
+                    {
+                        struct AG_Tile strTile = AG_GetTile(sAreaID, nX, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, oAreaDataObject);
+                        if (strTile.nTileID != AG_INVALID_TILE_ID)
+                        {
+                            str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
+                            if (strTile.nHeight)
+                                str = TS_IncreaseTileHeight(sTileset, str, strTile.nHeight);
+                        }
+                    }
+                }
+                else if (strTilePos.nX == (nWidth - 1))
+                {
+                    int nY = strTilePos.nY - 1;
+                    if (nY >= 0 && nY < nHeight)
+                    {
+                        struct AG_Tile strTile = AG_GetTile(sAreaID, nY, AG_DATA_KEY_ARRAY_EDGE_RIGHT, oAreaDataObject);
+                        if (strTile.nTileID != AG_INVALID_TILE_ID)
+                        {
+                            str = TS_GetCornersAndEdgesByOrientation(sTileset, strTile.nTileID, strTile.nOrientation);
+                            if (strTile.nHeight)
+                                str = TS_IncreaseTileHeight(sTileset, str, strTile.nHeight);
+                        }
+                    }
                 }
                 break;
             }
@@ -782,21 +943,31 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
     return str;
 }
 
-string AG_ResolveCorner(string sCorner1, string sCorner2)
+string AG_ResolveCorner(string sCorner1, string sCorner2, string sCorner3)
 {
-    if (sCorner1 == sCorner2)
+    if (sCorner1 == sCorner2 && sCorner1 == sCorner3)
         return sCorner1;
 
-    if (sCorner1 == "" && sCorner2 == "")
-        return "";
+    if (sCorner1 != "" && sCorner2 == "" && sCorner3 == "")
+        return sCorner1;
 
-    if (sCorner1 == "" && sCorner2 != "")
+    if (sCorner1 == "" && sCorner2 != "" && sCorner3 == "")
         return sCorner2;
 
-    if (sCorner1 != "" && sCorner2 == "")
+    if (sCorner1 == "" && sCorner2 == "" && sCorner3 != "")
+        return sCorner3;
+
+
+    if (sCorner1 == sCorner2 && sCorner3 == "")
         return sCorner1;
 
-    return "ERROR";
+    if (sCorner1 == sCorner3 && sCorner2 == "")
+        return sCorner1;
+
+    if (sCorner2 == sCorner3 && sCorner1 == "")
+        return sCorner2;
+
+    return AG_INVALID_CORNER;
 }
 
 string AG_ResolveEdge(string sEdge, string sCorner1, string sCorner2)
@@ -829,31 +1000,35 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     struct TS_TileStruct strQuery;
     string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET, oAreaDataObject);
 
-    struct TS_TileStruct strTop = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_TOP);
-    struct TS_TileStruct strRight = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_RIGHT);
-    struct TS_TileStruct strBottom = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_BOTTOM);
-    struct TS_TileStruct strLeft = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_LEFT);
+    struct TS_TileStruct strTop = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_TOP, oAreaDataObject);
+    struct TS_TileStruct strRight = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_RIGHT, oAreaDataObject);
+    struct TS_TileStruct strBottom = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_BOTTOM, oAreaDataObject);
+    struct TS_TileStruct strLeft = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_LEFT, oAreaDataObject);
+    struct TS_TileStruct strTopLeft = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_TOP_LEFT, oAreaDataObject);
+    struct TS_TileStruct strTopRight = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_TOP_RIGHT, oAreaDataObject);
+    struct TS_TileStruct strBottomRight = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_BOTTOM_RIGHT, oAreaDataObject);
+    struct TS_TileStruct strBottomLeft = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_BOTTOM_LEFT, oAreaDataObject);
 
-    strQuery.sTL = AG_ResolveCorner(strTop.sBL, strLeft.sTR);
-    if (strQuery.sTL == "ERROR")
+    strQuery.sTL = AG_ResolveCorner(strTop.sBL, strLeft.sTR, strTopLeft.sBR);
+    if (strQuery.sTL == AG_INVALID_CORNER)
     {
         if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
      }
-    strQuery.sTR = AG_ResolveCorner(strTop.sBR, strRight.sTL);
-    if (strQuery.sTR == "ERROR")
+    strQuery.sTR = AG_ResolveCorner(strTop.sBR, strRight.sTL, strTopRight.sBL);
+    if (strQuery.sTR == AG_INVALID_CORNER)
     {
         if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
     }
-    strQuery.sBR = AG_ResolveCorner(strRight.sBL, strBottom.sTR);
-    if (strQuery.sBR == "ERROR")
+    strQuery.sBR = AG_ResolveCorner(strRight.sBL, strBottom.sTR, strBottomRight.sTL);
+    if (strQuery.sBR == AG_INVALID_CORNER)
     {
         if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
     }
-    strQuery.sBL = AG_ResolveCorner(strBottom.sTL, strLeft.sBR);
-    if (strQuery.sBL == "ERROR")
+    strQuery.sBL = AG_ResolveCorner(strBottom.sTL, strLeft.sBR, strBottomLeft.sTR);
+    if (strQuery.sBL == AG_INVALID_CORNER)
     {
         if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
@@ -1882,8 +2057,18 @@ struct AG_TilePosition AG_GetTilePosition(string sAreaID, int nTile)
 {
     struct AG_TilePosition str;
     int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
-    str.nX = nTile % nWidth;
-    str.nY = nTile / nWidth;
+    int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
+
+    if (nTile >= 0 && nTile < (nWidth * nHeight))
+    {
+        str.nX = nTile % nWidth;
+        str.nY = nTile / nWidth;
+    }
+    else
+    {
+        str.nX = AG_INVALID_TILE_ID;
+        str.nY = AG_INVALID_TILE_ID;
+    }
     return str;
 }
 

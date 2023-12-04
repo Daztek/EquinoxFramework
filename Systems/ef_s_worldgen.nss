@@ -32,7 +32,7 @@ const int WG_AREA_TREES_CHANCE                                  = 25;
 const int WG_AREA_CHASM_CHANCE                                  = 10;
 const int WG_AREA_GRASS2_CHANCE                                 = 25;
 const int WG_AREA_MOUNTAIN_CHANCE                               = 35;
-const int WG_AREA_STREAM_CHANCE                                 = 10;
+const int WG_AREA_STREAM_CHANCE                                 = 5;
 const int WG_AREA_RIDGE_CHANCE                                  = 20;
 
 const string WG_TEMPLATE_AREA_TAG                               = "AR_TEMPLATEAREA";

@@ -11,7 +11,7 @@
 void LogInfo(string sMessage);
 // Write a debug message to the log
 void LogDebug(string sMessage, int bIncludeBacktrace = FALSE);
-// Write a warmomg message to the log
+// Write a warning message to the log
 void LogWarning(string sMessage);
 // Write an error message to the log
 void LogError(string sMessage, int bIncludeBacktrace = TRUE);

@@ -33,7 +33,7 @@ const string AV_AREA_ID                         = "AVRandomArea";
 const string AV_AREA_TILESET                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
 const int AV_AREA_WIDTH                         = 9;
 const int AV_AREA_HEIGHT                        = 9;
-const string AV_AREA_EDGE_TERRAIN               = "TREES";
+const string AV_AREA_EDGE_TERRAIN               = "";
 
 const int AV_MAX_ITERATIONS                     = 100;
 
@@ -98,7 +98,6 @@ void AV_ClickGenerateButton()
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_MAX_ITERATIONS, AV_MAX_ITERATIONS);
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_GENERATION_LOG_STATUS, TRUE);
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, 10);
-    AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 10);
     AG_SetIntDataByKey(AV_AREA_ID, AG_DATA_KEY_GENERATION_TYPE, Random(8));
     AG_SetCallbackFunction(AV_AREA_ID, AV_SCRIPT_NAME, "AV_OnAreaGenerated");
 
@@ -109,19 +108,12 @@ void AV_ClickGenerateButton()
     //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "MOUNTAIN");
     //AG_SetIgnoreTerrainOrCrosser(AV_AREA_ID, "TREES");
 
-    AG_AddEdgeTerrain(AV_AREA_ID, "WATER");
-    AG_AddEdgeTerrain(AV_AREA_ID, "MOUNTAIN");
-
     AG_SetStringDataByKey(AV_AREA_ID, AG_DATA_KEY_FLOOR_TERRAIN, "GRASS");
     AG_AddPathDoorCrosserCombo(AV_AREA_ID, 80, "ROAD");
     AG_AddPathDoorCrosserCombo(AV_AREA_ID, 1161, "STREET");
     AG_SetAreaPathDoorCrosserCombo(AV_AREA_ID, Random(AG_GetNumPathDoorCrosserCombos(AV_AREA_ID)));
 
     AG_CopyEdgeFromArea(AV_AREA_ID, GetAreaFromLocation(GetStartingLocation()), AG_AREA_EDGE_TOP);
-    AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_TOP);
-    AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_BOTTOM);
-    AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_LEFT);
-    AG_GenerateEdge(AV_AREA_ID, AG_AREA_EDGE_RIGHT);
 
     //AG_CreateRandomEntrance(AV_AREA_ID, 198);
 

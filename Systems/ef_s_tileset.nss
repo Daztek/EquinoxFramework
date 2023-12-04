@@ -55,6 +55,7 @@ string TS_SetEdge(string sEdge, string sCorner1, string sCorner2);
 struct TS_TileStruct TS_UpperCaseTileStruct(struct TS_TileStruct str);
 struct TS_TileStruct TS_GetTileEdgesAndCorners(string sTileset, int nTileID);
 struct TS_TileStruct TS_GetCornersAndEdgesByOrientation(string sTileset, int nTileID, int nOrientation);
+struct TS_TileStruct TS_GetCornersAndEdgesByOrientationAndHeight(string sTileset, int nTileID, int nOrientation, int nHeight);
 int TS_GetHasTerrainOrCrosser(struct TS_TileStruct str, string sType);
 int TS_GetTerrainAndCrosserIsType(struct TS_TileStruct str, string sTerrainType, string sCrosserType);
 int TS_GetNumOfTerrainOrCrosser(struct TS_TileStruct str, string sType, int bStripHeightIndicator = FALSE);
@@ -315,6 +316,25 @@ struct TS_TileStruct TS_GetCornersAndEdgesByOrientation(string sTileset, int nTi
     {
         str = TS_RotateTileStruct(str);
     }
+
+    return str;
+}
+
+struct TS_TileStruct TS_GetCornersAndEdgesByOrientationAndHeight(string sTileset, int nTileID, int nOrientation, int nHeight)
+{
+    struct TS_TileStruct str = TS_GetTileEdgesAndCorners(sTileset, nTileID);
+
+    if (nOrientation)
+    {
+        int nCount;
+        for (nCount = 0; nCount < nOrientation; nCount++)
+        {
+            str = TS_RotateTileStruct(str);
+        }
+    }
+
+    if (nHeight)
+        str = TS_IncreaseTileHeight(sTileset, str, nHeight);
 
     return str;
 }

@@ -28,7 +28,7 @@ const string DT_AREA_ID                         = "DTRandomArea";
 const string DT_AREA_TILESET                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
 const int DT_AREA_WIDTH                         = 12;
 const int DT_AREA_HEIGHT                        = 12;
-const string DT_AREA_EDGE_TERRAIN               = "TREES";
+const string DT_AREA_EDGE_TERRAIN               = "";
 const int DT_MAX_ITERATIONS                     = 100;
 
 const int DT_VISUALEFFECT_START_ROW             = 1000;
@@ -110,7 +110,6 @@ void DT_ClickGenerateButton()
     AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_MAX_ITERATIONS, DT_MAX_ITERATIONS);
     AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_GENERATION_LOG_STATUS, TRUE);
     AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, 5);
-    AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_EDGE_TERRAIN_CHANGE_CHANCE, 25);
     AG_SetIntDataByKey(DT_AREA_ID, AG_DATA_KEY_GENERATION_TYPE, Random(8));
     AG_SetCallbackFunction(DT_AREA_ID, DT_SCRIPT_NAME, "DT_OnAreaGenerated");
 
@@ -118,20 +117,8 @@ void DT_ClickGenerateButton()
     AG_SetIgnoreTerrainOrCrosser(DT_AREA_ID, "WALL");
     AG_SetIgnoreTerrainOrCrosser(DT_AREA_ID, "BRIDGE");
     AG_SetIgnoreTerrainOrCrosser(DT_AREA_ID, "STREET");
-    //AG_SetIgnoreTerrainOrCrosser(DT_AREA_ID, "MOUNTAIN");
-
-    AG_AddEdgeTerrain(DT_AREA_ID, "WATER");
-    AG_AddEdgeTerrain(DT_AREA_ID, "MOUNTAIN");
-    //AG_AddEdgeTerrain(DT_AREA_ID, "GRASS");
-    //AG_AddEdgeTerrain(DT_AREA_ID, "GRASS2");
 
     AG_SetStringDataByKey(DT_AREA_ID, AG_DATA_KEY_FLOOR_TERRAIN, "GRASS");
-
-    AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_TOP);
-    AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_BOTTOM);
-    AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_LEFT);
-    AG_GenerateEdge(DT_AREA_ID, AG_AREA_EDGE_RIGHT);
-
     AG_GenerateArea(DT_AREA_ID);
 }
 

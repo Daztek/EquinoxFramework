@@ -51,6 +51,7 @@ void TS_SetTilesetLoaded(string sTileset);
 int TS_GetTilesetLoaded(string sTileset);
 
 struct TS_TileStruct TS_RotateTileStruct(struct TS_TileStruct strTile);
+struct TS_TileStruct TS_RotateTileStructFromDefault(struct TS_TileStruct strTile, int nOrientation);
 string TS_SetEdge(string sEdge, string sCorner1, string sCorner2);
 struct TS_TileStruct TS_UpperCaseTileStruct(struct TS_TileStruct str);
 struct TS_TileStruct TS_GetTileEdgesAndCorners(string sTileset, int nTileID);
@@ -241,6 +242,57 @@ struct TS_TileStruct TS_RotateTileStruct(struct TS_TileStruct strTile)
     return str;
 }
 
+struct TS_TileStruct TS_RotateTileStructFromDefault(struct TS_TileStruct strTile, int nOrientation)
+{
+    if (!nOrientation)
+        return strTile;
+
+    struct TS_TileStruct str;
+    switch (nOrientation)
+    {
+        case 1:
+        {
+            str.sTL = strTile.sTR;
+            str.sT = strTile.sR;
+            str.sTR = strTile.sBR;
+            str.sR = strTile.sB;
+            str.sBR = strTile.sBL;
+            str.sB = strTile.sL;
+            str.sBL = strTile.sTL;
+            str.sL = strTile.sT;
+            break;
+        }
+
+        case 2:
+        {
+            str.sTL = strTile.sBR;
+            str.sT = strTile.sB;
+            str.sTR = strTile.sBL;
+            str.sR = strTile.sL;
+            str.sBR = strTile.sTL;
+            str.sB = strTile.sT;
+            str.sBL = strTile.sTR;
+            str.sL = strTile.sR;
+            break;
+        }
+
+        case 3:
+        {
+            str.sTL = strTile.sBL;
+            str.sT = strTile.sL;
+            str.sTR = strTile.sTL;
+            str.sR = strTile.sT;
+            str.sBR = strTile.sTR;
+            str.sB = strTile.sR;
+            str.sBL = strTile.sBR;
+            str.sL = strTile.sB;
+            break;
+        }
+    }
+
+    return str;
+}
+
 string TS_SetEdge(string sEdge, string sCorner1, string sCorner2)
 {
     return sEdge == "" ? TS_EMPTY_CROSSER_NAME : sEdge;
@@ -262,80 +314,84 @@ struct TS_TileStruct TS_UpperCaseTileStruct(struct TS_TileStruct str)
 
 struct TS_TileStruct TS_GetTileEdgesAndCorners(string sTileset, int nTileID)
 {
-    struct NWNX_Tileset_TileEdgesAndCorners strTile = NWNX_Tileset_GetTileEdgesAndCorners(sTileset, nTileID);
-
-    if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
-    {
-        if (nTileID == 433)
-        {
-            strTile.sTopLeft = "grass2";
-            strTile.sTop = "ridge";
-            strTile.sTopRight = "grass+";
-            strTile.sRight = "ridge";
-            strTile.sBottomRight = "grass2";
-            strTile.sBottom = "ridge";
-            strTile.sBottomLeft = "grass+";
-            strTile.sLeft = "ridge";
-        }
-
-        if (nTileID == 204)
-        {
-            strTile.sLeft = "";
-            strTile.sRight = "";
-        }
-    }
-
+    object oDataObject = GetDataObject(TS_SCRIPT_NAME);
     struct TS_TileStruct str;
-    str.sTL = strTile.sTopLeft;
-    str.sT = strTile.sTop;
-    str.sTR = strTile.sTopRight;
-    str.sR = strTile.sRight;
-    str.sBR = strTile.sBottomRight;
-    str.sB = strTile.sBottom;
-    str.sBL = strTile.sBottomLeft;
-    str.sL = strTile.sLeft;
-    str = TS_UpperCaseTileStruct(str);
+    json jTile = GetLocalJson(oDataObject, "TILEDATA_" + sTileset + IntToString(nTileID));
+    if (!JsonGetType(jTile))
+    {
+        struct NWNX_Tileset_TileEdgesAndCorners strTile = NWNX_Tileset_GetTileEdgesAndCorners(sTileset, nTileID);
 
-    str.sT = TS_SetEdge(str.sT, str.sTL, str.sTR);
-    str.sR = TS_SetEdge(str.sR, str.sTR, str.sBR);
-    str.sB = TS_SetEdge(str.sB, str.sBL, str.sBR);
-    str.sL = TS_SetEdge(str.sL, str.sTL, str.sBL);
+        if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
+        {
+            if (nTileID == 433)
+            {
+                strTile.sTopLeft = "grass2";
+                strTile.sTop = "ridge";
+                strTile.sTopRight = "grass+";
+                strTile.sRight = "ridge";
+                strTile.sBottomRight = "grass2";
+                strTile.sBottom = "ridge";
+                strTile.sBottomLeft = "grass+";
+                strTile.sLeft = "ridge";
+            }
+
+            if (nTileID == 204)
+            {
+                strTile.sLeft = "";
+                strTile.sRight = "";
+            }
+        }
+
+        str.sTL = strTile.sTopLeft;
+        str.sT = strTile.sTop;
+        str.sTR = strTile.sTopRight;
+        str.sR = strTile.sRight;
+        str.sBR = strTile.sBottomRight;
+        str.sB = strTile.sBottom;
+        str.sBL = strTile.sBottomLeft;
+        str.sL = strTile.sLeft;
+        str = TS_UpperCaseTileStruct(str);
+
+        str.sT = TS_SetEdge(str.sT, str.sTL, str.sTR);
+        str.sR = TS_SetEdge(str.sR, str.sTR, str.sBR);
+        str.sB = TS_SetEdge(str.sB, str.sBL, str.sBR);
+        str.sL = TS_SetEdge(str.sL, str.sTL, str.sBL);
+
+        json jTile = JsonObject();
+        JsonObjectSetStringInplace(jTile, "TL", str.sTL);
+        JsonObjectSetStringInplace(jTile, "T", str.sT);
+        JsonObjectSetStringInplace(jTile, "TR", str.sTR);
+        JsonObjectSetStringInplace(jTile, "R", str.sR);
+        JsonObjectSetStringInplace(jTile, "BR", str.sBR);
+        JsonObjectSetStringInplace(jTile, "B", str.sB);
+        JsonObjectSetStringInplace(jTile, "BL", str.sBL);
+        JsonObjectSetStringInplace(jTile, "L", str.sL);
+        SetLocalJson(oDataObject, "TILEDATA_" + sTileset + IntToString(nTileID), jTile);
+    }
+    else
+    {
+        str.sTL = JsonObjectGetString(jTile, "TL");
+        str.sT = JsonObjectGetString(jTile, "T");
+        str.sTR = JsonObjectGetString(jTile, "TR");
+        str.sR = JsonObjectGetString(jTile, "R");
+        str.sBR = JsonObjectGetString(jTile, "BR");
+        str.sB = JsonObjectGetString(jTile, "B");
+        str.sBL = JsonObjectGetString(jTile, "BL");
+        str.sL = JsonObjectGetString(jTile, "L");
+    }
 
     return str;
 }
 
 struct TS_TileStruct TS_GetCornersAndEdgesByOrientation(string sTileset, int nTileID, int nOrientation)
 {
-    struct TS_TileStruct str = TS_GetTileEdgesAndCorners(sTileset, nTileID);
-
-    if (!nOrientation)
-        return str;
-
-    int nCount;
-    for (nCount = 0; nCount < nOrientation; nCount++)
-    {
-        str = TS_RotateTileStruct(str);
-    }
-
-    return str;
+    return TS_RotateTileStructFromDefault(TS_GetTileEdgesAndCorners(sTileset, nTileID), nOrientation);
 }
 
 struct TS_TileStruct TS_GetCornersAndEdgesByOrientationAndHeight(string sTileset, int nTileID, int nOrientation, int nHeight)
 {
-    struct TS_TileStruct str = TS_GetTileEdgesAndCorners(sTileset, nTileID);
-
-    if (nOrientation)
-    {
-        int nCount;
-        for (nCount = 0; nCount < nOrientation; nCount++)
-        {
-            str = TS_RotateTileStruct(str);
-        }
-    }
-
-    if (nHeight)
-        str = TS_IncreaseTileHeight(sTileset, str, nHeight);
-
+    struct TS_TileStruct str = TS_RotateTileStructFromDefault(TS_GetTileEdgesAndCorners(sTileset, nTileID), nOrientation);
+    if (nHeight) str = TS_IncreaseTileHeight(sTileset, str, nHeight);
     return str;
 }
 

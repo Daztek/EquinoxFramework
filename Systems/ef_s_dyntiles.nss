@@ -73,6 +73,8 @@ void DT_Init()
             ObjectArray_Insert(oDataObject, DT_TILE_OBJECT_ARRAY, oTile);
         }
     }
+
+    SetAreaTileBorderDisabled(oArea, TRUE);
 }
 
 // @NWMWINDOW[DT_WINDOW_ID]
@@ -165,7 +167,6 @@ void DT_SetTile(object oArea, int nTile, struct AG_Tile strTile)
 
 void DT_ReloadTileStuff(object oArea)
 {
-    ReloadAreaBorder(oArea);
     RecomputeStaticLighting(oArea);
     SetLocalInt(GetDataObject(DT_SCRIPT_NAME), DT_GENERATING_AREA, FALSE);
 }

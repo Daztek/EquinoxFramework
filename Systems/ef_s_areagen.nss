@@ -900,32 +900,34 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET, oAreaDataObject);
 
     struct TS_TileStruct strTop = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_TOP, oAreaDataObject);
-    struct TS_TileStruct strRight = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_RIGHT, oAreaDataObject);
-    struct TS_TileStruct strBottom = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_BOTTOM, oAreaDataObject);
     struct TS_TileStruct strLeft = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_LEFT, oAreaDataObject);
     struct TS_TileStruct strTopLeft = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_TOP_LEFT, oAreaDataObject);
-    struct TS_TileStruct strTopRight = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_TOP_RIGHT, oAreaDataObject);
-    struct TS_TileStruct strBottomRight = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_BOTTOM_RIGHT, oAreaDataObject);
-    struct TS_TileStruct strBottomLeft = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_BOTTOM_LEFT, oAreaDataObject);
-
     strQuery.sTL = AG_ResolveCorner(strTop.sBL, strLeft.sTR, strTopLeft.sBR);
     if (strQuery.sTL == AG_INVALID_CORNER)
     {
         if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
-     }
+    }
+
+    struct TS_TileStruct strRight = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_RIGHT, oAreaDataObject);
+    struct TS_TileStruct strTopRight = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_TOP_RIGHT, oAreaDataObject);
     strQuery.sTR = AG_ResolveCorner(strTop.sBR, strRight.sTL, strTopRight.sBL);
     if (strQuery.sTR == AG_INVALID_CORNER)
     {
         if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
     }
+
+    struct TS_TileStruct strBottom = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_BOTTOM, oAreaDataObject);
+    struct TS_TileStruct strBottomRight = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_BOTTOM_RIGHT, oAreaDataObject);
     strQuery.sBR = AG_ResolveCorner(strRight.sBL, strBottom.sTR, strBottomRight.sTL);
     if (strQuery.sBR == AG_INVALID_CORNER)
     {
         if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
         return tile;
     }
+
+    struct TS_TileStruct strBottomLeft = AG_GetNeighborTileStruct(sAreaID, sTileset, nTile, AG_NEIGHBOR_TILE_BOTTOM_LEFT, oAreaDataObject);
     strQuery.sBL = AG_ResolveCorner(strBottom.sTL, strLeft.sBR, strBottomLeft.sTR);
     if (strQuery.sBL == AG_INVALID_CORNER)
     {

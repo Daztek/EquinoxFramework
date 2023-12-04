@@ -18,9 +18,9 @@ const int AG_ENABLE_SEEDED_RANDOM                               = TRUE;
 const int AG_GENERATION_DEFAULT_MAX_ITERATIONS                  = 100;
 const float AG_GENERATION_DELAY                                 = 0.1f;
 const int AG_GENERATION_MAX_TILE_BATCH_TIME                     = 10000;
-const int AG_DEFAULT_EDGE_TERRAIN_CHANGE_CHANCE                 = 25;
 
 const int AG_INVALID_TILE_ID                                    = -1;
+const string AG_INVALID_CORNER                                  = "INVALID_CORNER";
 
 const int AG_AREA_MIN_WIDTH                                     = 1;
 const int AG_AREA_MIN_HEIGHT                                    = 1;
@@ -102,8 +102,6 @@ const int AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD            = 4;
 const int AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD           = 5;
 const int AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD         = 6;
 const int AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD        = 7;
-
-const string AG_INVALID_CORNER                                  = "INVALID_CORNER";
 
 struct AG_Tile
 {
@@ -1016,7 +1014,8 @@ int AG_ProcessTile(string sAreaID, object oAreaDataObject, int nTile)
     int nStart = GetMicrosecondCounter();
     if (AG_Tile_GetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, oAreaDataObject) == AG_INVALID_TILE_ID)
     {
-        int bTrySingleGroupTile = AG_Random(sAreaID, 100, oAreaDataObject) < AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, oAreaDataObject);
+        int nSingleGroupTileChance = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_SINGLE_GROUP_TILE_CHANCE, oAreaDataObject);
+        int bTrySingleGroupTile = !nSingleGroupTileChance ? FALSE : AG_Random(sAreaID, 100, oAreaDataObject) < nSingleGroupTileChance;
         struct AG_Tile strTile = AG_GetRandomMatchingTile(sAreaID, oAreaDataObject, nTile, bTrySingleGroupTile);
         if (strTile.nTileID == AG_INVALID_TILE_ID && bTrySingleGroupTile)
             strTile = AG_GetRandomMatchingTile(sAreaID, oAreaDataObject, nTile, FALSE);
@@ -1737,20 +1736,20 @@ void AG_PlotRoad(string sAreaID)
     int nExitY = nExitTile / nWidth;
     int nDistanceX = nExitX - nEntranceX;
     int nDistanceY = nExitY - nEntranceY;
-    int nAbsDistanceX = abs(nDistanceX);
-    int nAbsDistanceY = abs(nDistanceY);
     int nSignX = nDistanceX > 0 ? 1 : -1;
     int nSignY = nDistanceY > 0 ? 1 : -1;
     json jPathNodes = JsonArray();
     int nNodeX = nEntranceX;
     int nNodeY = nEntranceY;
 
-    jPathNodes = JsonArrayInsert(jPathNodes, JsonPointInt(nNodeX, nNodeY));
+    nDistanceX = abs(nDistanceX);
+    nDistanceY = abs(nDistanceY);
+    JsonArrayInsertInplace(jPathNodes, JsonPointInt(nNodeX, nNodeY));
 
     int nItX = 0, nItY = 0;
-    while (nItX < nAbsDistanceX || nItY < nAbsDistanceY)
+    while (nItX < nDistanceX || nItY < nDistanceY)
     {
-        if ((1 + 2 * nItX) * nAbsDistanceY < (1 + 2 * nItY) * nAbsDistanceX)
+        if ((1 + 2 * nItX) * nDistanceY < (1 + 2 * nItY) * nDistanceX)
         {
             nNodeX += nSignX;
             nItX++;
@@ -1761,7 +1760,7 @@ void AG_PlotRoad(string sAreaID)
             nItY++;
         }
 
-        jPathNodes = JsonArrayInsert(jPathNodes, JsonPointInt(nNodeX, nNodeY));
+        JsonArrayInsertInplace(jPathNodes, JsonPointInt(nNodeX, nNodeY));
     }
 
     nEntranceTile = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX);

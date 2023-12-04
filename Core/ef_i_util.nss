@@ -117,7 +117,7 @@ json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, s
 
     while ((sResRef = ResManFindPrefix(sPrefix, nResType, ++nNth, bSearchBaseData, sOnlyKeyTable)) != "")
     {
-        jArray = JsonArrayInsertString(jArray, sResRef);
+        JsonArrayInsertStringInplace(jArray, sResRef);
     }
 
     return jArray;

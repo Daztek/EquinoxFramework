@@ -49,8 +49,7 @@ void DT_Init()
     for (nTile = 0; nTile < nNumTiles; nTile++)
     {
         struct NWNX_Area_TileInfo str = NWNX_Area_GetTileInfoByTileIndex(oArea, nTile);
-
-        jStartingTiles = JsonArrayInsert(jStartingTiles, AG_GetSetTileTileObject(nTile, str.nID, str.nOrientation, str.nHeight));
+        JsonArrayInsertInplace(jStartingTiles, AG_GetSetTileTileObject(nTile, str.nID, str.nOrientation, str.nHeight));
     }
     SetLocalJson(oDataObject, DT_TILE_STARTING_ARRAY, jStartingTiles);
 

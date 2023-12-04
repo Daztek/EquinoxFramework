@@ -253,10 +253,10 @@ void PC_UpdateItemList()
         int nStackSize = SqlGetInt(sql, 3);
         string sIconResRef = SqlGetString(sql, 4);
 
-        jUUIDArray = JsonArrayInsertString(jUUIDArray, sUUID);
-        jNamesArray = JsonArrayInsertString(jNamesArray, sName + (nStackSize > 1 ? " (x" + IntToString(nStackSize) + ")" : ""));
-        jTooltipArray = JsonArrayInsertString(jTooltipArray, Get2DAStrRefString("baseitems", "Name", nBaseItem));
-        jIconArray = JsonArrayInsertString(jIconArray, sIconResRef);
+        JsonArrayInsertStringInplace(jUUIDArray, sUUID);
+        JsonArrayInsertStringInplace(jNamesArray, sName + (nStackSize > 1 ? " (x" + IntToString(nStackSize) + ")" : ""));
+        JsonArrayInsertStringInplace(jTooltipArray, Get2DAStrRefString("baseitems", "Name", nBaseItem));
+        JsonArrayInsertStringInplace(jIconArray, sIconResRef);
     }
 
     NWM_SetUserData("uuid_array", jUUIDArray);

@@ -161,13 +161,16 @@ void JsonArrayInsertBoolInplace(json jArray, int bValue, int nIndex = -1);
 // jArray will have bValue set at position nIndex.
 // Will do nothing if jArray is not an array or nIndex is out of range.
 void JsonArraySetBoolInplace(json jArray, int nIndex, int bValue);
+// Modifies jObject in-place (with no memory copies of the full object).
+// jObject will have the key at sKey set to vValue.
+void JsonObjectSetVectorInplace(json jObject, string sKey, vector vValue);
 
 json VectorToJson(vector vVector)
 {
     json jVector = JsonObject();
-         jVector = JsonObjectSetFloat(jVector, "x", vVector.x);
-         jVector = JsonObjectSetFloat(jVector, "y", vVector.y);
-         jVector = JsonObjectSetFloat(jVector, "z", vVector.z);
+    JsonObjectSetFloatInplace(jVector, "x", vVector.x);
+    JsonObjectSetFloatInplace(jVector, "y", vVector.y);
+    JsonObjectSetFloatInplace(jVector, "z", vVector.z);
     return jVector;
 }
 
@@ -184,10 +187,10 @@ json LocationToJson(location locLocation)
     float fOrientation = GetFacingFromLocation(locLocation);
 
     json jLocation = JsonObject();
-         jLocation = JsonObjectSetString(jLocation, "area_tag", sAreaTag);
-         jLocation = JsonObjectSetString(jLocation, "area_resref", sAreaResRef);
-         jLocation = JsonObjectSetVector(jLocation, "position", vPosition);
-         jLocation = JsonObjectSetFloat(jLocation, "orientation", fOrientation);
+    JsonObjectSetStringInplace(jLocation, "area_tag", sAreaTag);
+    JsonObjectSetStringInplace(jLocation, "area_resref", sAreaResRef);
+    JsonObjectSetVectorInplace(jLocation, "position", vPosition);
+    JsonObjectSetFloatInplace(jLocation, "orientation", fOrientation);
 
     return jLocation;
 }
@@ -362,8 +365,8 @@ int JsonArrayContainsInt(json jArray, int nValue)
 json JsonPointInt(int nX, int nY)
 {
     json jPoint = JsonObject();
-         jPoint = JsonObjectSetInt(jPoint, "x", nX);
-         jPoint = JsonObjectSetInt(jPoint, "y", nY);
+    JsonObjectSetIntInplace(jPoint, "x", nX);
+    JsonObjectSetIntInplace(jPoint, "y", nY);
     return jPoint;
 }
 
@@ -413,7 +416,7 @@ json GetJsonArrayOfSize(int nSize, json jDefaultValue)
     int nCount;
     for (nCount = 0; nCount < nSize; nCount++)
     {
-        jArray = JsonArrayInsert(jArray, jDefaultValue);
+        JsonArrayInsertInplace(jArray, jDefaultValue);
     }
     return jArray;
 }
@@ -425,13 +428,13 @@ json GetJsonArrayFromTokenizedString(string sTokens, string sDelimiter = ":")
 
 	while ((nEnd = FindSubString(sTokens, sDelimiter, nStart)) != -1)
 	{
-		jArray = JsonArrayInsertString(jArray, GetSubString(sTokens, nStart, nEnd - nStart));
+		JsonArrayInsertStringInplace(jArray, GetSubString(sTokens, nStart, nEnd - nStart));
 		nStart = nEnd + 1;
 	}
 
 	nEnd = GetStringLength(sTokens);
 	if (nEnd >= nStart)
-		jArray = JsonArrayInsertString(jArray, GetSubString(sTokens, nStart, nEnd - nStart));
+		JsonArrayInsertStringInplace(jArray, GetSubString(sTokens, nStart, nEnd - nStart));
 
 	return jArray;
 }
@@ -469,4 +472,9 @@ void JsonArrayInsertBoolInplace(json jArray, int bValue, int nIndex = -1)
 void JsonArraySetBoolInplace(json jArray, int nIndex, int bValue)
 {
     JsonArraySetInplace(jArray, nIndex, JsonBool(bValue));
+}
+
+void JsonObjectSetVectorInplace(json jObject, string sKey, vector vValue)
+{
+    JsonObjectSetInplace(jObject, sKey, VectorToJson(vValue));
 }

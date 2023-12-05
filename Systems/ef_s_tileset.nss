@@ -323,22 +323,24 @@ struct TS_TileStruct TS_GetTileEdgesAndCorners(string sTileset, int nTileID)
 
         if (sTileset == TILESET_RESREF_MEDIEVAL_RURAL_2)
         {
-            if (nTileID == 433)
+            switch (nTileID)
             {
-                strTile.sTopLeft = "grass2";
-                strTile.sTop = "ridge";
-                strTile.sTopRight = "grass+";
-                strTile.sRight = "ridge";
-                strTile.sBottomRight = "grass2";
-                strTile.sBottom = "ridge";
-                strTile.sBottomLeft = "grass+";
-                strTile.sLeft = "ridge";
-            }
+                case 204:
+                    strTile.sLeft = "";
+                    strTile.sRight = "";
+                break;
 
-            if (nTileID == 204)
-            {
-                strTile.sLeft = "";
-                strTile.sRight = "";
+                case 433:
+                case 435:
+                    strTile.sTopLeft = "grass2";
+                    strTile.sTop = "ridge";
+                    strTile.sTopRight = "grass+";
+                    strTile.sRight = "ridge";
+                    strTile.sBottomRight = "grass2";
+                    strTile.sBottom = "ridge";
+                    strTile.sBottomLeft = "grass+";
+                    strTile.sLeft = "ridge";
+                break;
             }
         }
 

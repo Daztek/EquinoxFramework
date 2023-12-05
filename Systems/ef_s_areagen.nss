@@ -300,7 +300,6 @@ struct AG_Tile AG_GetTile(string sAreaID, int nTile, string sTileArray = AG_DATA
 {
     if (oAreaDataObject == OBJECT_INVALID) oAreaDataObject = AG_GetAreaDataObject(sAreaID);
     struct AG_Tile str;
-    string sTile = IntToString(nTile);
     str.nTileID = AG_Tile_GetID(sAreaID, sTileArray, nTile, oAreaDataObject);
     str.nOrientation = AG_Tile_GetOrientation(sAreaID, sTileArray, nTile, oAreaDataObject);
     str.nHeight = AG_Tile_GetHeight(sAreaID, sTileArray, nTile, oAreaDataObject);

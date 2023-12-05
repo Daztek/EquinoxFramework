@@ -372,12 +372,24 @@ json JsonPointInt(int nX, int nY)
 
 void InsertStringToLocalJsonArray(object oObject, string sVarName, string sValue, int nIndex = -1)
 {
-    SetLocalJson(oObject, sVarName, JsonArrayInsertString(GetLocalJsonArray(oObject, sVarName), sValue, nIndex));
+    json jArray = GetLocalJson(oObject, sVarName);
+    if (JsonGetType(jArray) != JSON_TYPE_ARRAY)
+    {
+        jArray = JsonArray();
+        SetLocalJson(oObject, sVarName, jArray);
+    }
+    JsonArrayInsertStringInplace(jArray, sValue, nIndex);
 }
 
 void InsertIntToLocalJsonArray(object oObject, string sVarName, int nValue, int nIndex = -1)
 {
-    SetLocalJson(oObject, sVarName, JsonArrayInsertInt(GetLocalJsonArray(oObject, sVarName), nValue, nIndex));
+    json jArray = GetLocalJson(oObject, sVarName);
+    if (JsonGetType(jArray) != JSON_TYPE_ARRAY)
+    {
+        jArray = JsonArray();
+        SetLocalJson(oObject, sVarName, jArray);
+    }
+    JsonArrayInsertIntInplace(jArray, nValue, nIndex);
 }
 
 string GetStringFromLocalJsonArray(object oObject, string sVarName, int nIndex)

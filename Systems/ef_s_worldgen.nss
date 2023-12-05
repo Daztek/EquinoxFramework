@@ -20,8 +20,8 @@ const int WG_ENABLE_AREA_CACHING                                = FALSE;
 const int WG_ENABLE_VFX_EDGE                                    = TRUE;
 
 const int WG_AREA_LENGTH                                        = 7;
-const int WG_WORLD_WIDTH                                        = 15;
-const int WG_WORLD_HEIGHT                                       = 15;
+const int WG_WORLD_WIDTH                                        = 5;
+const int WG_WORLD_HEIGHT                                       = 5;
 const int WG_VFX_TILE_BORDER_SIZE                               = WG_AREA_LENGTH;
 
 const int WG_AREA_SINGLE_GROUP_TILE_CHANCE                      = 1;
@@ -46,7 +46,7 @@ const string WG_GENERATED_AREAS_ARRAY                           = "GeneratedArea
 const string WG_WORLD_SEED_NAME                                 = "WG_WORLD_SEED";
 
 const string WG_AREA_TILESET                                    = TILESET_RESREF_MEDIEVAL_RURAL_2;
-const int WG_MAX_ITERATIONS                                     = 50;
+const int WG_MAX_ITERATIONS                                     = 75;
 const string WG_AREA_DEFAULT_EDGE_TERRAIN                       = "";
 
 const int WG_NEIGHBOR_AREA_TOP                                  = 0;

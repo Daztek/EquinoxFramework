@@ -783,9 +783,9 @@ NuiImage(
 )
 {
   json img = NuiElement("image", JsonNull(), jResRef);
-  img = JsonObjectSet(img, "image_aspect", jAspect);
-  img = JsonObjectSet(img, "image_halign", jHAlign);
-  img = JsonObjectSet(img, "image_valign", jVAlign);
+  JsonObjectSetInplace(img, "image_aspect", jAspect);
+  JsonObjectSetInplace(img, "image_halign", jHAlign);
+  JsonObjectSetInplace(img, "image_valign", jVAlign);
   return img;
 }
 

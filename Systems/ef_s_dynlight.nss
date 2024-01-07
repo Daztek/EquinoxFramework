@@ -48,10 +48,6 @@ void DynLight_InitArea(object oArea)
 
 void DynLight_UpdateAreaLight(object oArea, float fFadeTime = 0.0f)
 {
-    // The lighting goes weird around noon and I don't feel like figuring out why, so we just don't update for a little while 8)
-    if (fFadeTime != 0.0f && GetTimeHour() == 12 && GetTimeMinute() <= 1)
-        return;
-
     if (fFadeTime > 0.0f)
         fFadeTime += NW_DYNAMIC_LIGHT_FADE_TIME_OVERLAP;
 

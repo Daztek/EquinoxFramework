@@ -5,6 +5,7 @@
     Description: Equinox Framework SQLite Utility Include
 */
 
+#include "ef_i_util"
 #include "nwnx_nwsqliteext"
 
 const int SQL_ENABLE_MERSENNE_TWISTER               = TRUE;
@@ -45,6 +46,13 @@ void SqlMersenneTwisterSetSeed(string sName, int nSeed);
 int SqlMersenneTwisterGetValue(string sName, int nMaxInteger);
 // Discard nAmount of values from a mersenne twister random number generator
 void SqlMersenneTwisterDiscard(string sName, int nAmount);
+// Bind an object reference to a named parameter of the given prepared query.
+void SqlBindObjectRef(sqlquery sqlQuery, string sParam, object oObject);
+// Retrieve a column cast as a object reference of the currently stepped row.
+// You can call this after SqlStep() returned TRUE.
+// In case of error, OBJECT_INVALID will be returned.
+// In traditional fashion, nIndex starts at 0
+object SqlGetObjectRef(sqlquery sqlQuery, int nIndex);
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -173,4 +181,14 @@ void SqlMersenneTwisterDiscard(string sName, int nAmount)
         SqlBindInt(sql, "@amount", nAmount);
         SqlStep(sql);
     }
+}
+
+void SqlBindObjectRef(sqlquery sqlQuery, string sParam, object oObject)
+{
+    SqlBindInt(sqlQuery, sParam, HexStringToInt(ObjectToString(oObject)));
+}
+
+object SqlGetObjectRef(sqlquery sqlQuery, int nIndex)
+{
+    return StringToObject(IntToHexString(SqlGetInt(sqlQuery, nIndex)));
 }

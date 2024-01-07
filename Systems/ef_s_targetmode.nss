@@ -6,10 +6,11 @@
 */
 
 #include "ef_i_core"
+#include "ef_s_session"
 
 const string TARGETMODE_SCRIPT_NAME             = "ef_s_targetmode";
 const string TARGETMODE_FUNCTIONS_ARRAY_PREFIX  = "FunctionsArray_";
-const string TARGETMODE_CURRENT_TARGET_MODE     = "CurrentTargetMode_";
+const string TARGETMODE_CURRENT_TARGET_MODE     = "CurrentTargetMode";
 
 void TargetMode_SetTargetMode(object oPlayer, string sTargetingMode);
 string TargetMode_GetTargetMode(object oPlayer);
@@ -61,12 +62,12 @@ void TargetMode_RegisterFunction(struct AnnotationData str)
 
 void TargetMode_SetTargetMode(object oPlayer, string sTargetingMode)
 {
-    SetLocalString(GetDataObject(TARGETMODE_SCRIPT_NAME), TARGETMODE_CURRENT_TARGET_MODE + GetObjectUUID(oPlayer), sTargetingMode);
+    Session_SetString(oPlayer, TARGETMODE_SCRIPT_NAME, TARGETMODE_CURRENT_TARGET_MODE, sTargetingMode);
 }
 
 string TargetMode_GetTargetMode(object oPlayer)
 {
-    return GetLocalString(GetDataObject(TARGETMODE_SCRIPT_NAME), TARGETMODE_CURRENT_TARGET_MODE + GetObjectUUID(oPlayer));
+    return Session_GetString(oPlayer, TARGETMODE_SCRIPT_NAME, TARGETMODE_CURRENT_TARGET_MODE);
 }
 
 void TargetMode_Enter(object oPlayer, string sTargetingMode, int nValidObjectTypes = OBJECT_TYPE_ALL, int nMouseCursorId = MOUSECURSOR_MAGIC, int nBadTargetCursor = MOUSECURSOR_NOMAGIC)

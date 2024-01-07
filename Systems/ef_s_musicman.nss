@@ -117,7 +117,7 @@ void MusMan_RegisterMusicEvent(struct AnnotationData str)
     SqlBindString(sql, "@system", str.sSystem);
     SqlBindInt(sql, "@priority", nPriority);
     SqlBindFloat(sql, "@fadetime", fFadeTime);
-    SqlBindString(sql, "@track_function", nssFunction(str.sFunction, "", FALSE));
+    SqlBindString(sql, "@track_function", nssFunction(str.sFunction));
     SqlStep(sql);
 
     LogInfo("System '" + str.sSystem + "' registered music event '" + sEvent + "' with priority '" +

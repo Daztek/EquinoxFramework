@@ -24,7 +24,9 @@ const string NW_DYNAMIC_LIGHT_ORIGINAL_AREA_ENTER_SCRIPT = "NW_DYNAMIC_LIGHT_ORI
 const string NW_DYNAMIC_LIGHT_RUNNING = "NW_DYNAMIC_LIGHT_RUNNING";
 
 // Minimum azimuth. Necessary to prevent shadow issues.
-const float NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET = 22.5;
+const float NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET = 30.0;
+// Minimum horizontal offset. Necessary to prevent shadow issues.
+const float NW_DYNAMIC_LIGHT_HORIZONTAL_OFFSET = 5.0;
 
 
 float dot(vector a, vector b)
@@ -80,14 +82,19 @@ string VectorToString(vector vVector, int nDecimals=2)
 vector SphericalInterpolate(vector v0, vector v1, float alpha)
 {
     // Cosine of the angle.
-    float fCosAngle = dot(v0, v1);
+    float fCosDeltaAngle = dot(v0, v1);
+
+    // Check for parallel vectors.
+    if(fabs(fCosDeltaAngle) > 0.999) return v0;
+
+    // Make orthonormal basis.
+    vector vOrthonormal = VectorNormalize(v1 - v0 * fCosDeltaAngle);
+
     // Desired angle.
-    float fAngle = acos(fCosAngle) * alpha;
-    vector vRelativeVec = v1 - v0 * fCosAngle;
-    vector vInterpolated = v0 * cos(fAngle) + vRelativeVec * sin(fAngle);
-    vInterpolated = VectorNormalize(vInterpolated);
-    return vInterpolated;
+    float fInterpolatedAngle = acos(fCosDeltaAngle) * alpha;
+    return v0 * cos(fInterpolatedAngle) + vOrthonormal * sin(fInterpolatedAngle);
 }
+
 
 vector IntRGBToVector(int nRGB)
 {
@@ -118,10 +125,11 @@ vector GetSunlightDirectionFromTime(float fLatitude, float fTimeOffset)
     float fSunVerticalPeakAngle = fLatitude + cos(fRelativeTimeOfYear * 360.0) * NW_DYNAMIC_LIGHT_GLOBE_ROTATION_AXIAL_TILT;
 
     // Since we have static day/night times, dawn and dusk is always east and west respectively.
-    vector vSunrise = Vector(cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET) * cos(fSunVerticalPeakAngle), sin(fSunVerticalPeakAngle) * cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET), sin(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET));
-    vector vSunset = Vector(-cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET) * cos(fSunVerticalPeakAngle), sin(fSunVerticalPeakAngle) * cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET), sin(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET));
-
-    fSunVerticalPeakAngle *= (90.0 - NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET) / 90.0;
+    // Apply a small offset to reduce shadow flickering caused by shadows being projected in parallel with geometry.
+    vector vSunrise = Vector(cos(NW_DYNAMIC_LIGHT_HORIZONTAL_OFFSET) * cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET),
+                            ( fSunVerticalPeakAngle > 0.0 ? -sin(NW_DYNAMIC_LIGHT_HORIZONTAL_OFFSET) : sin(NW_DYNAMIC_LIGHT_HORIZONTAL_OFFSET)) * cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET), sin(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET));
+    vector vSunset = vSunrise;
+    vSunset.x = -vSunset.x;
 
     vector vNoon = Vector(0.0, -sin(fSunVerticalPeakAngle), cos(fSunVerticalPeakAngle));
 
@@ -154,12 +162,14 @@ vector GetMoonlightDirectionFromTime(float fLatitude, float fTimeOffset)
     float fMoonVerticalPeakAngle = fLatitude + cos(fRelativeTimeOfYear * 360.0) * NW_DYNAMIC_LIGHT_GLOBE_ROTATION_AXIAL_TILT + cos(fRelativeTimeOfMonth * 360.0) * NW_DYNAMIC_LIGHT_MOON_ROTATION_AXIAL_TILT;
 
     // Since we have static day/night times, dawn and dusk is always east and west respectively.
-    vector vMoonrise = Vector(cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET) * cos(fMoonVerticalPeakAngle), sin(fMoonVerticalPeakAngle) * cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET), sin(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET));
-    vector vMoonset = Vector(-cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET) * cos(fMoonVerticalPeakAngle), sin(fMoonVerticalPeakAngle) * cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET), sin(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET));
+    // Apply a small offset to reduce shadow flickering caused by shadows being projected in parallel with geometry.
+    vector vMoonrise = Vector(cos(NW_DYNAMIC_LIGHT_HORIZONTAL_OFFSET) * cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET),
+                            ( fMoonVerticalPeakAngle > 0.0 ? -sin(NW_DYNAMIC_LIGHT_HORIZONTAL_OFFSET) : sin(NW_DYNAMIC_LIGHT_HORIZONTAL_OFFSET)) * cos(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET), sin(NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET));
 
-    fMoonVerticalPeakAngle *= (90.0 - NW_DYNAMIC_LIGHT_AZIMUTH_OFFSET) / 90.0;
+    vector vMoonset = vMoonrise;
+    vMoonset.x = -vMoonset.x;
+
     vector vPeak = Vector(0.0, -sin(fMoonVerticalPeakAngle), cos(fMoonVerticalPeakAngle));
-
 
     PrintDebugMessage("Moon vertical peak angle: "+FloatToString(fMoonVerticalPeakAngle));
     PrintDebugMessage("Moonrise direction: "+VectorToString(vMoonrise));
@@ -325,5 +335,3 @@ void ResetAllAreas()
         oArea = GetNextArea();
     }
 }
-
-

@@ -7,6 +7,7 @@
 */
 
 #include "ef_i_core"
+#include "ef_s_nuibuilder"
 #include "ef_s_playerdb"
 
 const string NWM_SCRIPT_NAME                    = "ef_s_nuiwinman";
@@ -79,7 +80,7 @@ void NWM_RegisterWindow(struct AnnotationData str)
 
     string sWindowId = JsonArrayGetString(str.jArguments, 0);
            sWindowId = GetConstantStringValue(sWindowId, str.sSystem, sWindowId);
-    json jWindow = ExecuteScriptChunkAndReturnJson(str.sSystem, nssFunction(str.sFunction), GetModule());
+    json jWindow = ExecuteScriptChunkAndReturnJson(str.sSystem, nssFunction(str.sFunction), GetDataObject(NB_SCRIPT_NAME));
 
     if (!JsonGetType(jWindow))
         LogError("System '" + str.sSystem + "' tried to register window with no data!");

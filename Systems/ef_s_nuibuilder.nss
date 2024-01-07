@@ -109,12 +109,12 @@ void NB_LogWarning(string sWarning)
 
 int NB_GetDepth()
 {
-    return GetLocalInt(GetDataObject(NB_SCRIPT_NAME), NB_DEPTH);
+    return GetLocalInt(OBJECT_SELF, NB_DEPTH);
 }
 
 void NB_SetDepth(int nDepth)
 {
-    SetLocalInt(GetDataObject(NB_SCRIPT_NAME), NB_DEPTH, nDepth);
+    SetLocalInt(OBJECT_SELF, NB_DEPTH, nDepth);
 }
 
 void NB_IncreaseDepth()
@@ -129,22 +129,22 @@ void NB_DecreaseDepth()
 
 int NB_GetType()
 {
-    return GetLocalInt(GetDataObject(NB_SCRIPT_NAME), NB_TYPE + IntToString(NB_GetDepth()));
+    return GetLocalInt(OBJECT_SELF, NB_TYPE + IntToString(NB_GetDepth()));
 }
 
 void NB_SetType(int nType)
 {
-    SetLocalInt(GetDataObject(NB_SCRIPT_NAME), NB_TYPE + IntToString(NB_GetDepth()), nType);
+    SetLocalInt(OBJECT_SELF, NB_TYPE + IntToString(NB_GetDepth()), nType);
 }
 
 json NB_GetData()
 {
-    return GetLocalJson(GetDataObject(NB_SCRIPT_NAME), NB_DATA + IntToString(NB_GetDepth()));
+    return GetLocalJson(OBJECT_SELF, NB_DATA + IntToString(NB_GetDepth()));
 }
 
 void NB_SetData(json jData)
 {
-    SetLocalJson(GetDataObject(NB_SCRIPT_NAME), NB_DATA + IntToString(NB_GetDepth()), jData);
+    SetLocalJson(OBJECT_SELF, NB_DATA + IntToString(NB_GetDepth()), jData);
 }
 
 int NB_IsLayoutType(int nType)
@@ -458,18 +458,18 @@ void NB_SetDimensions(float fWidth, float fHeight)
 
 json NB_GetWindow()
 {
-    return GetLocalJson(GetDataObject(NB_SCRIPT_NAME), NB_WINDOW);
+    return GetLocalJson(OBJECT_SELF, NB_WINDOW);
 }
 
 void NB_SetWindow(json jWindow)
 {
-    SetLocalJson(GetDataObject(NB_SCRIPT_NAME), NB_WINDOW, jWindow);
+    SetLocalJson(OBJECT_SELF, NB_WINDOW, jWindow);
 }
 
 void NB_InitializeWindow(json jDefaultGeometry)
 {
     NB_LogDebug("* INITIALIZE WINDOW");
-    DestroyDataObject(NB_SCRIPT_NAME);
+    NB_SetDepth(0);
     NB_SetWindow(NuiWindow(JsonNull(), JsonString(""), NuiBind(NUI_WINDOW_GEOMETRY_BIND), JsonBool(FALSE), JsonNull(), JsonBool(TRUE), JsonBool(FALSE), JsonBool(TRUE), JsonBool(TRUE)));
     NB_SetWindow(JsonObjectSet(NB_GetWindow(), NUI_DEFAULT_GEOMETRY_NAME, jDefaultGeometry));
 }

@@ -27,6 +27,9 @@ const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
 const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = FALSE;
 const int EFCORE_PARSE_SYSTEM_FUNCTIONS                 = TRUE;
 const int EFCORE_PRECACHE_SYSTEM_FUNCTIONS              = FALSE;
+const int EFCORE_ENABLE_SCOPE_GUARDS                    = FALSE;
+
+const string EFCORE_PARSED_SYSTEM_ALIAS                 = "PARSED";
 
 const int EF_SYSTEM_INIT                                = 1;
 const int EF_SYSTEM_LOAD                                = 2;
@@ -48,6 +51,8 @@ const string EFCORE_FUNCTION_PARAMETERS                 = "EFCoreFunctionParamet
 const string EFCORE_FUNCTION_RETURN_TYPE                = "EFCoreFunctionReturnType_";
 const string EFCORE_LAMBDA_ID                           = "EFCoreLambdaId_";
 const string EFCORE_LAMBDA_FUNCTION                     = "Lambda::";
+
+const string EFCORE_SCOPE_GUARD_REGEX                   = "SCOPE_GUARD\\(\\\"(.+)\\\"\\);";
 
 struct AnnotationData
 {
@@ -77,6 +82,7 @@ int EFCore_GetAnnotationInt(struct AnnotationData str, int nIndex);
 float EFCore_GetAnnotationFloat(struct AnnotationData str, int nIndex);
 string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE);
 void EFCore_ResetScriptInstructions();
+string EFCore_ParseSystemForScopeGuards(string sScriptData);
 
 void EFCore_Initialize()
 {
@@ -133,6 +139,8 @@ void EFCore_InitializeSystemData()
              "parameters TEXT NOT NULL, " +
              "scriptchunk TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
+
+    NWNX_Util_CleanResourceDirectory(EFCORE_PARSED_SYSTEM_ALIAS, RESTYPE_NSS);
 
     json jSystems = JsonArrayTransform(GetResRefArray(EFCORE_SYSTEM_SCRIPT_PREFIX, RESTYPE_NSS), JSON_ARRAY_SORT_ASCENDING);
     int nSystem, nNumSystems = JsonGetLength(jSystems);
@@ -204,6 +212,9 @@ void EFCore_ParseSystem(string sSystem)
         LogInfo("Skipping System: " + sSystem);
         return;
     }
+
+    sScriptData = EFCore_ParseSystemForScopeGuards(sScriptData);
+    NWNX_Util_AddNSSFile(sSystem, sScriptData, EFCORE_PARSED_SYSTEM_ALIAS);
 
     SqlBeginTransactionModule();
 
@@ -771,4 +782,51 @@ location RetLocation(int nCallStackDepth)
 void RetVoid(int nCallStackDepth)
 {
 
+}
+
+// *** Terrible "Scope Guard" Implementation
+
+void SCOPE_GUARD(string s)
+{
+    LogError("Scope Guards are not enabled but you're using them, this is bad :(");
+}
+
+int GetEndOfScopePosition(string sScriptData, int nStartPosition, int nCount = 0)
+{
+    int nOpeningBrace = FindSubString(sScriptData, "{", nStartPosition);
+    int nClosingBrace = FindSubString(sScriptData, "}", nStartPosition);
+    if (nCount || (nOpeningBrace != -1 && nClosingBrace > nOpeningBrace))
+    {
+        int nNextOpeningBrace = FindSubString(sScriptData, "{", nOpeningBrace + 1);
+        if ((nNextOpeningBrace != -1 && nNextOpeningBrace < nClosingBrace) || nOpeningBrace < nClosingBrace)
+        {
+            nCount++;
+            nStartPosition = nOpeningBrace + 1;
+        }
+        else
+        {
+            nCount--;
+            nStartPosition = nClosingBrace + 1;
+        }
+        return GetEndOfScopePosition(sScriptData, nStartPosition, nCount);
+    }
+    return nClosingBrace;
+}
+
+string EFCore_ParseSystemForScopeGuards(string sScriptData)
+{
+    if (EFCORE_ENABLE_SCOPE_GUARDS)
+    {
+        json jScopeGuard = RegExpMatch(EFCORE_SCOPE_GUARD_REGEX, sScriptData);
+        while (JsonGetLength(jScopeGuard))
+        {
+            int nEndOfScopePosition = GetEndOfScopePosition(sScriptData, FindSubString(sScriptData, JsonArrayGetString(jScopeGuard, 0)));
+            sScriptData = GetSubString(sScriptData, 0, nEndOfScopePosition) +
+                        " " + JsonArrayGetString(jScopeGuard, 1) + ";}" +
+                        GetSubString(sScriptData, nEndOfScopePosition + 1, GetStringLength(sScriptData) - nEndOfScopePosition - 1);
+            sScriptData = RegExpReplace(EFCORE_SCOPE_GUARD_REGEX, sScriptData, "", REGEXP_ECMASCRIPT, REGEXP_FORMAT_FIRST_ONLY);
+            jScopeGuard = RegExpMatch(EFCORE_SCOPE_GUARD_REGEX, sScriptData);
+        }
+    }
+    return sScriptData;
 }

@@ -456,9 +456,7 @@ void QC_MainWindowClose()
 void TE_ToggleFiltersWindow()
 {
     object oPlayer = OBJECT_SELF;
-    if (NWM_GetIsWindowOpen(oPlayer, TE_WINDOW_ID_FILTERS))
-        NWM_CloseWindow(oPlayer, TE_WINDOW_ID_FILTERS);
-    else if (NWM_OpenWindow(oPlayer, TE_WINDOW_ID_FILTERS))
+    if (NWM_ToggleWindow(oPlayer, TE_WINDOW_ID_FILTERS))
     {
         NWM_CopyUserData(TE_WINDOW_ID_MAIN, TE_WINDOW_USERDATA_FILTER_NAME);
         NWM_CopyUserData(TE_WINDOW_ID_MAIN, TE_WINDOW_USERDATA_FILTER_TOGGLE);
@@ -482,9 +480,7 @@ void TE_ToggleFiltersWindow()
 void TE_ToggleATSWindow()
 {
     object oPlayer = OBJECT_SELF;
-    if (NWM_GetIsWindowOpen(oPlayer, TE_WINDOW_ID_AREATILES))
-        NWM_CloseWindow(oPlayer, TE_WINDOW_ID_AREATILES);
-    else if (NWM_OpenWindow(oPlayer, TE_WINDOW_ID_AREATILES))
+    if (NWM_ToggleWindow(oPlayer, TE_WINDOW_ID_AREATILES))
     {
         Profiler_Start("TE_ToggleATSWindow");
         object oArea = GetArea(oPlayer);

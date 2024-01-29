@@ -50,10 +50,7 @@ json PM_CreateWindow()
 void PM_OnTogglePauseEvent()
 {
     object oPlayer = OBJECT_SELF;
-
-    if (NWM_GetIsWindowOpen(oPlayer, PM_WINDOW_ID))
-        NWM_CloseWindow(oPlayer,PM_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, PM_WINDOW_ID))
+    if (NWM_ToggleWindow(oPlayer, PM_WINDOW_ID))
     {
         object oDataObject = GetDataObject(PM_SCRIPT_NAME);
         NWM_SetBind("buttons", GetLocalJsonArray(oDataObject, PM_BUTTON_ARRAY));

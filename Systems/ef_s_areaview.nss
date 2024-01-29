@@ -127,12 +127,7 @@ void AV_ClickGenerateButton()
 void AV_ToggleWindow()
 {
     object oPlayer = OBJECT_SELF;
-    if (NWM_GetIsWindowOpen(oPlayer, AV_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, AV_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, AV_WINDOW_ID))
-    {
-
-    }
+    NWM_ToggleWindow(oPlayer, AV_WINDOW_ID);
 }
 
 void AV_InitSolver(cassowary cSolver)

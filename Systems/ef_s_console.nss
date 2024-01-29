@@ -428,9 +428,7 @@ void Console_OnPlayerTarget()
 void Console_ToggleWindow()
 {
     object oPlayer = OBJECT_SELF;
-    if (NWM_GetIsWindowOpen(oPlayer, CONSOLE_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, CONSOLE_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, CONSOLE_WINDOW_ID))
+    if (NWM_ToggleWindow(oPlayer, CONSOLE_WINDOW_ID))
     {
         Console_UpdateSystemCombo();
         Console_SetTarget(oPlayer);

@@ -208,9 +208,7 @@ void PC_CloseWindow()
 void PC_OpenPersistentChest()
 {
     object oPlayer = OBJECT_SELF;
-    if (NWM_GetIsWindowOpen(oPlayer, PC_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, PC_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, PC_WINDOW_ID))
+    if (NWM_ToggleWindow(oPlayer, PC_WINDOW_ID))
     {
         NWM_SetBindWatch(PC_BIND_SEARCH_TEXT, TRUE);
         NWM_SetBindString(PC_BIND_WINDOW_TITLE, GetName(oPlayer) + "'s Persistent Chest");

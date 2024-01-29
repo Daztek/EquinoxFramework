@@ -127,12 +127,7 @@ void DT_ClickGenerateButton()
 void DT_ToggleWindow()
 {
     object oPlayer = OBJECT_SELF;
-    if (NWM_GetIsWindowOpen(oPlayer, DT_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, DT_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, DT_WINDOW_ID))
-    {
-
-    }
+    NWM_ToggleWindow(oPlayer, DT_WINDOW_ID);
 }
 
 void DT_StartLerp(object oTile, int nHeight)

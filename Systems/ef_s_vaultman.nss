@@ -286,15 +286,10 @@ void VMan_ClickLogButton()
 
     if (nCharacterId != 0)
     {
-        if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_LOG_WINDOW_NAME))
-            NWM_CloseWindow(oPlayer, VMAN_NUI_LOG_WINDOW_NAME);
-        else
+        if (NWM_ToggleWindow(oPlayer, VMAN_NUI_LOG_WINDOW_NAME))
         {
             string sName = JsonGetString(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_NAME));
-            if (NWM_OpenWindow(oPlayer, VMAN_NUI_LOG_WINDOW_NAME))
-            {
-                VMan_UpdateEventLog(nCharacterId, sName);
-            }
+            VMan_UpdateEventLog(nCharacterId, sName);
         }
     }
 }
@@ -307,15 +302,10 @@ void VMan_ClickItemButton()
 
     if (nCharacterId != 0)
     {
-        if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME))
-            NWM_CloseWindow(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME);
-        else
+        if (NWM_ToggleWindow(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME))
         {
             string sName = NWM_GetUserDataString(VMAN_NUI_USERDATA_SELECTED_NAME);
-            if (NWM_OpenWindow(oPlayer, VMAN_NUI_ITEM_WINDOW_NAME))
-            {
-                VMan_UpdateItems(nCharacterId, sName);
-            }
+            VMan_UpdateItems(nCharacterId, sName);
         }
     }
 }
@@ -380,10 +370,7 @@ json VMan_CreateItemWindow()
 void VMan_ShowMainWindow()
 {
     object oPlayer = OBJECT_SELF;
-
-    if (NWM_GetIsWindowOpen(oPlayer, VMAN_NUI_MAIN_WINDOW_NAME))
-        NWM_CloseWindow(oPlayer, VMAN_NUI_MAIN_WINDOW_NAME);
-    else if (NWM_OpenWindow(oPlayer, VMAN_NUI_MAIN_WINDOW_NAME))
+    if (NWM_ToggleWindow(oPlayer, VMAN_NUI_MAIN_WINDOW_NAME))
     {
         Profiler_Start();
         VMan_LoadCharacterList();

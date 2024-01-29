@@ -97,8 +97,6 @@ void Emote_ClickEmoteButton()
 void Emote_ToggleWindow()
 {
     object oPlayer = OBJECT_SELF;
-    if (NWM_GetIsWindowOpen(oPlayer, EMOTE_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, EMOTE_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, EMOTE_WINDOW_ID))
+    if (NWM_ToggleWindow(oPlayer, EMOTE_WINDOW_ID))
         NWM_SetBind("buttons", GetLocalJsonArray(GetDataObject(EMOTE_SCRIPT_NAME), EMOTE_NAME_ARRAY));
 }

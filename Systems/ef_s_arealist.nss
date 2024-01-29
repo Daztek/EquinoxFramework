@@ -79,8 +79,6 @@ void AL_ClickAreaButton()
 void AL_ToggleWindow()
 {
     object oPlayer = OBJECT_SELF;
-    if (NWM_GetIsWindowOpen(oPlayer, AL_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, AL_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, AL_WINDOW_ID))
+    if (NWM_ToggleWindow(oPlayer, AL_WINDOW_ID))
         AL_RefreshAreaList();
 }

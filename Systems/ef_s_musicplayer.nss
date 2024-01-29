@@ -95,9 +95,7 @@ void MP_ClickStopButton()
 void MP_ToggleWindow()
 {
     object oPlayer = OBJECT_SELF;
-    if (NWM_GetIsWindowOpen(oPlayer, MP_NUI_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, MP_NUI_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, MP_NUI_WINDOW_ID))
+    if (NWM_ToggleWindow(oPlayer, MP_NUI_WINDOW_ID))
     {
         object oDataObject = GetDataObject(MP_SCRIPT_NAME);
         NWM_SetBind(MP_NUI_BIND_TRACKS, GetLocalJsonArray(oDataObject, MP_TRACK_NAME_ARRAY));

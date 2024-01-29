@@ -32,6 +32,7 @@ void NWM_SetPlayerWindowGeometry(object oPlayer, string sWindowId, json jGeometr
 int NWM_GetIsWindowOpen(object oPlayer, string sWindowId, int bSetPlayerToken = FALSE);
 int NWM_OpenWindow(object oPlayer, string sWindowId);
 void NWM_CloseWindow(object oPlayer, string sWindowId);
+int NWM_ToggleWindow(object oPlayer, string sWindowId);
 json NWM_GetBind(string sBindName);
 void NWM_SetBind(string sBindName, json jValue);
 string NWM_GetBindString(string sBindName);
@@ -273,6 +274,17 @@ void NWM_CloseWindow(object oPlayer, string sWindowId)
         NuiDestroy(oPlayer, nWindowToken);
     }
     NWM_SetToken(nToken);
+}
+
+int NWM_ToggleWindow(object oPlayer, string sWindowId)
+{
+    if (NWM_GetIsWindowOpen(oPlayer, sWindowId))
+    {
+        NWM_CloseWindow(oPlayer, sWindowId);
+        return FALSE;
+    }
+    else
+        return NWM_OpenWindow(oPlayer, sWindowId);
 }
 
 json NWM_GetBind(string sBindName)

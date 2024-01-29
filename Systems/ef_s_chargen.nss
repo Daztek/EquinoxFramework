@@ -979,10 +979,7 @@ json CG_CreateMasterFeatWindow()
 void CG_ShowMainWindow()
 {
     object oPlayer = OBJECT_SELF;
-
-    if (NWM_GetIsWindowOpen(oPlayer, CG_MAIN_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, CG_MAIN_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, CG_MAIN_WINDOW_ID))
+    if (NWM_ToggleWindow(oPlayer, CG_MAIN_WINDOW_ID))
     {
         CG_LoadRaceComboBox();
         CG_LoadClassComboBox();

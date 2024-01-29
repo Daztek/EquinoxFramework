@@ -296,12 +296,8 @@ string WG_ToggleWorldGenPauseState()
 void WG_ShowMapWindow()
 {
     object oPlayer = OBJECT_SELF;
-    if (NWM_GetIsWindowOpen(oPlayer, WG_MAP_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, WG_MAP_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, WG_MAP_WINDOW_ID))
-    {
+    if (NWM_ToggleWindow(oPlayer, WG_MAP_WINDOW_ID))
         WG_UpdateMapFull();
-    }
 }
 
 void WG_InitializeTemplateArea()

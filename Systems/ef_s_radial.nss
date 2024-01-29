@@ -27,9 +27,7 @@ void Rad_OnRadialAttemptOpen()
     if (GetLastGuiEventInteger() == GUI_PANEL_RADIAL_PLACEABLE)
     {
         object oPlayer = OBJECT_SELF;
-        if (NWM_GetIsWindowOpen(oPlayer, RAD_PLACEABLE_WINDOW_ID))
-            NWM_CloseWindow(oPlayer, RAD_PLACEABLE_WINDOW_ID);
-        else if (NWM_OpenWindow(oPlayer, RAD_PLACEABLE_WINDOW_ID))
+        if (NWM_ToggleWindow(oPlayer, RAD_PLACEABLE_WINDOW_ID))
         {
             NuiSetClickthroughProtection(oPlayer, 0.25f);
             NWM_SetUserDataObject("Target", GetLastGuiEventObject());

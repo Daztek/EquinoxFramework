@@ -447,10 +447,7 @@ void QC_ButtonClickPage()
 void QC_ButtonClickEditSlots()
 {
     object oPlayer = OBJECT_SELF;
-
-    if (NWM_GetIsWindowOpen(oPlayer, QC_SETSLOT_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, QC_SETSLOT_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, QC_SETSLOT_WINDOW_ID))
+    if (NWM_ToggleWindow(oPlayer, QC_SETSLOT_WINDOW_ID))
     {
         QC_PreparePlayerKnownSpells(oPlayer);
         QC_PreparePlayerMemorizedSpells(oPlayer);
@@ -472,9 +469,7 @@ void QC_ButtonClickSelectTargetWindow()
     object oPlayer = OBJECT_SELF;
     int nTargetType = QC_GetPlayerTargetType();
 
-    if (NWM_GetIsWindowOpen(oPlayer, QC_SELECTTARGET_WINDOW_ID))
-        NWM_CloseWindow(oPlayer, QC_SELECTTARGET_WINDOW_ID);
-    else if (NWM_OpenWindow(oPlayer, QC_SELECTTARGET_WINDOW_ID))
+    if (NWM_ToggleWindow(oPlayer, QC_SELECTTARGET_WINDOW_ID))
     {
         QC_InitializeTargetTypeCombo();
         NWM_SetBindBool(QC_BIND_BUTTON_CUSTOM_TARGET, nTargetType == QC_PLAYER_TARGET_TYPE_CUSTOM);
@@ -692,9 +687,7 @@ void QC_ShowWindow()
 
     if (QC_GetIsSpellCaster(oPlayer))
     {
-        if (NWM_GetIsWindowOpen(oPlayer, QC_MAIN_WINDOW_ID))
-            NWM_CloseWindow(oPlayer, QC_MAIN_WINDOW_ID);
-        else if (NWM_OpenWindow(oPlayer, QC_MAIN_WINDOW_ID))
+        if (NWM_ToggleWindow(oPlayer, QC_MAIN_WINDOW_ID))
         {
             QC_InitializePlayerQuickCastTable(oPlayer);
             QC_SetCustomTarget(OBJECT_INVALID, Vector());

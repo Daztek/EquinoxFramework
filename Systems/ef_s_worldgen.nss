@@ -20,18 +20,18 @@ const int WG_ENABLE_AREA_CACHING                                = FALSE;
 const int WG_ENABLE_VFX_EDGE                                    = TRUE;
 
 const int WG_AREA_LENGTH                                        = 7;
-const int WG_WORLD_WIDTH                                        = 5;
-const int WG_WORLD_HEIGHT                                       = 5;
+const int WG_WORLD_WIDTH                                        = 9;
+const int WG_WORLD_HEIGHT                                       = 9;
 const int WG_VFX_TILE_BORDER_SIZE                               = WG_AREA_LENGTH;
 
 const int WG_AREA_SINGLE_GROUP_TILE_CHANCE                      = 1;
 
 const int WG_AREA_SAND_CHANCE                                   = 15;
-const int WG_AREA_WATER_CHANCE                                  = 25;
+const int WG_AREA_WATER_CHANCE                                  = 35;
 const int WG_AREA_TREES_CHANCE                                  = 25;
 const int WG_AREA_CHASM_CHANCE                                  = 10;
 const int WG_AREA_GRASS2_CHANCE                                 = 25;
-const int WG_AREA_MOUNTAIN_CHANCE                               = 35;
+const int WG_AREA_MOUNTAIN_CHANCE                               = 25;
 const int WG_AREA_STREAM_CHANCE                                 = 5;
 const int WG_AREA_RIDGE_CHANCE                                  = 20;
 
@@ -63,7 +63,7 @@ const string WG_AREA_GENERATION_QUEUE                           = "AreaGeneratio
 const string WG_MAP_WINDOW_ID                                   = "WORLDMAP";
 const float WG_MAP_AREA_SIZE                                    = 20.0f;
 const string WG_MAP_BIND_BUTTON_REFRESH                         = "btn_refresh";
-const string WG_MAP_BIND_COLOR                                  = "_color";
+const string WG_MAP_BIND_COLOR                                  = "color_";
 
 const int WG_MAP_COLOR_PLAYER                                   = 1;
 const int WG_MAP_COLOR_AVAILABLE                                = 2;
@@ -446,7 +446,7 @@ void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection)
 
 void WG_InitializeQueue()
 {
-    SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_AREA_GENERATION_QUEUE, JSON_ARRAY);
+    SetLocalJson(GetDataObject(WG_SCRIPT_NAME), WG_AREA_GENERATION_QUEUE, JsonArray());
 }
 
 json WG_GetQueue()

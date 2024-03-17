@@ -52,7 +52,7 @@ void EM_Init()
 
     sQuery = "CREATE TABLE IF NOT EXISTS " + EM_SCRIPT_NAME + "_dispatchlist (" +
              "id INTEGER NOT NULL, " +
-             "objectid TEXT NOT NULL);";
+             "objectid INTEGER NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     // :(
@@ -88,7 +88,7 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
                     "ORDER BY events.priority;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@eventtype", nEventType);
-    SqlBindString(sql, "@objectid", ObjectToString(oTarget));
+    SqlBindObjectRef(sql, "@objectid", oTarget);
 
     while (SqlStep(sql))
     {
@@ -161,7 +161,7 @@ void EM_ObjectDispatchListInsert(object oObject, int nObjectDispatchListId)
         string sQuery = "INSERT INTO " + EM_SCRIPT_NAME + "_dispatchlist(id, objectid) VALUES(@id, @objectid);";
         sqlquery sql = SqlPrepareQueryModule(sQuery);
         SqlBindInt(sql, "@id", nObjectDispatchListId);
-        SqlBindString(sql, "@objectid", ObjectToString(oObject));
+        SqlBindObjectRef(sql, "@objectid", oObject);
         SqlStep(sql);
     }
 }
@@ -173,7 +173,7 @@ void EM_ObjectDispatchListRemove(object oObject, int nObjectDispatchListId)
         string sQuery = "DELETE FROM " + EM_SCRIPT_NAME + "_dispatchlist WHERE id = @id AND objectid = @objectid;";
         sqlquery sql = SqlPrepareQueryModule(sQuery);
         SqlBindInt(sql, "@id", nObjectDispatchListId);
-        SqlBindString(sql, "@objectid", ObjectToString(oObject));
+        SqlBindObjectRef(sql, "@objectid", oObject);
         SqlStep(sql);
     }
 }

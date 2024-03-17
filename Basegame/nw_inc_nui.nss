@@ -65,19 +65,41 @@ const int NUI_TEXT_FLAG_UPPERCASE          = 0x002;
 // * Set the window title to JsonBool(FALSE), Collapse to JsonBool(FALSE) and bClosable to FALSE
 //   to hide the title bar.
 //   Note: You MUST provide a way to close the window some other way, or the user will be stuck with it.
+// * Set a minimum size constraint equal to the maximmum size constraint in the same dimension to prevent
+//   a window from being resized in that dimension.
 // - jRoot: Layout-ish (NuiRow, NuiCol, NuiGroup)
 // - jTitle: Bind:String
-// - jGeometry: Bind:Rect, Set x&y to -1.0 to center window
-// - jResizable: Bind:Bool, Set to JsonBool(TRUE) or JsonNull() to let user resize without binding.
-// - jCollapsed: Bind:Bool, Set to a static value JsonBool(FALSE) to disable collapsing. Set to JsonNull() to let user collapse without binding. For better UX, leave collapsing on.
-// - jCloseable: Bind:Bool, You must provide a way to close the window if you set this to FALSE. For better UX, handle the window "closed" event
-// - jTransparent: Bind:Bool, Do not render background
-// - jBorder: Bind:Bool, Render a border
-// - jAcceptsInput: Bind:Bool, Set JsonBool(FALSE) to disable all input. All hover, clicks and keypresses will fall through.
-// - jSizeConstraint: Bind:Rect, Constrains minimum and maximum size of window. Set x to minimum width, y to minimum height, w to maximum width, h to maximum height. Set any individual constraint to 0.0 to ignore that constraint.
-// - jEdgeConstraint: Bind:Rect, Prevents a form from being rendered within the specified margins. Set x to left margin, y to top margin, w to right margin, h to bottom margin. Set any individual constraint to 0.0 to ignore that constraint.
-// - jFont: Bind:String, Override font used on window, including decorations. See NuiStyleFont() for details.
-json NuiWindow(json jRoot, json jTitle, json jGeometry, json jResizable, json jCollapsed, json jClosable, json jTransparent, json jBorder, json jAcceptsInput = JSON_TRUE, json jSizeConstraint = JSON_NULL, json jEdgeConstraint = JSON_NULL, json jFont = JSON_STRING);
+// - jGeometry: Bind:Rect
+//              Set x and/or y to -1.0 to center the window on that axis.
+//              Set x and/or y to -2.0 to position the window's top left at the mouse cursor's position of that axis.
+//              Set x and/or y to -3.0 to center the window on the mouse cursor's position of that axis.
+// - jResizable: Bind:Bool
+//               Set to JsonBool(TRUE) or JsonNull() to let user resize without binding.
+// - jCollapsed: Bind:Bool
+//               Set to a static value JsonBool(FALSE) to disable collapsing.
+//               Set to JsonNull() to let user collapse without binding.
+//               For better UX, leave collapsing on.
+// - jCloseable: Bind:Bool
+//               You provide a way to close the window if you set this to FALSE.
+//               For better UX, handle the window "closed" event.
+// - jTransparent: Bind:Bool
+//                 Do not render background
+// - jBorder: Bind:Bool
+//            Do not render border
+// - jAcceptsInput: Bind:Bool
+//                  Set JsonBool(FALSE) to disable all input.
+//                  All hover, clicks and keypresses will fall through.
+// - jSizeConstraint: Bind:Rect
+//                    Constrains minimum and maximum size of window.
+//                    Set x to minimum width, y to minimum height, w to maximum width, h to maximum height.
+//                    Set any individual constraint to 0.0 to ignore that constraint.
+// - jEdgeConstraint: Bind:Rect
+//                    Prevents a window from being rendered within the specified margins.
+//                    Set x to left margin, y to top margin, w to right margin, h to bottom margin.
+//                    Set any individual constraint to 0.0 to ignore that constraint
+// - jFont: Bind:String
+//          Override font used on window, including decorations. See NuiStyleFont() for details.
+json NuiWindow(json jRoot, json jTitle, json jGeometry, json jResizable,json jCollapsed,json jClosable, json jTransparent, json jBorder, json jAcceptsInput = JSON_TRUE, json jSizeConstraint = JSON_NULL, json jEdgeConstraint = JSON_NULL, json jFont = JSON_STRING);
 
 // -----------------------
 // Values
@@ -87,10 +109,15 @@ json NuiWindow(json jRoot, json jTitle, json jGeometry, json jResizable, json jC
 //    NuiSetBind(.., "mybindlabel", JsonString("hi"));
 // To create static values, just use the json types directly:
 //    JsonString("hi");
+//
+// You can parametrise this particular bind with the given flags.
+// These flags only apply to that particular usage of this bind value.
+//
+// - sId: string
 // - nNumberFlags: bitmask of NUI_NUMBER_FLAG_*
-// - nNumberPadding: zero-left-pad numbers before printing
+// - nNumberPrecision: Precision to print number with (int or float)
 // - nTextFlags: bitmask of NUI_TEXT_FLAG_*
-json NuiBind(string sId, int nNumberFlags = 0, int nNumberPadding = 0, int nTextFlags = 0);
+json NuiBind(string sId, int nNumberFlags = 0, int nNumberPrecision = 0, int nTextFlags = 0);
 
 // Tag the given element with a id.
 // Only tagged elements will send events to the server.
@@ -455,7 +482,7 @@ json NuiDrawListLine(json jEnabled, json jColor, json jLineThickness, json jA, j
 // - nOrder: Int:NUI_DRAW_LIST_ITEM_ORDER_*
 // - nRender: Int:NUI_DRAW_LIST_ITEM_RENDER_*
 // - nBindArrays: Values in binds are considered arrays-of-values
-json NuiDrawListRect(json jEnabled, json jColor, json jFill, json jLineThickness, json jRect, int  nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int  nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
+json NuiDrawListRect(json jEnabled, json jColor, json jFill, json jLineThickness, json jRect, int  nOrder = NUI_DRAW_LIST_ITEM_ORDER_AFTER, int nRender = NUI_DRAW_LIST_ITEM_RENDER_ALWAYS, int nBindArrays = FALSE);
 
 // - jElem: Element
 // - jScissor: Bind:Bool, Constrain painted elements to widget bounds.
@@ -517,14 +544,14 @@ json
 NuiBind(
   string sId,
   int nNumberFlags = 0,
-  int nNumberPadding = 0,
+  int nNumberPrecision = 0,
   int nTextFlags = 0
 )
 {
   json ret = JsonObject();
   JsonObjectSetInplace(ret, "bind", JsonString(sId));
   JsonObjectSetInplace(ret, "number_flags", JsonInt(nNumberFlags));
-  JsonObjectSetInplace(ret, "number_padding", JsonInt(nNumberPadding));
+  JsonObjectSetInplace(ret, "number_precision", JsonInt(nNumberPrecision));
   JsonObjectSetInplace(ret, "text_flags", JsonInt(nTextFlags));
   return ret;
 }
@@ -896,9 +923,9 @@ NuiListTemplateCell(
 )
 {
   json ret = JsonArray();
-  ret = JsonArrayInsert(ret, jElem);
-  ret = JsonArrayInsert(ret, JsonFloat(fWidth));
-  ret = JsonArrayInsert(ret, JsonBool(bVariable));
+  JsonArrayInsertInplace(ret, jElem);
+  JsonArrayInsertInplace(ret, JsonFloat(fWidth));
+  JsonArrayInsertInplace(ret, JsonBool(bVariable));
   return ret;
 }
 

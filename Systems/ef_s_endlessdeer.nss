@@ -19,7 +19,7 @@ const float ED_SPAWN_DELAY              = 0.05f;
 
 int ED_GetNumSpawnTiles(string sAreaID)
 {
-    string sQuery = "SELECT COUNT(*) FROM " + EP_GetTilesTable() +
+    string sQuery = "SELECT COUNT(tile_index) FROM " + EP_GetTilesTable() +
                     "WHERE area_id=@area_id AND entrance_dist >= @entrance_dist AND exit_dist >= @exit_dist AND path_dist >= @path_dist AND group_tile = @group_tile;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@area_id", sAreaID);

@@ -331,14 +331,13 @@ struct TS_TileStruct TS_GetTileEdgesAndCorners(string sTileset, int nTileID)
                 break;
 
                 case 433:
-                case 435:
-                    strTile.sTopLeft = "grass2";
+                    strTile.sTopLeft = "grass";
                     strTile.sTop = "ridge";
-                    strTile.sTopRight = "grass+";
+                    strTile.sTopRight = "grass2";
                     strTile.sRight = "ridge";
-                    strTile.sBottomRight = "grass2";
+                    strTile.sBottomRight = "grass";
                     strTile.sBottom = "ridge";
-                    strTile.sBottomLeft = "grass+";
+                    strTile.sBottomLeft = "grass2";
                     strTile.sLeft = "ridge";
                 break;
             }

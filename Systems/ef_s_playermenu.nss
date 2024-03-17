@@ -21,9 +21,8 @@ const string PM_FUNCTION_ARRAY      = "FunctionArray";
 // @NWMWINDOW[PM_WINDOW_ID]
 json PM_CreateWindow()
 {
-    NB_InitializeWindow(JsonNull());
+    NB_InitializeWindow(NuiRect(10.0f, 10.0f, 240.0f, 480.0f));
     NB_SetWindowTitlebarHidden();
-    NB_SetWindowGeometry(NuiRect(10.0f, 10.0f, 240.0f, 480.0f));
         NB_StartColumn();
             NB_StartRow();
                 NB_StartGroup(TRUE, NUI_SCROLLBARS_NONE);

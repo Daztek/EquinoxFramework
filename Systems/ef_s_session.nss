@@ -27,12 +27,12 @@ void Session_DeleteJson(object oPlayer, string sSystem, string sVarName, object 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_CLIENT_EXIT::SESSION_ONCLIENTEXIT_PRIORITY]
 void Session_DestroySessionDataObjectOnClientExit()
 {
-    DestroyDataObject(SESSION_DATA_NAME + GetObjectUUID(GetExitingObject()));
+    DestroyDataObject(SESSION_DATA_NAME + GetPCPublicCDKey(GetExitingObject()));
 }
 
 object Session_GetDataObject(object oPlayer)
 {
-    return GetDataObject(SESSION_DATA_NAME + GetObjectUUID(oPlayer));
+    return GetDataObject(SESSION_DATA_NAME + GetPCPublicCDKey(oPlayer));
 }
 
 void Session_SetInt(object oPlayer, string sSystem, string sVarName, int nValue, object oSessionDataObject = OBJECT_INVALID)

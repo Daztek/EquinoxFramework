@@ -435,10 +435,10 @@ string EFCore_CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)
     string sRetVal;
     if (EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING)
     {
-        NWNX_PushArgumentInt(bWrapIntoMain);
-        NWNX_PushArgumentString(sScriptChunk);
-        NWNX_CallFunction("NWNX_Optimizations", "CacheScriptChunk");
-        sRetVal = NWNX_GetReturnValueString();
+        NWNXPushInt(bWrapIntoMain);
+        NWNXPushString(sScriptChunk);
+        NWNXCall("NWNX_Optimizations", "CacheScriptChunk");
+        sRetVal = NWNXPopString();
     }
     return sRetVal;
 }

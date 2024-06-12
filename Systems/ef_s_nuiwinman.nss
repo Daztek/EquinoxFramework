@@ -13,6 +13,7 @@
 const string NWM_SCRIPT_NAME                    = "ef_s_nuiwinman";
 const int NWM_DEBUG_LOG_EVENTS                  = FALSE;
 const int NWM_DEBUG_LOG_ANONYMOUS_OR_INVALID    = FALSE;
+const int NWM_LOG_UNKNOWN_BINDS                 = TRUE;
 
 const string NWM_REGISTERED_WINDOW              = "RegisteredWindow_";
 const string NWM_WINDOW_GEOMETRY                = "WindowGeometry_";
@@ -148,16 +149,26 @@ void NWM_NuiEvent()
     string sEventType = NuiGetEventType();
     string sElement = NuiGetEventElement();
 
+    if (NWM_LOG_UNKNOWN_BINDS && sEventType == NUI_EVENT_UNKNOWN_BIND)
+    {
+        json jPayload = NuiGetEventPayload();
+        string sBindName = JsonObjectGetString(jPayload, "bind");
+        json jBindValue = JsonObjectGet(jPayload, "value");
+        LogWarning("(" + IntToString(nToken) + ":" + sWindowId + ") Client Received Unknown Bind -> Name: '" + sBindName + "', Value: " + JsonDump(jBindValue));
+    }
+
     if (sEventType == NUI_EVENT_WATCH && sElement == NUI_WINDOW_GEOMETRY_BIND)
     {
         json jGeometry = NuiGetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND);
 
         if (NWM_DEBUG_LOG_EVENTS)
+        {
             LogDebug("(" + IntToString(nToken) + ":" + sWindowId +
                      ") Geometry Update: x=" + FloatToString(JsonObjectGetFloat(jGeometry, "x"), 0, 0) +
                      ", y=" + FloatToString(JsonObjectGetFloat(jGeometry, "y"), 0, 0) +
                      ", w=" + FloatToString(JsonObjectGetFloat(jGeometry, "w"), 0, 0) +
                      ", h=" + FloatToString(JsonObjectGetFloat(jGeometry, "h"), 0, 0));
+        }
 
         if (!GetIsDefaultNuiRect(jGeometry))
         {

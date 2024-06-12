@@ -288,8 +288,8 @@ string MusMan_GetPlayerDataTable()
 void MusMan_InitializePlayerDataTable()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + MusMan_GetPlayerDataTable() + "(" +
-                    "oidplayer TEXT NOT NULL PRIMARY KEY, " +
-                    "oidarea TEXT NOT NULL, " +
+                    "oidplayer INTEGER NOT NULL PRIMARY KEY, " +
+                    "oidarea INTEGER NOT NULL, " +
                     "event TEXT NOT NULL, " +
                     "trackid INTEGER NOT NULL, " +
                     "stinger TEXT NOT NULL, " +
@@ -306,8 +306,8 @@ void MusMan_UpdatePlayerData(object oPlayer, string sEvent, int nTrackId, string
                     "ON CONFLICT (oidplayer) DO UPDATE SET oidarea = @oidarea, event = @event, trackid = @trackid, stinger = @stinger, " +
                     "channel = @channel, volume = @volume, fadetime = @fadetime;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
-    SqlBindString(sql, "@oidplayer", ObjectToString(oPlayer));
-    SqlBindString(sql, "@oidarea", ObjectToString(GetArea(oPlayer)));
+    SqlBindObjectRef(sql, "@oidplayer", oPlayer);
+    SqlBindObjectRef(sql, "@oidarea", GetArea(oPlayer));
     SqlBindString(sql, "@event", sEvent);
     SqlBindInt(sql, "@trackid", nTrackId);
     SqlBindString(sql, "@stinger", sStinger);
@@ -322,11 +322,11 @@ struct MusMan_PlayerData MusMan_GetPlayerData(object oPlayer)
     struct MusMan_PlayerData strPlayerData;
     strPlayerData.oPlayer = oPlayer;
     sqlquery sql = SqlPrepareQueryModule("SELECT oidarea, event, trackid, stinger, channel, volume, fadetime FROM " + MusMan_GetPlayerDataTable() + " WHERE oidplayer = @oidplayer;");
-    SqlBindString(sql, "@oidplayer", ObjectToString(oPlayer));
+    SqlBindObjectRef(sql, "@oidplayer", oPlayer);
     if (SqlStep(sql))
     {
         int nIndex;
-        strPlayerData.oArea = StringToObject(SqlGetString(sql, nIndex++));
+        strPlayerData.oArea = SqlGetObjectRef(sql, nIndex++);
         strPlayerData.sEvent = SqlGetString(sql, nIndex++);
         strPlayerData.nTrackId = SqlGetInt(sql, nIndex++);
         strPlayerData.sStinger = SqlGetString(sql, nIndex++);
@@ -340,7 +340,7 @@ struct MusMan_PlayerData MusMan_GetPlayerData(object oPlayer)
 void MusMan_DeletePlayerData(object oPlayer)
 {
     sqlquery sql = SqlPrepareQueryModule("DELETE FROM " + MusMan_GetPlayerDataTable() + " WHERE oidplayer = @oidplayer;");
-    SqlBindString(sql, "@oidplayer", ObjectToString(oPlayer));
+    SqlBindObjectRef(sql, "@oidplayer", oPlayer);
     SqlStep(sql);
 }
 
@@ -452,7 +452,7 @@ void MusMan_UpdatePlayerMusicByEvent(string sEvent, object oArea = OBJECT_INVALI
     {
         sql = SqlPrepareQueryModule("SELECT oidplayer FROM " + MusMan_GetPlayerDataTable() + " WHERE event = @event AND oidarea = @oidarea;");
         SqlBindString(sql, "@event", sEvent);
-        SqlBindString(sql, "@oidarea", ObjectToString(oArea));
+        SqlBindObjectRef(sql, "@oidarea", oArea);
     }
     else
     {
@@ -462,7 +462,7 @@ void MusMan_UpdatePlayerMusicByEvent(string sEvent, object oArea = OBJECT_INVALI
 
     while (SqlStep(sql))
     {
-        object oPlayer = StringToObject(SqlGetString(sql, 0));
+        object oPlayer = SqlGetObjectRef(sql, 0);
         if (GetIsObjectValid(oPlayer))
             DelayCommand((Random(10) + 1) * 0.01f, MusMan_UpdatePlayerMusic(oPlayer));
     }

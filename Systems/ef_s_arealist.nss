@@ -42,6 +42,7 @@ json AL_CreateWindow()
     return NB_FinalizeWindow();
 }
 
+// @NWMEVENT[AL_WINDOW_ID:NUI_EVENT_CLICK:AL_ELEMENT_REFRESH_BUTTON]
 void AL_RefreshAreaList()
 {
     json jAreaNames = JsonArray(), jAreaIds = JsonArray();
@@ -55,12 +56,6 @@ void AL_RefreshAreaList()
 
     NWM_SetBind(AL_NUI_BIND_BUTTONS, jAreaNames);
     NWM_SetUserData("areas", jAreaIds);
-}
-
-// @NWMEVENT[AL_WINDOW_ID:NUI_EVENT_CLICK:AL_ELEMENT_REFRESH_BUTTON]
-void AL_ClickRefreshButton()
-{
-    AL_RefreshAreaList();
 }
 
 // @NWMEVENT[AL_WINDOW_ID:NUI_EVENT_CLICK:AL_ELEMENT_AREA_BUTTON]

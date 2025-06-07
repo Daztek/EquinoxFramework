@@ -17,6 +17,17 @@ struct Vector2
     int nY;
 };
 
+struct ParserData
+{
+    int nStartPos;
+    int nNewLinePos;
+    int bEndOfFile;    
+    string sData;
+    int nDataLength;    
+    string sLine;
+    int nLineNumber;
+};
+
 // Get an array of resrefs by type
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "");
 
@@ -114,6 +125,10 @@ int DecrementLocalInt(object oObject, string sVarName);
 string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2);
 
 int log2(int n);
+
+struct ParserData ParserPrepare(string sData);
+struct ParserData ParserParse(struct ParserData str);
+string ParserPeek(struct ParserData str);
 
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
 {
@@ -475,4 +490,47 @@ string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2)
 int log2(int n)
 {
     int ret; while (n >>= 1) { ret++; } return ret;
+}
+
+struct ParserData ParserPrepare(string sData)
+{
+    struct ParserData str;
+    str.sData = sData;
+    str.nDataLength = GetStringLength(sData);
+    str.bEndOfFile = str.nDataLength == 0;
+    return str;
+}
+
+struct ParserData ParserParse(struct ParserData str)
+{
+    if (str.bEndOfFile)
+        return str;    
+    if ((str.nNewLinePos = FindSubString(str.sData, "\n", str.nStartPos)) != -1)
+    {
+        str.sLine = GetSubString(str.sData, str.nStartPos, str.nNewLinePos - str.nStartPos);
+        str.nLineNumber++;
+        str.nStartPos = str.nNewLinePos + 1;
+        return str;
+    }    
+    if (str.nStartPos < str.nDataLength)
+    {
+        str.sLine = GetSubString(str.sData, str.nStartPos, str.nDataLength - str.nStartPos);
+        str.nLineNumber++;        
+        str.nStartPos = str.nDataLength;
+        return str;
+    }
+    str.bEndOfFile = TRUE;
+    return str;
+}
+
+string ParserPeek(struct ParserData str)
+{
+    if (str.bEndOfFile)
+        return "";
+    int nNewLinePos = FindSubString(str.sData, "\n", str.nStartPos);
+    if (nNewLinePos != -1)
+    {
+        return GetSubString(str.sData, str.nStartPos, nNewLinePos - str.nStartPos);
+    } 
+    return "";
 }

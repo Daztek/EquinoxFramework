@@ -9,8 +9,8 @@
 const string VERSION_SCRIPT_NAME        = "ef_s_version";
 
 const int VERSION_BUILD                 = 8193;
-const int VERSION_REVISION              = 36;
-const int VERSION_POSTFIX               = 10;
+const int VERSION_REVISION              = 37;
+const int VERSION_POSTFIX               = 15;
 
 // @NWNX[NWNX_ON_CLIENT_CONNECT_BEFORE]
 void VersionCheck_OnClientConnect()

@@ -46,25 +46,10 @@ void PerAOE_Apply(object oTarget, float fRadius, string sEffectTag, string sSyst
     }
 }
 
+// @EVENT[EVENT_SCRIPT_AREAOFEFFECT_ON_OBJECT_ENTER:DL:]
+// @EVENT[EVENT_SCRIPT_AREAOFEFFECT_ON_OBJECT_EXIT:DL:]
+// @EVENT[EVENT_SCRIPT_AREAOFEFFECT_ON_HEARTBEAT:DL:]
 void PerAOE_RunScript()
 {
     ExecuteScriptChunk(GetLocalString(OBJECT_SELF, IntToString(GetCurrentlyRunningEvent())), OBJECT_SELF, FALSE);
-}
-
-// @EVENT[EVENT_SCRIPT_AREAOFEFFECT_ON_OBJECT_ENTER:DL:]
-void PerAOE_OnEnter()
-{
-    PerAOE_RunScript();
-}
-
-// @EVENT[EVENT_SCRIPT_AREAOFEFFECT_ON_OBJECT_EXIT:DL:]
-void PerAOE_OnExit()
-{
-    PerAOE_RunScript();
-}
-
-// @EVENT[EVENT_SCRIPT_AREAOFEFFECT_ON_HEARTBEAT:DL:]
-void PerAOE_OnHeartbeat()
-{
-    PerAOE_RunScript();
 }

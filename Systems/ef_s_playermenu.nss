@@ -46,6 +46,7 @@ json PM_CreateWindow()
 }
 
 // @NWNX[NWNX_ON_INPUT_TOGGLE_PAUSE_BEFORE]
+// @GUIEVENT[GUIEVENT_COMPASS_CLICK]
 void PM_OnTogglePauseEvent()
 {
     object oPlayer = OBJECT_SELF;
@@ -55,12 +56,6 @@ void PM_OnTogglePauseEvent()
         NWM_SetBind("buttons", GetLocalJsonArray(oDataObject, PM_BUTTON_ARRAY));
         NWM_SetBind("tooltips", GetLocalJsonArray(oDataObject, PM_TOOLTIP_ARRAY));
     }
-}
-
-// @GUIEVENT[GUIEVENT_COMPASS_CLICK]
-void PM_OnCompassClick()
-{
-    PM_OnTogglePauseEvent();
 }
 
 // @NWMEVENT[PM_WINDOW_ID:NUI_EVENT_CLICK:PM_BIND_COMMAND_BUTTON]

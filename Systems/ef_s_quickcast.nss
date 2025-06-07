@@ -756,13 +756,8 @@ void QC_DecrementSpellCount()
 }
 
 // @REST[REST_EVENTTYPE_REST_FINISHED]
-void QC_OnPlayerRestFinished()
-{
-    QC_RefreshAllSpellUses(OBJECT_SELF);
-}
-
 // @REST[REST_EVENTTYPE_REST_CANCELLED]
-void QC_OnPlayerRestCancelled()
+void QC_OnPlayerRest()
 {
     QC_RefreshAllSpellUses(OBJECT_SELF);
 }

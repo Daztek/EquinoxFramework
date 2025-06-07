@@ -16,24 +16,6 @@ void PerLoc_SetAreaDisabled(object oArea);
 void PerLoc_SaveLocation(object oPlayer = OBJECT_SELF);
 void PerLoc_RestoreLocation(object oPlayer = OBJECT_SELF);
 
-// @NWNX[NWNX_ON_CLIENT_DISCONNECT_BEFORE]
-void PerLoc_OnClientDisconnectBefore()
-{
-    PerLoc_SaveLocation();
-}
-
-// @GUIEVENT[GUIEVENT_AREA_LOADSCREEN_FINISHED]
-void PerLoc_AreaLoadScreenFinished()
-{
-    PerLoc_SaveLocation();
-}
-
-// @NWNX[NWNX_ON_ELC_VALIDATE_CHARACTER_AFTER]
-void PerLoc_OnELCValidateCharacterAfter()
-{
-    PerLoc_RestoreLocation();
-}
-
 int PerLoc_GetAreaDisabled(object oArea)
 {
     return GetLocalInt(oArea, PERLOC_AREA_DISABLED);
@@ -44,6 +26,8 @@ void PerLoc_SetAreaDisabled(object oArea)
     SetLocalInt(oArea, PERLOC_AREA_DISABLED, TRUE);
 }
 
+// @NWNX[NWNX_ON_CLIENT_DISCONNECT_BEFORE]
+// @GUIEVENT[GUIEVENT_AREA_LOADSCREEN_FINISHED]
 void PerLoc_SaveLocation(object oPlayer = OBJECT_SELF)
 {
     if (!GetIsObjectValid(oPlayer) || GetIsDM(oPlayer) || GetIsDMPossessed(oPlayer))
@@ -56,6 +40,7 @@ void PerLoc_SaveLocation(object oPlayer = OBJECT_SELF)
         PlayerDB_SetLocation(oPlayer, PERLOC_SCRIPT_NAME, "Location", GetLocation(oPlayer));
 }
 
+// @NWNX[NWNX_ON_ELC_VALIDATE_CHARACTER_AFTER]
 void PerLoc_RestoreLocation(object oPlayer = OBJECT_SELF)
 {
     if (GetIsDM(oPlayer))

@@ -160,18 +160,6 @@ json PC_CreateWindow()
     return NB_FinalizeWindow();
 }
 
-// @NWMEVENT[PC_WINDOW_ID:NUI_EVENT_MOUSEUP:PC_BIND_ICON_GROUP]
-void PC_ClickItemIcon()
-{
-    PC_WithdrawItem();
-}
-
-// @NWMEVENT[PC_WINDOW_ID:NUI_EVENT_MOUSEUP:PC_BIND_NAME_LABEL]
-void PC_ClickItemNameLabel()
-{
-    PC_WithdrawItem();
-}
-
 // @NWMEVENT[PC_WINDOW_ID:NUI_EVENT_CLICK:PC_BIND_BUTTON_DEPOSIT]
 void PC_ClickDepositModeButton()
 {
@@ -265,6 +253,8 @@ void PC_UpdateItemList()
     NWM_SetBind(PC_BIND_PROGRESS_TOOLTIP, JsonString(IntToString(nNumItems) + " / " + IntToString(PC_MAX_ITEMS) + " Items Stored"));
 }
 
+// @NWMEVENT[PC_WINDOW_ID:NUI_EVENT_MOUSEUP:PC_BIND_ICON_GROUP]
+// @NWMEVENT[PC_WINDOW_ID:NUI_EVENT_MOUSEUP:PC_BIND_NAME_LABEL]
 void PC_WithdrawItem()
 {
     int nItemIndex = NuiGetEventArrayIndex();

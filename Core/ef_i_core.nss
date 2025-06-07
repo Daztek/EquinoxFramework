@@ -278,18 +278,23 @@ void EFCore_ParseSystem(string sSystem)
 
         if (bHasAnnotations)
         {
-            json jMatch = RegExpMatch("(\\w+)\\s(\\w*)\\((.*)\\)", str.sLine);
-            if (JsonGetLength(jMatch) && GetStringLeft(ParserPeek(str), 1) == "{")
+            if (GetStringLeft(ParserPeek(str), 1) == "{")
             {
-                string sReturnType = JsonArrayGetString(jMatch, 1);
-                string sFunction = JsonArrayGetString(jMatch, 2);
-                int nAnnotation, nNumAnnotations = JsonGetLength(jAnnotations);
-
-                for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
+                json jMatch = RegExpMatch("(\\w+)\\s(\\w*)\\((.*)\\)", str.sLine);
+                if (JsonGetLength(jMatch))
                 {
-                    json jAnnotation = JsonArrayGet(jAnnotations, nAnnotation);
-                    json jData = GetJsonArrayFromTokenizedString(JsonArrayGetString(jAnnotation, 1));
-                    EFCore_InsertAnnotation(sSystem, JsonArrayGetString(jAnnotation, 0), sFunction, JsonArrayGetString(jAnnotation, 2), sReturnType, jData);
+                    string sReturnType = JsonArrayGetString(jMatch, 1);
+                    string sFunction = JsonArrayGetString(jMatch, 2);
+                    string sParameters = JsonArrayGetString(jMatch, 3);
+                    int nAnnotation, nNumAnnotations = JsonGetLength(jAnnotations);
+
+                    for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
+                    {
+                        json jAnnotation = JsonArrayGet(jAnnotations, nAnnotation);
+                        string sAnnotation = JsonArrayGetString(jAnnotation, 0);
+                        json jData = GetJsonArrayFromTokenizedString(JsonArrayGetString(jAnnotation, 1));
+                        EFCore_InsertAnnotation(sSystem, sAnnotation, sFunction, sParameters, sReturnType, jData);
+                    }
                 }
             }
             else

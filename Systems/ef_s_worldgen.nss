@@ -91,7 +91,7 @@ int WG_GetStateHash();
 
 string WG_GetAreaID(int nX, int nY);
 string WG_GetStartingAreaID();
-struct AG_TilePosition WG_GetAreaCoordinates(string sAreaID);
+struct Vector2 WG_GetAreaCoordinates(string sAreaID);
 int WG_GetAreaOutOfBounds(string sAreaID);
 int WG_GetIsWGArea(object oArea);
 string WG_GetAreaIDFromDirection(string sAreaID, int nDirection);
@@ -359,9 +359,9 @@ string WG_GetStartingAreaID()
     return WG_GetAreaID(WG_AREA_STARTING_X, WG_AREA_STARTING_Y);
 }
 
-struct AG_TilePosition WG_GetAreaCoordinates(string sAreaID)
+struct Vector2 WG_GetAreaCoordinates(string sAreaID)
 {
-    struct AG_TilePosition str;
+    struct Vector2 str;
     int nPrefixLength = GetStringLength(WG_AREA_TAG_PREFIX);
     string sCoordinates = GetSubString(sAreaID, nPrefixLength, GetStringLength(sAreaID) - nPrefixLength);
     int nDelimiter = FindSubString(sCoordinates, "_");
@@ -376,7 +376,7 @@ int WG_GetAreaOutOfBounds(string sAreaID)
     int nMaxX = nMinX + (WG_WORLD_WIDTH - 1);
     int nMaxY = WG_AREA_STARTING_Y + (WG_WORLD_HEIGHT / 2);
     int nMinY = nMaxY - (WG_WORLD_HEIGHT - 1);
-    struct AG_TilePosition str = WG_GetAreaCoordinates(sAreaID);
+    struct Vector2 str = WG_GetAreaCoordinates(sAreaID);
     return str.nX < nMinX || str.nX > nMaxX || str.nY < nMinY || str.nY > nMaxY;
 }
 
@@ -387,7 +387,7 @@ int WG_GetIsWGArea(object oArea)
 
 string WG_GetAreaIDFromDirection(string sAreaID, int nDirection)
 {
-    struct AG_TilePosition str = WG_GetAreaCoordinates(sAreaID);
+    struct Vector2 str = WG_GetAreaCoordinates(sAreaID);
     switch (nDirection)
     {
         case WG_NEIGHBOR_AREA_TOP:          {              str.nY += 1; break; }
@@ -400,6 +400,12 @@ string WG_GetAreaIDFromDirection(string sAreaID, int nDirection)
         case WG_NEIGHBOR_AREA_BOTTOM_LEFT:  { str.nX -= 1; str.nY -= 1; break; }
     }
     return WG_GetAreaID(str.nX, str.nY);
+}
+
+void WG_JumpPlayer(location loc)
+{
+    ClearAllActions();
+    JumpToLocation(loc);
 }
 
 void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection)
@@ -432,7 +438,7 @@ void WG_MoveToArea(object oPlayer, object oCurrentArea, int nDirection)
 
         location loc = Location(oNextArea, vPosition, GetFacing(oPlayer));
 
-        AssignCommand(oPlayer, JumpToLocation(loc));
+        AssignCommand(oPlayer, WG_JumpPlayer(loc));
     }
     else if (!WG_GetAreaOutOfBounds(sNextAreaID))
     {
@@ -843,6 +849,7 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
     json jTileModelArray = WG_GetAreaTileModelArray(sAreaID);
     string sTag = WG_VFX_PLACEABLE_TAG + sAreaID;
     float fVisibleDistance = (WG_AREA_LENGTH * 4) * 10.0f;
+    int nTileBorderSize = min(WG_AREA_LENGTH, WG_VFX_TILE_BORDER_SIZE);    
 
     if (nNeighborDirection < WG_NEIGHBOR_AREA_TOP_LEFT)
         nNeighborDirection = (nNeighborDirection + 2) % 4;
@@ -852,7 +859,7 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
         case WG_NEIGHBOR_AREA_TOP:
         {
             int nBorderRow;
-            for (nBorderRow = 0; nBorderRow < WG_VFX_TILE_BORDER_SIZE; nBorderRow++)
+            for (nBorderRow = 0; nBorderRow < nTileBorderSize; nBorderRow++)
             {
                 int nStart = WG_AREA_LENGTH * ((WG_AREA_LENGTH - 1) - nBorderRow);
                 int nCount, nNumTiles = WG_AREA_LENGTH;
@@ -882,7 +889,7 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
         case WG_NEIGHBOR_AREA_RIGHT:
         {
             int nBorderRow;
-            for (nBorderRow = 0; nBorderRow < WG_VFX_TILE_BORDER_SIZE; nBorderRow++)
+            for (nBorderRow = 0; nBorderRow < nTileBorderSize; nBorderRow++)
             {
                 int nStart = WG_AREA_LENGTH - 1 - nBorderRow;
                 int nCount, nNumTiles = WG_AREA_LENGTH;
@@ -912,7 +919,7 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
         case WG_NEIGHBOR_AREA_BOTTOM:
         {
             int nBorderRow;
-            for (nBorderRow = 0; nBorderRow < WG_VFX_TILE_BORDER_SIZE; nBorderRow++)
+            for (nBorderRow = 0; nBorderRow < nTileBorderSize; nBorderRow++)
             {
                 int nStart = nBorderRow * WG_AREA_LENGTH;
                 int nCount, nNumTiles = WG_AREA_LENGTH;
@@ -942,7 +949,7 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
         case WG_NEIGHBOR_AREA_LEFT:
         {
             int nBorderRow;
-            for (nBorderRow = 0; nBorderRow < WG_VFX_TILE_BORDER_SIZE; nBorderRow++)
+            for (nBorderRow = 0; nBorderRow < nTileBorderSize; nBorderRow++)
             {
                 int nStart = 1 * nBorderRow;
                 int nCount, nNumTiles = WG_AREA_LENGTH;
@@ -972,9 +979,9 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
         case WG_NEIGHBOR_AREA_TOP_LEFT:
         {
             int nX, nY;
-            for (nX = 0; nX < WG_VFX_TILE_BORDER_SIZE; nX++)
+            for (nX = 0; nX < nTileBorderSize; nX++)
             {
-                for (nY = 0; nY < WG_VFX_TILE_BORDER_SIZE; nY++)
+                for (nY = 0; nY < nTileBorderSize; nY++)
                 {
                     int nTile = ((WG_AREA_LENGTH - 1) - nX) + (nY * WG_AREA_LENGTH);
                     struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
@@ -1000,9 +1007,9 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
         case WG_NEIGHBOR_AREA_TOP_RIGHT:
         {
             int nX, nY;
-            for (nX = 0; nX < WG_VFX_TILE_BORDER_SIZE; nX++)
+            for (nX = 0; nX < nTileBorderSize; nX++)
             {
-                for (nY = 0; nY < WG_VFX_TILE_BORDER_SIZE; nY++)
+                for (nY = 0; nY < nTileBorderSize; nY++)
                 {
                     int nTile = nX + (nY * WG_AREA_LENGTH);
                     struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
@@ -1028,9 +1035,9 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
         case WG_NEIGHBOR_AREA_BOTTOM_RIGHT:
         {
             int nX, nY;
-            for (nX = 0; nX < WG_VFX_TILE_BORDER_SIZE; nX++)
+            for (nX = 0; nX < nTileBorderSize; nX++)
             {
-                for (nY = 0; nY < WG_VFX_TILE_BORDER_SIZE; nY++)
+                for (nY = 0; nY < nTileBorderSize; nY++)
                 {
                     int nTile = nX + (((WG_AREA_LENGTH - 1) - nY) * WG_AREA_LENGTH);
                     struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);
@@ -1056,9 +1063,9 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
         case WG_NEIGHBOR_AREA_BOTTOM_LEFT:
         {
             int nX, nY;
-            for (nX = 0; nX < WG_VFX_TILE_BORDER_SIZE; nX++)
+            for (nX = 0; nX < nTileBorderSize; nX++)
             {
-                for (nY = 0; nY < WG_VFX_TILE_BORDER_SIZE; nY++)
+                for (nY = 0; nY < nTileBorderSize; nY++)
                 {
                     int nTile = ((WG_AREA_LENGTH - 1) - nX) + (((WG_AREA_LENGTH - 1) - nY) * WG_AREA_LENGTH);
                     struct AG_Tile strTile = AG_GetTile(sOtherAreaID, nTile);

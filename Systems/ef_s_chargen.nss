@@ -1164,7 +1164,7 @@ int CG_GetClassAbilityAdjust(int nClass, int nAbility)
     if (sStatGainTable == "")
         return 0;
 
-    return StringToInt(Get2DAString("sStatGainTable", GetStringLeft(AbilityConstantToName(nAbility), 3), 0));
+    return StringToInt(Get2DAString(sStatGainTable, GetStringLeft(AbilityConstantToName(nAbility), 3), 0));
 }
 
 int CG_CalculateAbilityModifier(int nAbilityValue)

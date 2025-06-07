@@ -205,3 +205,9 @@ void DMConCom_DestroyObject(float fDelay = 0.0f)
 {
     DestroyObject(OBJECT_SELF, fDelay);
 }
+
+// @CONSOLE[ToggleCutsceneMode::Toggle cutscene mode]
+void DMConCom_ToggleCutsceneMode(int bLeftClickingEnabled = FALSE)
+{
+    SetCutsceneMode(OBJECT_SELF, !GetCutsceneMode(OBJECT_SELF), bLeftClickingEnabled);
+}

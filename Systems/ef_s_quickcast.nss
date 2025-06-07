@@ -127,6 +127,7 @@ void QC_SetDragModeData(int nDragMode, json jData);
 int QC_GetDragModeType();
 json QC_GetDragModeData();
 void QC_ClearDragMode();
+void QC_AddCastSpellActions(object oCreature, object oTarget, vector vTargetLocation, int nSpellID, int nMultiClass,  int nMetaMagic = METAMAGIC_NONE, int nDomainLevel = 0, int nProjectilePathType = PROJECTILE_PATH_TYPE_DEFAULT, int bInstant = FALSE, int bClearActions = FALSE, int bAddToFront = FALSE);
 
 // @CORE[EF_SYSTEM_INIT]
 void QC_Init()
@@ -289,7 +290,7 @@ void QC_SlotMouseDown()
             if (nMouseButton == NUI_MOUSE_BUTTON_LEFT)
             {
                 if (nSpellTargetType == 0x01)
-                    NWNX_Creature_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
+                    QC_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
                 else
                 {
                     int nPlayerTargetType = QC_GetPlayerTargetType();
@@ -300,7 +301,7 @@ void QC_SlotMouseDown()
                         {
                             object oTarget = QC_GetCustomTargetObject();
                             if (QC_IsValidCustomTarget(oTarget, nSpellTargetType))
-                                NWNX_Creature_AddCastSpellActions(oPlayer, oTarget, QC_GetCustomTargetPosition(), nSpellId, nMultiClass, nMetaMagic);
+                                QC_AddCastSpellActions(oPlayer, oTarget, QC_GetCustomTargetPosition(), nSpellId, nMultiClass, nMetaMagic);
                             else
                                 NWNX_Player_PlaySound(oPlayer, "gui_failspell");
                             break;
@@ -312,7 +313,7 @@ void QC_SlotMouseDown()
                                                                         CREATURE_TYPE_PERCEPTION, PERCEPTION_SEEN_AND_HEARD,
                                                                         CREATURE_TYPE_REPUTATION, REPUTATION_TYPE_ENEMY);
                             if (QC_IsValidCustomTarget(oNearestHostile, nSpellTargetType))
-                                NWNX_Creature_AddCastSpellActions(oPlayer, oNearestHostile, GetPosition(oNearestHostile), nSpellId, nMultiClass, nMetaMagic);
+                                QC_AddCastSpellActions(oPlayer, oNearestHostile, GetPosition(oNearestHostile), nSpellId, nMultiClass, nMetaMagic);
                             else
                                 NWNX_Player_PlaySound(oPlayer, "gui_failspell");
                             break;
@@ -342,7 +343,7 @@ void QC_SlotMouseDown()
             else if (nMouseButton == NUI_MOUSE_BUTTON_RIGHT)
             {
                 if (nSpellTargetType & 0x01)
-                    NWNX_Creature_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
+                    QC_AddCastSpellActions(oPlayer, oPlayer, GetPosition(oPlayer), nSpellId, nMultiClass, nMetaMagic);
                 else
                     NWNX_Player_PlaySound(oPlayer, "gui_failspell");
             }
@@ -785,7 +786,7 @@ void QC_OnPlayerTarget()
         if (oPlayer == oTarget && !(nTargetType & 0x01))
             return;
 
-        NWNX_Creature_AddCastSpellActions(oPlayer, oTarget, GetTargetingModeSelectedPosition(), nSpellId, nMultiClass, nMetaMagic);
+        QC_AddCastSpellActions(oPlayer, oTarget, GetTargetingModeSelectedPosition(), nSpellId, nMultiClass, nMetaMagic);
     }
 }
 
@@ -1628,4 +1629,14 @@ void QC_ClearDragMode()
 {
     NWM_DeleteUserData("dragmode_type");
     NWM_DeleteUserData("dragmode_data");
+}
+
+void QC_AddCastSpellActions(object oCreature, object oTarget, vector vTargetLocation, int nSpellID, int nMultiClass, 
+    int nMetaMagic = METAMAGIC_NONE, int nDomainLevel = 0, int nProjectilePathType = PROJECTILE_PATH_TYPE_DEFAULT, 
+    int bInstant = FALSE, int bClearActions = FALSE, int bAddToFront = FALSE)
+{
+    if (GetCurrentAction(oCreature) == ACTION_ATTACKOBJECT)
+        ExecuteScriptChunk("ClearAllActions();", oCreature, TRUE);
+    NWNX_Creature_AddCastSpellActions(oCreature, oTarget, vTargetLocation, nSpellID, nMultiClass, nMetaMagic, 
+        nDomainLevel, nProjectilePathType, bInstant, bClearActions, bAddToFront);
 }

@@ -11,6 +11,12 @@
 
 const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
 
+struct Vector2
+{
+    int nX;
+    int nY;
+};
+
 // Get an array of resrefs by type
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "");
 

@@ -357,10 +357,10 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
     }
 
     int nEntranceTileIndex = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_ENTRANCE_TILE_INDEX);
-    struct AG_TilePosition strEntrancePosition = AG_GetTilePosition(sAreaID, nEntranceTileIndex);
+    struct Vector2 strEntrancePosition = AG_GetTilePosition(sAreaID, nEntranceTileIndex);
     vector vEntrancePosition = GetTilePosition(strEntrancePosition.nX, strEntrancePosition.nY);
     int nExitTileIndex = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
-    struct AG_TilePosition strExitPosition = AG_GetTilePosition(sAreaID, nExitTileIndex);
+    struct Vector2 strExitPosition = AG_GetTilePosition(sAreaID, nExitTileIndex);
     string sQuery = "INSERT INTO " + EP_GetTilesTable() + "(area_id, tile_index, tile_x, tile_y, tile_id, entrance_dist, exit_dist, path_dist, group_tile, num_doors) " +
                     "VALUES(@area_id, @tile_index, @tile_x, @tile_y, @tile_id, @entrance_dist, @exit_dist, @path_dist, @group_tile, @num_doors);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
@@ -415,7 +415,7 @@ void EP_PortToTile(string sType)
     if (EP_GetIsEPArea(oArea))
     {
         string sAreaID = GetTag(oArea);
-        struct AG_TilePosition strPosition = AG_GetTilePosition(sAreaID, AG_GetIntDataByKey(sAreaID, sType));
+        struct Vector2 strPosition = AG_GetTilePosition(sAreaID, AG_GetIntDataByKey(sAreaID, sType));
         vector vPosition = GetTilePosition(strPosition.nX, strPosition.nY);
         location locTile = Location(oArea, vPosition, 0.0f);
 

@@ -110,12 +110,6 @@ struct AG_Tile
     int nHeight;
 };
 
-struct AG_TilePosition
-{
-    int nX;
-    int nY;
-};
-
 object AG_GetAreaDataObject(string sAreaID);
 void AG_SetAreaDataObject(string sAreaID, object oDataObject);
 void AG_SetJsonData(string sAreaID, json jData, object oAreaDataObject = OBJECT_INVALID);
@@ -180,7 +174,7 @@ int AG_GetIsPathDoor(string sAreaID, int nTileID);
 void AG_SetAreaPathDoorCrosserCombo(string sAreaID, int nNum);
 int AG_GetAreaPathDoor(string sAreaID);
 string AG_GetAreaPathCrosserType(string sAreaID);
-struct AG_TilePosition AG_GetTilePosition(string sAreaID, int nTile);
+struct Vector2 AG_GetTilePosition(string sAreaID, int nTile);
 void AG_CreateRandomEntrance(string sAreaID, int nEntranceTileID);
 json AG_GetTileList(string sAreaID);
 object AG_CreateDoor(string sAreaID, int nTileIndex, string sTag, int nDoorIndex = 0);
@@ -422,17 +416,23 @@ void AG_InitializeTileArrays(string sAreaID, int nWidth, int nHeight)
         AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, AG_INVALID_TILE_ID, oAreaDataObject);
     }
 
+    EFCore_ResetScriptInstructions();
+
     for (nTile = 0; nTile < nWidth; nTile++)
     {
         AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_EDGE_TOP, nTile, AG_INVALID_TILE_ID, oAreaDataObject);
         AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, nTile, AG_INVALID_TILE_ID, oAreaDataObject);
     }
 
+    EFCore_ResetScriptInstructions();
+
     for (nTile = 0; nTile < nHeight; nTile++)
     {
         AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_EDGE_LEFT, nTile, AG_INVALID_TILE_ID, oAreaDataObject);
         AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, nTile, AG_INVALID_TILE_ID, oAreaDataObject);
     }
+
+    EFCore_ResetScriptInstructions();
 }
 
 void AG_InitializeAreaDataObject(string sAreaID, string sTileset, string sEdgeTerrain = "", int nWidth = AG_AREA_DEFAULT_WIDTH, int nHeight = AG_AREA_DEFAULT_HEIGHT)
@@ -628,7 +628,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
     }
     else
     {
-        struct AG_TilePosition strTilePos = AG_GetTilePosition(sAreaID, nTile);
+        struct Vector2 strTilePos = AG_GetTilePosition(sAreaID, nTile);
         if (strTilePos.nX == AG_INVALID_TILE_ID && strTilePos.nY == AG_INVALID_TILE_ID)
         {
             LogWarning("INVALID TILE POSITION -> nTile: " + IntToString(nTile) + ", Direction: " + IntToString(nDirection));
@@ -1851,9 +1851,9 @@ string AG_GetAreaPathCrosserType(string sAreaID)
     return AG_GetPathCrosserType(sAreaID, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_AREA_PATH_DOOR_CROSSER_COMBO));
 }
 
-struct AG_TilePosition AG_GetTilePosition(string sAreaID, int nTile)
+struct Vector2 AG_GetTilePosition(string sAreaID, int nTile)
 {
-    struct AG_TilePosition str;
+    struct Vector2 str;
     int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
     int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
 

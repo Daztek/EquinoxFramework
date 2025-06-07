@@ -104,7 +104,7 @@ void EFCore_InitializeSystemData()
     string sQuery = "CREATE TABLE IF NOT EXISTS " + EFCORE_SCRIPT_NAME + "_systems (" +
                     "system TEXT NOT NULL, " +
                     "scriptdata TEXT NOT NULL);";
-    SqlStep(SqlPrepareQueryModule(sQuery));    
+    SqlStep(SqlPrepareQueryModule(sQuery));
 
     sQuery = "CREATE TABLE IF NOT EXISTS " + EFCORE_SCRIPT_NAME + "_annotations (" +
              "system TEXT NOT NULL, " +
@@ -131,24 +131,6 @@ void EFCore_InitializeSystemData()
     }
 }
 
-int EFCore_ParseAnnotation(string sLine, json jOutAnnotationArray)
-{
-    if (GetStringLeft(sLine, 4) == "// @")
-    {
-        json jMatch = RegExpMatch("(?://\\s@)(\\w+)\\[(.*)\\]", sLine);
-        if (JsonGetLength(jMatch))
-        {
-            json jAnnotation = JsonArray();
-            JsonArrayInsertInplace(jAnnotation, JsonArrayGet(jMatch, 1));
-            JsonArrayInsertInplace(jAnnotation, JsonArrayGet(jMatch, 2));
-            JsonArrayInsertInplace(jOutAnnotationArray, jAnnotation);
-            return TRUE;
-        }
-    }
-    return FALSE;    
-}
-
-
 void EFCore_InsertSystem(string sSystem, string sScriptData)
 {
     string sQuery = "INSERT INTO " + EFCORE_SCRIPT_NAME + "_systems(system, scriptdata) VALUES(@system, @scriptdata);";
@@ -160,7 +142,7 @@ void EFCore_InsertSystem(string sSystem, string sScriptData)
 
 void EFCore_InsertAnnotation(string sSystem, string sAnnotation, string sFunction, string sParameters, string sReturnType, json jData)
 {
-    string sQuery = "INSERT INTO " + EFCORE_SCRIPT_NAME + "_annotations(system, annotation, function, parameters, return_type, data) " + 
+    string sQuery = "INSERT INTO " + EFCORE_SCRIPT_NAME + "_annotations(system, annotation, function, parameters, return_type, data) " +
                     "VALUES(@system, @annotation, @function, @parameters, @return_type, @data);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@system", sSystem);
@@ -185,55 +167,40 @@ void EFCore_InsertFunction(string sSystem, string sFunction, string sReturnType,
     SqlStep(sql);
 }
 
-void EFCore_ParseSystem(string sSystem)
+int EFCore_ParseAnnotation(string sLine, json jOutAnnotationArray)
 {
-    string sScriptData = ResManGetFileContents(sSystem, RESTYPE_NSS);
-
-    if (FindSubString(sScriptData, "@SKIPSYSTEM") != -1)
-        return;
-
-    SqlBeginTransactionModule();
-
-    EFCore_InsertSystem(sSystem, sScriptData);
-
-    struct ParserData str = ParserPrepare(sScriptData);
-    while (!(str = ParserParse(str)).bEndOfFile)
+    if (GetStringLeft(sLine, 4) == "// @")
     {
-        json jAnnotations = JsonArray();
-        while (EFCore_ParseAnnotation(str.sLine, jAnnotations))
+        json jMatch = RegExpMatch("(?://\\s@)(\\w+)\\[(.*)\\]", sLine);
+        if (JsonGetLength(jMatch))
         {
-            str = ParserParse(str);
-        }
-
-        int nNumAnnotations = JsonGetLength(jAnnotations);
-        if (nNumAnnotations)
-        {
-            json jMatch = RegExpMatch("(\\w+)\\s(\\w*)\\((.*)\\)", str.sLine);
-            if (JsonGetLength(jMatch) && GetStringLeft(ParserPeek(str), 1) == "{")
-            {
-                string sReturnType = JsonArrayGetString(jMatch, 1);
-                string sFunction = JsonArrayGetString(jMatch, 2);                
-                int nAnnotation;
-
-                for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
-                {
-                    json jAnnotation = JsonArrayGet(jAnnotations, nAnnotation);
-                    json jData = GetJsonArrayFromTokenizedString(JsonArrayGetString(jAnnotation, 1));
-                    EFCore_InsertAnnotation(sSystem, JsonArrayGetString(jAnnotation, 0), sFunction, JsonArrayGetString(jAnnotation, 2), sReturnType, jData);
-                }
-            }
-            jAnnotations = JsonArray();           
+            json jAnnotation = JsonArray();
+            JsonArrayInsertInplace(jAnnotation, JsonArrayGet(jMatch, 1));
+            JsonArrayInsertInplace(jAnnotation, JsonArrayGet(jMatch, 2));
+            JsonArrayInsertInplace(jOutAnnotationArray, jAnnotation);
+            return TRUE;
         }
     }
+    return FALSE;
+}
 
-    if (EFCORE_PARSE_SYSTEM_FUNCTIONS)
+void EFCore_ParseFunction(string sSystem, string sLine)
+{
+    if (GetStringRight(sLine, 1) == ";" &&
+        (GetStringLeft(sLine, 4) == "void" ||
+         GetStringLeft(sLine, 5) == "object" ||
+         GetStringLeft(sLine, 3) == "int" ||
+         GetStringLeft(sLine, 5) == "string" ||
+         GetStringLeft(sLine, 4) == "json" ||
+         GetStringLeft(sLine, 5) == "float" ||
+         GetStringLeft(sLine, 5) == "vector" ||
+         GetStringLeft(sLine, 8) == "location"))
     {
-        json jMatches = RegExpIterate("(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)" +
-                                      "(void|object|int|float|string|json|vector|location)\\s(\\w+)\\((.*)\\);", sScriptData);
-        int nMatch, nNumMatches = JsonGetLength(jMatches);
-        for(nMatch = 0; nMatch < nNumMatches; nMatch++)
+
+        json jMatch = RegExpMatch("(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)" +
+                                  "(void|object|int|float|string|json|vector|location)\\s(\\w+)\\((.*)\\);", sLine);
+        if (JsonGetLength(jMatch))
         {
-            json jMatch = JsonArrayGet(jMatches, nMatch);
             string sReturnType = nssConvertType(JsonArrayGetString(jMatch, 1));
             string sFunctionName = JsonArrayGetString(jMatch, 2);
             string sRawParameters = JsonArrayGetString(jMatch, 3);
@@ -278,9 +245,63 @@ void EFCore_ParseSystem(string sSystem)
 
             EFCore_InsertFunction(sSystem, sFunctionName, sReturnType, sParameters, sScriptChunk);
         }
-    }  
+    }
+}
 
-    SqlCommitTransactionModule();  
+void EFCore_ParseSystem(string sSystem)
+{
+    string sScriptData = ResManGetFileContents(sSystem, RESTYPE_NSS);
+
+    if (FindSubString(sScriptData, "@SKIPSYSTEM") != -1)
+        return;
+
+    SqlBeginTransactionModule();
+
+    EFCore_InsertSystem(sSystem, sScriptData);
+
+    json jAnnotations = JsonArray();
+    int bHasAnnotations = FALSE;
+    struct ParserData str = ParserPrepare(sScriptData);
+
+    while (!(str = ParserParse(str)).bEndOfFile)
+    {
+        if (EFCORE_PARSE_SYSTEM_FUNCTIONS)
+        {
+            EFCore_ParseFunction(sSystem, str.sLine);
+        }
+
+        while (EFCore_ParseAnnotation(str.sLine, jAnnotations))
+        {
+            bHasAnnotations = TRUE;
+            str = ParserParse(str);
+        }
+
+        if (bHasAnnotations)
+        {
+            json jMatch = RegExpMatch("(\\w+)\\s(\\w*)\\((.*)\\)", str.sLine);
+            if (JsonGetLength(jMatch) && GetStringLeft(ParserPeek(str), 1) == "{")
+            {
+                string sReturnType = JsonArrayGetString(jMatch, 1);
+                string sFunction = JsonArrayGetString(jMatch, 2);
+                int nAnnotation, nNumAnnotations = JsonGetLength(jAnnotations);
+
+                for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
+                {
+                    json jAnnotation = JsonArrayGet(jAnnotations, nAnnotation);
+                    json jData = GetJsonArrayFromTokenizedString(JsonArrayGetString(jAnnotation, 1));
+                    EFCore_InsertAnnotation(sSystem, JsonArrayGetString(jAnnotation, 0), sFunction, JsonArrayGetString(jAnnotation, 2), sReturnType, jData);
+                }
+            }
+            else
+            {
+                LogWarning("Didn't find a function for the following annotations: " + JsonDump(jAnnotations));
+            }
+            bHasAnnotations = FALSE;
+            jAnnotations = JsonArray();
+        }
+    }
+
+    SqlCommitTransactionModule();
 }
 
 int EFCore_ValidateSystems()

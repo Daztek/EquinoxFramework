@@ -849,7 +849,7 @@ void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection)
     json jTileModelArray = WG_GetAreaTileModelArray(sAreaID);
     string sTag = WG_VFX_PLACEABLE_TAG + sAreaID;
     float fVisibleDistance = (WG_AREA_LENGTH * 4) * 10.0f;
-    int nTileBorderSize = min(WG_AREA_LENGTH, WG_VFX_TILE_BORDER_SIZE);    
+    int nTileBorderSize = min(WG_AREA_LENGTH, WG_VFX_TILE_BORDER_SIZE);
 
     if (nNeighborDirection < WG_NEIGHBOR_AREA_TOP_LEFT)
         nNeighborDirection = (nNeighborDirection + 2) % 4;

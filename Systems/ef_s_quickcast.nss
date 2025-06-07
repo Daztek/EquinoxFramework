@@ -1626,12 +1626,12 @@ void QC_ClearDragMode()
     NWM_DeleteUserData("dragmode_data");
 }
 
-void QC_AddCastSpellActions(object oCreature, object oTarget, vector vTargetLocation, int nSpellID, int nMultiClass, 
-    int nMetaMagic = METAMAGIC_NONE, int nDomainLevel = 0, int nProjectilePathType = PROJECTILE_PATH_TYPE_DEFAULT, 
+void QC_AddCastSpellActions(object oCreature, object oTarget, vector vTargetLocation, int nSpellID, int nMultiClass,
+    int nMetaMagic = METAMAGIC_NONE, int nDomainLevel = 0, int nProjectilePathType = PROJECTILE_PATH_TYPE_DEFAULT,
     int bInstant = FALSE, int bClearActions = FALSE, int bAddToFront = FALSE)
 {
     if (GetCurrentAction(oCreature) == ACTION_ATTACKOBJECT)
         ExecuteScriptChunk("ClearAllActions();", oCreature, TRUE);
-    NWNX_Creature_AddCastSpellActions(oCreature, oTarget, vTargetLocation, nSpellID, nMultiClass, nMetaMagic, 
+    NWNX_Creature_AddCastSpellActions(oCreature, oTarget, vTargetLocation, nSpellID, nMultiClass, nMetaMagic,
         nDomainLevel, nProjectilePathType, bInstant, bClearActions, bAddToFront);
 }

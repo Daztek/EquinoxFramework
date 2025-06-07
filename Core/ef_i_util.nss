@@ -21,9 +21,9 @@ struct ParserData
 {
     int nStartPos;
     int nNewLinePos;
-    int bEndOfFile;    
+    int bEndOfFile;
     string sData;
-    int nDataLength;    
+    int nDataLength;
     string sLine;
     int nLineNumber;
 };
@@ -504,18 +504,18 @@ struct ParserData ParserPrepare(string sData)
 struct ParserData ParserParse(struct ParserData str)
 {
     if (str.bEndOfFile)
-        return str;    
+        return str;
     if ((str.nNewLinePos = FindSubString(str.sData, "\n", str.nStartPos)) != -1)
     {
         str.sLine = GetSubString(str.sData, str.nStartPos, str.nNewLinePos - str.nStartPos);
         str.nLineNumber++;
         str.nStartPos = str.nNewLinePos + 1;
         return str;
-    }    
+    }
     if (str.nStartPos < str.nDataLength)
     {
         str.sLine = GetSubString(str.sData, str.nStartPos, str.nDataLength - str.nStartPos);
-        str.nLineNumber++;        
+        str.nLineNumber++;
         str.nStartPos = str.nDataLength;
         return str;
     }
@@ -531,6 +531,6 @@ string ParserPeek(struct ParserData str)
     if (nNewLinePos != -1)
     {
         return GetSubString(str.sData, str.nStartPos, nNewLinePos - str.nStartPos);
-    } 
+    }
     return "";
 }

@@ -1053,8 +1053,8 @@ void AG_GenerateTiles(string sAreaID, object oAreaDataObject, int nCurrentTile =
             case AG_GENERATION_TYPE_ALTERNATING_ROWS_INWARD:
             case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_INWARD:
             {
-                for (nCurrentTile; (nCurrentTile < nNumTiles && 
-                                    nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME && 
+                for (nCurrentTile; (nCurrentTile < nNumTiles &&
+                                    nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME &&
                                     GetScriptInstructionsRemaining() > 10000); nCurrentTile++)
                 {
                     nTotalTime += AG_ProcessTile(sAreaID, oAreaDataObject, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, nCurrentTile));
@@ -1066,8 +1066,8 @@ void AG_GenerateTiles(string sAreaID, object oAreaDataObject, int nCurrentTile =
             case AG_GENERATION_TYPE_ALTERNATING_ROWS_OUTWARD:
             case AG_GENERATION_TYPE_ALTERNATING_COLUMNS_OUTWARD:
             {
-                for (nCurrentTile; (nCurrentTile < nNumTiles && 
-                                    nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME && 
+                for (nCurrentTile; (nCurrentTile < nNumTiles &&
+                                    nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME &&
                                     GetScriptInstructionsRemaining() > 10000); nCurrentTile++)
                 {
                     nTotalTime += AG_ProcessTile(sAreaID, oAreaDataObject, IntArray_At(oAreaDataObject, AG_GENERATION_TILE_ARRAY, (nNumTiles - 1) - nCurrentTile));
@@ -1077,8 +1077,8 @@ void AG_GenerateTiles(string sAreaID, object oAreaDataObject, int nCurrentTile =
 
             case AG_GENERATION_TYPE_LINEAR_ASCENDING:
             {
-                for (nCurrentTile; (nCurrentTile < nNumTiles && 
-                                    nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME && 
+                for (nCurrentTile; (nCurrentTile < nNumTiles &&
+                                    nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME &&
                                     GetScriptInstructionsRemaining() > 10000); nCurrentTile++)
                 {
                     nTotalTime += AG_ProcessTile(sAreaID, oAreaDataObject, nCurrentTile);
@@ -1088,8 +1088,8 @@ void AG_GenerateTiles(string sAreaID, object oAreaDataObject, int nCurrentTile =
 
             case AG_GENERATION_TYPE_LINEAR_DESCENDING:
             {
-                for (nCurrentTile; (nCurrentTile < nNumTiles && 
-                                    nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME && 
+                for (nCurrentTile; (nCurrentTile < nNumTiles &&
+                                    nTotalTime < AG_GENERATION_MAX_TILE_BATCH_TIME &&
                                     GetScriptInstructionsRemaining() > 10000); nCurrentTile++)
                 {
                     nTotalTime += AG_ProcessTile(sAreaID, oAreaDataObject, (nNumTiles - 1) - nCurrentTile);

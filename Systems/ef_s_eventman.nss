@@ -93,6 +93,7 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
     while (SqlStep(sql))
     {
         string sScriptChunk = SqlGetString(sql, 0);
+        SetScriptParam("EVENT_TYPE", IntToString(nEventType));
         string sError = ExecuteScriptChunk(sScriptChunk, oTarget, FALSE);
 
         if (EM_LOG_DEBUG && sError != "")
@@ -105,9 +106,12 @@ void EM_InsertObjectEventAnnotations(struct AnnotationData str)
 {
     string sEventType = JsonArrayGetString(str.jArguments, 0);
     int nEventType = GetConstantIntValue(sEventType, "", -1);
-    int bDispatchListMode = JsonArrayGetString(str.jArguments, 1) == "DL";
+    string sOptions = JsonArrayGetString(str.jArguments, 1);
+    int bDispatchListMode = FindSubString(sOptions, "DL") != -1;
+    int bPassEventType = FindSubString(sOptions, "PET") != -1;
     int nPriority = GetConstantIntValue(JsonArrayGetString(str.jArguments, 2), str.sSystem, StringToInt(JsonArrayGetString(str.jArguments, 2)));
-    string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
+    string sEventTypeFunction = bPassEventType ? nssFunction("StringToInt", nssFunction("GetScriptParam", nssEscape("EVENT_TYPE"), FALSE), FALSE) : "";
+    string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction, sEventTypeFunction));
 
     if (nEventType == -1 || GetStringLeft(sEventType, GetStringLength("EVENT_SCRIPT_")) != "EVENT_SCRIPT_")
         LogWarning("System '" + str.sSystem + "' tried to register '" + str.sFunction + "' for an invalid object event: " + sEventType);
@@ -132,8 +136,9 @@ void EM_InsertObjectEventAnnotations(struct AnnotationData str)
                 LogError("Failed to insert event: " + sError);
         }
 
-        LogInfo("System '" + str.sSystem + "' subscribed to object event '" + sEventType +
-                 "' with priority '" + IntToString(nPriority) + "', DL=" + IntToString(bDispatchListMode));
+        LogInfo("System '" + str.sSystem + "' subscribed to '" + sEventType +
+                 "' with priority '" + IntToString(nPriority) + "', DL=" +
+                 IntToString(bDispatchListMode) + ", PET=" + IntToString(bPassEventType));
     }
 }
 

@@ -188,7 +188,7 @@ int EFCore_ParseAnnotation(string sLine, json jOutAnnotationArray)
     return FALSE;
 }
 
-void EFCore_ParseFunction(string sSystem, string sLine)
+int EFCore_ParseFunction(string sLine, string sSystem)
 {
     if (GetStringRight(sLine, 2) == ");" &&
         (GetStringLeft(sLine, 4) == "void" ||
@@ -249,8 +249,12 @@ void EFCore_ParseFunction(string sSystem, string sLine)
                 EFCore_CacheScriptChunk(sScriptChunk);
 
             EFCore_InsertFunction(sSystem, sFunctionName, sReturnType, sParameters, sScriptChunk);
+
+            return TRUE;
         }
     }
+
+    return FALSE;
 }
 
 void EFCore_ParseSystem(string sSystem)
@@ -270,44 +274,42 @@ void EFCore_ParseSystem(string sSystem)
 
     while (!(str = ParserParse(str)).bEndOfFile)
     {
-        if (EFCORE_PARSE_SYSTEM_FUNCTIONS)
+        if (!EFCORE_PARSE_SYSTEM_FUNCTIONS || !EFCore_ParseFunction(str.sLine, sSystem))
         {
-            EFCore_ParseFunction(sSystem, str.sLine);
-        }
-
-        while (EFCore_ParseAnnotation(str.sLine, jAnnotations))
-        {
-            bFoundAnnotations = TRUE;
-            str = ParserParse(str);
-        }
-
-        if (bFoundAnnotations)
-        {
-            if (ParserPeek(str) == "{")
+            while (EFCore_ParseAnnotation(str.sLine, jAnnotations))
             {
-                json jMatch = RegExpMatch("(\\w+)\\s(\\w*)\\((.*)\\)", str.sLine);
-                if (JsonGetLength(jMatch))
-                {
-                    string sReturnType = JsonArrayGetString(jMatch, 1);
-                    string sFunction = JsonArrayGetString(jMatch, 2);
-                    string sParameters = JsonArrayGetString(jMatch, 3);
+                bFoundAnnotations = TRUE;
+                str = ParserParse(str);
+            }
 
-                    int nAnnotation, nNumAnnotations = JsonGetLength(jAnnotations);
-                    for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
+            if (bFoundAnnotations)
+            {
+                if (ParserPeek(str) == "{")
+                {
+                    json jMatch = RegExpMatch("(\\w+)\\s(\\w*)\\((.*)\\)", str.sLine);
+                    if (JsonGetLength(jMatch))
                     {
-                        json jAnnotation = JsonArrayGet(jAnnotations, nAnnotation);
-                        string sAnnotation = JsonArrayGetString(jAnnotation, 0);
-                        json jData = GetJsonArrayFromTokenizedString(JsonArrayGetString(jAnnotation, 1));
-                        EFCore_InsertAnnotation(sSystem, sAnnotation, sFunction, sParameters, sReturnType, jData);
+                        string sReturnType = JsonArrayGetString(jMatch, 1);
+                        string sFunction = JsonArrayGetString(jMatch, 2);
+                        string sParameters = JsonArrayGetString(jMatch, 3);
+
+                        int nAnnotation, nNumAnnotations = JsonGetLength(jAnnotations);
+                        for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
+                        {
+                            json jAnnotation = JsonArrayGet(jAnnotations, nAnnotation);
+                            string sAnnotation = JsonArrayGetString(jAnnotation, 0);
+                            json jData = GetJsonArrayFromTokenizedString(JsonArrayGetString(jAnnotation, 1));
+                            EFCore_InsertAnnotation(sSystem, sAnnotation, sFunction, sParameters, sReturnType, jData);
+                        }
                     }
                 }
+                else
+                {
+                    LogWarning("Didn't find a function for the following annotations: " + JsonDump(jAnnotations));
+                }
+                bFoundAnnotations = FALSE;
+                jAnnotations = JsonArray();
             }
-            else
-            {
-                LogWarning("Didn't find a function for the following annotations: " + JsonDump(jAnnotations));
-            }
-            bFoundAnnotations = FALSE;
-            jAnnotations = JsonArray();
         }
     }
 

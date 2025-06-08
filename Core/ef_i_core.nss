@@ -129,6 +129,10 @@ void EFCore_InitializeSystemData()
     {
         EFCore_ParseSystem(JsonArrayGetString(jSystems, nSystem));
     }
+
+    sqlquery sql = SqlPrepareQueryModule("SELECT COUNT(system) FROM " + EFCORE_SCRIPT_NAME + "_systems;");
+    if (SqlStep(sql))
+        LogInfo("Found " + IntToString(SqlGetInt(sql, 0)) + " Systems...");
 }
 
 void EFCore_InsertSystem(string sSystem, string sScriptData)
@@ -169,7 +173,7 @@ void EFCore_InsertFunction(string sSystem, string sFunction, string sReturnType,
 
 int EFCore_ParseAnnotation(string sLine, json jOutAnnotationArray)
 {
-    if (GetStringLeft(sLine, 4) == "// @")
+    if (GetStringLeft(sLine, 4) == "// @" && GetStringRight(sLine, 1) == "]")
     {
         json jMatch = RegExpMatch("(?://\\s@)(\\w+)\\[(.*)\\]", sLine);
         if (JsonGetLength(jMatch))
@@ -186,7 +190,7 @@ int EFCore_ParseAnnotation(string sLine, json jOutAnnotationArray)
 
 void EFCore_ParseFunction(string sSystem, string sLine)
 {
-    if (GetStringRight(sLine, 1) == ";" &&
+    if (GetStringRight(sLine, 2) == ");" &&
         (GetStringLeft(sLine, 4) == "void" ||
          GetStringLeft(sLine, 5) == "object" ||
          GetStringLeft(sLine, 3) == "int" ||
@@ -194,7 +198,8 @@ void EFCore_ParseFunction(string sSystem, string sLine)
          GetStringLeft(sLine, 4) == "json" ||
          GetStringLeft(sLine, 5) == "float" ||
          GetStringLeft(sLine, 5) == "vector" ||
-         GetStringLeft(sLine, 8) == "location"))
+         GetStringLeft(sLine, 8) == "location") &&
+        FindSubString(sLine, "=", 0) == -1)
     {
 
         json jMatch = RegExpMatch("(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)" +
@@ -259,9 +264,9 @@ void EFCore_ParseSystem(string sSystem)
 
     EFCore_InsertSystem(sSystem, sScriptData);
 
+    struct ParserData str = ParserPrepare(sScriptData, TRUE);
     json jAnnotations = JsonArray();
-    int bHasAnnotations = FALSE;
-    struct ParserData str = ParserPrepare(sScriptData);
+    int bFoundAnnotations = FALSE;
 
     while (!(str = ParserParse(str)).bEndOfFile)
     {
@@ -272,13 +277,13 @@ void EFCore_ParseSystem(string sSystem)
 
         while (EFCore_ParseAnnotation(str.sLine, jAnnotations))
         {
-            bHasAnnotations = TRUE;
+            bFoundAnnotations = TRUE;
             str = ParserParse(str);
         }
 
-        if (bHasAnnotations)
+        if (bFoundAnnotations)
         {
-            if (GetStringLeft(ParserPeek(str), 1) == "{")
+            if (ParserPeek(str) == "{")
             {
                 json jMatch = RegExpMatch("(\\w+)\\s(\\w*)\\((.*)\\)", str.sLine);
                 if (JsonGetLength(jMatch))
@@ -286,8 +291,8 @@ void EFCore_ParseSystem(string sSystem)
                     string sReturnType = JsonArrayGetString(jMatch, 1);
                     string sFunction = JsonArrayGetString(jMatch, 2);
                     string sParameters = JsonArrayGetString(jMatch, 3);
-                    int nAnnotation, nNumAnnotations = JsonGetLength(jAnnotations);
 
+                    int nAnnotation, nNumAnnotations = JsonGetLength(jAnnotations);
                     for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
                     {
                         json jAnnotation = JsonArrayGet(jAnnotations, nAnnotation);
@@ -301,7 +306,7 @@ void EFCore_ParseSystem(string sSystem)
             {
                 LogWarning("Didn't find a function for the following annotations: " + JsonDump(jAnnotations));
             }
-            bHasAnnotations = FALSE;
+            bFoundAnnotations = FALSE;
             jAnnotations = JsonArray();
         }
     }

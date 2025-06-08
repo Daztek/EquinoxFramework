@@ -432,6 +432,7 @@ void Console_ToggleWindow()
     {
         Console_UpdateSystemCombo();
         Console_SetTarget(oPlayer);
+        NWM_SetBindInt(CONSOLE_BIND_COMBO_SYSTEM_SELECTED, 0);
         NWM_SetBindWatch(CONSOLE_BIND_INPUT_COMMAND, TRUE);
         NWM_SetBindString(CONSOLE_BIND_INPUT_COMMAND, "");
         NWM_SetBindString(CONSOLE_BIND_SELECTED_COMMAND_ICON, CONSOLE_DEFAULT_ICON);

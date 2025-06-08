@@ -26,6 +26,7 @@ struct ParserData
     int nDataLength;
     string sLine;
     int nLineNumber;
+    int bTrim;
 };
 
 // Get an array of resrefs by type
@@ -92,6 +93,9 @@ float clampf(float fValue, float fMin, float fMax);
 int floor(float f);
 int ceil(float f);
 int round(float f);
+string ltrim(string s);
+string rtrim(string s);
+string trim(string s);
 
 // Delete oObject's local vector variable sVarName
 void DeleteLocalVector(object oObject, string sVarName);
@@ -126,7 +130,7 @@ string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2);
 
 int log2(int n);
 
-struct ParserData ParserPrepare(string sData);
+struct ParserData ParserPrepare(string sData, int bTrim = FALSE);
 struct ParserData ParserParse(struct ParserData str);
 string ParserPeek(struct ParserData str);
 
@@ -408,6 +412,27 @@ int round(float f)
     return FloatToInt(f + 0.5f);
 }
 
+string ltrim(string s)
+{
+    while (GetStringLeft(s, 1) == " ")
+        s = GetStringRight(s, GetStringLength(s) - 1);
+
+    return s;
+}
+
+string rtrim(string s)
+{
+    while (GetStringRight(s, 1) == " ")
+        s = GetStringLeft(s, GetStringLength(s) - 1);
+
+    return s;
+}
+
+string trim(string s)
+{
+    return ltrim(rtrim(s));
+}
+
 void DeleteLocalVector(object oObject, string sVarName)
 {
     DeleteLocalLocation(oObject, "VECTOR_" + sVarName);
@@ -492,12 +517,13 @@ int log2(int n)
     int ret; while (n >>= 1) { ret++; } return ret;
 }
 
-struct ParserData ParserPrepare(string sData)
+struct ParserData ParserPrepare(string sData, int bTrim = FALSE)
 {
     struct ParserData str;
     str.sData = sData;
     str.nDataLength = GetStringLength(sData);
     str.bEndOfFile = str.nDataLength == 0;
+    str.bTrim = bTrim;
     return str;
 }
 
@@ -508,6 +534,8 @@ struct ParserData ParserParse(struct ParserData str)
     if ((str.nNewLinePos = FindSubString(str.sData, "\n", str.nStartPos)) != -1)
     {
         str.sLine = GetSubString(str.sData, str.nStartPos, str.nNewLinePos - str.nStartPos);
+        if (str.bTrim)
+            str.sLine = trim(str.sLine);
         str.nLineNumber++;
         str.nStartPos = str.nNewLinePos + 1;
         return str;
@@ -515,6 +543,8 @@ struct ParserData ParserParse(struct ParserData str)
     if (str.nStartPos < str.nDataLength)
     {
         str.sLine = GetSubString(str.sData, str.nStartPos, str.nDataLength - str.nStartPos);
+        if (str.bTrim)
+            str.sLine = trim(str.sLine);
         str.nLineNumber++;
         str.nStartPos = str.nDataLength;
         return str;
@@ -530,7 +560,10 @@ string ParserPeek(struct ParserData str)
     int nNewLinePos = FindSubString(str.sData, "\n", str.nStartPos);
     if (nNewLinePos != -1)
     {
-        return GetSubString(str.sData, str.nStartPos, nNewLinePos - str.nStartPos);
+        string s = GetSubString(str.sData, str.nStartPos, nNewLinePos - str.nStartPos);
+        if (str.bTrim)
+            s = trim(s);
+        return s;
     }
     return "";
 }

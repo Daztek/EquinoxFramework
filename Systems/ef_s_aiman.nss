@@ -154,7 +154,7 @@ void AIMan_SetTimeOut(string sTimeoutFlag, float fSeconds, object oCreature = OB
 
 void AIMan_ApplyCutsceneGhost(object oCreature = OBJECT_SELF)
 {
-    ApplyEffectToObject(DURATION_TYPE_PERMANENT, ExtraordinaryEffect(EffectCutsceneGhost()), oCreature);
+    ApplyEffectToObject(DURATION_TYPE_PERMANENT, UnyieldingEffect(EffectCutsceneGhost()), oCreature);
 }
 
 void AIMan_SetIsAmbientNPC(object oCreature = OBJECT_SELF)
@@ -169,11 +169,25 @@ object AIMan_SpawnCreature(string sResRef, location locSpawn, string sBehavior)
     return oCreature;
 }
 
-void AIMan_HandleAIEvent(int nEventType)
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_HEARTBEAT:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_NOTICE:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_SPELLCASTAT:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_MELEE_ATTACKED:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_DAMAGED:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_DISTURBED:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_END_COMBATROUND:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_DIALOGUE:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_SPAWN_IN:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_RESTED:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_DEATH:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_USER_DEFINED_EVENT:DL]
+// @EVENT[EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR:DL]
+void AIMan_HandleAIEvent()
 {
     //Profiler_Start();
 
     object oCreature = OBJECT_SELF;
+    int nEventType = GetCurrentlyRunningEvent(FALSE);
     string sBehavior = AIMan_GetBehavior(oCreature);
 
     if (sBehavior != "")
@@ -199,84 +213,4 @@ void AIMan_HandleAIEvent(int nEventType)
     }
 
     //Profiler_Stop();
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_HEARTBEAT:DL]
-void AIMan_OnHeartBeat()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_HEARTBEAT);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_NOTICE:DL]
-void AIMan_OnPerception()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_NOTICE);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_SPELLCASTAT:DL]
-void AIMan_OnSpellCastAt()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_SPELLCASTAT);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_MELEE_ATTACKED:DL]
-void AIMan_OnPhysicalAttacked()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_MELEE_ATTACKED);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_DAMAGED:DL]
-void AIMan_OnDamaged()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DAMAGED);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_DISTURBED:DL]
-void AIMan_OnDisturbed()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DISTURBED);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_END_COMBATROUND:DL]
-void AIMan_OnCombatRoundEnd()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_END_COMBATROUND);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_DIALOGUE:DL]
-void AIMan_OnConversation()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DIALOGUE);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_SPAWN_IN:DL]
-void AIMan_OnSpawn()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_SPAWN_IN);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_RESTED:DL]
-void AIMan_OnRested()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_RESTED);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_DEATH:DL]
-void AIMan_OnDeath()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_DEATH);
-
-    AIMan_UnsetBehavior(OBJECT_SELF);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_USER_DEFINED_EVENT:DL]
-void AIMan_OnUserDefined()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_USER_DEFINED_EVENT);
-}
-
-// @EVENT[EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR:DL]
-void AIMan_OnBlocked()
-{
-    AIMan_HandleAIEvent(EVENT_SCRIPT_CREATURE_ON_BLOCKED_BY_DOOR);
 }

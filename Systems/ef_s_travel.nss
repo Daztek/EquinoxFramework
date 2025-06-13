@@ -32,7 +32,7 @@ void Travel_ApplyEffect(object oPlayer, int nMaterial, effect eEffect)
 void Travel_OnMaterialChange()
 {
     object oPlayer = OBJECT_SELF;
-    if (!GetIsPC(oPlayer) || GetIsDM(oPlayer)) return;
+    if (!GetIsPC(oPlayer) || GetIsDMExtended(oPlayer)) return;
     int nMaterial = EM_NWNXGetInt("MATERIAL_TYPE");
     effect eEffect;
 

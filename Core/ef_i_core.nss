@@ -25,7 +25,7 @@ const string EFCORE_SCRIPT_NAME                         = "ef_i_core";
 const int EFCORE_VALIDATE_SYSTEMS                       = TRUE;
 const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
 const int EFCORE_ENABLE_SCRIPTCHUNK_PRECACHING          = FALSE;
-const int EFCORE_PARSE_SYSTEM_FUNCTIONS                 = TRUE;
+const int EFCORE_PARSE_SYSTEM_FUNCTION_DEFINITIONS      = TRUE;
 const int EFCORE_PRECACHE_SYSTEM_FUNCTIONS              = FALSE;
 
 const int EF_SYSTEM_INIT                                = 1;
@@ -188,7 +188,7 @@ int EFCore_ParseAnnotation(string sLine, json jOutAnnotationArray)
     return FALSE;
 }
 
-int EFCore_ParseFunction(string sLine, string sSystem)
+int EFCore_ParseFunctionDefinition(string sLine, string sSystem)
 {
     if (GetStringRight(sLine, 2) == ");" &&
         (GetStringLeft(sLine, 4) == "void" ||
@@ -274,7 +274,7 @@ void EFCore_ParseSystem(string sSystem)
 
     while (!(str = ParserParse(str)).bEndOfFile)
     {
-        if (!EFCORE_PARSE_SYSTEM_FUNCTIONS || !EFCore_ParseFunction(str.sLine, sSystem))
+        if (!EFCORE_PARSE_SYSTEM_FUNCTION_DEFINITIONS || !EFCore_ParseFunctionDefinition(str.sLine, sSystem))
         {
             while (EFCore_ParseAnnotation(str.sLine, jAnnotations))
             {
@@ -284,6 +284,7 @@ void EFCore_ParseSystem(string sSystem)
 
             if (bFoundAnnotations)
             {
+                int bFoundFunction = FALSE;
                 if (ParserPeek(str) == "{")
                 {
                     json jMatch = RegExpMatch("(\\w+)\\s(\\w*)\\((.*)\\)", str.sLine);
@@ -301,12 +302,16 @@ void EFCore_ParseSystem(string sSystem)
                             json jData = GetJsonArrayFromTokenizedString(JsonArrayGetString(jAnnotation, 1));
                             EFCore_InsertAnnotation(sSystem, sAnnotation, sFunction, sParameters, sReturnType, jData);
                         }
+
+                        bFoundFunction = TRUE;
                     }
                 }
-                else
+
+                if (!bFoundFunction)
                 {
                     LogWarning("Didn't find a function for the following annotations: " + JsonDump(jAnnotations));
                 }
+
                 bFoundAnnotations = FALSE;
                 jAnnotations = JsonArray();
             }
@@ -374,8 +379,7 @@ void EFCore_ParseAnnotationData()
     {
         string sSystem = SqlGetString(sqlParseFunction, 0);
         string sFunction = SqlGetString(sqlParseFunction, 1);
-        json jData = SqlGetJson(sqlParseFunction, 2);
-        string sAnnotation = JsonArrayGetString(jData, 0);
+        string sAnnotation = JsonArrayGetString(SqlGetJson(sqlParseFunction, 2), 0);
 
         string sAnnotationFunction = nssFunction(sFunction,
             nssFunction("EFCore_GetAnnotationDataStruct",
@@ -546,7 +550,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
     int nLambdaId = GetLambdaIdFromFunction(sFunction);
     int nCallStackDepth = 0;
 
-    if (!EFCORE_PARSE_SYSTEM_FUNCTIONS && !nLambdaId)
+    if (!EFCORE_PARSE_SYSTEM_FUNCTION_DEFINITIONS && !nLambdaId)
     {
         LogError("Function Parsing Disabled: could not execute '" + sFunction + "'");
         return nCallStackDepth;

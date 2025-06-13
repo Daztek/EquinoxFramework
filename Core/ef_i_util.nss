@@ -134,6 +134,9 @@ struct ParserData ParserPrepare(string sData, int bTrim = FALSE);
 struct ParserData ParserParse(struct ParserData str);
 string ParserPeek(struct ParserData str);
 
+// Wrapper function that also checks for DM possessed creatures.
+int GetIsDMExtended(object oCreature, int bIncludePlayerDMs = FALSE);
+
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
 {
     json jArray = JsonArray();
@@ -566,4 +569,13 @@ string ParserPeek(struct ParserData str)
         return s;
     }
     return "";
+}
+
+int GetIsDMExtended(object oCreature, int bIncludePlayerDMs = FALSE)
+{
+    if (!GetIsObjectValid(oCreature))
+        return FALSE;
+    if (GetIsDMPossessed(oCreature))
+        return TRUE;
+    return GetIsDM(oCreature) && (bIncludePlayerDMs || !GetIsPlayerDM(oCreature));
 }

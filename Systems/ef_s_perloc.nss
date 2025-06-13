@@ -30,7 +30,7 @@ void PerLoc_SetAreaDisabled(object oArea)
 // @GUIEVENT[GUIEVENT_AREA_LOADSCREEN_FINISHED]
 void PerLoc_SaveLocation(object oPlayer = OBJECT_SELF)
 {
-    if (!GetIsObjectValid(oPlayer) || GetIsDM(oPlayer) || GetIsDMPossessed(oPlayer))
+    if (!GetIsObjectValid(oPlayer) || GetIsDMExtended(oPlayer))
         return;
 
     object oMaster = GetMaster(oPlayer);
@@ -43,7 +43,7 @@ void PerLoc_SaveLocation(object oPlayer = OBJECT_SELF)
 // @NWNX[NWNX_ON_ELC_VALIDATE_CHARACTER_AFTER]
 void PerLoc_RestoreLocation(object oPlayer = OBJECT_SELF)
 {
-    if (GetIsDM(oPlayer))
+    if (GetIsDMExtended(oPlayer))
         return;
 
     location locPlayer = PlayerDB_GetLocation(oPlayer, PERLOC_SCRIPT_NAME, "Location");

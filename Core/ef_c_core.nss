@@ -67,7 +67,10 @@ void Core_InitializeSystemData()
                     "scriptdata TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
-    json jSystems = JsonArrayTransform(GetResRefArray(EFCORE_SYSTEM_SCRIPT_PREFIX, RESTYPE_NSS), JSON_ARRAY_SORT_ASCENDING);
+    json jSystems = GetResRefArray(EFCORE_CORE_SCRIPT_PREFIX, RESTYPE_NSS);
+    jSystems = GetResRefArray(EFCORE_SYSTEM_SCRIPT_PREFIX, RESTYPE_NSS, FALSE, "", jSystems);
+    jSystems = JsonArrayTransform(jSystems, JSON_ARRAY_SORT_ASCENDING);
+
     int nSystem, nNumSystems = JsonGetLength(jSystems);
     for (nSystem = 0; nSystem < nNumSystems; nSystem++)
     {

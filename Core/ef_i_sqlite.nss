@@ -8,50 +8,27 @@
 #include "ef_i_string"
 #include "nwnx_nwsqliteext"
 
-const int SQL_ENABLE_MERSENNE_TWISTER               = TRUE;
+const int SQL_ENABLE_MERSENNE_TWISTER = TRUE;
 
-// Returns TRUE if sTableName exists in sDatabase.
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName);
-// Returns TRUE if sTableName exists on oObject.
 int SqlGetTableExistsObject(object oObject, string sTableName);
-// Returns the last insert id for sDatabase, -1 on error.
 int SqlGetLastInsertIdCampaign(string sDatabase);
-// Returns the last insert id for oObject, -1 on error.
 int SqlGetLastInsertIdObject(object oObject);
-// Returns the number of affected rows by the most recent INSERT, UPDATE or DELETE query for sDatabase, -1 on error.
 int SqlGetAffectedRowsCampaign(string sDatabase);
-// Returns the number of affected rows by the most recent INSERT, UPDATE or DELETE query for oObject, -1 on error.
 int SqlGetAffectedRowsObject(object oObject);
-// Prepare a new query for the module database
 sqlquery SqlPrepareQueryModule(string sQuery);
-// Begin a transaction on a campaign database
 void SqlBeginTransactionCampaign(string sDatabase);
-// Commit a transaction on a campaign database
 void SqlCommitTransactionCampaign(string sDatabase);
-// Begin a transaction on an object database
 void SqlBeginTransactionObject(object oObject);
-// Commit a transaction on an object database
 void SqlCommitTransactionObject(object oObject);
-// Begin a transaction on the module database
 void SqlBeginTransactionModule();
-// Commit a transaction on the module database
 void SqlCommitTransactionModule();
-// Get the unix epoch
 int SqlGetUnixEpoch();
-// Execute the sql query and reset it
 void SqlStepAndReset(sqlquery sql);
-// Set the seed for a mersenne twister random number generator
 void SqlMersenneTwisterSetSeed(string sName, int nSeed);
-// Get a value from a mersenne twister random number generator
 int SqlMersenneTwisterGetValue(string sName, int nMaxInteger);
-// Discard nAmount of values from a mersenne twister random number generator
 void SqlMersenneTwisterDiscard(string sName, int nAmount);
-// Bind an object reference to a named parameter of the given prepared query.
 void SqlBindObjectRef(sqlquery sqlQuery, string sParam, object oObject);
-// Retrieve a column cast as a object reference of the currently stepped row.
-// You can call this after SqlStep() returned TRUE.
-// In case of error, OBJECT_INVALID will be returned.
-// In traditional fashion, nIndex starts at 0
 object SqlGetObjectRef(sqlquery sqlQuery, int nIndex);
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)

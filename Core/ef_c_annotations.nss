@@ -5,7 +5,6 @@
 
 #include "ef_i_sqlite"
 #include "ef_i_vm"
-#include "ef_c_log"
 
 const string ANNOTATIONS_SCRIPT_NAME        = "ef_c_annotations";
 const string ANNOTATIONS_ANNOTATION_DATA    = "AnnotationsAnnotationData";
@@ -114,11 +113,7 @@ void Annotations_ParseAnnotationData()
             JsonArrayInsertInplace(jAnnotationData, SqlGetJson(sqlAnnotationData, 4));
 
             SetLocalJson(oModule, ANNOTATIONS_ANNOTATION_DATA, jAnnotationData);
-            string sError = ExecuteScriptChunk(nssInclude(ANNOTATIONS_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sAnnotationFunction), oModule, FALSE);
-
-            if (sError != "")
-                LogError("Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
-
+            ExecuteScriptChunk(nssInclude(ANNOTATIONS_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sAnnotationFunction), oModule, FALSE);
             ResetScriptInstructions();
         }
     }

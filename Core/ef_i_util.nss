@@ -15,7 +15,7 @@ struct Vector2
     int nY;
 };
 
-json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "");
+json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "", json jArray = JSON_NULL);
 void RemoveEffectsWithTag(object oObject, string sTag);
 string Get2DAStrRefString(string s2DA, string sColumn, int nRow);
 void VoidJsonToObject(json jObject, location locLocation, object oOwner = OBJECT_INVALID, int bLoadObjectState = FALSE);
@@ -37,11 +37,13 @@ int IncrementLocalInt(object oObject, string sVarName);
 int DecrementLocalInt(object oObject, string sVarName);
 int GetIsDMExtended(object oCreature, int bIncludePlayerDMs = FALSE);
 
-json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
+json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "", json jArray = JSON_NULL)
 {
-    json jArray = JsonArray();
     string sResRef;
     int nNth;
+
+    if (JsonGetType(jArray) != JSON_TYPE_ARRAY)
+        jArray = JsonArray();
 
     while ((sResRef = ResManFindPrefix(sPrefix, nResType, ++nNth, bSearchBaseData, sOnlyKeyTable)) != "")
     {

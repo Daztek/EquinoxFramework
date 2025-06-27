@@ -3,6 +3,7 @@
     Author: Daz
 */
 
+#include "ef_i_math"
 #include "ef_i_sqlite"
 #include "ef_c_log"
 

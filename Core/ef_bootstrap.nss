@@ -2,10 +2,12 @@
 #include "ef_c_core"
 #include "ef_c_log"
 #include "ef_c_mediator"
+#include "ef_c_messagebus"
 #include "ef_c_profiler"
 
 void Init()
 {
+    MessageBus_Init();
     Log_Init();
     Profiler_Init();
     Mediator_Init();

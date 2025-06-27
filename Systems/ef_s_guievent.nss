@@ -5,7 +5,9 @@
     @GUIEVENT[GUIEVENT_*]
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_annotations"
+#include "ef_c_log"
 
 const string GUIEVENT_SCRIPT_NAME       = "ef_s_guievent";
 const int GUIEVENT_DEBUG_EVENTS         = FALSE;
@@ -61,7 +63,7 @@ void GuiEvent_RegisterFunction(struct AnnotationData str)
         SqlBindString(sql, "@scriptchunk", sScriptChunk);
         SqlStep(sql);
 
-        EFCore_CacheScriptChunk(sScriptChunk);
+        CacheScriptChunk(sScriptChunk);
 
         LogInfo("System '" + str.sSystem + "' registered '" + str.sFunction + "' for gui event '" + sGuiEventType + "'");
     }

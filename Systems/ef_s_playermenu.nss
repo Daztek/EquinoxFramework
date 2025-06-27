@@ -5,7 +5,9 @@
     @PMBUTTON[Button Name:Tooltip Text]
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_annotations"
+#include "ef_c_log"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
 
@@ -79,7 +81,7 @@ void PM_RegisterButton(struct AnnotationData str)
     InsertStringToLocalJsonArray(oDataObject, PM_BUTTON_ARRAY, sButton);
     InsertStringToLocalJsonArray(oDataObject, PM_TOOLTIP_ARRAY, sTooltip);
     InsertStringToLocalJsonArray(oDataObject, PM_FUNCTION_ARRAY, sScriptChunk);
-    EFCore_CacheScriptChunk(sScriptChunk);
+    CacheScriptChunk(sScriptChunk);
 
     LogInfo("System '" + str.sSystem + "' registered player menu button '" + sButton + "' with tooltip: \""  + sTooltip + "\"");
 }

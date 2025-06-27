@@ -5,7 +5,9 @@
     @REST[REST_EVENTTYPE_REST_*]
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_annotations"
+#include "ef_c_log"
 
 const string REST_SCRIPT_NAME               = "ef_s_rest";
 
@@ -51,7 +53,7 @@ void Rest_RegisterFunction(struct AnnotationData str)
     SqlBindString(sql, "@scriptchunk", sScriptChunk);
     SqlStep(sql);
 
-    EFCore_CacheScriptChunk(sScriptChunk);
+    CacheScriptChunk(sScriptChunk);
 
     LogInfo("System '" + str.sSystem + "' registered function '" + str.sFunction + "' for rest event type: " + sRestEventTypeConstant);
 }

@@ -5,7 +5,8 @@
     Description: An Equinox Framework System that provides various PostString functionality
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
 
 const string POSTSTRING_SCRIPT_NAME     = "ef_s_poststring";
 

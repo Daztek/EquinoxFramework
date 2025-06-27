@@ -5,7 +5,8 @@
     Description: An Equinox Framework system to display buffs when a player clicks an effect icon
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
 #include "ef_s_session"
 #include "ef_s_playerdb"
 #include "ef_s_poststring"

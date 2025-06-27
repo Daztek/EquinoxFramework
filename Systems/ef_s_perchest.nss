@@ -5,7 +5,8 @@
     Description:
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
 #include "ef_s_eventman"

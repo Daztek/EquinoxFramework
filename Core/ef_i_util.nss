@@ -7,7 +7,6 @@
 
 #include "ef_i_nss"
 #include "ef_i_gff"
-#include "ef_i_log"
 
 const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
 
@@ -31,19 +30,6 @@ struct ParserData
 
 // Get an array of resrefs by type
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "");
-
-// Get the int value of sConstant or nErrorValue on error
-int GetConstantIntValue(string sConstant, string sInclude = "", int nErrorValue = 0);
-// Get the string value of sConstant or sErrorValue on error
-string GetConstantStringValue(string sConstant, string sInclude = "", string sErrorValue = "");
-// Get the float value of sConstant or fErrorValue on error
-float GetConstantFloatValue(string sConstant, string sInclude = "", float fErrorValue = 0.0f);
-
-// Run sScriptChunk and return its json result
-json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject);
-
-// Run sScriptChunk and return its int result
-int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object oObject);
 
 // Remove all effects with sTag from oObject
 void RemoveEffectsWithTag(object oObject, string sTag);
@@ -149,66 +135,6 @@ json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, s
     }
 
     return jArray;
-}
-
-int GetConstantIntValue(string sConstant, string sInclude = "", int nErrorValue = 0)
-{
-    object oModule = GetModule();
-    string sScriptChunk = nssInclude(sInclude) + nssVoidMain("SetLocalInt(OBJECT_SELF, \"CONVERT_CONSTANT\", " + sConstant + ");");
-    string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
-    int nRet = GetLocalInt(oModule, "CONVERT_CONSTANT");
-    DeleteLocalInt(oModule, "CONVERT_CONSTANT");
-    return sError == "" ? nRet : nErrorValue;
-}
-
-string GetConstantStringValue(string sConstant, string sInclude = "", string sErrorValue = "")
-{
-    object oModule = GetModule();
-    string sScriptChunk = nssInclude(sInclude) + nssVoidMain("SetLocalString(OBJECT_SELF, \"CONVERT_CONSTANT\", " + sConstant + ");");
-    string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
-    string sRet = GetLocalString(oModule, "CONVERT_CONSTANT");
-    DeleteLocalString(oModule, "CONVERT_CONSTANT");
-    return sError == "" ? sRet : sErrorValue;
-}
-
-float GetConstantFloatValue(string sConstant, string sInclude = "", float fErrorValue = 0.0f)
-{
-    object oModule = GetModule();
-    string sScriptChunk = nssInclude(sInclude) + nssVoidMain("SetLocalFloat(OBJECT_SELF, \"CONVERT_CONSTANT\", " + sConstant + ");");
-    string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
-    float fRet = GetLocalFloat(oModule, "CONVERT_CONSTANT");
-    DeleteLocalFloat(oModule, "CONVERT_CONSTANT");
-    return sError == "" ? fRet : fErrorValue;
-}
-
-json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject)
-{
-    object oModule = GetModule();
-    string sScript = nssInclude(sInclude) + nssVoidMain(nssJson("jReturn", sScriptChunk) +
-        nssFunction("SetLocalJson", nssFunction("GetModule", "", FALSE) + ", " + nssEscape("EF_TEMP_VAR") + ", jReturn"));
-    string sResult = ExecuteScriptChunk(sScript, oObject, FALSE);
-    json jReturn = GetLocalJson(oModule, "EF_TEMP_VAR");
-    DeleteLocalJson(oModule, "EF_TEMP_VAR");
-
-    if (sResult != "")
-        LogError("Scriptchunk failed with error: " + sResult);
-
-    return jReturn;
-}
-
-int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object oObject)
-{
-    object oModule = GetModule();
-    string sScript = nssInclude(sInclude) + nssVoidMain(nssInt("nReturn", sScriptChunk) +
-        nssFunction("SetLocalInt", nssFunction("GetModule", "", FALSE) + ", " + nssEscape("EF_TEMP_VAR") + ", nReturn"));
-    string sResult = ExecuteScriptChunk(sScript, oObject, FALSE);
-    int nReturn = GetLocalInt(oModule, "EF_TEMP_VAR");
-    DeleteLocalInt(oModule, "EF_TEMP_VAR");
-
-    if (sResult != "")
-        LogError("Scriptchunk failed with error: " + sResult);
-
-    return nReturn;
 }
 
 void RemoveEffectsWithTag(object oObject, string sTag)

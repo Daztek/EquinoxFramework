@@ -3,10 +3,11 @@
     Author: Daz
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
+#include "ef_c_profiler"
 #include "ef_s_areagen"
 #include "ef_s_tileset"
-#include "ef_s_profiler"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
 #include "ef_s_gfftools"
@@ -415,7 +416,7 @@ json TE_GetAreaTilesLayoutJson(int nAreaWidth, int nAreaHeight)
 
                             NB_End();
 
-                            EFCore_ResetScriptInstructions();
+                            ResetScriptInstructions();
                         }
 
                         NB_AddSpacer();
@@ -725,7 +726,7 @@ void TE_LoadTileset(string sTileset)
 
     TE_CreateTCColorArray(sTileset);
 
-    EFCore_ResetScriptInstructions();
+    ResetScriptInstructions();
 }
 
 // WINDOW STUFF
@@ -824,7 +825,7 @@ void TE_UpdateTileList()
         JsonArrayInsertInplace(jTileColorLArray, TE_GetTCColor(jTCColorArray, SqlGetInt(sql, 8)));
 
         if (!(nCount++ % 100))
-            EFCore_ResetScriptInstructions();
+            ResetScriptInstructions();
     }
 
     NWM_SetUserData(TE_WINDOW_USERDATA_MAIN_TILE_IDS, jTileIDArray);

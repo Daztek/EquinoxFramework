@@ -5,8 +5,11 @@
     Description:
 */
 
-#include "ef_i_core"
-#include "ef_s_profiler"
+#include "ef_i_include"
+#include "ef_c_log"
+#include "ef_c_profiler"
+#include "ef_i_dataobject"
+#include "ef_i_sqlite"
 #include "nwnx_tileset"
 
 const string TS_SCRIPT_NAME                     = "ef_s_tileset";
@@ -880,7 +883,7 @@ void TS_ProcessTile(string sTileset, int nTileID)
         }
     }
 
-    EFCore_ResetScriptInstructions();
+    ResetScriptInstructions();
 }
 
 void TS_InsertSingleGroupTile(sqlquery sql, string sTileset, int nTileID, int nOrientation, int nHeight, struct TS_TileStruct str)
@@ -933,7 +936,7 @@ void TS_ProcessSingleGroupTile(string sTileset, int nTileID)
         }
     }
 
-    EFCore_ResetScriptInstructions();
+    ResetScriptInstructions();
 }
 
 vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical)

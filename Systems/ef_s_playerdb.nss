@@ -5,7 +5,8 @@
     Description: An Equinox Framework System to store player data persistently.
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
 
 const string PLAYERDB_SCRIPT_NAME           = "ef_s_playerdb";
 const string PLAYERDB_DATABASE_NAME         = "EFPlayerDB";

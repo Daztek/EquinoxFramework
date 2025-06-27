@@ -5,7 +5,9 @@
     @TARGETMODE[TARGET_MODE_ID]
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_annotations"
+#include "ef_c_log"
 #include "ef_s_session"
 
 const string TARGETMODE_SCRIPT_NAME             = "ef_s_targetmode";
@@ -54,7 +56,7 @@ void TargetMode_RegisterFunction(struct AnnotationData str)
         LogWarning("System '" + str.sSystem + "' tried to register function '" + str.sFunction + "' with an invalid target mode id");
     else
     {
-        EFCore_CacheScriptChunk(sScriptChunk);
+        CacheScriptChunk(sScriptChunk);
         InsertStringToLocalJsonArray(GetDataObject(TARGETMODE_SCRIPT_NAME), TARGETMODE_FUNCTIONS_ARRAY_PREFIX + sTargetModeId, sScriptChunk);
         LogInfo("System '" + str.sSystem + "' registered function '" + str.sFunction + "' for target mode id: " + sTargetModeId);
     }

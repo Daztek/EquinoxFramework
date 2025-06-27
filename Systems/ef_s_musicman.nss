@@ -5,9 +5,11 @@
     @MUSICEVENT[Event:Priority:FadeTime]
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_annotations"
+#include "ef_c_log"
+#include "ef_c_profiler"
 #include "ef_s_session"
-#include "ef_s_profiler"
 
 const string MUSMAN_SCRIPT_NAME                         = "ef_s_musicman";
 const string MUSMAN_AMBIENT_MUSIC_2DA                   = "ambientmusic";
@@ -108,9 +110,9 @@ void MusMan_RegisterMusicEvent(struct AnnotationData str)
         return;
     }
 
-    string sEvent = EFCore_GetAnnotationString(str, 0);
-    int nPriority = EFCore_GetAnnotationInt(str, 1);
-    float fFadeTime = EFCore_GetAnnotationFloat(str, 2);
+    string sEvent = GetAnnotationString(str, 0);
+    int nPriority = GetAnnotationInt(str, 1);
+    float fFadeTime = GetAnnotationFloat(str, 2);
     sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + MusMan_GetMusicEventsTable() + "(event, system, priority, fadetime, track_function) " +
                                          "VALUES(@event, @system, @priority, @fadetime, @track_function);");
     SqlBindString(sql, "@event", sEvent);

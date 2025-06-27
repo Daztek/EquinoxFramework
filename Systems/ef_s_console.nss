@@ -5,7 +5,9 @@
     @CONSOLE[command_name:icon:Description]
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_annotations"
+#include "ef_c_log"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
 #include "ef_s_targetmode"
@@ -500,7 +502,7 @@ void Console_RegisterCommand(struct AnnotationData str)
     SqlBindString(sql, "@script_chunk", sScriptChunk);
     SqlStep(sql);
 
-    EFCore_CacheScriptChunk(sScriptChunk);
+    CacheScriptChunk(sScriptChunk);
 
     LogInfo("System '" + str.sSystem + "' registered command '" + sName + "' with '" + IntToString(nNumArguments) + "' parameters");
 }

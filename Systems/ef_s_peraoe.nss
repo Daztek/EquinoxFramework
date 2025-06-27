@@ -3,7 +3,8 @@
     Author: Daz
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
 #include "ef_s_eventman"
 #include "nwnx_object"
 
@@ -17,7 +18,7 @@ void PerAOE_SetScriptChunk(object oAoE, int nEventType, string sSystem, string s
     if (sFunction != "")
     {
         string sScriptChunk = nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction));
-        EFCore_CacheScriptChunk(sScriptChunk);
+        CacheScriptChunk(sScriptChunk);
         SetLocalString(oAoE, IntToString(nEventType), sScriptChunk);
         EM_SetObjectEventScript(oAoE, nEventType, FALSE);
         EM_ObjectDispatchListInsert(oAoE, EM_GetObjectDispatchListId(PERAOE_SCRIPT_NAME, nEventType));

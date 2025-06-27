@@ -6,7 +6,9 @@
     @NWMEVENT[WINDOW_ID:NUI_EVENT_*:element]
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_annotations"
+#include "ef_c_log"
 #include "ef_s_nuibuilder"
 #include "ef_s_playerdb"
 
@@ -127,7 +129,7 @@ void NWM_RegisterEvent(struct AnnotationData str)
     SqlBindString(sql, "@scriptchunk", sScriptChunk);
     SqlStep(sql);
 
-    EFCore_CacheScriptChunk(sScriptChunk);
+    CacheScriptChunk(sScriptChunk);
 
     LogInfo("System '" + str.sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + str.sFunction + "' for window: " + sWindowId);
 }

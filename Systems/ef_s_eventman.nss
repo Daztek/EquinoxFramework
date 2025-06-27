@@ -6,7 +6,9 @@
     @NWNX[SOME_EVENT:DL]
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_annotations"
+#include "ef_c_log"
 #include "nwnx_events"
 
 const string EM_SCRIPT_NAME                     = "ef_s_eventman";
@@ -127,7 +129,7 @@ void EM_InsertObjectEventAnnotations(struct AnnotationData str)
         SqlBindInt(sql, "@dispatchlist", bDispatchListMode);
         SqlStep(sql);
 
-        EFCore_CacheScriptChunk(sScriptChunk);
+        CacheScriptChunk(sScriptChunk);
 
         if (EM_LOG_DEBUG)
         {
@@ -299,7 +301,7 @@ void EM_NWNXSubscribeAnnotations(struct AnnotationData str)
     int bDispatchListMode = JsonArrayGetString(str.jArguments, 1) == "DL";
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
-    EFCore_CacheScriptChunk(sScriptChunk);
+    CacheScriptChunk(sScriptChunk);
     EM_NWNXSetEventScriptChunk(str.sSystem, sEvent, sScriptChunk);
     EM_NWNXSubscribeEvent(str.sSystem, sEvent, sScriptChunk, bDispatchListMode);
 }

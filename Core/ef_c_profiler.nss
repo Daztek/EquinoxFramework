@@ -1,13 +1,12 @@
 /*
-    Script: ef_s_profiler
+    Script: ef_c_profiler
     Author: Daz
-
-    Description: Equinox Framework Profiler System
 */
 
-#include "ef_i_core"
+#include "ef_i_sqlite"
+#include "ef_c_log"
 
-const string PROFILER_SCRIPT_NAME                       = "ef_s_profiler";
+const string PROFILER_SCRIPT_NAME                       = "ef_c_profiler";
 
 const string PROFILER_CALLING_FUNCTION                  = "CallingFunction";
 const string PROFILER_IDENTIFIER_STRING                 = "IdentifierString";
@@ -21,7 +20,6 @@ const int PROFILER_MICROSECOND_OVERHEAD                 = 1;
 void Profiler_Start(string sIdentifier = "");
 void Profiler_Stop();
 
-// @CORE[EF_SYSTEM_INIT]
 void Profiler_Init()
 {
     SqlStep(SqlPrepareQueryModule("CREATE TABLE IF NOT EXISTS " + PROFILER_SCRIPT_NAME + " (" +

@@ -44,11 +44,11 @@
         UPDATE vault_characters SET character = (JSON_SET(character, '$.Gold.value', JSON_EXTRACT(character, '$.Gold.value') + 1000));
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
+#include "ef_c_profiler"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
-#include "ef_s_profiler"
-
 #include "nwnx_player"
 #include "nwnx_vault"
 

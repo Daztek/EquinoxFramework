@@ -5,7 +5,8 @@
     Description:
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
 #include "ef_s_eventman"
 
 const string GFFTOOLS_SCRIPT_NAME                       = "ef_s_gfftools";

@@ -5,9 +5,11 @@
     @AIMANEVENT[Behavior:EVENT_SCRIPT_CREATURE_*]
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_annotations"
+#include "ef_c_profiler"
+#include "ef_c_log"
 #include "ef_s_eventman"
-#include "ef_s_profiler"
 
 const string AIMAN_SCRIPT_NAME                  = "ef_s_aiman";
 const int AIMAN_DEBUG_EVENTS                    = FALSE;
@@ -52,7 +54,7 @@ void AIMan_RegisterAIBehaviorEvent(struct AnnotationData str)
         SqlBindString(sql, "@scriptchunk", sScriptChunk);
         SqlStep(sql);
 
-        EFCore_CacheScriptChunk(sScriptChunk);
+        CacheScriptChunk(sScriptChunk);
 
         LogInfo("System '" + str.sSystem + "' registered '" + str.sFunction + "' for behavior '" + sBehavior + "' and event '" + sEventType + "'");
     }

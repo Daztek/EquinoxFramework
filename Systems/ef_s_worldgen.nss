@@ -3,15 +3,16 @@
     Author: Daz
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
+#include "ef_c_mediator"
+#include "ef_c_profiler"
 #include "ef_s_areagen"
 #include "ef_s_eventman"
-#include "ef_s_profiler"
 #include "ef_s_areamusic"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
 #include "ef_s_gfftools"
-
 #include "nwnx_player"
 
 const string WG_SCRIPT_NAME                                     = "ef_s_worldgen";
@@ -590,7 +591,7 @@ void WG_CreateVFXEdge(string sAreaID, int nNeighborDirection)
             nNeighborDirection = (((nNeighborDirection - 4) + 2) % 4) + 4;
         WG_SpawnVFXEdge(sNeighborAreaID, nNeighborDirection);
 
-        EFCore_ResetScriptInstructions();
+        ResetScriptInstructions();
     }
 }
 

@@ -3,10 +3,10 @@
     Author: Daz
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
+#include "ef_c_profiler"
 #include "ef_s_eventman"
-#include "ef_s_profiler"
-
 #include "nwnx_nwsqliteext"
 
 const string DEBUG_SCRIPT_NAME          = "ef_s_debug";

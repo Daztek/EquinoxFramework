@@ -7,6 +7,9 @@
 
 #include "ef_i_json"
 #include "ef_i_nss"
+#include "nwnx_util"
+
+const int VM_ENABLE_SCRIPTCHUNK_PRECACHING = FALSE;
 
 struct VMFrame
 {
@@ -15,16 +18,17 @@ struct VMFrame
     int nLine;
 };
 
-// Get a VM frame at nDepth
-// 0: Current Function
-// 1: Calling Function
 struct VMFrame GetVMFrame(int nDepth = 0);
-// Get script name of the current frame
 string GetVMFrameScript(int nDepth = 0);
-// Get a VM backtrace as string
 string GetVMBacktrace(int nDepth = 0);
-// Convenience Wrapper around CompileScript
 string VMCompileScript(string sFileName, string sInclude, string sScriptChunk);
+int GetConstantIntValue(string sConstant, string sInclude = "", int nErrorValue = 0);
+string GetConstantStringValue(string sConstant, string sInclude = "", string sErrorValue = "");
+float GetConstantFloatValue(string sConstant, string sInclude = "", float fErrorValue = 0.0f);
+json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject);
+int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object oObject);
+string CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE);
+void ResetScriptInstructions();
 
 struct VMFrame GetVMFrame(int nDepth = 0)
 {
@@ -66,4 +70,74 @@ string GetVMBacktrace(int nDepth = 0)
 string VMCompileScript(string sFileName, string sInclude, string sScriptChunk)
 {
     return CompileScript(sFileName, nssInclude(sInclude) + nssVoidMain(sScriptChunk), FALSE, TRUE);
+}
+
+int GetConstantIntValue(string sConstant, string sInclude = "", int nErrorValue = 0)
+{
+    object oModule = GetModule();
+    string sScriptChunk = nssInclude(sInclude) + nssVoidMain("SetLocalInt(OBJECT_SELF, \"CONVERT_CONSTANT\", " + sConstant + ");");
+    string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
+    int nRet = GetLocalInt(oModule, "CONVERT_CONSTANT");
+    DeleteLocalInt(oModule, "CONVERT_CONSTANT");
+    return sError == "" ? nRet : nErrorValue;
+}
+
+string GetConstantStringValue(string sConstant, string sInclude = "", string sErrorValue = "")
+{
+    object oModule = GetModule();
+    string sScriptChunk = nssInclude(sInclude) + nssVoidMain("SetLocalString(OBJECT_SELF, \"CONVERT_CONSTANT\", " + sConstant + ");");
+    string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
+    string sRet = GetLocalString(oModule, "CONVERT_CONSTANT");
+    DeleteLocalString(oModule, "CONVERT_CONSTANT");
+    return sError == "" ? sRet : sErrorValue;
+}
+
+float GetConstantFloatValue(string sConstant, string sInclude = "", float fErrorValue = 0.0f)
+{
+    object oModule = GetModule();
+    string sScriptChunk = nssInclude(sInclude) + nssVoidMain("SetLocalFloat(OBJECT_SELF, \"CONVERT_CONSTANT\", " + sConstant + ");");
+    string sError = ExecuteScriptChunk(sScriptChunk, oModule, FALSE);
+    float fRet = GetLocalFloat(oModule, "CONVERT_CONSTANT");
+    DeleteLocalFloat(oModule, "CONVERT_CONSTANT");
+    return sError == "" ? fRet : fErrorValue;
+}
+
+json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject)
+{
+    object oModule = GetModule();
+    string sScript = nssInclude(sInclude) + nssVoidMain(nssJson("jReturn", sScriptChunk) +
+        nssFunction("SetLocalJson", nssFunction("GetModule", "", FALSE) + ", " + nssEscape("EF_TEMP_VAR") + ", jReturn"));
+    ExecuteScriptChunk(sScript, oObject, FALSE);
+    json jReturn = GetLocalJson(oModule, "EF_TEMP_VAR");
+    DeleteLocalJson(oModule, "EF_TEMP_VAR");
+    return jReturn;
+}
+
+int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object oObject)
+{
+    object oModule = GetModule();
+    string sScript = nssInclude(sInclude) + nssVoidMain(nssInt("nReturn", sScriptChunk) +
+        nssFunction("SetLocalInt", nssFunction("GetModule", "", FALSE) + ", " + nssEscape("EF_TEMP_VAR") + ", nReturn"));
+    ExecuteScriptChunk(sScript, oObject, FALSE);
+    int nReturn = GetLocalInt(oModule, "EF_TEMP_VAR");
+    DeleteLocalInt(oModule, "EF_TEMP_VAR");
+    return nReturn;
+}
+
+string CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)
+{
+    string sRetVal;
+    if (VM_ENABLE_SCRIPTCHUNK_PRECACHING)
+    {
+        NWNXPushInt(bWrapIntoMain);
+        NWNXPushString(sScriptChunk);
+        NWNXCall("NWNX_Optimizations", "CacheScriptChunk");
+        sRetVal = NWNXPopString();
+    }
+    return sRetVal;
+}
+
+void ResetScriptInstructions()
+{
+    NWNX_Util_SetInstructionsExecuted(0);
 }

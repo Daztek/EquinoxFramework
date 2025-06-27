@@ -3,11 +3,12 @@
     Author: Daz
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
+#include "ef_c_profiler"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
 #include "ef_s_ruleset2da"
-#include "ef_s_profiler"
 
 const string CG_SCRIPT_NAME                             = "ef_s_chargen";
 

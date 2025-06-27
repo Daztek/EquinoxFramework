@@ -5,10 +5,11 @@
     Currently optimized for TILESET_RESREF_MEDIEVAL_RURAL_2
 */
 
-#include "ef_i_core"
+#include "ef_i_include"
+#include "ef_c_log"
+#include "ef_c_profiler"
 #include "ef_s_tileset"
 #include "ef_s_gfftools"
-#include "ef_s_profiler"
 #include "nwnx_area"
 
 const string AG_SCRIPT_NAME                                     = "ef_s_areagen";
@@ -416,7 +417,7 @@ void AG_InitializeTileArrays(string sAreaID, int nWidth, int nHeight)
         AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_TILES, nTile, AG_INVALID_TILE_ID, oAreaDataObject);
     }
 
-    EFCore_ResetScriptInstructions();
+    ResetScriptInstructions();
 
     for (nTile = 0; nTile < nWidth; nTile++)
     {
@@ -424,7 +425,7 @@ void AG_InitializeTileArrays(string sAreaID, int nWidth, int nHeight)
         AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_EDGE_BOTTOM, nTile, AG_INVALID_TILE_ID, oAreaDataObject);
     }
 
-    EFCore_ResetScriptInstructions();
+    ResetScriptInstructions();
 
     for (nTile = 0; nTile < nHeight; nTile++)
     {
@@ -432,7 +433,7 @@ void AG_InitializeTileArrays(string sAreaID, int nWidth, int nHeight)
         AG_Tile_SetID(sAreaID, AG_DATA_KEY_ARRAY_EDGE_RIGHT, nTile, AG_INVALID_TILE_ID, oAreaDataObject);
     }
 
-    EFCore_ResetScriptInstructions();
+    ResetScriptInstructions();
 }
 
 void AG_InitializeAreaDataObject(string sAreaID, string sTileset, string sEdgeTerrain = "", int nWidth = AG_AREA_DEFAULT_WIDTH, int nHeight = AG_AREA_DEFAULT_HEIGHT)

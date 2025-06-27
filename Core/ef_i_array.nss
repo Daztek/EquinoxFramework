@@ -1,28 +1,17 @@
 /*
     Script: ef_i_array
     Author: Daz
-
-    Description: Equinox Framework Locals Array Include
 */
 
 // *** STRING
 
-// Insert a string to sArrayName
 void StringArray_Insert(object oObject, string sArrayName, string sValue);
-// Set nIndex of sArrayName to sValue
 void StringArray_Set(object oObject, string sArrayName, int nIndex, string sValue);
-// Get the size of sArrayName
 int StringArray_Size(object oObject, string sArrayName);
-// Get the string at nIndex of sArrayName
 string StringArray_At(object oObject, string sArrayName, int nIndex);
-// Delete sArrayName
-// If bFast is TRUE, only set the array size to 0
 void StringArray_Clear(object oObject, string sArrayName, int bFast = FALSE);
-// Returns the index of sValue if it exists in sArrayName or -1 if not
 int StringArray_Contains(object oObject, string sArrayName, string sValue);
-// Delete nIndex from sArrayName on oObject
 void StringArray_Delete(object oObject, string sArrayName, int nIndex);
-// Delete sValue from sArrayName on oObject
 void StringArray_DeleteByValue(object oObject, string sArrayName, string sValue);
 
 void StringArray_Insert(object oObject, string sArrayName, string sValue)
@@ -124,22 +113,13 @@ void StringArray_DeleteByValue(object oObject, string sArrayName, string sValue)
 
 // *** OBJECT
 
-// Insert an object to sArrayName
 void ObjectArray_Insert(object oObject, string sArrayName, object oValue);
-// Set nIndex of sArrayName to oValue
 void ObjectArray_Set(object oObject, string sArrayName, int nIndex, object oValue);
-// Get the size of sArrayName
 int ObjectArray_Size(object oObject, string sArrayName);
-// Get the object at nIndex of sArrayName
 object ObjectArray_At(object oObject, string sArrayName, int nIndex);
-// Delete sArrayName
-// If bFast is TRUE, only set the array size to 0
 void ObjectArray_Clear(object oObject, string sArrayName, int bFast = FALSE);
-// Returns the index of oValue if it exists in sArrayName or -1 if not
 int ObjectArray_Contains(object oObject, string sArrayName, object oValue);
-// Delete nIndex from sArrayName on oObject
 void ObjectArray_Delete(object oObject, string sArrayName, int nIndex);
-// Delete oObject from sArrayName on oObject
 void ObjectArray_DeleteByValue(object oObject, string sArrayName, object oValue);
 
 void ObjectArray_Insert(object oObject, string sArrayName, object oValue)
@@ -242,24 +222,14 @@ void ObjectArray_DeleteByValue(object oObject, string sArrayName, object oValue)
 
 // *** INT
 
-// Insert an int to sArrayName
 void IntArray_Insert(object oObject, string sArrayName, int nValue);
-// Set nIndex of sArrayName to nValue
 void IntArray_Set(object oObject, string sArrayName, int nIndex, int nValue);
-// Get the size of sArrayName
 int IntArray_Size(object oObject, string sArrayName);
-// Set the size of sArrayName to sSize
 void IntArray_SetSize(object oObject, string sArrayName, int nSize);
-// Get the int at nIndex of sArrayName
 int IntArray_At(object oObject, string sArrayName, int nIndex);
-// Delete sArrayName
-// If bFast is TRUE, only set the array size to 0
 void IntArray_Clear(object oObject, string sArrayName, int bFast = FALSE);
-// Returns the index of nValue if it exists in sArrayName or -1 if not
 int IntArray_Contains(object oObject, string sArrayName, int nValue);
-// Delete nIndex from sArrayName on oObject
 void IntArray_Delete(object oObject, string sArrayName, int nIndex);
-// Delete nValue from sArrayName on oObject
 void IntArray_DeleteByValue(object oObject, string sArrayName, int nValue);
 
 void IntArray_Insert(object oObject, string sArrayName, int nValue)

@@ -1,8 +1,6 @@
 /*
     Script: ef_i_gff
     Author: Daz
-
-    Description: Equinox Framework Gff Utility Include
 */
 
 #include "ef_i_json"
@@ -12,17 +10,11 @@ const int GFF_LOCAL_VAR_TYPE_INT    = 1;
 const int GFF_LOCAL_VAR_TYPE_FLOAT  = 2;
 const int GFF_LOCAL_VAR_TYPE_STRING = 3;
 
-// Create a json local int object
 json GffLocalVarInt(string sName, int nValue);
-// Create a json local float object
 json GffLocalVarFloat(string sName, float fValue);
-// Create a json local string object
 json GffLocalVarString(string sName, string sValue);
-// Add a local variable to a non-area json gff object's vartable
 json GffAddLocalVariable(json jGff, json jVariable);
-// Add a tile to a tile list
 void GffAddTile(json jTileList, int nTileID, int nOrientation, int nHeight, int nAnimLoop1 = TRUE, int nAnimLoop2 = TRUE, int nAnimLoop3 = TRUE);
-// Set an area's lighting scheme
 json GffSetLightingScheme(json jArea, int nIndex);
 
 json GffLocalVarInt(string sName, int nValue)

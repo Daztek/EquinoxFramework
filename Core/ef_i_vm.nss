@@ -1,8 +1,6 @@
 /*
     Script: ef_i_vm
     Author: Daz
-
-    Description: Equinox Framework VM Utility Include
 */
 
 #include "ef_i_json"

@@ -1,8 +1,6 @@
 /*
     Script: ef_i_nui
     Author: Daz
-
-    Description: Equinox Framework NUI Utility Include
 */
 
 #include "ef_i_json"

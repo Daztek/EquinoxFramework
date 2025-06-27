@@ -5,7 +5,6 @@
     Description: Utility Include for the Equinox Framework
 */
 
-#include "ef_i_nss"
 #include "ef_i_gff"
 
 const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
@@ -16,111 +15,26 @@ struct Vector2
     int nY;
 };
 
-struct ParserData
-{
-    int nStartPos;
-    int nNewLinePos;
-    int bEndOfFile;
-    string sData;
-    int nDataLength;
-    string sLine;
-    int nLineNumber;
-    int bTrim;
-};
-
-// Get an array of resrefs by type
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "");
-
-// Remove all effects with sTag from oObject
 void RemoveEffectsWithTag(object oObject, string sTag);
-
-// Get a string from the talk table using a strref from a 2da.
 string Get2DAStrRefString(string s2DA, string sColumn, int nRow);
-
-// Void Wrapper for JsonToObject
 void VoidJsonToObject(json jObject, location locLocation, object oOwner = OBJECT_INVALID, int bLoadObjectState = FALSE);
-
-// Get an item's name depending on identified state
 string GetItemName(object oItem, int bIdentified);
-
-// Get the icon resref of an item
 string GetItemIconResref(object oItem, json jItem, int nBaseItem);
-
-// Get the center of oArea
 vector GetAreaCenterPosition(object oArea, float fZ = 0.0f);
-
-// Get the center position of a tile by its X/Y position
 vector GetTilePosition(int nX, int nY);
-
-// Returns TRUE if the location is walkable
 int GetLocationWalkable(location loc);
-
-// Returns TRUE if oObject has nEffectType
 int GetHasEffectType(object oObject, int nEffectType);
-
-// Returns TRUE if oObject has an effect with sTag
 int GetHasEffectWithTag(object oObject, string sTag);
-
-// Convert nSeconds to a string timestamp
-string SecondsToStringTimestamp(int nSeconds);
-
-// Get the tile index of the tile at vPosition in oArea.
 int GetTileIndexFromPosition(object oArea, vector vPosition);
-
-// Returns the higher of a or b
-int max(int a, int b);
-// Returns the lower of a or b
-int min(int a, int b);
-// Returns nValue bounded by nMin and nMax
-int clamp(int nValue, int nMin, int nMax);
-// Returns fValue bounded by fMin and fMax
-float clampf(float fValue, float fMin, float fMax);
-
-int floor(float f);
-int ceil(float f);
-int round(float f);
-string ltrim(string s);
-string rtrim(string s);
-string trim(string s);
-
-// Delete oObject's local vector variable sVarName
 void DeleteLocalVector(object oObject, string sVarName);
-// Get oObject's local vector variable sVarname
 vector GetLocalVector(object oObject, string sVarName);
-// Set oObject's local vector variable sVarname to vValue
 void SetLocalVector(object oObject, string sVarName, vector vValue);
-
-// Convert an 0xFF string to its int value
-int HexStringToInt(string sString);
-
-// Calls GetIsPC() but also checks the object id length for cases where the PC object isn't valid anymore
 int GetIsPlayer(object oObject);
-
-// Returns TRUE if locLocation is valid
 int GetIsLocationValid(location locLocation);
-
-// Get an integer from a 2da, returns EF_UNSET_INTEGER_VALUE if not set.
 int Get2DAInt(string s2DA, string sColumn, int nRow);
-
-// Leftpad sString to nLength with sCharacter
-string LeftPadString(string sString, int nLength, string sCharacter);
-
-// Increment local int sVarName on oObject
 int IncrementLocalInt(object oObject, string sVarName);
-
-// Decrement local int sVarName on oObject
 int DecrementLocalInt(object oObject, string sVarName);
-
-// Convert a vector to a {x.x, y.y, z.z} string.
-string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2);
-
-int log2(int n);
-
-struct ParserData ParserPrepare(string sData, int bTrim = FALSE);
-struct ParserData ParserParse(struct ParserData str);
-string ParserPeek(struct ParserData str);
-
-// Wrapper function that also checks for DM possessed creatures.
 int GetIsDMExtended(object oCreature, int bIncludePlayerDMs = FALSE);
 
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "")
@@ -265,21 +179,6 @@ int GetHasEffectWithTag(object oObject, string sTag)
     return FALSE;
 }
 
-string SecondsToStringTimestamp(int nSeconds)
-{
-    sqlquery sql;
-    if (nSeconds > 86400)
-        sql = SqlPrepareQueryObject(GetModule(), "SELECT (@seconds / 3600) || ':' || strftime('%M:%S', @seconds / 86400.0);");
-    else
-        sql = SqlPrepareQueryObject(GetModule(), "SELECT time(@seconds, 'unixepoch');");
-
-    SqlBindInt(sql, "@seconds", nSeconds);
-    SqlStep(sql);
-
-    return SqlGetString(sql, 0);
-}
-
-
 int GetTileIndexFromPosition(object oArea, vector vPosition)
 {
     int nXStartTile = -1;
@@ -306,62 +205,6 @@ int GetTileIndexFromPosition(object oArea, vector vPosition)
     return nYStartTile * nWidth + nXStartTile;
 }
 
-int max(int a, int b)
-{
-    return a > b ? a : b;
-}
-
-int min(int a, int b)
-{
-    return a < b ? a : b;
-}
-
-int clamp(int nValue, int nMin, int nMax)
-{
-    return nValue < nMin ? nMin : nValue > nMax ? nMax : nValue;
-}
-
-float clampf(float fValue, float fMin, float fMax)
-{
-    return fValue < fMin ? fMin : fValue > fMax ? fMax : fValue;
-}
-
-int floor(float f)
-{
-    return FloatToInt(f);
-}
-
-int ceil(float f)
-{
-    return FloatToInt(f + (IntToFloat(FloatToInt(f)) < f ? 1.0 : 0.0));
-}
-
-int round(float f)
-{
-    return FloatToInt(f + 0.5f);
-}
-
-string ltrim(string s)
-{
-    while (GetStringLeft(s, 1) == " ")
-        s = GetStringRight(s, GetStringLength(s) - 1);
-
-    return s;
-}
-
-string rtrim(string s)
-{
-    while (GetStringRight(s, 1) == " ")
-        s = GetStringLeft(s, GetStringLength(s) - 1);
-
-    return s;
-}
-
-string trim(string s)
-{
-    return ltrim(rtrim(s));
-}
-
 void DeleteLocalVector(object oObject, string sVarName)
 {
     DeleteLocalLocation(oObject, "VECTOR_" + sVarName);
@@ -375,21 +218,6 @@ vector GetLocalVector(object oObject, string sVarName)
 void SetLocalVector(object oObject, string sVarName, vector vValue)
 {
     SetLocalLocation(oObject, "VECTOR_" + sVarName, Location(OBJECT_INVALID, vValue, 0.0f));
-}
-
-int HexStringToInt(string sString)
-{
-    sString = GetStringLowerCase(sString);
-    int nResult, nLength = GetStringLength(sString), i;
-
-    for (i = nLength - 1; i >= 0; i--)
-    {
-        int n = FindSubString("0123456789abcdef", GetSubString(sString, i, 1));
-        if (n == -1)
-            return nResult;
-        nResult |= n << ((nLength - i - 1) * 4);
-    }
-    return nResult;
 }
 
 int GetIsPlayer(object oObject)
@@ -408,18 +236,6 @@ int Get2DAInt(string s2DA, string sColumn, int nRow)
     return sValue == "" ? EF_UNSET_INTEGER_VALUE : StringToInt(sValue);
 }
 
-string LeftPadString(string sString, int nLength, string sCharacter)
-{
-    int nStringLength = GetStringLength(sString);
-    string sPadding;
-    while (nStringLength < nLength)
-    {
-        sPadding += sCharacter;
-        nStringLength++;
-    }
-    return sPadding + sString;
-}
-
 int IncrementLocalInt(object oObject, string sVarName)
 {
     int nCurrent = GetLocalInt(oObject, sVarName);
@@ -432,69 +248,6 @@ int DecrementLocalInt(object oObject, string sVarName)
     int nCurrent = GetLocalInt(oObject, sVarName);
     SetLocalInt(oObject, sVarName, --nCurrent);
     return nCurrent;
-}
-
-string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2)
-{
-    return "{" + FloatToString(v.x, nWidth, nDecimals) + ", " +
-                 FloatToString(v.y, nWidth, nDecimals) + ", " +
-                 FloatToString(v.z, nWidth, nDecimals) + "}";
-}
-
-int log2(int n)
-{
-    int ret; while (n >>= 1) { ret++; } return ret;
-}
-
-struct ParserData ParserPrepare(string sData, int bTrim = FALSE)
-{
-    struct ParserData str;
-    str.sData = sData;
-    str.nDataLength = GetStringLength(sData);
-    str.bEndOfFile = str.nDataLength == 0;
-    str.bTrim = bTrim;
-    return str;
-}
-
-struct ParserData ParserParse(struct ParserData str)
-{
-    if (str.bEndOfFile)
-        return str;
-    if ((str.nNewLinePos = FindSubString(str.sData, "\n", str.nStartPos)) != -1)
-    {
-        str.sLine = GetSubString(str.sData, str.nStartPos, str.nNewLinePos - str.nStartPos);
-        if (str.bTrim)
-            str.sLine = trim(str.sLine);
-        str.nLineNumber++;
-        str.nStartPos = str.nNewLinePos + 1;
-        return str;
-    }
-    if (str.nStartPos < str.nDataLength)
-    {
-        str.sLine = GetSubString(str.sData, str.nStartPos, str.nDataLength - str.nStartPos);
-        if (str.bTrim)
-            str.sLine = trim(str.sLine);
-        str.nLineNumber++;
-        str.nStartPos = str.nDataLength;
-        return str;
-    }
-    str.bEndOfFile = TRUE;
-    return str;
-}
-
-string ParserPeek(struct ParserData str)
-{
-    if (str.bEndOfFile)
-        return "";
-    int nNewLinePos = FindSubString(str.sData, "\n", str.nStartPos);
-    if (nNewLinePos != -1)
-    {
-        string s = GetSubString(str.sData, str.nStartPos, nNewLinePos - str.nStartPos);
-        if (str.bTrim)
-            s = trim(s);
-        return s;
-    }
-    return "";
 }
 
 int GetIsDMExtended(object oCreature, int bIncludePlayerDMs = FALSE)

@@ -5,7 +5,7 @@
     Description: Equinox Framework SQLite Utility Include
 */
 
-#include "ef_i_util"
+#include "ef_i_string"
 #include "nwnx_nwsqliteext"
 
 const int SQL_ENABLE_MERSENNE_TWISTER               = TRUE;

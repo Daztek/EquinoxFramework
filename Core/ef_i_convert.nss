@@ -1,8 +1,6 @@
 /*
     Script: ef_i_convert.nss
     Author: Daz
-
-    Description: Equinox Framework Conversion Include
 */
 
 int EffectIconToEffectType(int nEffectIcon);

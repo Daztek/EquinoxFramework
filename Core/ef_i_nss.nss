@@ -1,8 +1,6 @@
 /*
     Scripte: ef_i_nss
     Author: Daz
-
-    Description: Equinox Framework NSS Utility Include
 */
 
 const string NSS_RETURN_TYPE_FLOAT          = "float";

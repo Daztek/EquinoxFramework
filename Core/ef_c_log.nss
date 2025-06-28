@@ -6,6 +6,7 @@
 #include "ef_i_dataobject"
 #include "ef_i_vm"
 #include "ef_i_ringbuffer"
+#include "ef_i_sqlite"
 #include "ef_c_messagebus"
 
 const string LOG_SCRIPT_NAME        = "ef_c_log";
@@ -36,6 +37,7 @@ void LogAddToRingBuffer(int nType, string sMessage, struct VMFrame str)
     JsonObjectSetStringInplace(jLogMessage, "funtion", str.sFunction);
     JsonObjectSetIntInplace(jLogMessage, "line", str.nLine);
     JsonObjectSetIntInplace(jLogMessage, "type", nType);
+    JsonObjectSetStringInplace(jLogMessage, "time", SqlGetLocalTimeAsString());
     JsonObjectSetStringInplace(jLogMessage, "message", sMessage);
 
     RingBuffer_PushJson(GetDataObject(LOG_SCRIPT_NAME), LOG_SCRIPT_NAME, jLogMessage);

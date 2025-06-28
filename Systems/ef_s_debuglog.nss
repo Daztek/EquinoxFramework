@@ -44,7 +44,7 @@ void DebugLog_Display()
         for (nIndex = 0; nIndex < nLength; nIndex++)
         {
             json jMessage = JsonArrayGet(jLogMessages, nIndex);
-            string sText = "[" + JsonObjectGetString(jMessage, "file") + "] " + JsonObjectGetString(jMessage, "message");
+            string sText = JsonObjectGetString(jMessage, "time") + " [" + JsonObjectGetString(jMessage, "file") + "] " + JsonObjectGetString(jMessage, "message");
             switch (JsonObjectGetInt(jMessage, "type"))
             {
                 case LOG_TYPE_INFO: nColor = POSTSTRING_COLOR_YELLOW; break;

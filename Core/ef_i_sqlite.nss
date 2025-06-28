@@ -30,6 +30,7 @@ int SqlMersenneTwisterGetValue(string sName, int nMaxInteger);
 void SqlMersenneTwisterDiscard(string sName, int nAmount);
 void SqlBindObjectRef(sqlquery sqlQuery, string sParam, object oObject);
 object SqlGetObjectRef(sqlquery sqlQuery, int nIndex);
+string SqlGetLocalTimeAsString();
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -168,4 +169,10 @@ void SqlBindObjectRef(sqlquery sqlQuery, string sParam, object oObject)
 object SqlGetObjectRef(sqlquery sqlQuery, int nIndex)
 {
     return StringToObject(IntToHexString(SqlGetInt(sqlQuery, nIndex)));
+}
+
+string SqlGetLocalTimeAsString()
+{
+    sqlquery sql = SqlPrepareQueryModule("SELECT STRFTIME('%H:%M:%S', 'now', 'localtime')");
+    return SqlStep(sql) ? SqlGetString(sql, 0) : "??:??:??";
 }

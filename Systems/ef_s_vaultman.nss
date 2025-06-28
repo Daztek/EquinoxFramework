@@ -372,9 +372,9 @@ void VMan_ShowMainWindow()
     object oPlayer = OBJECT_SELF;
     if (NWM_ToggleWindow(oPlayer, VMAN_NUI_MAIN_WINDOW_NAME))
     {
-        Profiler_Start();
+        Profiler_Start("VMan_LoadCharacterList");
         VMan_LoadCharacterList();
-        Profiler_Stop();
+        LogInfo(Profiler_Stop());
 
         VMan_UpdateSelectedCharacterData(StringToInt(NWNX_Player_GetBicFileName(oPlayer)));
     }
@@ -503,7 +503,7 @@ void VMan_SetClassInfo(int nClassPosition, int nClassId, int nLevel)
 
 void VMan_UpdateSelectedCharacterData(int nNewId)
 {
-    Profiler_Start();
+    Profiler_Start("VMan_UpdateSelectedCharacterData");
 
     object oPlayer = OBJECT_SELF;
     int nCurrentId = JsonGetInt(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_ID));
@@ -588,7 +588,7 @@ void VMan_UpdateSelectedCharacterData(int nNewId)
             VMan_UpdateItems(nNewId, sName);
     }
 
-    Profiler_Stop();
+    LogInfo(Profiler_Stop());
 }
 
 string VMan_EventToString(int nEvent)

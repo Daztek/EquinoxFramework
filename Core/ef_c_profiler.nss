@@ -3,9 +3,10 @@
     Author: Daz
 */
 
+#include "ef_i_dataobject"
 #include "ef_i_math"
 #include "ef_i_sqlite"
-#include "ef_c_log"
+#include "ef_i_vm"
 
 const string PROFILER_SCRIPT_NAME                       = "ef_c_profiler";
 
@@ -19,7 +20,7 @@ const int PROFILER_INSTRUCTION_OVERHEAD                 = 17;
 const int PROFILER_MICROSECOND_OVERHEAD                 = 1;
 
 void Profiler_Start(string sIdentifier = "");
-void Profiler_Stop();
+string Profiler_Stop();
 
 void Profiler_Init()
 {
@@ -66,7 +67,7 @@ void Profiler_Start(string sIdentifier = "")
     SetLocalInt(oDataObject, PROFILER_START_MICROSECONDS, GetMicrosecondCounter());
 }
 
-void Profiler_Stop()
+string Profiler_Stop()
 {
     int nEndMicroseconds = GetMicrosecondCounter();
     int nEndInstructions = GetScriptInstructionsRemaining();
@@ -78,5 +79,7 @@ void Profiler_Stop()
     int nElapsedMicroseconds = max(0, nEndMicroseconds - GetLocalInt(oDataObject, PROFILER_START_MICROSECONDS) - PROFILER_MICROSECOND_OVERHEAD);
 
     Profiler_Insert(nHash, nElapsedMicroseconds, nUsedInstructions);
-    LogInfo("[" + sHashString + "] Time: " + Profiler_FormatTime(nElapsedMicroseconds) + " | Instructions: " + IntToString(nUsedInstructions) + " | " + Profiler_GetTimeStats(nHash));
+
+    return "[" + sHashString + "] Time: " + Profiler_FormatTime(nElapsedMicroseconds) +
+            " | Instructions: " + IntToString(nUsedInstructions) + " | " + Profiler_GetTimeStats(nHash);
 }

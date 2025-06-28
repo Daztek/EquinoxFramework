@@ -9,12 +9,6 @@
 
 const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
 
-struct Vector2
-{
-    int nX;
-    int nY;
-};
-
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "", json jArray = JSON_NULL);
 void RemoveEffectsWithTag(object oObject, string sTag);
 string Get2DAStrRefString(string s2DA, string sColumn, int nRow);

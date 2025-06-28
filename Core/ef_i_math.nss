@@ -3,6 +3,12 @@
     Author: Daz
 */
 
+struct Vector2
+{
+    int nX;
+    int nY;
+};
+
 int max(int a, int b);
 int min(int a, int b);
 int clamp(int nValue, int nMin, int nMax);

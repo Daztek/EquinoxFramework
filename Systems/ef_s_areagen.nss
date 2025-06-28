@@ -905,7 +905,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     strQuery.sTL = AG_ResolveCorner(strTop.sBL, strLeft.sTR, strTopLeft.sBR);
     if (strQuery.sTL == AG_INVALID_CORNER)
     {
-        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) LogInfo(Profiler_Stop());
         return tile;
     }
 
@@ -914,7 +914,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     strQuery.sTR = AG_ResolveCorner(strTop.sBR, strRight.sTL, strTopRight.sBL);
     if (strQuery.sTR == AG_INVALID_CORNER)
     {
-        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) LogInfo(Profiler_Stop());
         return tile;
     }
 
@@ -923,7 +923,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     strQuery.sBR = AG_ResolveCorner(strRight.sBL, strBottom.sTR, strBottomRight.sTL);
     if (strQuery.sBR == AG_INVALID_CORNER)
     {
-        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) LogInfo(Profiler_Stop());
         return tile;
     }
 
@@ -931,7 +931,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     strQuery.sBL = AG_ResolveCorner(strBottom.sTL, strLeft.sBR, strBottomLeft.sTR);
     if (strQuery.sBL == AG_INVALID_CORNER)
     {
-        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) LogInfo(Profiler_Stop());
         return tile;
     }
 
@@ -1006,7 +1006,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
         tile.nHeight = 0;
     }
 
-    if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
+    if (AG_PROFILE_GETRANDOMMATCHINGTILE) LogInfo(Profiler_Stop());
 
     return tile;
 }
@@ -1104,7 +1104,7 @@ void AG_GenerateTiles(string sAreaID, object oAreaDataObject, int nCurrentTile =
         DelayCommand(AG_GENERATION_DELAY, AG_GenerateTiles(sAreaID, oAreaDataObject, nCurrentTile, nNumTiles));
     }
 
-    //Profiler_Stop();
+    //LogInfo(Profiler_Stop());
 }
 
 void AG_GenerateGenerationTileArray(string sAreaID)
@@ -2095,7 +2095,7 @@ void AG_GenerateTileChunk(string sAreaID, int nChunk, int nCurrentTile = 0, int 
 
     DelayCommand(AG_GENERATION_DELAY, AG_GenerateTileChunk(sAreaID, nChunk, nCurrentTile, nNumTiles));
 
-    //Profiler_Stop();
+    //LogInfo(Profiler_Stop());
 }
 
 void AG_GenerateAreaChunk(string sAreaID, int nChunk)

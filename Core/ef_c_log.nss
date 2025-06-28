@@ -37,41 +37,41 @@ void LogAddToRingBuffer(int nType, string sMessage, struct VMFrame str)
     JsonObjectSetIntInplace(jLogMessage, "line", str.nLine);
     JsonObjectSetIntInplace(jLogMessage, "type", nType);
     JsonObjectSetStringInplace(jLogMessage, "message", sMessage);
+
     RingBuffer_PushJson(GetDataObject(LOG_SCRIPT_NAME), LOG_SCRIPT_NAME, jLogMessage);
 
-    MessageBus_Broadcast(LOG_BROADCAST_EVENT);
+    if (MessageBus_GetNumberOfSubscribers(LOG_BROADCAST_EVENT))
+        MessageBus_Broadcast(LOG_BROADCAST_EVENT);
 }
 
-void WriteLog(int nType, string sMessage, int bShowFunctionName = TRUE)
+void WriteLog(int nType, string sMessage, int bShowFunctionName, int bIncludeBacktrace)
 {
     struct VMFrame str = GetVMFrame(2);
     LogAddToRingBuffer(nType, sMessage, str);
     string sType = LogTypeToString(nType);
+    if (bIncludeBacktrace)
+        sMessage += "\nBACKTRACE:\n" + GetVMBacktrace(2);
     PrintString("(" + str.sFile + (bShowFunctionName ? ":" + str.sFunction : "") + ":" + IntToString(str.nLine) + ") " + (sType != "" && sType != "I" ? sType + ": " : "") + sMessage);
 }
 
 void LogInfo(string sMessage)
 {
-    WriteLog(LOG_TYPE_INFO, sMessage, FALSE);
+    WriteLog(LOG_TYPE_INFO, sMessage, FALSE, FALSE);
 }
 
 void LogDebug(string sMessage, int bIncludeBacktrace = FALSE)
 {
-    if (bIncludeBacktrace)
-        sMessage += "\nBACKTRACE:\n" + GetVMBacktrace(1);
-    WriteLog(LOG_TYPE_DEBUG, sMessage);
+    WriteLog(LOG_TYPE_DEBUG, sMessage, TRUE, bIncludeBacktrace);
 }
 
 void LogWarning(string sMessage)
 {
-    WriteLog(LOG_TYPE_WARNING, sMessage);
+    WriteLog(LOG_TYPE_WARNING, sMessage, TRUE, FALSE);
 }
 
 void LogError(string sMessage, int bIncludeBacktrace = TRUE)
 {
-    if (bIncludeBacktrace)
-        sMessage += "\nBACKTRACE:\n" + GetVMBacktrace(1);
-    WriteLog(LOG_TYPE_ERROR, sMessage);
+    WriteLog(LOG_TYPE_ERROR, sMessage, TRUE, TRUE);
 }
 
 json LogGetRingBufferAsArray()

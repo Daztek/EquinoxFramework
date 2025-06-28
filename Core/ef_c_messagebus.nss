@@ -6,11 +6,14 @@
 */
 
 #include "ef_c_annotations"
+#include "ef_i_dataobject"
 #include "ef_i_sqlite"
+#include "ef_i_util"
 
 const string MESSAGEBUG_SCRIPT_NAME = "ef_c_messagebus";
 
 void MessageBus_Broadcast(string sEvent);
+int MessageBus_GetNumberOfSubscribers(string sEvent);
 
 void MessageBus_Init()
 {
@@ -34,15 +37,23 @@ void MessageBus_Broadcast(string sEvent)
     }
 }
 
+int MessageBus_GetNumberOfSubscribers(string sEvent)
+{
+    return GetLocalInt(GetDataObject(MESSAGEBUG_SCRIPT_NAME), sEvent);
+}
+
 // @PAD[MESSAGEBUS]
 void MessageBus_Subscribe(struct AnnotationData str)
 {
     string sEvent = GetAnnotationString(str, 0);
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
+
     sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + MESSAGEBUG_SCRIPT_NAME + " (event, system, scriptchunk) VALUES(@event, @system, @scriptchunk);");
     SqlBindString(sql, "@event", sEvent);
     SqlBindString(sql, "@system", str.sSystem);
     SqlBindString(sql, "@scriptchunk", sScriptChunk);
     SqlStep(sql);
+
     CacheScriptChunk(sScriptChunk);
+    IncrementLocalInt(GetDataObject(MESSAGEBUG_SCRIPT_NAME), sEvent);
 }

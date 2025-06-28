@@ -8,13 +8,14 @@
 #include "ef_s_poststring"
 
 const string DEBUGLOG_SCRIPT_NAME   = "ef_s_debuglog";
-const int DEBUGLOG_GUI_NUM_IDS      = LOG_RINGBUFFER_SIZE;
+const int DEBUGLOG_ENABLED          = TRUE;
+const int DEBUGLOG_NUM_IDS          = LOG_RINGBUFFER_SIZE;
 const float DEBUGLOG_DISPLAY_TIME   = 60.0f;
 
 // @CORE[EF_SYSTEM_LOAD]
 void DebugLog_Load()
 {
-    PostString_ReserveIDs(DEBUGLOG_GUI_NUM_IDS, DEBUGLOG_SCRIPT_NAME);
+    PostString_ReserveIDs(DEBUGLOG_NUM_IDS);
 }
 
 void DebugLog_DisplayLine(object oPlayer, int nLineOffset, int nID, string sText, int nColor)
@@ -25,16 +26,18 @@ void DebugLog_DisplayLine(object oPlayer, int nLineOffset, int nID, string sText
 // @MESSAGEBUS[LOG_BROADCAST_EVENT]
 void DebugLog_Display()
 {
+    if (!DEBUGLOG_ENABLED)
+        return;
+
     object oPlayer = GetFirstPC();
     if (!GetIsObjectValid(oPlayer))
         return;
 
     json jLogMessages = LogGetRingBufferAsArray();
     int nID = PostString_GetStartID(DEBUGLOG_SCRIPT_NAME);
-    PostString_ClearByRange(oPlayer, nID, nID + DEBUGLOG_GUI_NUM_IDS);
+    PostString_ClearByRange(oPlayer, nID, nID + DEBUGLOG_NUM_IDS);
 
-    int nOffsetY = 1;
-    int nColor = POSTSTRING_COLOR_WHITE;
+    int nOffsetY = 4, nColor = POSTSTRING_COLOR_WHITE;
     int nIndex, nLength = JsonGetLength(jLogMessages);
     for (nIndex = 0; nIndex < nLength; nIndex++)
     {

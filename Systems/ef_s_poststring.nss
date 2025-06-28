@@ -50,7 +50,7 @@ void PostString_ClearByRange(object oPlayer, int nStartID, int nEndID);
 // Clear all PostString() strings of sSystem for oPlayer
 void PostString_ClearBySystem(object oPlayer, string sSystem);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void PostString_Init()
 {
     SetLocalInt(GetDataObject(POSTSTRING_SCRIPT_NAME), "TotalIDs", POSTSTRING_ID_START);

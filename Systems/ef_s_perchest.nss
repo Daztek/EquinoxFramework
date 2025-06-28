@@ -39,7 +39,7 @@ void PC_UpdateItemList();
 void PC_WithdrawItem();
 void PC_SetDepositMode(object oPlayer, int bEnabled);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void PC_Init()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + PC_TABLE_NAME + " (" +

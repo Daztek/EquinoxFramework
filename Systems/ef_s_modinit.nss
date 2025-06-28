@@ -9,7 +9,7 @@
 
 const string MODINIT_SCRIPT_NAME        = "ef_s_modinit";
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void ModInit_Init()
 {
     SetTlkOverride(66168, "Login Refused");

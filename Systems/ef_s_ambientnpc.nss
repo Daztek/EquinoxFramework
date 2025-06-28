@@ -14,7 +14,7 @@ const string AMNPC_DEFAULT_TAG              = "AMBIENT_NPC";
 void AmNPC_SetupTemplateNPC();
 json AmNPC_GetTemplateNPC();
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void AmNPC_Init()
 {
     AmNPC_SetupTemplateNPC();

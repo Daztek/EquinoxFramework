@@ -20,7 +20,7 @@ const int TC_AREA_CHUNK_SIZE                    = 8;
 const string TC_AREA_EDGE_TERRAIN               = "";
 const int TC_MAX_ITERATIONS                     = 25;
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void TC_Load()
 {
     AG_InitializeAreaDataObject(TC_AREA_ID, TC_AREA_TILESET, TC_AREA_EDGE_TERRAIN, TC_AREA_WIDTH, TC_AREA_HEIGHT);

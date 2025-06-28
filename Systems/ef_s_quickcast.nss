@@ -130,7 +130,7 @@ json QC_GetDragModeData();
 void QC_ClearDragMode();
 void QC_AddCastSpellActions(object oCreature, object oTarget, vector vTargetLocation, int nSpellID, int nMultiClass,  int nMetaMagic = METAMAGIC_NONE, int nDomainLevel = 0, int nProjectilePathType = PROJECTILE_PATH_TYPE_DEFAULT, int bInstant = FALSE, int bClearActions = FALSE, int bAddToFront = FALSE);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void QC_Init()
 {
     QC_InitializeSpellData();

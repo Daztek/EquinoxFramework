@@ -31,7 +31,7 @@ struct CIP_EventData
 
 struct CIP_EventData CIP_GetItemPropertyEventData();
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void CIP_Init()
 {
     EM_NWNXAddIDToWhitelist("NWNX_ON_ITEMPROPERTY_EFFECT", CIP_CUSTOM_TYPE);

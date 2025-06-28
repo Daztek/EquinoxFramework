@@ -10,16 +10,16 @@
 #include "nwnx_admin"
 #include "nwnx_util"
 
-const string EFCORE_SCRIPT_NAME                         = "ef_c_core";
-const int EFCORE_VALIDATE_SYSTEMS                       = TRUE;
-const int EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
+const string CORE_SCRIPT_NAME                         = "ef_c_core";
+const int CORE_VALIDATE_SYSTEMS                       = TRUE;
+const int CORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
 
-const int EF_SYSTEM_INIT                                = 1;
-const int EF_SYSTEM_LOAD                                = 2;
-const int EF_SYSTEM_POST                                = 3;
+const int CORE_SYSTEM_INIT                            = 1;
+const int CORE_SYSTEM_LOAD                            = 2;
+const int CORE_SYSTEM_POST                            = 3;
 
-const string EFCORE_CORE_SCRIPT_PREFIX                  = "ef_c_";
-const string EFCORE_SYSTEM_SCRIPT_PREFIX                = "ef_s_";
+const string CORE_CORE_SCRIPT_PREFIX                  = "ef_c_";
+const string CORE_SYSTEM_SCRIPT_PREFIX                = "ef_s_";
 
 void Core_InitializeSystemData();
 void Core_ParseSystem(string sSystem);
@@ -35,24 +35,24 @@ void Core_Init()
 
     Core_InitializeSystemData();
 
-    if (EFCORE_VALIDATE_SYSTEMS && !Core_ValidateSystems())
+    if (CORE_VALIDATE_SYSTEMS && !Core_ValidateSystems())
     {
         LogError("System Validation Failure!");
 
-        if (EFCORE_SHUTDOWN_ON_VALIDATION_FAILURE)
+        if (CORE_SHUTDOWN_ON_VALIDATION_FAILURE)
             NWNX_Administration_ShutdownServer();
 
         return;
     }
 
     LogInfo("Executing System 'Init' Functions...");
-    Core_ExecuteCoreFunction(EF_SYSTEM_INIT);
+    Core_ExecuteCoreFunction(CORE_SYSTEM_INIT);
     LogInfo("Parsing Annotation Data...");
     Annotations_ParseAnnotationData();
     LogInfo("Executing System 'Load' Functions...");
-    Core_ExecuteCoreFunction(EF_SYSTEM_LOAD);
+    Core_ExecuteCoreFunction(CORE_SYSTEM_LOAD);
     LogInfo("Executing System 'Post' Functions...");
-    Core_ExecuteCoreFunction(EF_SYSTEM_POST);
+    Core_ExecuteCoreFunction(CORE_SYSTEM_POST);
 
     NWNX_Administration_SetPlayerPassword("");
     NWNX_Util_SetInstructionLimit(-1);
@@ -62,13 +62,13 @@ void Core_InitializeSystemData()
 {
     LogInfo("Initializing System Data...");
 
-    string sQuery = "CREATE TABLE IF NOT EXISTS " + EFCORE_SCRIPT_NAME + "_systems (" +
+    string sQuery = "CREATE TABLE IF NOT EXISTS " + CORE_SCRIPT_NAME + "_systems (" +
                     "system TEXT NOT NULL, " +
                     "scriptdata TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
-    json jSystems = GetResRefArray(EFCORE_CORE_SCRIPT_PREFIX, RESTYPE_NSS);
-    jSystems = GetResRefArray(EFCORE_SYSTEM_SCRIPT_PREFIX, RESTYPE_NSS, FALSE, "", jSystems);
+    json jSystems = GetResRefArray(CORE_CORE_SCRIPT_PREFIX, RESTYPE_NSS);
+    jSystems = GetResRefArray(CORE_SYSTEM_SCRIPT_PREFIX, RESTYPE_NSS, FALSE, "", jSystems);
     jSystems = JsonArrayTransform(jSystems, JSON_ARRAY_SORT_ASCENDING);
 
     int nSystem, nNumSystems = JsonGetLength(jSystems);
@@ -80,7 +80,7 @@ void Core_InitializeSystemData()
 
 void Core_InsertSystem(string sSystem, string sScriptData)
 {
-    string sQuery = "INSERT INTO " + EFCORE_SCRIPT_NAME + "_systems(system, scriptdata) VALUES(@system, @scriptdata);";
+    string sQuery = "INSERT INTO " + CORE_SCRIPT_NAME + "_systems(system, scriptdata) VALUES(@system, @scriptdata);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@system", sSystem);
     SqlBindString(sql, "@scriptdata", sScriptData);
@@ -141,7 +141,7 @@ int Core_ValidateSystems()
 
     LogInfo("Validating System Data...");
 
-    sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptdata FROM " + EFCORE_SCRIPT_NAME + "_systems;");
+    sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptdata FROM " + CORE_SCRIPT_NAME + "_systems;");
     while (SqlStep(sql))
     {
         string sSystem = SqlGetString(sql, 0);
@@ -172,7 +172,7 @@ void Core_ExecuteCoreFunction(int nCoreFunctionType)
         string sFunction = SqlGetString(sql, 1);
         json jData = SqlGetJson(sql, 2);
 
-        if (GetConstantIntValue(JsonArrayGetString(jData, 0), EFCORE_SCRIPT_NAME) == nCoreFunctionType)
+        if (GetConstantIntValue(JsonArrayGetString(jData, 0), CORE_SCRIPT_NAME) == nCoreFunctionType)
         {
             string sError = ExecuteScriptChunk(nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction)), oModule, FALSE);
 

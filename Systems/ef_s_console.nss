@@ -42,7 +42,7 @@ const string CONSOLE_BIND_OUTPUT_TEXT               = "text_output";
 const string CONSOLE_BIND_COMBO_SYSTEM_ENTRIES      = "system_combo_entries";
 const string CONSOLE_BIND_COMBO_SYSTEM_SELECTED     = "system_combo_selected";
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void Console_Init()
 {
     string sQuery;

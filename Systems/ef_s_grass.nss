@@ -12,7 +12,7 @@ const string GRASS_DEFAULT_TEXTURE = "trm02_grass3d";
 
 void Grass_SetGrass(object oArea, string sTexture);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void Grass_Init()
 {
     int nSeed = 100;
@@ -20,7 +20,7 @@ void Grass_Init()
     SqlMersenneTwisterSetSeed(GRASS_SCRIPT_NAME, nSeed);
 }
 
-// @NWNX[EP_EVENT_AREA_POST_PROCESS_FINISHED]
+// @MESSAGEBUS[EP_EVENT_AREA_POST_PROCESS_FINISHED]
 void Grass_OnAreaPostProcessed()
 {
     Grass_SetGrass(OBJECT_SELF, GRASS_DEFAULT_TEXTURE);

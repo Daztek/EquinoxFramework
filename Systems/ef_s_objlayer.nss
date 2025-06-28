@@ -7,7 +7,7 @@
 #include "ef_c_log"
 #include "nwnx_objectlayer"
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void ObjLayer_Init()
 {
     return;

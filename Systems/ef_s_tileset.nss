@@ -107,7 +107,7 @@ vector TS_RotateCanonicalToReal(int nOrientation, vector vCanonical);
 void TS_PrintTileStruct(struct TS_TileStruct str, int nTileID = -1);
 string TS_GetTileStructAsString(string sTileset, int nTileID, int nOrientation);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void Tileset_Init()
 {
     TS_LoadTilesetData(TILESET_RESREF_MEDIEVAL_RURAL_2);

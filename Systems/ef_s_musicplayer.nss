@@ -34,7 +34,7 @@ void MP_SetPlayerTrack(object oPlayer, int nTrackId);
 json MP_GetPlayerTrack(object oPlayer);
 void MP_DeletePlayerTrack(object oPlayer);
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void MP_Load()
 {
     MP_LoadTrackData();

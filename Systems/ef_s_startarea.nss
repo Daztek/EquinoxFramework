@@ -8,6 +8,7 @@
 #include "ef_c_mediator"
 #include "ef_c_profiler"
 #include "ef_s_areagen"
+#include "ef_s_grass"
 
 const string SA_SCRIPT_NAME                         = "ef_s_startarea";
 const int SA_DEBUG_LOG                              = FALSE;
@@ -29,7 +30,7 @@ const int SA_AREA_RIDGE_CHANCE                      = 20;
 const int SA_AREA_GRASS2_CHANCE                     = 25;
 const int SA_AREA_CHASM_CHANCE                      = 10;
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void SA_Init()
 {
     int nSeed = Random(2147483647);
@@ -42,7 +43,7 @@ void SA_ToggleTerrainOrCrosser(string sToC, int nChance)
     AG_SetIgnoreTerrainOrCrosser(SA_AREA_ID, sToC, !(AG_Random(SA_AREA_ID, 100) < nChance));
 }
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void SA_Load()
 {
     object oArea = GetObjectByTag(SA_STARTING_AREA_TAG);
@@ -139,7 +140,8 @@ void SA_OnAreaGenerated(string sAreaID)
         AG_ExtractExitEdgeTerrains(sAreaID, AG_AREA_EDGE_TOP);
 
         object oArea = GetObjectByTag(SA_STARTING_AREA_TAG);
-        SetTileJson(oArea, jTileData, SETTILE_FLAG_RELOAD_GRASS | SETTILE_FLAG_RELOAD_BORDER | SETTILE_FLAG_RECOMPUTE_LIGHTING);
+        SetTileJson(oArea, jTileData, SETTILE_FLAG_RELOAD_BORDER | SETTILE_FLAG_RECOMPUTE_LIGHTING);
+        Grass_SetGrass(oArea, GRASS_DEFAULT_TEXTURE);
         DelayCommand(1.0f, RetVoid(Call(Function("ef_s_endlesspath", "EP_BeginPath"), ObjectArg(oArea))));
     }
 }

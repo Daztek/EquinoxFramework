@@ -9,7 +9,7 @@
 
 const string EC_SCRIPT_NAME     = "ef_s_endlesscart";
 
-// @NWNX[EP_EVENT_AREA_POST_PROCESS_FINISHED]
+// @MESSAGEBUS[EP_EVENT_AREA_POST_PROCESS_FINISHED]
 void EC_OnAreaPostProcessed()
 {
     object oArea = OBJECT_SELF;

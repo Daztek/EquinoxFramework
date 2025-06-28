@@ -48,7 +48,7 @@ int EC_GetCaveNum(string sAreaID);
 void EC_ToggleTerrainOrCrosser(string sAreaID, string sCrosser, int nChance);
 void EC_GenerateCave(json jCave);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void EC_Init()
 {
     object oTemplateArea = GetObjectByTag(EC_TEMPLATE_CAVE_AREA_TAG);
@@ -57,13 +57,13 @@ void EC_Init()
     DestroyArea(oTemplateArea);
 }
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void EC_Load()
 {
     AreaMusic_AddTrackToTrackList(EC_SCRIPT_NAME, 9, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
 }
 
-// @NWNX[EP_EVENT_AREA_POST_PROCESS_FINISHED]
+// @MESSAGEBUS[EP_EVENT_AREA_POST_PROCESS_FINISHED]
 void EC_OnAreaPostProcessed()
 {
     object oArea = OBJECT_SELF;

@@ -25,7 +25,7 @@ void AIMan_ApplyCutsceneGhost(object oCreature = OBJECT_SELF);
 void AIMan_SetIsAmbientNPC(object oCreature = OBJECT_SELF);
 object AIMan_SpawnCreature(string sResRef, location locSpawn, string sBehavior);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void AIMan_Init()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + AIMAN_SCRIPT_NAME + "(" +

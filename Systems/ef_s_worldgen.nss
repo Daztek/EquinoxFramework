@@ -127,7 +127,7 @@ json WG_GetAreaTileModelArray(string sAreaID);
 void WG_ApplyTileModelVFX(object oPlaceable, string sAreaID, struct AG_Tile strTile, string sTileModel);
 void WG_SpawnVFXEdge(string sAreaID, int nNeighborDirection);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void WG_Init()
 {
     WG_InitializeTemplateArea();
@@ -136,7 +136,7 @@ void WG_Init()
     WG_InitializeAreaCache();
 }
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void WG_Load()
 {
     WG_QueuePush(WG_GetStartingAreaID());

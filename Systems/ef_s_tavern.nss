@@ -41,7 +41,7 @@ int Tavern_GetSubAreaFromTileIndex(int nTileIndex);
 void Tavern_SetPlayerSubArea(object oPlayer, int nSubArea);
 int Tavern_GetPlayerSubArea(object oPlayer);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void Tavern_Init()
 {
     object oDataObject = GetDataObject(TAVERN_SCRIPT_NAME);
@@ -51,7 +51,7 @@ void Tavern_Init()
     SetLocalJson(oDataObject, TAVERN_TRACK_JSON_MUTED, MusMan_JsonTrack(TAVERN_TRACKID_MUTED, nUnixEpoch, FALSE, TRUE, 0.75f));
 }
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void Tavern_Load()
 {
     Tavern_InitializeDoor(GetObjectByTag(TAVERN_INNSHOP_DOOR_TAG));

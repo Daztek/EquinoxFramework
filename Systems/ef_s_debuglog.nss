@@ -10,9 +10,9 @@
 const string DEBUGLOG_SCRIPT_NAME   = "ef_s_debuglog";
 const int DEBUGLOG_ENABLED          = TRUE;
 const int DEBUGLOG_NUM_IDS          = LOG_RINGBUFFER_SIZE;
-const float DEBUGLOG_DISPLAY_TIME   = 60.0f;
+const float DEBUGLOG_DISPLAY_TIME   = 10.0f;
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void DebugLog_Load()
 {
     PostString_ReserveIDs(DEBUGLOG_NUM_IDS);

@@ -11,7 +11,7 @@
 
 const string REST_SCRIPT_NAME               = "ef_s_rest";
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void Rest_Init()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + REST_SCRIPT_NAME + "(" +

@@ -19,7 +19,7 @@ const float DYNLIGHT_UPDATE_INTERVAL                    = 15.0f;
 void DynLight_InitArea(object oArea);
 void DynLight_IntervalHandler();
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void DynLight_Load()
 {
     if (DYNLIGHT_ENABLE_DYNAMIC_LIGHTING)

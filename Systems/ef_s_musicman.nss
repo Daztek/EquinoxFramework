@@ -93,7 +93,7 @@ void MusMan_RefreshCurrentChannelVolume(object oPlayer, float fFadeTime = 0.0f);
 void MusMan_UpdatePlayerMusic(object oPlayer);
 void MusMan_UpdatePlayerMusicByEvent(string sEvent, object oArea = OBJECT_INVALID);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void MusMan_Init()
 {
     MusMan_LoadAmbientMusic2DA();

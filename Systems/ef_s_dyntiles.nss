@@ -39,7 +39,7 @@ const float DT_TILE_OBJECT_HEIGHT               = 30.0f;
 const float DT_START_DELAY                      = 3.0f;
 const float DT_LERP_SPEED                       = 1.5f;
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void DT_Init()
 {
     object oDataObject = GetDataObject(DT_SCRIPT_NAME);

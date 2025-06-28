@@ -40,7 +40,7 @@ object EM_NWNXGetObject(string sTag);
 vector EM_NWNXGetVector(string sTagX, string sTagY, string sTagZ);
 location EM_NWNXGetLocation(string sTagArea, string sTagX, string sTagY, string sTagZ);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void EM_Init()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + EM_SCRIPT_NAME + "_events (" +
@@ -61,7 +61,7 @@ void EM_Init()
     VMCompileScript(EM_SCRIPT_NAME, EM_SCRIPT_NAME, nssFunction("EM_SignalObjectEvent"));
 }
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void EM_Load()
 {
     EM_SetModuleEventScripts();

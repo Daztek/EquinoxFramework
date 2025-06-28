@@ -44,7 +44,7 @@ cassowary AV_GetXSolver();
 cassowary AV_GetYSolver();
 void AV_OnAreaGenerated(string sAreaID);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void AV_Init()
 {
     AV_SetupSolvers();
@@ -52,7 +52,7 @@ void AV_Init()
     CassowarySuggestValue(AV_GetYSolver(), "LENGTH", IntToFloat(AV_AREA_HEIGHT));
 }
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void AV_Load()
 {
     object oDataObject = GetDataObject(AV_SCRIPT_NAME);

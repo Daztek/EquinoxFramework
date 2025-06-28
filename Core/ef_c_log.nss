@@ -41,7 +41,7 @@ void LogAddToRingBuffer(int nType, string sMessage, struct VMFrame str)
     RingBuffer_PushJson(GetDataObject(LOG_SCRIPT_NAME), LOG_SCRIPT_NAME, jLogMessage);
 
     if (MessageBus_GetNumberOfSubscribers(LOG_BROADCAST_EVENT))
-        MessageBus_Broadcast(LOG_BROADCAST_EVENT);
+        MessageBus_Broadcast(LOG_BROADCAST_EVENT, GetModule());
 }
 
 void WriteLog(int nType, string sMessage, int bShowFunctionName, int bIncludeBacktrace)

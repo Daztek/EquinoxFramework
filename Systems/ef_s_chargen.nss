@@ -123,7 +123,7 @@ void CG_OpenFeatsWindow();
 void CG_SetSchoolSpellButtonText();
 void CG_ToggleSchoolSpellButton();
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void CG_Init()
 {
     // Do not reorder

@@ -46,13 +46,13 @@ void AreaMusic_InitializeToolsetTrackLists();
 void AreaMusic_UpdateTrackLists();
 void AreaMusic_UpdateTrackListsTimer();
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void AreaMusic_Init()
 {
     AreaMusic_InitializeTrackListsTable();
 }
 
-// @CORE[EF_SYSTEM_POST]
+// @CORE[CORE_SYSTEM_POST]
 void AreaMusic_Post()
 {
     AreaMusic_InitializeToolsetTrackLists();

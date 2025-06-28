@@ -11,7 +11,7 @@ const string RS2DA_SCRIPT_NAME                         = "ef_s_ruleset2da";
 int RS2DA_GetIntEntry(string sEntry);
 float RS2DA_GetFloatEntry(string sEntry);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void RS2DA_Init()
 {
     NWNX_NWSQLiteExtensions_CreateVirtual2DATable("ruleset", "00", RS2DA_SCRIPT_NAME);

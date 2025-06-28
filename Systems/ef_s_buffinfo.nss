@@ -21,7 +21,7 @@ void BuffInfo_DisplayLine(object oPlayer, int nLineOffset, int nID, string sText
 string BuffInfo_GetVersusRacialTypeAndAlignment(int nRacialType, int nLawfulChaotic, int nGoodEvil);
 string BuffInfo_GetModifierType(int nEffectType, int nPlus, int nMinus);
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void BuffInfo_Load()
 {
     PostString_ReserveIDs(BUFFINFO_GUI_NUM_IDS);

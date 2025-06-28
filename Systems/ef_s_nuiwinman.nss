@@ -62,7 +62,7 @@ void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string s
 void NWM_Destroy();
 void NWM_SetRootWindowLayout(json jLayout);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void NWM_Init()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + NWM_SCRIPT_NAME + "(" +

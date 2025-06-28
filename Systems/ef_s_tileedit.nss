@@ -85,13 +85,13 @@ json TE_GetTCColor(json jTCColorArray, int nFlag);
 void TE_UpdateTileList();
 void TE_SetAreaTilesColorBinds(object oArea, int nAreaWidth, int nAreaHeight);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void TE_Init()
 {
 
 }
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void TE_Load()
 {
     json jTilesets = GetResRefArray("", RESTYPE_SET, TRUE);

@@ -6,6 +6,7 @@
 #include "ef_i_include"
 #include "ef_c_log"
 #include "ef_c_mediator"
+#include "ef_c_messagebus"
 #include "ef_c_profiler"
 #include "ef_s_areagen"
 #include "ef_s_eventman"
@@ -55,7 +56,7 @@ int EP_GetIsEPArea(object oArea);
 object EP_CreateArea(string sAreaID);
 void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0);
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void EP_Init()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + EP_GetTilesTable() + "(" +
@@ -79,7 +80,7 @@ void EP_Init()
     SqlMersenneTwisterSetSeed(EP_SCRIPT_NAME, nSeed);
 }
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void EP_Load()
 {
     AreaMusic_AddTrackToTrackList(EP_SCRIPT_NAME, 109, AREAMUSIC_MUSIC_TYPE_DAY_OR_NIGHT);
@@ -354,7 +355,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
 
     if (nCurrentTile == nNumTiles)
     {
-        EM_NWNXSignalEvent(EP_EVENT_AREA_POST_PROCESS_FINISHED, oArea);
+        MessageBus_Broadcast(EP_EVENT_AREA_POST_PROCESS_FINISHED, oArea);
         return;
     }
 

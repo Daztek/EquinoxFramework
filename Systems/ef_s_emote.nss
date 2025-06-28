@@ -26,7 +26,7 @@ void Emote_AddEmote(string sEmoteName, int nEmoteId)
     InsertIntToLocalJsonArray(oDataObject, EMOTE_ID_ARRAY, nEmoteId);
 }
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void Emote_Init()
 {
     Emote_AddEmote("Bow", ANIMATION_FIREFORGET_BOW);

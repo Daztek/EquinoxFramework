@@ -12,7 +12,7 @@
 const string GUIEVENT_SCRIPT_NAME       = "ef_s_guievent";
 const int GUIEVENT_DEBUG_EVENTS         = FALSE;
 
-// @CORE[EF_SYSTEM_INIT]
+// @CORE[CORE_SYSTEM_INIT]
 void GuiEvent_Init()
 {
     string sQuery = "CREATE TABLE IF NOT EXISTS " + GUIEVENT_SCRIPT_NAME + "(" +

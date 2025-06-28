@@ -15,7 +15,7 @@ const int CLOSEDOOR_EVENT_PRIORITY      = 10;
 
 const float CLOSEDOOR_CLOSE_DELAY       = 7.5f;
 
-// @CORE[EF_SYSTEM_LOAD]
+// @CORE[CORE_SYSTEM_LOAD]
 void CloseDoor_Load()
 {
     object oDoor;

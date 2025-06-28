@@ -1,8 +1,6 @@
 /*
     Script: ef_s_nuibuilder
     Author: Daz
-
-    Description: A simple NUI Window Builder Library
 */
 
 #include "ef_i_include"

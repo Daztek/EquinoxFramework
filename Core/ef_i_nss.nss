@@ -33,8 +33,6 @@ string nssLocation(string sVarName, string sFunction = "", int bIncludeType = TR
 string nssCassowary(string sVarName, string sFunction = "", int bIncludeType = TRUE);
 string nssJson(string sVarName, string sFunction = "", int bIncludeType = TRUE);
 string nssFunction(string sFunction, string sArguments = "", int bAddSemicolon = TRUE);
-// Converts o to Object, s to String, etc
-// Only supports the following types: (o)bject, (s)tring, (i)nt, (f)loat, (l)ocation, (v)ector, (j)son
 string nssConvertShortType(string sShortType, int bLowerCase = FALSE);
 string nssConvertType(string sType);
 

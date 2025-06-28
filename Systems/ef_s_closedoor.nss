@@ -1,8 +1,6 @@
 /*
     Script: ef_s_closedoor
     Author: Daz
-
-    Description: An Equinox Framework System that automatically closes doors.
 */
 
 #include "ef_i_include"
@@ -12,7 +10,6 @@
 
 const string CLOSEDOOR_SCRIPT_NAME      = "ef_s_closedoor";
 const int CLOSEDOOR_EVENT_PRIORITY      = 10;
-
 const float CLOSEDOOR_CLOSE_DELAY       = 7.5f;
 
 // @CORE[CORE_SYSTEM_LOAD]

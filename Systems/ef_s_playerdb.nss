@@ -1,8 +1,6 @@
 /*
     Script: ef_s_playerdb
     Author: Daz
-
-    Description: An Equinox Framework System to store player data persistently.
 */
 
 #include "ef_i_include"

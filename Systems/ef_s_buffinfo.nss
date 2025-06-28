@@ -1,8 +1,6 @@
 /*
     Script: ef_s_buffinfo
     Author: Daz
-
-    Description: An Equinox Framework system to display buffs when a player clicks an effect icon
 */
 
 #include "ef_i_include"

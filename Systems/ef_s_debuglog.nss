@@ -10,7 +10,7 @@
 const string DEBUGLOG_SCRIPT_NAME   = "ef_s_debuglog";
 const int DEBUGLOG_ENABLED          = TRUE;
 const int DEBUGLOG_NUM_IDS          = LOG_RINGBUFFER_SIZE;
-const float DEBUGLOG_DISPLAY_TIME   = 10.0f;
+const float DEBUGLOG_DISPLAY_TIME   = 15.0f;
 
 // @CORE[CORE_SYSTEM_LOAD]
 void DebugLog_Load()
@@ -20,36 +20,41 @@ void DebugLog_Load()
 
 void DebugLog_DisplayLine(object oPlayer, int nLineOffset, int nID, string sText, int nColor)
 {
-    PostString(oPlayer, sText, 1, nLineOffset, SCREEN_ANCHOR_TOP_LEFT, DEBUGLOG_DISPLAY_TIME, nColor, nColor, nID, POSTSTRING_FONT_TEXT_NAME);
+    PostString(oPlayer, sText, 1, nLineOffset, SCREEN_ANCHOR_TOP_LEFT, DEBUGLOG_DISPLAY_TIME, nColor, POSTSTRING_COLOR_TRANSPARENT, nID, POSTSTRING_FONT_TEXT_NAME);
 }
 
 // @MESSAGEBUS[LOG_BROADCAST_EVENT]
+// @CONSOLE[DisplayLog::]
 void DebugLog_Display()
 {
     if (!DEBUGLOG_ENABLED)
         return;
 
-    object oPlayer = GetFirstPC();
-    if (!GetIsObjectValid(oPlayer))
-        return;
-
     json jLogMessages = LogGetRingBufferAsArray();
-    int nID = PostString_GetStartID(DEBUGLOG_SCRIPT_NAME);
-    PostString_ClearByRange(oPlayer, nID, nID + DEBUGLOG_NUM_IDS);
+    int nStartID = PostString_GetStartID(DEBUGLOG_SCRIPT_NAME);
 
-    int nOffsetY = 4, nColor = POSTSTRING_COLOR_WHITE;
-    int nIndex, nLength = JsonGetLength(jLogMessages);
-    for (nIndex = 0; nIndex < nLength; nIndex++)
+    object oPlayer = GetFirstPC();
+    while (GetIsObjectValid(oPlayer))
     {
-        json jMessage = JsonArrayGet(jLogMessages, nIndex);
-        string sText = "[" + JsonObjectGetString(jMessage, "file") + "] " + JsonObjectGetString(jMessage, "message");
-        switch (JsonObjectGetInt(jMessage, "type"))
+        int nID = nStartID;
+        PostString_ClearByRange(oPlayer, nID, nID + DEBUGLOG_NUM_IDS);
+
+        int nOffsetY = 4, nColor = POSTSTRING_COLOR_WHITE;
+        int nIndex, nLength = JsonGetLength(jLogMessages);
+        for (nIndex = 0; nIndex < nLength; nIndex++)
         {
-            case LOG_TYPE_INFO: nColor = POSTSTRING_COLOR_YELLOW; break;
-            case LOG_TYPE_WARNING: nColor = POSTSTRING_COLOR_ORANGE; break;
-            case LOG_TYPE_ERROR: nColor = POSTSTRING_COLOR_RED; break;
-            case LOG_TYPE_DEBUG: nColor = POSTSTRING_COLOR_AQUA; break;
+            json jMessage = JsonArrayGet(jLogMessages, nIndex);
+            string sText = "[" + JsonObjectGetString(jMessage, "file") + "] " + JsonObjectGetString(jMessage, "message");
+            switch (JsonObjectGetInt(jMessage, "type"))
+            {
+                case LOG_TYPE_INFO: nColor = POSTSTRING_COLOR_YELLOW; break;
+                case LOG_TYPE_WARNING: nColor = POSTSTRING_COLOR_ORANGE; break;
+                case LOG_TYPE_ERROR: nColor = POSTSTRING_COLOR_RED; break;
+                case LOG_TYPE_DEBUG: nColor = POSTSTRING_COLOR_AQUA; break;
+            }
+            DebugLog_DisplayLine(oPlayer, nOffsetY++, nID++, sText, nColor);
         }
-        DebugLog_DisplayLine(oPlayer, nOffsetY++, nID++, sText, nColor);
+
+        oPlayer = GetNextPC();
     }
 }

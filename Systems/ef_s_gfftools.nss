@@ -1,8 +1,6 @@
 /*
     Script: ef_s_gfftools
     Author: Daz
-
-    Description:
 */
 
 #include "ef_i_include"

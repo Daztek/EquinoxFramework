@@ -1,8 +1,6 @@
 /*
     Script: ef_s_emote
     Author: Daz
-
-    Description: A system that adds a PlayerMenu button that allows players to emote.
 */
 
 #include "ef_i_include"
@@ -66,18 +64,18 @@ json Emote_CreateWindow()
 {
     NB_InitializeWindow(NuiRect(-1.0f, -1.0f, 200.0f, 400.0f));
     NB_SetWindowTitle(JsonString("Emote Menu"));
-     NB_StartColumn();
-      NB_StartRow();
-       NB_StartList(NuiBind("buttons"), 24.0f, TRUE);
-        NB_StartListTemplateCell(140.0f, FALSE);
-         NB_StartElement(NuiButton(NuiBind("buttons")));
-          NB_SetId(EMOTE_BIND_EMOTE_BUTTON);
-          NB_SetDimensions(140.0f, 24.0f);
-         NB_End();
+    NB_StartColumn();
+        NB_StartRow();
+            NB_StartList(NuiBind("buttons"), 24.0f, TRUE);
+                NB_StartListTemplateCell(140.0f, FALSE);
+                    NB_StartElement(NuiButton(NuiBind("buttons")));
+                        NB_SetId(EMOTE_BIND_EMOTE_BUTTON);
+                        NB_SetDimensions(140.0f, 24.0f);
+                    NB_End();
+                NB_End();
+            NB_End();
         NB_End();
-       NB_End();
-      NB_End();
-     NB_End();
+    NB_End();
     return NB_FinalizeWindow();
 }
 

@@ -1,8 +1,6 @@
 /*
     Script: ef_s_arealist
     Author: Daz
-
-    Description: A system that adds a player menu button that lists all areas.
 */
 
 #include "ef_i_include"

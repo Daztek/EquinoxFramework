@@ -1,8 +1,6 @@
 /*
     Script: ef_i_poststring
     Author: Daz
-
-    Description: An Equinox Framework System that provides various PostString functionality
 */
 
 #include "ef_i_include"
@@ -34,20 +32,12 @@ const int POSTSTRING_COLOR_NAVY         = 0x000080FF;
 const int POSTSTRING_COLOR_FUSCHIA      = 0xFF00FFFF;
 const int POSTSTRING_COLOR_PURPLE       = 0x800080FF;
 
-// Reserve nAmount of PostString() IDs for sSystem
 void PostString_ReserveIDs(int nAmount, string sSystem = "");
-// Return the starting PostString() ID for sSystem
 int PostString_GetStartID(string sSystem = "");
-// Return the ending PostString() ID for sSystem
 int PostString_GetEndID(string sSystem = "");
-// Return the amount of PostString() IDs that sSystem has requested
 int PostString_GetIDAmount(string sSystem = "");
-
-// Clear a PostString() string with nID for oPlayer
 void PostString_ClearByID(object oPlayer, int nID);
-// Clear a PostString() string ID range for oPlayer
 void PostString_ClearByRange(object oPlayer, int nStartID, int nEndID);
-// Clear all PostString() strings of sSystem for oPlayer
 void PostString_ClearBySystem(object oPlayer, string sSystem);
 
 // @CORE[CORE_SYSTEM_INIT]

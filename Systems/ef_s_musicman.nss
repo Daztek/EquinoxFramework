@@ -110,9 +110,9 @@ void MusMan_RegisterMusicEvent(struct AnnotationData str)
         return;
     }
 
-    string sEvent = GetAnnotationString(str, 0);
-    int nPriority = GetAnnotationInt(str, 1);
-    float fFadeTime = GetAnnotationFloat(str, 2);
+    string sEvent = GetAnnotationStringConstantValue(str, 0);
+    int nPriority = GetAnnotationIntConstantValue(str, 1);
+    float fFadeTime = GetAnnotationFloatConstantValue(str, 2);
     sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + MusMan_GetMusicEventsTable() + "(event, system, priority, fadetime, track_function) " +
                                          "VALUES(@event, @system, @priority, @fadetime, @track_function);");
     SqlBindString(sql, "@event", sEvent);

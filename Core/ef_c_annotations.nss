@@ -22,6 +22,9 @@ struct AnnotationData GetAnnotationDataStruct(json jAnnotationData);
 string GetAnnotationString(struct AnnotationData str, int nIndex);
 int GetAnnotationInt(struct AnnotationData str, int nIndex);
 float GetAnnotationFloat(struct AnnotationData str, int nIndex);
+string GetAnnotationStringConstantValue(struct AnnotationData str, int nIndex);
+int GetAnnotationIntConstantValue(struct AnnotationData str, int nIndex);
+float GetAnnotationFloatConstantValue(struct AnnotationData str, int nIndex);
 
 void Annotations_Init()
 {
@@ -134,15 +137,30 @@ struct AnnotationData GetAnnotationDataStruct(json jAnnotationData)
 
 string GetAnnotationString(struct AnnotationData str, int nIndex)
 {
-    return GetConstantStringValue(JsonArrayGetString(str.jArguments, nIndex), str.sSystem, JsonArrayGetString(str.jArguments, nIndex));
+    return JsonArrayGetString(str.jArguments, nIndex);
 }
 
 int GetAnnotationInt(struct AnnotationData str, int nIndex)
 {
-    return GetConstantIntValue(JsonArrayGetString(str.jArguments, nIndex), str.sSystem, JsonArrayGetInt(str.jArguments, nIndex));
+    return JsonArrayGetInt(str.jArguments, nIndex);
 }
 
 float GetAnnotationFloat(struct AnnotationData str, int nIndex)
+{
+    return JsonArrayGetFloat(str.jArguments, nIndex);
+}
+
+string GetAnnotationStringConstantValue(struct AnnotationData str, int nIndex)
+{
+    return GetConstantStringValue(JsonArrayGetString(str.jArguments, nIndex), str.sSystem, JsonArrayGetString(str.jArguments, nIndex));
+}
+
+int GetAnnotationIntConstantValue(struct AnnotationData str, int nIndex)
+{
+    return GetConstantIntValue(JsonArrayGetString(str.jArguments, nIndex), str.sSystem, JsonArrayGetInt(str.jArguments, nIndex));
+}
+
+float GetAnnotationFloatConstantValue(struct AnnotationData str, int nIndex)
 {
     return GetConstantFloatValue(JsonArrayGetString(str.jArguments, nIndex), str.sSystem, JsonArrayGetFloat(str.jArguments, nIndex));
 }

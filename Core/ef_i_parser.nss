@@ -11,20 +11,22 @@ struct ParserData
     int nNewLinePos;
     int bEndOfFile;
     string sData;
+    string sDelimiter;
     int nDataLength;
     string sLine;
     int nLineNumber;
     int bTrim;
 };
 
-struct ParserData ParserPrepare(string sData, int bTrim = FALSE);
+struct ParserData ParserPrepare(string sData, int bTrim = FALSE, string sDelimiter = "\n");
 struct ParserData ParserParse(struct ParserData str);
 string ParserPeek(struct ParserData str);
 
-struct ParserData ParserPrepare(string sData, int bTrim = FALSE)
+struct ParserData ParserPrepare(string sData, int bTrim = FALSE, string sDelimiter = "\n")
 {
     struct ParserData str;
     str.sData = sData;
+    str.sDelimiter = sDelimiter;
     str.nDataLength = GetStringLength(sData);
     str.bEndOfFile = str.nDataLength == 0;
     str.bTrim = bTrim;
@@ -35,7 +37,7 @@ struct ParserData ParserParse(struct ParserData str)
 {
     if (str.bEndOfFile)
         return str;
-    if ((str.nNewLinePos = FindSubString(str.sData, "\n", str.nStartPos)) != -1)
+    if ((str.nNewLinePos = FindSubString(str.sData, str.sDelimiter, str.nStartPos)) != -1)
     {
         str.sLine = GetSubString(str.sData, str.nStartPos, str.nNewLinePos - str.nStartPos);
         if (str.bTrim)
@@ -61,7 +63,7 @@ string ParserPeek(struct ParserData str)
 {
     if (str.bEndOfFile)
         return "";
-    int nNewLinePos = FindSubString(str.sData, "\n", str.nStartPos);
+    int nNewLinePos = FindSubString(str.sData, str.sDelimiter, str.nStartPos);
     if (nNewLinePos != -1)
     {
         string s = GetSubString(str.sData, str.nStartPos, nNewLinePos - str.nStartPos);

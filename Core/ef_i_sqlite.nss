@@ -31,6 +31,8 @@ void SqlMersenneTwisterDiscard(string sName, int nAmount);
 void SqlBindObjectRef(sqlquery sqlQuery, string sParam, object oObject);
 object SqlGetObjectRef(sqlquery sqlQuery, int nIndex);
 string SqlGetLocalTimeAsString();
+void SqlBindVectorAsFloats(sqlquery sqlQuery, string sParamPrefix, vector vVector);
+vector SqlGetVectorFromFloats(sqlquery sqlQuery, int nIndexX, int nIndexY, int nIndexZ);
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -175,4 +177,16 @@ string SqlGetLocalTimeAsString()
 {
     sqlquery sql = SqlPrepareQueryModule("SELECT STRFTIME('%H:%M:%S', 'now', 'localtime')");
     return SqlStep(sql) ? SqlGetString(sql, 0) : "??:??:??";
+}
+
+void SqlBindVectorAsFloats(sqlquery sqlQuery, string sParamPrefix, vector vVector)
+{
+    SqlBindFloat(sqlQuery, "@" + sParamPrefix + "x", vVector.x);
+    SqlBindFloat(sqlQuery, "@" + sParamPrefix + "y", vVector.y);
+    SqlBindFloat(sqlQuery, "@" + sParamPrefix + "z", vVector.z);
+}
+
+vector SqlGetVectorFromFloats(sqlquery sqlQuery, int nIndexX, int nIndexY, int nIndexZ)
+{
+    return Vector(SqlGetFloat(sqlQuery, nIndexX), SqlGetFloat(sqlQuery, nIndexY), SqlGetFloat(sqlQuery, nIndexZ));
 }

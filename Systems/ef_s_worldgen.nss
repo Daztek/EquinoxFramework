@@ -20,7 +20,7 @@ const int WG_DEBUG_LOG                                          = FALSE;
 const int WG_ENABLE_AREA_CACHING                                = FALSE;
 const int WG_ENABLE_VFX_EDGE                                    = TRUE;
 
-const int WG_AREA_LENGTH                                        = 7;
+const int WG_AREA_LENGTH                                        = 5;
 const int WG_WORLD_WIDTH                                        = 9;
 const int WG_WORLD_HEIGHT                                       = 9;
 const int WG_VFX_TILE_BORDER_SIZE                               = WG_AREA_LENGTH;

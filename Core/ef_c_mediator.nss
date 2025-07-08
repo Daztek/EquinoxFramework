@@ -60,12 +60,12 @@ int Mediator_ParseFunctionDefinition(string sLine, string sSystem)
     if (MEDIATOR_PARSE_SYSTEM_FUNCTION_DEFINITIONS &&
         GetStringRight(sLine, 2) == ");" &&
         (GetStringLeft(sLine, 4) == "void" ||
-        GetStringLeft(sLine, 5) == "object" ||
+        GetStringLeft(sLine, 6) == "object" ||
         GetStringLeft(sLine, 3) == "int" ||
-        GetStringLeft(sLine, 5) == "string" ||
+        GetStringLeft(sLine, 6) == "string" ||
         GetStringLeft(sLine, 4) == "json" ||
         GetStringLeft(sLine, 5) == "float" ||
-        GetStringLeft(sLine, 5) == "vector" ||
+        GetStringLeft(sLine, 6) == "vector" ||
         GetStringLeft(sLine, 8) == "location") &&
         FindSubString(sLine, "=", 0) == -1)
     {
@@ -99,7 +99,7 @@ int Mediator_ParseFunctionDefinition(string sLine, string sSystem)
             }
 
             string sFunctionBody = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME)));
-                sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "", FALSE)));
+                sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "oFDO", FALSE)));
 
             if (sReturnType != "")
             {
@@ -133,57 +133,52 @@ int Mediator_ParseFunctionDefinition(string sLine, string sSystem)
     return FALSE;
 }
 
-int GetCallStackDepth(object oFDO = OBJECT_INVALID)
+int GetCallStackDepth(object oFDO)
 {
-    if (oFDO == OBJECT_INVALID) oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
     return GetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH);
 }
 
-int IncrementCallStackDepth(string sFunction, string sReturnType, object oFDO = OBJECT_INVALID)
+int IncrementCallStackDepth(string sFunction, string sReturnType, object oFDO)
 {
-    if (oFDO == OBJECT_INVALID) oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    int nCallStackDepth = GetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH);
-    SetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH, ++nCallStackDepth);
+    int nCallStackDepth = GetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH) + 1;
+    SetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH, nCallStackDepth);
     SetLocalString(oFDO, MEDIATOR_CALLSTACK_FUNCTION + IntToString(nCallStackDepth), sFunction);
     SetLocalString(oFDO, MEDIATOR_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth), sReturnType);
     return nCallStackDepth;
 }
 
-int DecrementCallStackDepth(object oFDO = OBJECT_INVALID)
+int DecrementCallStackDepth(object oFDO)
 {
-    if (oFDO == OBJECT_INVALID) oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    int nCallStackDepth = GetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH);
-    SetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH, --nCallStackDepth);
+    int nCallStackDepth = GetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH) - 1;
+    SetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH, nCallStackDepth);
     return nCallStackDepth;
 }
 
-string GetCallStackReturnType(int nCallStackDepth)
+string GetCallStackReturnType(object oFDO, int nCallStackDepth)
 {
-    return GetLocalString(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth));
+    return GetLocalString(oFDO, MEDIATOR_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth));
 }
 
-string GetCallStackFunction(int nCallStackDepth)
+string GetCallStackFunction(object oFDO, int nCallStackDepth)
 {
-    return GetLocalString(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_CALLSTACK_FUNCTION + IntToString(nCallStackDepth));
+    return GetLocalString(oFDO, MEDIATOR_CALLSTACK_FUNCTION + IntToString(nCallStackDepth));
 }
 
-void ClearArgumentCount(object oFDO = OBJECT_INVALID)
+void ClearArgumentCount(object oFDO)
 {
-    if (oFDO == OBJECT_INVALID) oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
     DeleteLocalInt(oFDO, MEDIATOR_ARGUMENT_COUNT);
 }
 
-int IncrementArgumentCount()
+int IncrementArgumentCount(object oFDO)
 {
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
     int nCount = GetLocalInt(oFDO, MEDIATOR_ARGUMENT_COUNT);
     SetLocalInt(oFDO, MEDIATOR_ARGUMENT_COUNT, nCount + 1);
     return nCount;
 }
 
-int GetNextLambdaId()
+int GetNextLambdaId(object oFDO)
 {
-    return IncrementLocalInt(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_LAMBDA_ID);
+    return IncrementLocalInt(oFDO, MEDIATOR_LAMBDA_ID);
 }
 
 int GetLambdaIdFromFunction(string sFunction)
@@ -273,7 +268,7 @@ string Lambda(string sBody, string sParameters = "", string sReturnType = "", st
 
     if (!nLambdaId)
     {
-        nLambdaId = GetNextLambdaId();
+        nLambdaId = GetNextLambdaId(oFDO);
         string sLambdaSymbol = MEDIATOR_LAMBDA_FUNCTION + IntToString(nLambdaId);
         string sArguments, sLambdaParameters;
         int nArgument, nNumArguments = GetStringLength(sParameters);
@@ -320,47 +315,54 @@ string Lambda(string sBody, string sParameters = "", string sReturnType = "", st
 
 string ObjectArg(object oValue)
 {
-    SetLocalObject(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), oValue);
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    SetLocalObject(oFDO, MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount(oFDO)), oValue);
     return "o";
 }
 
 string IntArg(int nValue)
 {
-    SetLocalInt(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), nValue);
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    SetLocalInt(oFDO, MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount(oFDO)), nValue);
     return "i";
 }
 
 string FloatArg(float fValue)
 {
-    SetLocalFloat(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), fValue);
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    SetLocalFloat(oFDO, MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount(oFDO)), fValue);
     return "f";
 }
 
 string StringArg(string sValue)
 {
-    SetLocalString(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), sValue);
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    SetLocalString(oFDO, MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount(oFDO)), sValue);
     return "s";
 }
 
 string JsonArg(json jValue)
 {
-    SetLocalJson(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), jValue);
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    SetLocalJson(oFDO, MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount(oFDO)), jValue);
     return "j";
 }
 
 string VectorArg(vector vValue)
 {
-    SetLocalVector(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), vValue);
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    SetLocalVector(oFDO, MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount(oFDO)), vValue);
     return "v";
 }
 
 string LocationArg(location locValue)
 {
-    SetLocalLocation(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount()), locValue);
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    SetLocalLocation(oFDO, MEDIATOR_ARGUMENT_PREFIX + IntToString(IncrementArgumentCount(oFDO)), locValue);
     return "l";
 }
 
-int ValidateReturnType(int nCallStackDepth, string sRequestedType)
+int ValidateReturnType(object oFDO, int nCallStackDepth, string sRequestedType)
 {
     if (nCallStackDepth == 0)
     {
@@ -368,11 +370,11 @@ int ValidateReturnType(int nCallStackDepth, string sRequestedType)
         return FALSE;
     }
 
-    string sReturnType = GetCallStackReturnType(nCallStackDepth);
+    string sReturnType = GetCallStackReturnType(oFDO, nCallStackDepth);
     if (sReturnType != sRequestedType)
     {
         LogError("Tried to get return type '" + sRequestedType + "' for function '" +
-                 GetCallStackFunction(nCallStackDepth) + "' with return type: " + sReturnType);
+                 GetCallStackFunction(oFDO, nCallStackDepth) + "' with return type: " + sReturnType);
         return FALSE;
     }
 
@@ -381,56 +383,63 @@ int ValidateReturnType(int nCallStackDepth, string sRequestedType)
 
 object RetObject(int nCallStackDepth)
 {
-    if (ValidateReturnType(nCallStackDepth, "o"))
-        return GetLocalObject(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    if (ValidateReturnType(oFDO, nCallStackDepth, "o"))
+        return GetLocalObject(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return OBJECT_INVALID;
 }
 
 int RetInt(int nCallStackDepth)
 {
-    if (ValidateReturnType(nCallStackDepth, "i"))
-        return GetLocalInt(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    if (ValidateReturnType(oFDO, nCallStackDepth, "i"))
+        return GetLocalInt(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return 0;
 }
 
 float RetFloat(int nCallStackDepth)
 {
-    if (ValidateReturnType(nCallStackDepth, "f"))
-        return GetLocalFloat(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    if (ValidateReturnType(oFDO, nCallStackDepth, "f"))
+        return GetLocalFloat(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return 0.0f;
 }
 
 string RetString(int nCallStackDepth)
 {
-    if (ValidateReturnType(nCallStackDepth, "s"))
-        return GetLocalString(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    if (ValidateReturnType(oFDO, nCallStackDepth, "s"))
+        return GetLocalString(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return "";
 }
 
 json RetJson(int nCallStackDepth)
 {
-    if (ValidateReturnType(nCallStackDepth, "j"))
-        return GetLocalJson(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    if (ValidateReturnType(oFDO, nCallStackDepth, "j"))
+        return GetLocalJson(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return JsonNull();
 }
 
 vector RetVector(int nCallStackDepth)
 {
-    if (ValidateReturnType(nCallStackDepth, "v"))
-        return GetLocalVector(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    if (ValidateReturnType(oFDO, nCallStackDepth, "v"))
+        return GetLocalVector(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return Vector(0.0f, 0.0f, 0.0f);
 }
 
 location RetLocation(int nCallStackDepth)
 {
-    if (ValidateReturnType(nCallStackDepth, "l"))
-        return GetLocalLocation(GetDataObject(MEDIATOR_SCRIPT_NAME), MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    if (ValidateReturnType(oFDO, nCallStackDepth, "l"))
+        return GetLocalLocation(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
     else
         return Location(OBJECT_INVALID, Vector(0.0f, 0.0f, 0.0f), 0.0f);
 }

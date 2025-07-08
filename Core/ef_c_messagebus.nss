@@ -61,7 +61,7 @@ json MessageBus_GetBroadcastData()
 // @PAD[MESSAGEBUS]
 void MessageBus_Subscribe(struct AnnotationData str)
 {
-    string sEvent = GetAnnotationString(str, 0);
+    string sEvent = GetAnnotationStringConstantValue(str, 0);
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + MESSAGEBUS_SCRIPT_NAME + " (event, system, scriptchunk) VALUES(@event, @system, @scriptchunk);");

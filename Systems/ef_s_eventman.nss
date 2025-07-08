@@ -29,6 +29,7 @@ void EM_NWNXSubscribeEvent(string sSystem, string sEvent, string sScriptChunk, i
 void EM_NWNXDispatchListInsert(object oObject, string sSystem, string sEvent);
 void EM_NWNXDispatchListRemove(object oObject, string sSystem, string sEvent);
 void EM_NWNXSignalEvent(string sEvent, object oTarget = OBJECT_SELF);
+string EM_NWNXGetCurrentEvent();
 void EM_NWNXAddIDToWhitelist(string sEvent, int nID);
 void EM_NWNXRemoveIDFromWhitelist(string sEvent, int nID);
 void EM_NWNXSkipEvent();
@@ -332,6 +333,11 @@ void EM_NWNXDispatchListRemove(object oObject, string sSystem, string sEvent)
 void EM_NWNXSignalEvent(string sEvent, object oTarget = OBJECT_SELF)
 {
     NWNX_Events_SignalEvent(sEvent, oTarget);
+}
+
+string EM_NWNXGetCurrentEvent()
+{
+    return NWNX_Events_GetCurrentEvent();
 }
 
 void EM_NWNXAddIDToWhitelist(string sEvent, int nID)

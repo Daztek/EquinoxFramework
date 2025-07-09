@@ -5,6 +5,7 @@
 
 #include "ef_i_include"
 #include "ef_c_log"
+#include "ef_c_profiler"
 
 const string OBJECTTAG_SCRIPT_NAME  = "ef_s_objecttag";
 
@@ -15,6 +16,8 @@ int ObjectTag_Count(object oObject);
 int ObjectTag_HasTag(object oObject, string sTag);
 json ObjectTag_GetTags(object oObject);
 void ObjectTag_UpdateAreaAndPosition(object oObject, object oArea, vector vPosition);
+object ObjectTag_GetNearestObjectWithTag(object oOrigin, string sTag);
+json ObjectTag_GetObjectsWithTag(object oOrigin, string sTag);
 
 // @CORE[CORE_SYSTEM_INIT]
 void ObjectTag_Init()
@@ -28,6 +31,27 @@ void ObjectTag_Init()
                     "pos_z REAL NOT NULL, " +
                     "PRIMARY KEY(object, tag));";
     SqlStep(SqlPrepareQueryModule(sQuery));
+    SqlStep(SqlPrepareQueryModule("CREATE INDEX idx_area_tag ON " + OBJECTTAG_SCRIPT_NAME + " (area, tag);"));
+}
+
+// @CONSOLE[ObjectTag_GetNearestObjectWithTag::]
+string ObjectTag_TestNearest(string sTag = "SEAT")
+{
+    Profiler_Start("ObjectTag_GetNearestObjectWithTag");
+    object oObject = ObjectTag_GetNearestObjectWithTag(OBJECT_SELF, sTag);
+    string s = Profiler_Stop();
+    ApplyEffectToObject(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_IMP_KNOCK), oObject);
+    return s;
+}
+
+// @CONSOLE[ObjectTag_GetObjectsWithTag::]
+string ObjectTag_TestObjects(string sTag = "SEAT")
+{
+    Profiler_Start("ObjectTag_GetObjectsWithTag");
+    json jObjects = ObjectTag_GetObjectsWithTag(OBJECT_SELF, sTag);
+    string s = Profiler_Stop();
+
+    return s + "\n\n" + JsonDump(jObjects, 0);
 }
 
 int ObjectTag_IsTaggable(object oObject)
@@ -54,9 +78,6 @@ void ObjectTag_Add(object oObject, string sTag)
 
 void ObjectTag_Remove(object oObject, string sTag)
 {
-    if (!ObjectTag_IsTaggable(oObject) || !ObjectTag_HasTag(oObject, sTag))
-        return;
-
     sqlquery sql = SqlPrepareQueryModule("DELETE FROM " + OBJECTTAG_SCRIPT_NAME + " WHERE object = @object AND tag = @tag;");
     SqlBindObjectRef(sql, "@object", oObject);
     SqlBindString(sql, "@tag", sTag);
@@ -98,4 +119,50 @@ void ObjectTag_UpdateAreaAndPosition(object oObject, object oArea, vector vPosit
     SqlBindObjectRef(sql, "@object", oObject);
     SqlBindObjectRef(sql, "@area", oArea);
     SqlBindVectorAsFloats(sql, "pos_", vPosition);
+}
+
+object ObjectTag_GetNearestObjectWithTag(object oOrigin, string sTag)
+{
+    if (!GetIsObjectValid(oOrigin))
+        return OBJECT_INVALID;
+
+    sqlquery sql = SqlPrepareQueryModule("SELECT object, " +
+                                        "((pos_x - @origin_x) * (pos_x - @origin_x) + " +
+                                         "(pos_y - @origin_y) * (pos_y - @origin_y) + " +
+                                         "(pos_z - @origin_z) * (pos_z - @origin_z)) AS distance " +
+                                        "FROM " + OBJECTTAG_SCRIPT_NAME + " " +
+                                        "WHERE area = @area AND tag = @tag " +
+                                        "ORDER BY distance LIMIT 1;");
+    SqlBindString(sql, "@tag", sTag);
+    SqlBindObjectRef(sql, "@area", GetArea(oOrigin));
+    SqlBindVectorAsFloats(sql, "origin_", GetPosition(oOrigin));
+    return SqlStep(sql) ? SqlGetObjectRef(sql, 0) : OBJECT_INVALID;
+}
+
+json ObjectTag_GetObjectsWithTag(object oOrigin, string sTag)
+{
+    if (!GetIsObjectValid(oOrigin))
+        return JsonArray();
+
+    sqlquery sql = SqlPrepareQueryModule("SELECT object, " +
+                                        "((pos_x - @origin_x) * (pos_x - @origin_x) + " +
+                                         "(pos_y - @origin_y) * (pos_y - @origin_y) + " +
+                                         "(pos_z - @origin_z) * (pos_z - @origin_z)) AS distance_squared " +
+                                        "FROM " + OBJECTTAG_SCRIPT_NAME + " " +
+                                        "WHERE area = @area AND tag = @tag " +
+                                        "ORDER BY distance_squared;");
+    SqlBindString(sql, "@tag", sTag);
+    SqlBindObjectRef(sql, "@area", GetArea(oOrigin));
+    SqlBindVectorAsFloats(sql, "origin_", GetPosition(oOrigin));
+
+    json jArray = JsonArray();
+    while (SqlStep(sql))
+    {
+        json jObject = JsonArray();
+        JsonArrayInsertStringInplace(jObject, IntToHexString(SqlGetInt(sql, 0)));
+        JsonArrayInsertFloatInplace(jObject, SqlGetFloat(sql, 1));
+        JsonArrayInsertInplace(jArray, jObject);
+    }
+
+    return jArray;
 }

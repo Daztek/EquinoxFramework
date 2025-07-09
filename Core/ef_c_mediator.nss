@@ -25,6 +25,7 @@ const string MEDIATOR_FUNCTION_RETURN_TYPE              = "MediatorFunctionRetur
 const string MEDIATOR_LAMBDA_ID                         = "MediatorLambdaId_";
 const string MEDIATOR_LAMBDA_FUNCTION                   = "Lambda::";
 
+int FunctionExists(string sSystem, string sFunction);
 int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF);
 string Function(string sSystem, string sFunction);
 string Lambda(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "");
@@ -187,6 +188,15 @@ int GetLambdaIdFromFunction(string sFunction)
     if (GetStringLeft(sFunction, nPrefixLength) == MEDIATOR_LAMBDA_FUNCTION)
         return StringToInt(GetStringRight(sFunction, GetStringLength(sFunction) - nPrefixLength));
     return 0;
+}
+
+int FunctionExists(string sSystem, string sFunction)
+{
+    sqlquery sql = SqlPrepareQueryModule("SELECT function FROM " + MEDIATOR_SCRIPT_NAME + " WHERE " +
+                                         "system = @system AND function = @function;");
+    SqlBindString(sql, "@system", sSystem);
+    SqlBindString(sql, "@function", sFunction);
+    return SqlStep(sql);
 }
 
 int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)

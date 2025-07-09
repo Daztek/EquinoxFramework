@@ -49,6 +49,7 @@ json GetJsonArrayOfSize(int nSize, json jDefaultValue);
 json GetJsonArrayFromTokenizedString(string sTokens, string sDelimiter = ":");
 void JsonArrayInsertStringInplace(json jArray, string sValue, int nIndex = -1);
 void JsonArrayInsertIntInplace(json jArray, int nValue, int nIndex = -1);
+void JsonArrayInsertFloatInplace(json jArray, float fValue, int nIndex = -1);
 void JsonObjectSetIntInplace(json jObject, string sKey, int nValue);
 void JsonObjectSetStringInplace(json jObject, string sKey, string sValue);
 void JsonObjectSetFloatInplace(json jObject, string sKey, float fValue);
@@ -350,6 +351,11 @@ void JsonArrayInsertStringInplace(json jArray, string sValue, int nIndex = -1)
 void JsonArrayInsertIntInplace(json jArray, int nValue, int nIndex = -1)
 {
     JsonArrayInsertInplace(jArray, JsonInt(nValue), nIndex);
+}
+
+void JsonArrayInsertFloatInplace(json jArray, float fValue, int nIndex = -1)
+{
+    JsonArrayInsertInplace(jArray, JsonFloat(fValue), nIndex);
 }
 
 void JsonObjectSetIntInplace(json jObject, string sKey, int nValue)

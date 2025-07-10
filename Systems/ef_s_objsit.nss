@@ -58,7 +58,7 @@ void ObjSit_Load()
     json jBench = GffTools_GeneratePlaceable(pdDouble);
 
     string lmbdCreateSeat = Lambda(
-        "{ object oSelf = OBJECT_SELF; object oArea = GetArea(oSelf); vector vPosition = GetPosition(oSelf); float fFacing = GetFacing(oSelf) + 180.0f;" +
+        "{ object oSelf = OBJECT_SELF; object oArea = GetArea(oSelf); vector vPosition = GetPosition(oSelf); float fFacing = GetFacing(oSelf);" +
         "  location locSpawn = Location(oArea, vPosition + (AngleToVector(fFacing + (arg1 ? 90.0f : -90.0f)) / 2.0f), fFacing);" +
         "  object oSeat = CreateObject(OBJECT_TYPE_PLACEABLE, GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, locSpawn);" +
         "  SetPlotFlag(oSeat, TRUE); SetLocalObject(oSelf, \"SEAT_\" + (arg1 ? \"1\" : \"2\"), oSeat); return oSeat; }",

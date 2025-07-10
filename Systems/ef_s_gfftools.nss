@@ -133,7 +133,7 @@ object GffTools_CreatePlaceable(json jPlaceable, location locLocation, string sN
     float fFacingAdjustment = GetLocalFloat(oPlaceable, GFFTOOLS_FACING_ADJUSTMENT_VARNAME);
     if (fFacingAdjustment != 0.0f)
     {
-        AssignCommand(oPlaceable, SetFacing(GetFacingFromLocation(locLocation) + fFacingAdjustment));
+        SetFacing(GetFacingFromLocation(locLocation) + fFacingAdjustment, oPlaceable);
         DeleteLocalFloat(oPlaceable, GFFTOOLS_FACING_ADJUSTMENT_VARNAME);
     }
 

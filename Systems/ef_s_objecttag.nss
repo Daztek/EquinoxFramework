@@ -141,21 +141,21 @@ object ObjectTag_GetNearestObjectWithTag(object oOrigin, string sTag)
 
 json ObjectTag_GetObjectsWithTag(object oOrigin, string sTag)
 {
+    json jArray = JsonArray();
     if (!GetIsObjectValid(oOrigin))
-        return JsonArray();
+        return jArray;
 
     sqlquery sql = SqlPrepareQueryModule("SELECT object, " +
                                         "((pos_x - @origin_x) * (pos_x - @origin_x) + " +
                                          "(pos_y - @origin_y) * (pos_y - @origin_y) + " +
-                                         "(pos_z - @origin_z) * (pos_z - @origin_z)) AS distance_squared " +
+                                         "(pos_z - @origin_z) * (pos_z - @origin_z)) AS distance " +
                                         "FROM " + OBJECTTAG_SCRIPT_NAME + " " +
                                         "WHERE area = @area AND tag = @tag " +
-                                        "ORDER BY distance_squared;");
+                                        "ORDER BY distance;");
     SqlBindString(sql, "@tag", sTag);
     SqlBindObjectRef(sql, "@area", GetArea(oOrigin));
     SqlBindVectorAsFloats(sql, "origin_", GetPosition(oOrigin));
 
-    json jArray = JsonArray();
     while (SqlStep(sql))
     {
         json jObject = JsonArray();

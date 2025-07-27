@@ -5,9 +5,10 @@
 
 #include "ef_i_include"
 #include "ef_c_log"
+#include "ef_c_profiler"
 
 const string BT_SCRIPT_NAME                     = "ef_s_bt";
-const int BT_DEBUG_LOG_TICKS                    = TRUE;
+const int BT_DEBUG_LOG_TICKS                    = FALSE;
 const int BT_DEBUG_LOG_TICK_INFO                = FALSE;
 const int BT_DEBUG_LOG_MEMORY_INFO              = FALSE;
 
@@ -33,18 +34,18 @@ const int BT_NODE_STATE_ERROR                   = 4;
 
 const string BT_NODE_KEY_ID                     = "ID";
 const string BT_NODE_KEY_TYPE                   = "Type";
+const string BT_NODE_KEY_TYPENAME               = "TypeName";
 const string BT_NODE_KEY_CHILDREN               = "Children";
 const string BT_NODE_KEY_NAME                   = "Name";
 const string BT_NODE_KEY_INCLUDE                = "Include_";
 const string BT_NODE_KEY_FUNCTION               = "Function_";
+const string BT_NODE_KEY_DATA                   = "Data";
 
 const int BT_NODE_TYPE_BASE                     = 0;
-const int BT_NODE_TYPE_SEQUENCE                 = 1;
-const int BT_NODE_TYPE_SELECTOR                 = 2;
-const int BT_NODE_TYPE_MEMORY_SEQUENCE          = 3;
-const int BT_NODE_TYPE_MEMORY_SELECTOR          = 4;
-const int BT_NODE_TYPE_INVERTER                 = 5;
-const int BT_NODE_TYPE_ACTION                   = 6;
+const int BT_NODE_TYPE_COMPOSITE                = 1;
+const int BT_NODE_TYPE_DECORATOR                = 2;
+const int BT_NODE_TYPE_CONDITION                = 3;
+const int BT_NODE_TYPE_ACTION                   = 4;
 
 int BT_GenerateUniqueID();
 
@@ -72,24 +73,21 @@ void BT_BehaviorTree_Tick(object oBehaviorTree, object oBlackboard, object oTarg
 
 int BT_Node_ExecuteNodeFunction(json jNode, json jTickInfo, int nFunctionType);
 int BT_Node_ExecuteFunction(json jNode, json jTickInfo, int nFunctionType);
-int BT_Node_Execute(json jNode, json jTickInfo, );
+int BT_Node_Execute(json jNode, json jTickInfo);
 
 int BT_Node_GetID(json jNode);
 int BT_Node_GetType(json jNode);
+string BT_Node_GetTypeName(json jNode);
 json BT_Node_GetChildren(json jNode);
 string BT_Node_GetName(json jNode);
 string BT_Node_GetInclude(json jNode, int nFunctionType);
 string BT_Node_GetFunction(json jNode, int nFunctionType);
+void BT_Node_SetData(json jNode, string sKey, json jValue);
+json BT_Node_GetData(json jNode, string sKey);
 
 void BT_Node_SetFunction(json jNode, int nFunctionType, string sInclude, string sFunction);
 void BT_Node_AddChild(json jNode, json jChild);
 
-json BT_Node_SequenceNode(string sName = "");
-json BT_Node_SelectorNode(string sName = "");
-json BT_Node_MemorySequenceNode(string sName = "");
-json BT_Node_MemorySelectorNode(string sName = "");
-json BT_Node_InverterNode(string sName = "");
-json BT_Node_ActionNode(string sName = "");
 
 /* *** Helper Functions *** */
 
@@ -132,9 +130,7 @@ void BT_Blackboard_SetValue(object oBlackboard, string sKey, json jValue, int nB
 {
     string sPointer = BT_Blackboard_GetMemoryPointer(nBehaviorTreeID, nNodeID, sKey);
     if (sPointer != "")
-    {
         JsonSetAtPointerInplace(GetLocalJson(oBlackboard, BT_BLACKBOARD_TREE_MEMORY), sPointer, jValue);
-    }
     else
        JsonObjectSetInplace(GetLocalJson(oBlackboard, BT_BLACKBOARD_BASE_MEMORY), sKey, jValue);
 
@@ -231,9 +227,19 @@ void BT_TickInfo_CloseNode(json jTickInfo, json jNode)
     int nNumNodes = JsonGetLength(jOpenNodes);
     if (!nNumNodes) return;
 
-    if (BT_Node_GetID(jNode) == BT_Node_GetID(JsonArrayGet(jOpenNodes, nNumNodes - 1)))
+    int nIndex, nNodeID = BT_Node_GetID(jNode), bFound = FALSE;
+    for (nIndex = nNumNodes - 1; nIndex >= 0; nIndex--)
     {
-        JsonArrayDelInplace(jOpenNodes, nNumNodes - 1);
+        if (BT_Node_GetID(JsonArrayGet(jOpenNodes, nIndex)) == nNodeID)
+        {
+            bFound = TRUE;
+            break;
+        }
+    }
+
+    if (bFound)
+    {
+        JsonArrayDelInplace(jOpenNodes, nIndex);
         JsonSetAtPointerInplace(jTickInfo, "/OpenNodes", jOpenNodes);
     }
 }
@@ -302,23 +308,28 @@ void BT_BehaviorTree_Tick(object oBehaviorTree, object oBlackboard, object oTarg
     json jLastOpenNodes = BT_Blackboard_GetValue(oBlackboard, "OpenNodes", nBehaviorTreeID);
     int nLastOpenNodesLength = JsonGetLength(jLastOpenNodes);
     json jCurrentOpenNodes = BT_TickInfo_GetOpenNodes(jTickInfo);
+    int nCurrentOpenNodesLength = JsonGetLength(jCurrentOpenNodes);
 
-    int nStart = 0, nIndex, nNumNodes = min(nLastOpenNodesLength, JsonGetLength(jCurrentOpenNodes));
+    int nIndex, nStart = nLastOpenNodesLength, nNumNodes = min(nLastOpenNodesLength, nCurrentOpenNodesLength);
     for (nIndex = 0; nIndex < nNumNodes; nIndex++)
     {
         if (BT_Node_GetID(JsonArrayGet(jLastOpenNodes, nIndex)) != BT_Node_GetID(JsonArrayGet(jCurrentOpenNodes, nIndex)))
         {
-            nStart = nIndex + 1;
+            nStart = nIndex;
             break;
         }
     }
 
-    if (nIndex == nNumNodes)
-        nStart = nNumNodes;
+    if (nStart == nLastOpenNodesLength && nLastOpenNodesLength > nCurrentOpenNodesLength)
+        nStart = nCurrentOpenNodesLength;
 
     for (nIndex = nLastOpenNodesLength - 1; nIndex >= nStart; nIndex--)
     {
-        BT_Node_ExecuteFunction(JsonArrayGet(jLastOpenNodes, nIndex), jTickInfo, BT_NODE_FUNCTION_CLOSE);
+        json jNode = JsonArrayGet(jLastOpenNodes, nIndex);
+        if (JsonGetInt(BT_Blackboard_GetValue(oBlackboard, "IsOpen", nBehaviorTreeID, BT_Node_GetID(jNode))))
+        {
+            BT_Node_ExecuteFunction(jNode, jTickInfo, BT_NODE_FUNCTION_CLOSE);
+        }
     }
 
     BT_Blackboard_SetValue(oBlackboard, "OpenNodes", jCurrentOpenNodes, nBehaviorTreeID);
@@ -422,6 +433,11 @@ int BT_Node_GetType(json jNode)
     return JsonObjectGetInt(jNode, BT_NODE_KEY_TYPE);
 }
 
+string BT_Node_GetTypeName(json jNode)
+{
+    return JsonObjectGetString(jNode, BT_NODE_KEY_TYPENAME);
+}
+
 json BT_Node_GetChildren(json jNode)
 {
     return JsonObjectGet(jNode, BT_NODE_KEY_CHILDREN);
@@ -442,15 +458,31 @@ string BT_Node_GetFunction(json jNode, int nFunctionType)
     return JsonObjectGetString(jNode, BT_NODE_KEY_FUNCTION + IntToString(nFunctionType));
 }
 
+void BT_Node_SetData(json jNode, string sKey, json jValue)
+{
+    JsonSetAtPointerInplace(jNode, "/" + BT_NODE_KEY_DATA + "/" + sKey, jValue);
+}
+
+json BT_Node_GetData(json jNode, string sKey)
+{
+    json jData = JsonObjectGet(jNode, BT_NODE_KEY_DATA);
+    return JsonObjectGet(jData, sKey);
+}
+
 /* *** Base Node *** */
 
-json BT_Node_BaseNode(int nNodeType = BT_NODE_TYPE_BASE, string sName = "")
+json BT_Node_BaseNode(int nNodeType, string sTypeName, string sName)
 {
     json jNode = JsonObject();
     JsonObjectSetIntInplace(jNode, BT_NODE_KEY_ID, BT_GenerateUniqueID());
     JsonObjectSetIntInplace(jNode, BT_NODE_KEY_TYPE, nNodeType);
-    JsonObjectSetInplace(jNode, BT_NODE_KEY_CHILDREN, JsonArray());
+    JsonObjectSetStringInplace(jNode, BT_NODE_KEY_TYPENAME, sTypeName);
+    if (nNodeType == BT_NODE_TYPE_COMPOSITE)
+        JsonObjectSetInplace(jNode, BT_NODE_KEY_CHILDREN, JsonArray());
+    else
+        JsonObjectSetInplace(jNode, BT_NODE_KEY_CHILDREN, JsonNull());
     JsonObjectSetStringInplace(jNode, BT_NODE_KEY_NAME, sName);
+    JsonObjectSetInplace(jNode, BT_NODE_KEY_DATA, JsonObject());
     return jNode;
 }
 
@@ -463,68 +495,26 @@ void BT_Node_SetFunction(json jNode, int nFunctionType, string sInclude, string 
 
 void BT_Node_AddChild(json jNode, json jChild)
 {
-    JsonSetAtPointerInplace(jNode, "/" + BT_NODE_KEY_CHILDREN + "/" + IntToString(JsonGetLength(BT_Node_GetChildren(jNode))), jChild);
+    int nNodeType = BT_Node_GetType(jNode);
+    if (nNodeType == BT_NODE_TYPE_COMPOSITE)
+        JsonSetAtPointerInplace(jNode, "/" + BT_NODE_KEY_CHILDREN + "/" + IntToString(JsonGetLength(BT_Node_GetChildren(jNode))), jChild);
+    else if (nNodeType == BT_NODE_TYPE_DECORATOR)
+        JsonObjectSetInplace(jNode, BT_NODE_KEY_CHILDREN, jChild);
+    else
+        LogWarning("Node does not want children :(");
 }
 
-/* *** Sequence Node *** */
+/* *** Sequence Nodes *** */
 
-json BT_Node_SequenceNode(string sName = "")
+json BT_Node_Sequence(string sName = "")
 {
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_SEQUENCE, sName);
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_SequenceNode_Tick");
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_COMPOSITE, "Sequence", sName);
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_Sequence_Open");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_Sequence_Tick");
     return jNode;
 }
 
-int BT_Node_SequenceNode_Tick(json jNode, json jTickInfo)
-{
-    json jChildren = BT_Node_GetChildren(jNode);
-    int nIndex, nNumChildren = JsonGetLength(jChildren);
-    for (nIndex = 0; nIndex < nNumChildren; nIndex++)
-    {
-        json jChildNode = JsonArrayGet(jChildren, nIndex);
-        int nNodeState = BT_Node_Execute(jChildNode, jTickInfo);
-        if (nNodeState != BT_NODE_STATE_SUCCESS)
-            return nNodeState;
-    }
-
-    return BT_NODE_STATE_SUCCESS;
-}
-
-/* *** Selector Node *** */
-
-json BT_Node_SelectorNode(string sName = "")
-{
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_SELECTOR, sName);
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_SelectorNode_Tick");
-    return jNode;
-}
-
-int BT_Node_SelectorNode_Tick(json jNode, json jTickInfo)
-{
-    json jChildren = BT_Node_GetChildren(jNode);
-    int nIndex, nNumChildren = JsonGetLength(jChildren);
-    for (nIndex = 0; nIndex < nNumChildren; nIndex++)
-    {
-        json jChildNode = JsonArrayGet(jChildren, nIndex);
-        int nNodeState = BT_Node_Execute(jChildNode, jTickInfo);
-        if (nNodeState != BT_NODE_STATE_FAILURE)
-            return nNodeState;
-    }
-
-    return BT_NODE_STATE_FAILURE;
-}
-
-/* *** MemorySequence Node *** */
-
-json BT_Node_MemorySequenceNode(string sName = "")
-{
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_MEMORY_SEQUENCE, sName);
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_MemorySequenceNode_Open");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_MemorySequenceNode_Tick");
-    return jNode;
-}
-
-void BT_Node_MemorySequenceNode_Open(json jNode, json jTickInfo)
+void BT_Node_Sequence_Open(json jNode, json jTickInfo)
 {
     object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
     int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
@@ -532,7 +522,7 @@ void BT_Node_MemorySequenceNode_Open(json jNode, json jTickInfo)
     BT_Blackboard_SetValue(oBlackboard, "RunningChild", JsonInt(0), nBehaviorTreeID, nNodeID);
 }
 
-int BT_Node_MemorySequenceNode_Tick(json jNode, json jTickInfo)
+int BT_Node_Sequence_Tick(json jNode, json jTickInfo)
 {
     object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
     int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
@@ -555,17 +545,38 @@ int BT_Node_MemorySequenceNode_Tick(json jNode, json jTickInfo)
     return BT_NODE_STATE_SUCCESS;
 }
 
-/* *** MemorySelector Node *** */
-
-json BT_Node_MemorySelectorNode(string sName = "")
+json BT_Node_ReactiveSequence(string sName = "")
 {
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_MEMORY_SELECTOR, sName);
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_MemorySelectorNode_Open");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_MemorySelectorNode_Tick");
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_COMPOSITE, "ReactiveSequence", sName);
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_ReactiveSequence_Tick");
     return jNode;
 }
 
-void BT_Node_MemorySelectorNode_Open(json jNode, json jTickInfo)
+int BT_Node_ReactiveSequence_Tick(json jNode, json jTickInfo)
+{
+    json jChildren = BT_Node_GetChildren(jNode);
+    int nIndex, nNumChildren = JsonGetLength(jChildren);
+    for (nIndex = 0; nIndex < nNumChildren; nIndex++)
+    {
+        json jChildNode = JsonArrayGet(jChildren, nIndex);
+        int nNodeState = BT_Node_Execute(jChildNode, jTickInfo);
+        if (nNodeState != BT_NODE_STATE_SUCCESS)
+            return nNodeState;
+    }
+
+    return BT_NODE_STATE_SUCCESS;
+}
+
+
+json BT_Node_SequenceWithMemory(string sName = "")
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_COMPOSITE, "SequenceWithMemory", sName);
+    //BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_SequenceWithMemory_Open");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_SequenceWithMemory_Tick");
+    return jNode;
+}
+
+void BT_Node_SequenceWithMemory_Open(json jNode, json jTickInfo)
 {
     object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
     int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
@@ -573,7 +584,50 @@ void BT_Node_MemorySelectorNode_Open(json jNode, json jTickInfo)
     BT_Blackboard_SetValue(oBlackboard, "RunningChild", JsonInt(0), nBehaviorTreeID, nNodeID);
 }
 
-int BT_Node_MemorySelectorNode_Tick(json jNode, json jTickInfo)
+int BT_Node_SequenceWithMemory_Tick(json jNode, json jTickInfo)
+{
+    object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
+    int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
+    int nNodeID = BT_Node_GetID(jNode);
+    json jChildren = BT_Node_GetChildren(jNode);
+    int nCurrentChild = JsonGetInt(BT_Blackboard_GetValue(oBlackboard, "RunningChild", nBehaviorTreeID, nNodeID));
+    int nIndex, nNumChildren = JsonGetLength(jChildren);
+    for (nIndex = nCurrentChild; nIndex < nNumChildren; nIndex++)
+    {
+        json jChildNode = JsonArrayGet(jChildren, nIndex);
+        int nNodeState = BT_Node_Execute(jChildNode, jTickInfo);
+        if (nNodeState != BT_NODE_STATE_SUCCESS)
+        {
+            if (nNodeState == BT_NODE_STATE_RUNNING || nNodeState == BT_NODE_STATE_FAILURE)
+                BT_Blackboard_SetValue(oBlackboard, "RunningChild", JsonInt(nIndex), nBehaviorTreeID, nNodeID);
+            return nNodeState;
+        }
+    }
+
+    BT_Blackboard_SetValue(oBlackboard, "RunningChild", JsonInt(0), nBehaviorTreeID, nNodeID);
+
+    return BT_NODE_STATE_SUCCESS;
+}
+
+/* *** Fallback Nodes *** */
+
+json BT_Node_Fallback(string sName = "")
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_COMPOSITE, "Fallback", sName);
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_Fallback_Open");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_Fallback_Tick");
+    return jNode;
+}
+
+void BT_Node_Fallback_Open(json jNode, json jTickInfo)
+{
+    object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
+    int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
+    int nNodeID = BT_Node_GetID(jNode);
+    BT_Blackboard_SetValue(oBlackboard, "RunningChild", JsonInt(0), nBehaviorTreeID, nNodeID);
+}
+
+int BT_Node_Fallback_Tick(json jNode, json jTickInfo)
 {
     object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
     int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
@@ -596,19 +650,41 @@ int BT_Node_MemorySelectorNode_Tick(json jNode, json jTickInfo)
     return BT_NODE_STATE_FAILURE;
 }
 
-/* *** Inverter Node *** */
-
-json BT_Node_InverterNode(string sName = "")
+json BT_Node_ReactiveFallback(string sName = "")
 {
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_SELECTOR, sName);
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_InverterNode_Tick");
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_COMPOSITE, "ReactiveFallback", sName);
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_ReactiveFallback_Tick");
     return jNode;
 }
 
-int BT_Node_InverterNode_Tick(json jNode, json jTickInfo)
+int BT_Node_ReactiveFallback_Tick(json jNode, json jTickInfo)
 {
-    json jChild = JsonArrayGet(BT_Node_GetChildren(jNode), 0);
-    if (!JsonGetType(jChild))
+    json jChildren = BT_Node_GetChildren(jNode);
+    int nIndex, nNumChildren = JsonGetLength(jChildren);
+    for (nIndex = 0; nIndex < nNumChildren; nIndex++)
+    {
+        json jChildNode = JsonArrayGet(jChildren, nIndex);
+        int nNodeState = BT_Node_Execute(jChildNode, jTickInfo);
+        if (nNodeState != BT_NODE_STATE_FAILURE)
+            return nNodeState;
+    }
+
+    return BT_NODE_STATE_FAILURE;
+}
+
+/* *** Decorator Nodes *** */
+
+json BT_Node_Inverter(string sName = "")
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "Inverter", sName);
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_Inverter_Tick");
+    return jNode;
+}
+
+int BT_Node_Inverter_Tick(json jNode, json jTickInfo)
+{
+    json jChild = BT_Node_GetChildren(jNode);
+    if (JsonGetType(jChild) != JSON_TYPE_OBJECT)
         return BT_NODE_STATE_ERROR;
 
     int nNodeState = BT_Node_Execute(jNode, jTickInfo);
@@ -621,24 +697,118 @@ int BT_Node_InverterNode_Tick(json jNode, json jTickInfo)
     return nNodeState;
 }
 
-/* *** Action Node *** */
-
-json BT_Node_ActionNode(string sName = "")
+json BT_Node_ForceSuccess(string sName = "")
 {
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, sName);
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "ForceSuccess", sName);
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_ForceSuccess_Tick");
     return jNode;
 }
 
-/* *** Test Action Node *** */
-
-json BT_Node_TestActionNode(string sName)
+int BT_Node_ForceSuccess_Tick(json jNode, json jTickInfo)
 {
-    json jNode = BT_Node_ActionNode(sName);
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_TestActionNode_Tick");
+    json jChild = BT_Node_GetChildren(jNode);
+    if (JsonGetType(jChild) != JSON_TYPE_OBJECT)
+        return BT_NODE_STATE_ERROR;
+
+    int nNodeState = BT_Node_Execute(jNode, jTickInfo);
+
+    if (nNodeState != BT_NODE_STATE_RUNNING)
+        nNodeState = BT_NODE_STATE_SUCCESS;
+
+    return nNodeState;
+}
+
+json BT_Node_ForceFailure(string sName = "")
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "ForceFailure", sName);
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_ForceFailure_Tick");
     return jNode;
 }
 
-int BT_Node_TestActionNode_Tick(json jNode, json jTickInfo)
+int BT_Node_ForceFailure_Tick(json jNode, json jTickInfo)
+{
+    json jChild = BT_Node_GetChildren(jNode);
+    if (JsonGetType(jChild) != JSON_TYPE_OBJECT)
+        return BT_NODE_STATE_ERROR;
+
+    int nNodeState = BT_Node_Execute(jNode, jTickInfo);
+
+    if (nNodeState != BT_NODE_STATE_RUNNING)
+        nNodeState = BT_NODE_STATE_FAILURE;
+
+    return nNodeState;
+}
+
+json BT_Node_Repeat(int nNumCycles, string sName = "")
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "Repeat", sName);
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_Repeat_Tick");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_Repeat_Open");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_CLOSE, BT_SCRIPT_NAME, "BT_Node_Repeat_Close");
+    BT_Node_SetData(jNode, "NumCycles", JsonInt(nNumCycles));
+    return jNode;
+}
+
+int BT_Node_Repeat_Tick(json jNode, json jTickInfo)
+{
+    json jChild = BT_Node_GetChildren(jNode);
+    if (JsonGetType(jChild) != JSON_TYPE_OBJECT)
+        return BT_NODE_STATE_ERROR;
+
+    object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
+    int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
+    int nNodeID = BT_Node_GetID(jNode);
+    int nNumCycles = JsonGetInt(BT_Node_GetData(jNode, "NumCycles"));
+    int nRepeatCount = JsonGetInt(BT_Blackboard_GetValue(oBlackboard, "RepeatCount", nBehaviorTreeID, nNodeID));
+    int bDoLoop = nRepeatCount < nNumCycles || nNumCycles == -1;
+
+    while (bDoLoop)
+    {
+        int nNodeState = BT_Node_Execute(jChild, jTickInfo);
+        switch (nNodeState)
+        {
+            case BT_NODE_STATE_SUCCESS:
+            {
+                nRepeatCount++;
+                BT_Blackboard_SetValue(oBlackboard, "RepeatCount", JsonInt(nRepeatCount), nBehaviorTreeID, nNodeID);
+                bDoLoop = nRepeatCount < nNumCycles || nNumCycles == -1;
+                break;
+            }
+
+            case BT_NODE_STATE_FAILURE:
+            case BT_NODE_STATE_RUNNING:
+                return nNodeState;
+        }
+    }
+    return BT_NODE_STATE_SUCCESS;
+}
+
+void BT_Node_Repeat_Open(json jNode, json jTickInfo)
+{
+    LogDebug("Opening!");
+}
+
+void BT_Node_Repeat_Close(json jNode, json jTickInfo)
+{
+    LogDebug("Closing!");
+    object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
+    int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
+    int nNodeID = BT_Node_GetID(jNode);
+    BT_Blackboard_SetValue(oBlackboard, "RepeatCount", JsonInt(0), nBehaviorTreeID, nNodeID);
+}
+
+/* *** Condition Nodes *** */
+
+/* *** Action Nodes *** */
+
+json BT_Node_TestAction(string sName)
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "TestAction", sName);
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_TestAction_Tick");
+    return jNode;
+}
+
+int BT_Node_TestAction_Tick(json jNode, json jTickInfo)
 {
     string sNodeName = BT_Node_GetName(jNode);
     int nRandom = Random(3);
@@ -660,34 +830,57 @@ int BT_Node_TestActionNode_Tick(json jNode, json jTickInfo)
     }
 }
 
+json BT_Node_WeDidIt(string sName)
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "WeDidIt", sName);
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_WeDidIt_Tick");
+    return jNode;
+}
+
+int BT_Node_WeDidIt_Tick(json jNode, json jTickInfo)
+{
+    LogInfo("Woo! We did it! :D");
+    return BT_NODE_STATE_SUCCESS;
+}
+
+/* *** Testing *** */
+
 void BT_RecursiveTick(object oBehaviorTree, object oBlackboard)
 {
+    //Profiler_Start("BT_BehaviorTree_Tick");
     BT_BehaviorTree_Tick(oBehaviorTree, oBlackboard, GetModule());
-    DelayCommand(5.0f, BT_RecursiveTick(oBehaviorTree, oBlackboard));
+    //PrintString(Profiler_Stop());
+    DelayCommand(2.5f, BT_RecursiveTick(oBehaviorTree, oBlackboard));
 }
 
 // @CORE[CORE_SYSTEM_POST]
 void BT_Post()
 {
-    json jMemorySequenceNode1 = BT_Node_MemorySequenceNode("MemorySequenceNode 1");
-    BT_Node_AddChild(jMemorySequenceNode1, BT_Node_TestActionNode("TestAction A1"));
-    BT_Node_AddChild(jMemorySequenceNode1, BT_Node_TestActionNode("TestAction A2"));
-    BT_Node_AddChild(jMemorySequenceNode1, BT_Node_TestActionNode("TestAction A3"));
+    /*
+    json jRepeatNode = BT_Node_Repeat(5, "Repeat");
+    BT_Node_AddChild(jRepeatNode, BT_Node_TestAction("TestAction"));
+    */
 
-    json jMemorySelectorNode1 = BT_Node_MemorySelectorNode("MemorySelectorNode");
-    BT_Node_AddChild(jMemorySelectorNode1, jMemorySequenceNode1);
-    BT_Node_AddChild(jMemorySelectorNode1, BT_Node_TestActionNode("TestAction B1"));
-    BT_Node_AddChild(jMemorySelectorNode1, BT_Node_TestActionNode("TestAction B2"));
+    json jSequenceNode1 = BT_Node_Sequence("Sequence 1");
+    BT_Node_AddChild(jSequenceNode1, BT_Node_TestAction("TestAction A1"));
+    BT_Node_AddChild(jSequenceNode1, BT_Node_TestAction("TestAction A2"));
+    BT_Node_AddChild(jSequenceNode1, BT_Node_TestAction("TestAction A3"));
 
-    json jMemorySequenceNode2 = BT_Node_MemorySequenceNode("MemorySequenceNode");
+    json jFallbackNode = BT_Node_Fallback("Fallback");
+    BT_Node_AddChild(jFallbackNode, jSequenceNode1);
+    BT_Node_AddChild(jFallbackNode, BT_Node_TestAction("TestAction B1"));
+    BT_Node_AddChild(jFallbackNode, BT_Node_TestAction("TestAction B2"));
 
-    BT_Node_AddChild(jMemorySequenceNode2, jMemorySelectorNode1);
-    BT_Node_AddChild(jMemorySequenceNode2, BT_Node_TestActionNode("TestAction C1"));
-    BT_Node_AddChild(jMemorySequenceNode2, BT_Node_TestActionNode("TestAction C2"));
-    BT_Node_AddChild(jMemorySequenceNode2, BT_Node_TestActionNode("TestAction C3"));
+    json jSequenceNode2 = BT_Node_Sequence("Sequence 2");
 
-    object oBehaviorTree = BT_BehaviorTree_GetOrCreate("TestBT", jMemorySequenceNode2);
+    BT_Node_AddChild(jSequenceNode2, jFallbackNode);
+    BT_Node_AddChild(jSequenceNode2, BT_Node_TestAction("TestAction C1"));
+    BT_Node_AddChild(jSequenceNode2, BT_Node_TestAction("TestAction C2"));
+    BT_Node_AddChild(jSequenceNode2, BT_Node_TestAction("TestAction C3"));
+    BT_Node_AddChild(jSequenceNode2, BT_Node_WeDidIt("WeDidIt"));
+
+    object oBehaviorTree = BT_BehaviorTree_GetOrCreate("TestBT", jSequenceNode2);
     object oBlackboard = BT_Blackboard_GetOrCreate("TestBT");
 
-    BT_RecursiveTick(oBehaviorTree, oBlackboard);
+    DelayCommand(5.0f, BT_RecursiveTick(oBehaviorTree, oBlackboard));
 }

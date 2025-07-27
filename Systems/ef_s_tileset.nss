@@ -745,7 +745,7 @@ void TS_LoadTilesetData(string sTileset)
 
     TS_SetTilesetLoaded(sTileset);
 
-    NWNX_Util_SetInstructionsExecuted(0);
+    ResetScriptInstructions();
 }
 
 void TS_ProcessTilesetGroups(string sTileset)

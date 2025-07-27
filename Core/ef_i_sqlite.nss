@@ -33,6 +33,7 @@ object SqlGetObjectRef(sqlquery sqlQuery, int nIndex);
 string SqlGetLocalTimeAsString();
 void SqlBindVectorAsFloats(sqlquery sqlQuery, string sParamPrefix, vector vVector);
 vector SqlGetVectorFromFloats(sqlquery sqlQuery, int nIndexX, int nIndexY, int nIndexZ);
+location SqlGetLocation(sqlquery sqlQuery, int nIndexArea, int nIndexX, int nIndexY, int nIndexZ, int nIndexFacing);
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -189,4 +190,9 @@ void SqlBindVectorAsFloats(sqlquery sqlQuery, string sParamPrefix, vector vVecto
 vector SqlGetVectorFromFloats(sqlquery sqlQuery, int nIndexX, int nIndexY, int nIndexZ)
 {
     return Vector(SqlGetFloat(sqlQuery, nIndexX), SqlGetFloat(sqlQuery, nIndexY), SqlGetFloat(sqlQuery, nIndexZ));
+}
+
+location SqlGetLocation(sqlquery sqlQuery, int nIndexArea, int nIndexX, int nIndexY, int nIndexZ, int nIndexFacing)
+{
+    return Location(SqlGetObjectRef(sqlQuery, nIndexArea), SqlGetVectorFromFloats(sqlQuery, nIndexX, nIndexY, nIndexZ), SqlGetFloat(sqlQuery, nIndexFacing));
 }

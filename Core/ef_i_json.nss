@@ -3,6 +3,8 @@
     Author: Daz
 */
 
+#include "nwnx_util"
+
 json VectorToJson(vector vVector);
 vector JsonToVector(json jVector);
 json LocationToJson(location locLocation);
@@ -56,6 +58,9 @@ void JsonObjectSetFloatInplace(json jObject, string sKey, float fValue);
 void JsonArrayInsertBoolInplace(json jArray, int bValue, int nIndex = -1);
 void JsonArraySetBoolInplace(json jArray, int nIndex, int bValue);
 void JsonObjectSetVectorInplace(json jObject, string sKey, vector vValue);
+void JsonSetAtPointerInplace(json jParent, string sPointer, json jValue);
+void JsonObjectSetObjectInplace(json jObject, string sKey, object oValue);
+object JsonObjectGetObject(json jObject, string sKey);
 
 json VectorToJson(vector vVector)
 {
@@ -386,4 +391,19 @@ void JsonArraySetBoolInplace(json jArray, int nIndex, int bValue)
 void JsonObjectSetVectorInplace(json jObject, string sKey, vector vValue)
 {
     JsonObjectSetInplace(jObject, sKey, VectorToJson(vValue));
+}
+
+void JsonSetAtPointerInplace(json jParent, string sPointer, json jValue)
+{
+    NWNX_Util_SetAtPointerInplace(jParent, sPointer, jValue);
+}
+
+void JsonObjectSetObjectInplace(json jObject, string sKey, object oValue)
+{
+    JsonObjectSetStringInplace(jObject, sKey, ObjectToString(oValue));
+}
+
+object JsonObjectGetObject(json jObject, string sKey)
+{
+    return StringToObject(JsonObjectGetString(jObject, sKey));
 }

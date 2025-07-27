@@ -7,6 +7,7 @@
 #include "ef_i_nss"
 #include "nwnx_util"
 
+const string VM_SCRIPT_NAME = "ef_i_vm";
 const int VM_ENABLE_SCRIPTCHUNK_PRECACHING = FALSE;
 
 struct VMFrame
@@ -25,6 +26,7 @@ string GetConstantStringValue(string sConstant, string sInclude = "", string sEr
 float GetConstantFloatValue(string sConstant, string sInclude = "", float fErrorValue = 0.0f);
 json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject);
 int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object oObject);
+void ExecuteScriptChunkAndReturnVoid(string sInclude, string sScriptChunk, object oObject);
 string CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE);
 void ResetScriptInstructions();
 
@@ -100,26 +102,79 @@ float GetConstantFloatValue(string sConstant, string sInclude = "", float fError
     return sError == "" ? fRet : fErrorValue;
 }
 
+/*
 json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject)
 {
     object oModule = GetModule();
+    int nDepth = GetLocalInt(oModule, "EF_TEMP_VAR_JSON_DEPTH") + 1;
+    SetLocalInt(oModule, "EF_TEMP_VAR_JSON_DEPTH", nDepth);
+    string sTempVarName = "EF_TEMP_VAR_JSON_" + IntToString(nDepth);
     string sScript = nssInclude(sInclude) + nssVoidMain(nssJson("jReturn", sScriptChunk) +
-        nssFunction("SetLocalJson", nssFunction("GetModule", "", FALSE) + ", " + nssEscape("EF_TEMP_VAR") + ", jReturn"));
+        nssFunction("SetLocalJson", nssFunction("GetModule", "", FALSE) + ", " + nssEscape(sTempVarName) + ", jReturn"));
     ExecuteScriptChunk(sScript, oObject, FALSE);
-    json jReturn = GetLocalJson(oModule, "EF_TEMP_VAR");
-    DeleteLocalJson(oModule, "EF_TEMP_VAR");
+    json jReturn = GetLocalJson(oModule, sTempVarName);
+    DeleteLocalJson(oModule, sTempVarName);
+    SetLocalInt(oModule, "EF_TEMP_VAR_JSON_DEPTH", GetLocalInt(oModule, "EF_TEMP_VAR_JSON_DEPTH") - 1);
     return jReturn;
 }
 
 int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object oObject)
 {
     object oModule = GetModule();
+    int nDepth = GetLocalInt(oModule, "EF_TEMP_VAR_INT_DEPTH") + 1;
+    SetLocalInt(oModule, "EF_TEMP_VAR_INT_DEPTH", nDepth);
+    string sTempVarName = "EF_TEMP_VAR_INT_" + IntToString(nDepth);
     string sScript = nssInclude(sInclude) + nssVoidMain(nssInt("nReturn", sScriptChunk) +
-        nssFunction("SetLocalInt", nssFunction("GetModule", "", FALSE) + ", " + nssEscape("EF_TEMP_VAR") + ", nReturn"));
+        nssFunction("SetLocalInt", nssFunction("GetModule", "", FALSE) + ", " + nssEscape(sTempVarName) + ", nReturn"));
+    DeleteLocalInt(oModule, sTempVarName);
     ExecuteScriptChunk(sScript, oObject, FALSE);
-    int nReturn = GetLocalInt(oModule, "EF_TEMP_VAR");
-    DeleteLocalInt(oModule, "EF_TEMP_VAR");
+    int nReturn = GetLocalInt(oModule, sTempVarName);
+    //DeleteLocalInt(oModule, sTempVarName);
+    SetLocalInt(oModule, "EF_TEMP_VAR_INT_DEPTH", GetLocalInt(oModule, "EF_TEMP_VAR_INT_DEPTH") - 1);
     return nReturn;
+}
+*/
+
+json ExecuteScriptChunkAndReturnJson(string sInclude, string sScriptChunk, object oObject)
+{
+    object oModule = GetModule();
+    json jReturnVars = GetLocalJson(oModule, "JSON_VAR_RETURNS");
+    if (!JsonGetType(jReturnVars))
+    {
+        jReturnVars = JsonArray();
+        SetLocalJson(oModule, "JSON_VAR_RETURNS", jReturnVars);
+    }
+    string sFunction = "json jReturn = " + sScriptChunk + ";JsonArrayInsertInplace(GetLocalJson(GetModule(), \"JSON_VAR_RETURNS\"), jReturn);";
+    string sScript = nssInclude(sInclude) + nssVoidMain(sFunction);
+    ExecuteScriptChunk(sScript, oObject, FALSE);
+    int nIndex = JsonGetLength(jReturnVars) - 1;
+    json jRet = JsonArrayGet(jReturnVars, nIndex);
+    JsonArrayDelInplace(jReturnVars, nIndex);
+    return jRet;
+}
+
+int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object oObject)
+{
+    object oModule = GetModule();
+    json jReturnVars = GetLocalJson(oModule, "INT_VAR_RETURNS");
+    if (!JsonGetType(jReturnVars))
+    {
+        jReturnVars = JsonArray();
+        SetLocalJson(oModule, "INT_VAR_RETURNS", jReturnVars);
+    }
+    string sFunction = "int nReturn = " + sScriptChunk + ";JsonArrayInsertInplace(GetLocalJson(GetModule(), \"INT_VAR_RETURNS\"), JsonInt(nReturn));";
+    string sScript = nssInclude(sInclude) + nssVoidMain(sFunction);
+    ExecuteScriptChunk(sScript, oObject, FALSE);
+    int nIndex = JsonGetLength(jReturnVars) - 1;
+    int nRet = JsonArrayGetInt(jReturnVars, nIndex);
+    JsonArrayDelInplace(jReturnVars, nIndex);
+    return nRet;
+}
+
+void ExecuteScriptChunkAndReturnVoid(string sInclude, string sScriptChunk, object oObject)
+{
+    string sScript = nssInclude(sInclude) + nssVoidMain(sScriptChunk);
+    ExecuteScriptChunk(sScript, oObject, FALSE);
 }
 
 string CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE)

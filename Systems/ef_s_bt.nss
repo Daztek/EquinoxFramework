@@ -93,6 +93,16 @@ string BT_Node_GetDebugInfo(json jNode);
 void BT_Node_SetFunction(json jNode, int nFunctionType, string sInclude, string sFunction);
 void BT_Node_AddChild(json jNode, json jChild);
 
+json BT_Node_Sequence();
+json BT_Node_ReactiveSequence();
+json BT_Node_Fallback();
+json BT_Node_ReactiveFallback();
+
+json BT_Node_Inverter();
+json BT_Node_ForceSuccess();
+json BT_Node_ForceFailure();
+json BT_Node_Repeater(int nNumRepeat);
+json BT_Node_Timeout(int nSeconds);
 
 /* *** Helper Functions *** */
 
@@ -113,7 +123,7 @@ string BT_NodeStateToString(int nNodeState)
         case BT_NODE_STATE_RUNNING: return "Running";
         case BT_NODE_STATE_ERROR: return "Error";
     }
-    return "Unknown";
+    return "Unknown Node State";
 }
 
 string BT_NodeTypeToString(int nNodeType)
@@ -126,7 +136,7 @@ string BT_NodeTypeToString(int nNodeType)
         case BT_NODE_TYPE_CONDITION: return "Condition";
         case BT_NODE_TYPE_ACTION: return "Action";
     }
-    return "Unknown";
+    return "Unknown Node Type";
 }
 
 /* *** Blackboard Functions *** */
@@ -510,8 +520,7 @@ void BT_Node_SetData(json jNode, string sKey, json jValue)
 
 json BT_Node_GetData(json jNode, string sKey)
 {
-    json jData = JsonObjectGet(jNode, BT_NODE_KEY_DATA);
-    return JsonObjectGet(jData, sKey);
+    return JsonObjectGet(JsonObjectGet(jNode, BT_NODE_KEY_DATA), sKey);
 }
 
 string BT_Node_GetDebugInfo(json jNode)
@@ -612,48 +621,6 @@ int BT_Node_ReactiveSequence_Tick(json jNode, json jTickInfo)
         if (nNodeState != BT_NODE_STATE_SUCCESS)
             return nNodeState;
     }
-
-    return BT_NODE_STATE_SUCCESS;
-}
-
-
-json BT_Node_SequenceWithMemory()
-{
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_COMPOSITE, "SequenceWithMemory");
-    //BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_SequenceWithMemory_Open");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_SequenceWithMemory_Tick");
-    return jNode;
-}
-
-void BT_Node_SequenceWithMemory_Open(json jNode, json jTickInfo)
-{
-    object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
-    int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
-    int nNodeID = BT_Node_GetID(jNode);
-    BT_Blackboard_SetValue(oBlackboard, "RunningChild", JsonInt(0), nBehaviorTreeID, nNodeID);
-}
-
-int BT_Node_SequenceWithMemory_Tick(json jNode, json jTickInfo)
-{
-    object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
-    int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
-    int nNodeID = BT_Node_GetID(jNode);
-    json jChildren = BT_Node_GetChildren(jNode);
-    int nCurrentChild = JsonGetInt(BT_Blackboard_GetValue(oBlackboard, "RunningChild", nBehaviorTreeID, nNodeID));
-    int nIndex, nNumChildren = JsonGetLength(jChildren);
-    for (nIndex = nCurrentChild; nIndex < nNumChildren; nIndex++)
-    {
-        json jChildNode = JsonArrayGet(jChildren, nIndex);
-        int nNodeState = BT_Node_Execute(jChildNode, jTickInfo);
-        if (nNodeState != BT_NODE_STATE_SUCCESS)
-        {
-            if (nNodeState == BT_NODE_STATE_RUNNING || nNodeState == BT_NODE_STATE_FAILURE)
-                BT_Blackboard_SetValue(oBlackboard, "RunningChild", JsonInt(nIndex), nBehaviorTreeID, nNodeID);
-            return nNodeState;
-        }
-    }
-
-    BT_Blackboard_SetValue(oBlackboard, "RunningChild", JsonInt(0), nBehaviorTreeID, nNodeID);
 
     return BT_NODE_STATE_SUCCESS;
 }
@@ -788,16 +755,16 @@ int BT_Node_ForceFailure_Tick(json jNode, json jTickInfo)
     return nNodeState;
 }
 
-json BT_Node_Repeat(int nNumCycles)
+json BT_Node_Repeater(int nNumRepeat)
 {
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "Repeat");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_Repeat_Tick");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_CLOSE, BT_SCRIPT_NAME, "BT_Node_Repeat_Close");
-    BT_Node_SetData(jNode, "NumCycles", JsonInt(nNumCycles));
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "Repeater");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_Repeater_Tick");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_CLOSE, BT_SCRIPT_NAME, "BT_Node_Repeater_Close");
+    BT_Node_SetData(jNode, "NumCycles", JsonInt(nNumRepeat));
     return jNode;
 }
 
-int BT_Node_Repeat_Tick(json jNode, json jTickInfo)
+int BT_Node_Repeater_Tick(json jNode, json jTickInfo)
 {
     json jChild = BT_Node_GetChildren(jNode);
     if (JsonGetType(jChild) != JSON_TYPE_OBJECT)
@@ -830,7 +797,7 @@ int BT_Node_Repeat_Tick(json jNode, json jTickInfo)
     return BT_NODE_STATE_SUCCESS;
 }
 
-void BT_Node_Repeat_Close(json jNode, json jTickInfo)
+void BT_Node_Repeater_Close(json jNode, json jTickInfo)
 {
     object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
     int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
@@ -838,9 +805,41 @@ void BT_Node_Repeat_Close(json jNode, json jTickInfo)
     BT_Blackboard_SetValue(oBlackboard, "RepeatCount", JsonInt(0), nBehaviorTreeID, nNodeID);
 }
 
-/* *** Condition Nodes *** */
+json BT_Node_Timeout(int nSeconds)
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "Timeout");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_Timeout_Open");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_Timeout_Tick");
+    BT_Node_SetData(jNode, "Duration", JsonInt(nSeconds));
+    return jNode;
+}
 
-/* *** Action Nodes *** */
+void BT_Node_Timeout_Open(json jNode, json jTickInfo)
+{
+    object oBlackboard = BT_TickInfo_GetBlackboard(jTickInfo);
+    int nBehaviorTreeID = BT_TickInfo_GetBehaviorTreeID(jTickInfo);
+    int nNodeID = BT_Node_GetID(jNode);
+    BT_Blackboard_SetValue(oBlackboard, "StartTime", JsonInt(SqlGetUnixEpoch()), nBehaviorTreeID, nNodeID);
+}
+
+int BT_Node_Timeout_Tick(json jNode, json jTickInfo)
+{
+    json jChild = BT_Node_GetChildren(jNode);
+    if (JsonGetType(jChild) != JSON_TYPE_OBJECT)
+        return BT_NODE_STATE_ERROR;
+
+    int nDuration = JsonGetInt(BT_Node_GetData(jNode, "Duration"));
+    int nStartTime = JsonGetInt(BT_Blackboard_GetValue(
+        BT_TickInfo_GetBlackboard(jTickInfo), "StartTime",
+        BT_TickInfo_GetBehaviorTreeID(jTickInfo), BT_Node_GetID(jNode)));
+
+    if (SqlGetUnixEpoch() - nStartTime > nDuration)
+        return BT_NODE_STATE_FAILURE;
+    else
+        return BT_Node_Execute(jChild, jTickInfo);
+}
+
+/* *** Testing *** */
 
 json BT_Node_TestAction()
 {
@@ -883,8 +882,6 @@ int BT_Node_WeDidIt_Tick(json jNode, json jTickInfo)
     LogInfo("Woo! We did it! :D");
     return BT_NODE_STATE_SUCCESS;
 }
-
-/* *** Testing *** */
 
 void BT_RecursiveTick(object oBehaviorTree, object oBlackboard)
 {

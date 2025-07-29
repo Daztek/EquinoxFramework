@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Live Behavior Tree Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.2/client-dist/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/viz.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 30px;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+
+    #graph {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 20px;
+      min-height: 300px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      transition: all 0.3s ease;
+      overflow-x: auto;
+    }
+
+    #graph svg {
+      display: block;
+      margin: 0 auto;
+    }
+
+    .container {
+      max-width: 90%;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Live Behavior Tree Viewer</h2>
+    <div id="graph">Waiting for data...</div>
+  </div>
+
+  <script>
+    const socket = io();
+    const graphDiv = document.getElementById("graph");
+    const viz = new Viz();
+
+    socket.on("render_dot", (data) => {
+      console.log("Received DOT update:", data.dot);
+      viz.renderSVGElement(data.dot)
+        .then(svg => {
+          graphDiv.innerHTML = "";
+          graphDiv.appendChild(svg);
+        })
+        .catch(error => {
+          console.error("Graph rendering error:", error);
+          graphDiv.innerHTML = "<pre style='color:red'>" + error + "</pre>";
+        });
+    });
+  </script>
+</body>
+</html>

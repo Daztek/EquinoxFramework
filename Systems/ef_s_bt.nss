@@ -1180,6 +1180,7 @@ void BT_Post()
 {
     object oBlackboard = BT_Blackboard_GetOrCreate("TestBT");
     object oBehaviorTree = BT_BehaviorTree_GetOrCreate("TestBT");
+    BT_BehaviorTree_SetGraphVizEnabled(oBehaviorTree, BT_GRAPHVIZ_ENABLED);
 
     json jSequenceNode1 = BT_Node_Sequence();
     BT_Node_AddChild(jSequenceNode1, BT_Node_SetName(BT_Node_TestAction(), "TestAction A1"));
@@ -1189,7 +1190,9 @@ void BT_Post()
     json jFallbackNode = BT_Node_Fallback();
     BT_Node_AddChild(jFallbackNode, jSequenceNode1);
     BT_Node_AddChild(jFallbackNode, BT_Node_SetName(BT_Node_TestAction(), "TestAction B1"));
-    BT_Node_AddChild(jFallbackNode, BT_Node_SetName(BT_Node_TestAction(), "TestAction B2"));
+    json jRepeater = BT_Node_Repeater(3);
+    BT_Node_AddChild(jRepeater, BT_Node_SetName(BT_Node_TestAction(), "TestAction B2"));
+    BT_Node_AddChild(jFallbackNode, jRepeater);
 
     json jSequenceNode2 = BT_Node_Sequence();
 

@@ -77,9 +77,11 @@ void BTB_StartInverter();
 void BTB_StartForceSuccess();
 void BTB_StartForceFailure();
 void BTB_StartRepeater(int nNumberOfRepeats);
-void BTB_StartTimeout(int nSeconds);
+void BTB_StartTimeout(int nTimeout);
+void BTB_StartRandomTimeout(int nMinimumTimeout, int nRandomTimeout);
 void BTB_StartProbability(int nPercentage);
-void BTB_StartCooldown(int nSeconds);
+void BTB_StartCooldown(int nCooldown);
+void BTB_StartRandomCooldown(int nMinimumCooldown, int nRandomCooldown);
 
 void BTB_SetNodeName(string sName);
 
@@ -315,9 +317,14 @@ void BTB_StartRepeater(int nNumberOfRepeats)
     BTB_StartNode(BT_Node_Repeater(nNumberOfRepeats));
 }
 
-void BTB_StartTimeout(int nSeconds)
+void BTB_StartTimeout(int nTimeout)
 {
-    BTB_StartNode(BT_Node_Timeout(nSeconds));
+    BTB_StartNode(BT_Node_Timeout(nTimeout));
+}
+
+void BTB_StartRandomTimeout(int nMinimumTimeout, int nRandomTimeout)
+{
+    BTB_StartNode(BT_Node_RandomTimeout(nMinimumTimeout, nRandomTimeout));
 }
 
 void BTB_StartProbability(int nPercentage)
@@ -328,6 +335,11 @@ void BTB_StartProbability(int nPercentage)
 void BTB_StartCooldown(int nSeconds)
 {
     BTB_StartNode(BT_Node_Cooldown(nSeconds));
+}
+
+void BTB_StartRandomCooldown(int nMinimumCooldown, int nRandomCooldown)
+{
+    BTB_StartNode(BT_Node_RandomCooldown(nMinimumCooldown, nRandomCooldown));
 }
 
 void BTB_SetNodeName(string sName)

@@ -136,9 +136,11 @@ json BT_Node_Inverter();
 json BT_Node_ForceSuccess();
 json BT_Node_ForceFailure();
 json BT_Node_Repeater(int nNumberOfRepeats);
-json BT_Node_Timeout(int nSeconds);
+json BT_Node_Timeout(int nTimeout);
+json BT_Node_RandomTimeout(int nMinimumTimeout, int nRandomTimeout);
 json BT_Node_Probability(int nPercentage);
-json BT_Node_Cooldown(int nSeconds);
+json BT_Node_Cooldown(int nCooldown);
+json BT_Node_RandomCooldown(int nMinimumCooldown, int nRandomCooldown);
 
 /* *** Helper Functions *** */
 
@@ -560,6 +562,8 @@ void BT_BehaviorTree_Tick(object oBehaviorTree, object oBlackboard, object oSelf
         if (JsonGetInt(BT_Blackboard_GetValue(oBlackboard, BT_BLACKBOARD_KEY_IS_OPEN, nBehaviorTreeID, BT_Node_GetID(jNode))))
         {
             BT_Node_ExecuteFunction(jNode, jTickInfo, BT_NODE_FUNCTION_CLOSE);
+            if (BT_GRAPHVIZ_ENABLED && BT_BehaviorTree_GetGraphVizEnabled(oBehaviorTree))
+                BT_Blackboard_DeleteValue(oBlackboard, BT_BLACKBOARD_KEY_LAST_RESULT, nBehaviorTreeID, BT_Node_GetID(jNode));
         }
     }
 
@@ -1065,12 +1069,12 @@ void BT_Node_Repeater_Close(json jNode, json jTickInfo)
     BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo, jNode), "RepeatCount", JsonInt(0));
 }
 
-json BT_Node_Timeout(int nSeconds)
+json BT_Node_Timeout(int nTimeout)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "Timeout");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_Timeout_Open");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_Timeout_Tick");
-    BT_Node_SetDataInt(jNode, "Duration", nSeconds);
+    BT_Node_SetDataInt(jNode, "Timeout", nTimeout);
     return jNode;
 }
 
@@ -1085,10 +1089,44 @@ int BT_Node_Timeout_Tick(json jNode, json jTickInfo)
     if (JsonGetType(jChild) != JSON_TYPE_OBJECT)
         return BT_NODE_STATE_ERROR;
 
-    int nDuration = BT_Node_GetDataInt(jNode, "Duration");
+    int nTimeout = BT_Node_GetDataInt(jNode, "Timeout");
     int nStartTime = JsonGetInt(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo, jNode), "StartTime"));
 
-    if (SqlGetUnixEpoch() - nStartTime > nDuration)
+    if (SqlGetUnixEpoch() - nStartTime > nTimeout)
+        return BT_NODE_STATE_FAILURE;
+    else
+        return BT_Node_Execute(jChild, jTickInfo);
+}
+
+json BT_Node_RandomTimeout(int nMinimumTimeout, int nRandomTimeout)
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "RandomTimeout");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_RandomTimeout_Open");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_RandomTimeout_Tick");
+    BT_Node_SetDataInt(jNode, "MinimumTimeout", nMinimumTimeout);
+    BT_Node_SetDataInt(jNode, "RandomTimeout", nRandomTimeout);
+    return jNode;
+}
+
+void BT_Node_RandomTimeout_Open(json jNode, json jTickInfo)
+{
+    int nMinimumTimeout = BT_Node_GetDataInt(jNode, "MinimumTimeout");
+    int nRandomTimeout = BT_Node_GetDataInt(jNode, "RandomTimeout");
+    int nTimeout = nMinimumTimeout + Random(nRandomTimeout);
+    BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo, jNode), "Timeout", JsonInt(nTimeout));
+    BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo, jNode), "StartTime", JsonInt(SqlGetUnixEpoch()));
+}
+
+int BT_Node_RandomTimeout_Tick(json jNode, json jTickInfo)
+{
+    json jChild = BT_Node_GetChildren(jNode);
+    if (JsonGetType(jChild) != JSON_TYPE_OBJECT)
+        return BT_NODE_STATE_ERROR;
+
+    int nTimeout = JsonGetInt(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo, jNode), "Timeout"));
+    int nStartTime = JsonGetInt(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo, jNode), "StartTime"));
+
+    if (SqlGetUnixEpoch() - nStartTime > nTimeout)
         return BT_NODE_STATE_FAILURE;
     else
         return BT_Node_Execute(jChild, jTickInfo);
@@ -1116,11 +1154,11 @@ int BT_Node_Probability_Tick(json jNode, json jTickInfo)
         return BT_NODE_STATE_FAILURE;
 }
 
-json BT_Node_Cooldown(int nSeconds)
+json BT_Node_Cooldown(int nCooldown)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "Cooldown");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_Cooldown_Tick");
-    BT_Node_SetDataInt(jNode, "CooldownDuration", nSeconds);
+    BT_Node_SetDataInt(jNode, "Cooldown", nCooldown);
     return jNode;
 }
 
@@ -1131,15 +1169,63 @@ int BT_Node_Cooldown_Tick(json jNode, json jTickInfo)
         return BT_NODE_STATE_ERROR;
 
     struct BlackboardInfo strBlackboardInfo = BT_Blackboard_GetInfo(jTickInfo, jNode);
-    int nCooldownDuration = BT_Node_GetDataInt(jNode, "CooldownDuration");
+    int nCooldown = BT_Node_GetDataInt(jNode, "Cooldown");
     int nLastExecutionTime = JsonGetInt(BT_Blackboard_StructGetValue(strBlackboardInfo, "LastExecution"));
 
-    if (SqlGetUnixEpoch() - nLastExecutionTime < nCooldownDuration)
+    if (SqlGetUnixEpoch() - nLastExecutionTime < nCooldown)
         return BT_NODE_STATE_FAILURE;
 
     int nResult = BT_Node_Execute(jChild, jTickInfo);
     if (nResult == BT_NODE_STATE_SUCCESS)
         BT_Blackboard_StructSetValue(strBlackboardInfo, "LastExecution", JsonInt(SqlGetUnixEpoch()));
+
+    return nResult;
+}
+
+json BT_Node_RandomCooldown(int nMinimumCooldown, int nRandomCooldown)
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "RandomCooldown");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_RandomCooldown_Open");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_RandomCooldown_Tick");
+    BT_Node_SetDataInt(jNode, "MinimumCooldown", nMinimumCooldown);
+    BT_Node_SetDataInt(jNode, "RandomCooldown", nRandomCooldown);
+    return jNode;
+}
+
+void BT_Node_RandomCooldown_Open(json jNode, json jTickInfo)
+{
+    struct BlackboardInfo strBlackboardInfo = BT_Blackboard_GetInfo(jTickInfo, jNode);
+    if (!JsonGetInt(BT_Blackboard_StructGetValue(strBlackboardInfo, "Cooldown")))
+    {
+        int nMinimumCooldown = BT_Node_GetDataInt(jNode, "MinimumCooldown");
+        int nRandomCooldown = BT_Node_GetDataInt(jNode, "RandomCooldown");
+        int nCooldown = nMinimumCooldown + Random(nRandomCooldown);
+        BT_Blackboard_StructSetValue(strBlackboardInfo, "Cooldown", JsonInt(nCooldown));
+    }
+}
+
+int BT_Node_RandomCooldown_Tick(json jNode, json jTickInfo)
+{
+    json jChild = BT_Node_GetChildren(jNode);
+    if (JsonGetType(jChild) != JSON_TYPE_OBJECT)
+        return BT_NODE_STATE_ERROR;
+
+    struct BlackboardInfo strBlackboardInfo = BT_Blackboard_GetInfo(jTickInfo, jNode);
+    int nCooldown = JsonGetInt(BT_Blackboard_StructGetValue(strBlackboardInfo, "Cooldown"));
+    int nLastExecutionTime = JsonGetInt(BT_Blackboard_StructGetValue(strBlackboardInfo, "LastExecution"));
+
+    if (SqlGetUnixEpoch() - nLastExecutionTime < nCooldown)
+        return BT_NODE_STATE_FAILURE;
+
+    int nResult = BT_Node_Execute(jChild, jTickInfo);
+    if (nResult == BT_NODE_STATE_SUCCESS)
+    {
+        int nMinimumCooldown = BT_Node_GetDataInt(jNode, "MinimumCooldown");
+        int nRandomCooldown = BT_Node_GetDataInt(jNode, "RandomCooldown");
+        int nNextCooldown = nMinimumCooldown + Random(nRandomCooldown);
+        BT_Blackboard_StructSetValue(strBlackboardInfo, "Cooldown", JsonInt(nNextCooldown));
+        BT_Blackboard_StructSetValue(strBlackboardInfo, "LastExecution", JsonInt(SqlGetUnixEpoch()));
+    }
 
     return nResult;
 }

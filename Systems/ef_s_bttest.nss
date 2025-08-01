@@ -61,11 +61,17 @@ int BT_Node_SelectNextPatrolWaypoint_Tick(json jNode, json jTickInfo)
 json BT_Node_MoveToObject(string sBlackboardVariable, float fDistanceTolerance, int bRun = FALSE)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "MoveToObject");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Open");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Tick");
     BT_Node_SetDataString(jNode, "BlackboardVariable", sBlackboardVariable);
     BT_Node_SetDataFloat(jNode, "DistanceTolerance", fDistanceTolerance);
     BT_Node_SetDataInt(jNode, "Run", bRun);
     return jNode;
+}
+
+void BT_Node_MoveToObject_Open(json jNode, json jTickInfo)
+{
+    ClearAllActions();
 }
 
 int BT_Node_MoveToObject_Tick(json jNode, json jTickInfo)
@@ -184,6 +190,10 @@ int BT_Node_Sit_Tick(json jNode, json jTickInfo)
 
     if (GetIsObjectValid(oSeat))
     {
+        object oSittingCreature = GetSittingCreature(oSeat);
+        if (GetIsObjectValid(oSittingCreature) && oSittingCreature != oSelf)
+            return BT_NODE_STATE_FAILURE;
+
         if (GetCurrentAction(oSelf) != ACTION_SIT)
         {
             ClearAllActions();
@@ -209,11 +219,11 @@ void BTT_Post()
     BTB_InitializeBehaviorTree();
         BTB_StartReactiveFallback();
             BTB_StartSequence();
-                BTB_StartCooldown(120);
+                BTB_StartRandomCooldown(120, 31);
                     BTB_AddNode(BT_Node_GetNearestSeat("SEAT"));
                 BTB_End();
                 BTB_AddNode(BT_Node_MoveToObject("SeatObject", 2.5f, FALSE));
-                BTB_StartTimeout(15);
+                BTB_StartRandomTimeout(15, 16);
                     BTB_AddNode(BT_Node_Sit("SeatObject"));
                 BTB_End();
             BTB_End();
@@ -221,6 +231,11 @@ void BTT_Post()
                 BTB_AddNode(BT_Node_SelectNextPatrolWaypoint(BTT_PATROL_WP_PREFIX, BTT_NUM_PATROL_WAYPOINTS, 5.0f));
                 BTB_AddNode(BT_Node_MoveToObject("WaypointObject", 2.5f, FALSE));
                 BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_LOOK_FAR, 2));
+                BTB_StartForceSuccess();
+                    BTB_StartRandomCooldown(30, 31);
+                        BTB_AddNode(BT_Node_SpeakString("Nothin' to see here..."));
+                    BTB_End();
+                BTB_End();
             BTB_End();
         BTB_End();
     json jTree = BTB_FinalizeBehaviorTree();

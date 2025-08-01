@@ -61,6 +61,8 @@ void JsonObjectSetVectorInplace(json jObject, string sKey, vector vValue);
 void JsonSetAtPointerInplace(json jParent, string sPointer, json jValue);
 void JsonObjectSetObjectInplace(json jObject, string sKey, object oValue);
 object JsonObjectGetObject(json jObject, string sKey);
+json JsonObjectRef(object oObject);
+object JsonGetObjectRef(json jValue);
 
 json VectorToJson(vector vVector)
 {
@@ -406,4 +408,14 @@ void JsonObjectSetObjectInplace(json jObject, string sKey, object oValue)
 object JsonObjectGetObject(json jObject, string sKey)
 {
     return StringToObject(JsonObjectGetString(jObject, sKey));
+}
+
+json JsonObjectRef(object oObject)
+{
+    return JsonString(ObjectToString(oObject));
+}
+
+object JsonGetObjectRef(json jValue)
+{
+    return StringToObject(JsonGetString(jValue));
 }

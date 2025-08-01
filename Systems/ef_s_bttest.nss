@@ -13,25 +13,25 @@ const string BTT_SCRIPT_NAME            = "ef_s_bttest";
 const string BTT_GUARD_TAG              = "BT_GUARD";
 const string BTT_PATROL_WP_PREFIX       = "WP_PATROL_";
 const int BTT_NUM_PATROL_WAYPOINTS      = 5;
-const float BTT_DISTANCE_TOLERANCE      = 2.5f;
 
-json BT_Node_SelectNextPatrolWaypoint(string sWaypointPrefix, int nNumberOfWaypoints)
+json BT_Node_SelectNextPatrolWaypoint(string sWaypointPrefix, int nNumberOfWaypoints, float fDistanceTolerance)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "SelectNextPatrolWaypoint");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_SelectNextPatrolWaypoint_Tick");
     BT_Node_SetData(jNode, "WaypointPrefix", JsonString(sWaypointPrefix));
     BT_Node_SetData(jNode, "NumberOfWaypoints", JsonInt(nNumberOfWaypoints));
+    BT_Node_SetData(jNode, "DistanceTolerance", JsonFloat(fDistanceTolerance));
     return jNode;
 }
 
 int BT_Node_SelectNextPatrolWaypoint_Tick(json jNode, json jTickInfo)
 {
-    object oSelf = BT_TickInfo_GetSelf(jTickInfo);
+    object oSelf = OBJECT_SELF;
     string sWaypointPrefix = JsonGetString(BT_Node_GetData(jNode, "WaypointPrefix"));
     int nNumberOfWayPoints = JsonGetInt(BT_Node_GetData(jNode, "NumberOfWaypoints"));
 
     object oNextWaypoint = OBJECT_INVALID;
-    float fCurrentDistance = 500.0f;
+    float fCurrentDistance = 1000.0f;
     int nIndex, nSelectedIndex;
     for (nIndex = 1; nIndex <= nNumberOfWayPoints; nIndex++)
     {
@@ -47,10 +47,11 @@ int BT_Node_SelectNextPatrolWaypoint_Tick(json jNode, json jTickInfo)
 
     if (GetIsObjectValid(oNextWaypoint))
     {
-        if (fCurrentDistance <= BTT_DISTANCE_TOLERANCE)
+        float fDistanceTolerance = JsonGetFloat(BT_Node_GetData(jNode, "DistanceTolerance"));
+        if (fCurrentDistance < fDistanceTolerance)
             oNextWaypoint = GetObjectByTag(sWaypointPrefix + IntToString((nSelectedIndex % nNumberOfWayPoints) + 1));
         BT_Blackboard_SetValue(BT_TickInfo_GetBlackboard(jTickInfo), "MoveToObject",
-            JsonString(ObjectToString(oNextWaypoint)), BT_TickInfo_GetBehaviorTreeID(jTickInfo));
+            JsonObjectRef(oNextWaypoint), BT_TickInfo_GetBehaviorTreeID(jTickInfo));
         return BT_NODE_STATE_SUCCESS;
     }
 
@@ -67,10 +68,10 @@ json BT_Node_MoveToObject(float fDistanceTolerance)
 
 int BT_Node_MoveToObject_Tick(json jNode, json jTickInfo)
 {
-    object oSelf = BT_TickInfo_GetSelf(jTickInfo);
+    object oSelf = OBJECT_SELF;
     float fDistanceTolerance = JsonGetFloat(BT_Node_GetData(jNode, "DistanceTolerance"));
-    object oTarget = StringToObject(JsonGetString(BT_Blackboard_GetValue(BT_TickInfo_GetBlackboard(jTickInfo),
-        "MoveToObject", BT_TickInfo_GetBehaviorTreeID(jTickInfo))));
+    object oTarget = JsonGetObjectRef(BT_Blackboard_GetValue(BT_TickInfo_GetBlackboard(jTickInfo),
+        "MoveToObject", BT_TickInfo_GetBehaviorTreeID(jTickInfo)));
     float fDistance = GetDistanceBetween(oSelf, oTarget);
 
     if (fDistance <= fDistanceTolerance)
@@ -95,11 +96,9 @@ json BT_Node_SpeakString(string sText)
 
 int BT_Node_SpeakString_Tick(json jNode, json jTickInfo)
 {
-    object oSelf = BT_TickInfo_GetSelf(jTickInfo);
     string sText = JsonGetString(BT_Node_GetData(jNode, "Text"));
 
-    string sScriptChunk = nssFunction("SpeakString", nssEscape(sText) + ", TALKVOLUME_TALK");
-    ExecuteScriptChunk(sScriptChunk, oSelf, TRUE);
+    SpeakString(sText, TALKVOLUME_TALK);
 
     return BT_NODE_STATE_SUCCESS;
 }
@@ -116,11 +115,10 @@ json BT_Node_PlayLoopingAnimation(int nAnimation, int nDuration)
 
 void BT_Node_PlayLoopingAnimation_Open(json jNode, json jTickInfo)
 {
-    object oSelf = BT_TickInfo_GetSelf(jTickInfo);
     int nAnimation = JsonGetInt(BT_Node_GetData(jNode, "Animation"));
 
-    AssignCommand(oSelf, ClearAllActions());
-    AssignCommand(oSelf, ActionPlayAnimation(nAnimation, 1.0f, 600.0f));
+    ClearAllActions();
+    ActionPlayAnimation(nAnimation, 1.0f, 86400.0f);
 
     BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo, jNode), "StartTime", JsonInt(SqlGetUnixEpoch()));
 }
@@ -131,14 +129,9 @@ int BT_Node_PlayLoopingAnimation_Tick(json jNode, json jTickInfo)
     int nStartTime = JsonGetInt(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo, jNode), "StartTime"));
 
     if (SqlGetUnixEpoch() - nStartTime > nDuration)
-    {
-        object oSelf = BT_TickInfo_GetSelf(jTickInfo);
-        AssignCommand(oSelf, ClearAllActions());
-        AssignCommand(oSelf, ActionPlayAnimation(ANIMATION_LOOPING_PAUSE, 1.0f, 0.1f));
         return BT_NODE_STATE_SUCCESS;
-    }
-
-    return BT_NODE_STATE_RUNNING;
+    else
+        return BT_NODE_STATE_RUNNING;
 }
 
 void BTT_RecursiveTick(object oBehaviorTree, object oBlackboard, object oSelf)
@@ -158,9 +151,9 @@ void BTT_Post()
                 BTB_AddNode(BT_Node_SpeakString("Nothin' happening here..."));
             BTB_End();
             BTB_StartSequence();
-                BTB_AddNode(BT_Node_SelectNextPatrolWaypoint(BTT_PATROL_WP_PREFIX, BTT_NUM_PATROL_WAYPOINTS));
-                BTB_AddNode(BT_Node_MoveToObject(2.0f));
-                BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_LOOK_FAR, 3));
+                BTB_AddNode(BT_Node_SelectNextPatrolWaypoint(BTT_PATROL_WP_PREFIX, BTT_NUM_PATROL_WAYPOINTS, 5.0f));
+                BTB_AddNode(BT_Node_MoveToObject(2.5f));
+                BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_LOOK_FAR, 2));
             BTB_End();
         BTB_End();
     json jTree = BTB_FinalizeBehaviorTree();

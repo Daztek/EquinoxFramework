@@ -15,17 +15,18 @@ const string BTT_GUARD_TAG              = "BT_GUARD";
 const string BTT_PATROL_WP_PREFIX       = "WP_PATROL_";
 const int BTT_NUM_PATROL_WAYPOINTS      = 5;
 
-json BT_Node_SelectNextPatrolWaypoint(string sWaypointPrefix, int nNumberOfWaypoints, float fDistanceTolerance)
+json BT_Node_GetNextPatrolWaypoint(string sTargetObjectVariable, string sWaypointPrefix, int nNumberOfWaypoints, float fDistanceTolerance)
 {
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "SelectNextPatrolWaypoint");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_SelectNextPatrolWaypoint_Tick");
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "GetNextPatrolWaypoint");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetNextPatrolWaypoint_Tick");
+    BT_Node_SetDataString(jNode, "TargetObjectVariable", sTargetObjectVariable);
     BT_Node_SetDataString(jNode, "WaypointPrefix", sWaypointPrefix);
     BT_Node_SetDataInt(jNode, "NumberOfWaypoints", nNumberOfWaypoints);
     BT_Node_SetDataFloat(jNode, "DistanceTolerance", fDistanceTolerance);
     return jNode;
 }
 
-int BT_Node_SelectNextPatrolWaypoint_Tick(json jNode, json jTickInfo)
+int BT_Node_GetNextPatrolWaypoint_Tick(json jNode, json jTickInfo)
 {
     object oSelf = OBJECT_SELF;
     string sWaypointPrefix = BT_Node_GetDataString(jNode, "WaypointPrefix");
@@ -51,19 +52,20 @@ int BT_Node_SelectNextPatrolWaypoint_Tick(json jNode, json jTickInfo)
         float fDistanceTolerance = BT_Node_GetDataFloat(jNode, "DistanceTolerance");
         if (fCurrentDistance < fDistanceTolerance)
             oNextWaypoint = GetObjectByTag(sWaypointPrefix + IntToString((nSelectedIndex % nNumberOfWayPoints) + 1));
-        BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo), "WaypointObject", JsonObjectRef(oNextWaypoint));
+        string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
+        BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo), sTargetObjectVariable, JsonObjectRef(oNextWaypoint));
         return BT_NODE_STATE_SUCCESS;
     }
 
     return BT_NODE_STATE_FAILURE;
 }
 
-json BT_Node_MoveToObject(string sBlackboardVariable, float fDistanceTolerance, int bRun = FALSE)
+json BT_Node_MoveToObject(string sTargetObjectVariable, float fDistanceTolerance, int bRun = FALSE)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "MoveToObject");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Open");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Tick");
-    BT_Node_SetDataString(jNode, "BlackboardVariable", sBlackboardVariable);
+    BT_Node_SetDataString(jNode, "TargetObjectVariable", sTargetObjectVariable);
     BT_Node_SetDataFloat(jNode, "DistanceTolerance", fDistanceTolerance);
     BT_Node_SetDataInt(jNode, "Run", bRun);
     return jNode;
@@ -76,8 +78,8 @@ void BT_Node_MoveToObject_Open(json jNode, json jTickInfo)
 
 int BT_Node_MoveToObject_Tick(json jNode, json jTickInfo)
 {
-    string sBlackboardVariable = BT_Node_GetDataString(jNode, "BlackboardVariable");
-    object oTarget = JsonGetObjectRef(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo), sBlackboardVariable));
+    string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
+    object oTarget = JsonGetObjectRef(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo), sTargetObjectVariable));
 
     if (!GetIsObjectValid(oTarget))
         return BT_NODE_STATE_FAILURE;
@@ -144,18 +146,20 @@ int BT_Node_PlayLoopingAnimation_Tick(json jNode, json jTickInfo)
         return BT_NODE_STATE_RUNNING;
 }
 
-json BT_Node_GetNearestSeat(string sSeatObjectTag)
+json BT_Node_GetNearestSeat(string sTargetObjectVariable, string sSeatObjectTag)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "GetNearestSeat");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetNearestSeat_Open");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetNearestSeat_Tick");
+    BT_Node_SetDataString(jNode, "TargetObjectVariable", sTargetObjectVariable);
     BT_Node_SetDataString(jNode, "SeatObjectTag", sSeatObjectTag);
     return jNode;
 }
 
 void BT_Node_GetNearestSeat_Open(json jNode, json jTickInfo)
 {
-    BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo), "SeatObject", JsonObjectRef(OBJECT_INVALID));
+    string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
+    BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo), sTargetObjectVariable, JsonObjectRef(OBJECT_INVALID));
 }
 
 int BT_Node_GetNearestSeat_Tick(json jNode, json jTickInfo)
@@ -166,7 +170,8 @@ int BT_Node_GetNearestSeat_Tick(json jNode, json jTickInfo)
 
     if (GetIsObjectValid(oSeat))
     {
-        BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo), "SeatObject", JsonObjectRef(oSeat));
+        string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
+        BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo), sTargetObjectVariable, JsonObjectRef(oSeat));
         return BT_NODE_STATE_SUCCESS;
     }
 
@@ -174,19 +179,19 @@ int BT_Node_GetNearestSeat_Tick(json jNode, json jTickInfo)
 }
 
 
-json BT_Node_Sit(string sBlackboardSeatVariable)
+json BT_Node_Sit(string sTargetObjectVariable)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "Sit");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_Sit_Tick");
-    BT_Node_SetDataString(jNode, "BlackboardVariable", sBlackboardSeatVariable);
+    BT_Node_SetDataString(jNode, "TargetObjectVariable", sTargetObjectVariable);
     return jNode;
 }
 
 int BT_Node_Sit_Tick(json jNode, json jTickInfo)
 {
     object oSelf = OBJECT_SELF;
-    string sBlackboardVariable = BT_Node_GetDataString(jNode, "BlackboardVariable");
-    object oSeat = JsonGetObjectRef(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo), sBlackboardVariable));
+    string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
+    object oSeat = JsonGetObjectRef(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo), sTargetObjectVariable));
 
     if (GetIsObjectValid(oSeat))
     {
@@ -216,20 +221,28 @@ void BTT_RecursiveTick(object oBehaviorTree, object oBlackboard, object oSelf)
 // @CORE[CORE_SYSTEM_POST]
 void BTT_Post()
 {
+    string sSeatObject = "SeatObject";
+    string sWaypointObject = "WaypointObject";
+
     BTB_InitializeBehaviorTree();
         BTB_StartReactiveFallback();
             BTB_StartSequence();
-                BTB_StartRandomCooldown(120, 31);
-                    BTB_AddNode(BT_Node_GetNearestSeat("SEAT"));
+                BTB_StartRandomCooldown(120, 61);
+                    BTB_AddNode(BT_Node_GetNearestSeat(sSeatObject, "SEAT"));
                 BTB_End();
-                BTB_AddNode(BT_Node_MoveToObject("SeatObject", 2.5f, FALSE));
+                BTB_AddNode(BT_Node_MoveToObject(sSeatObject, 2.5f, FALSE));
+                BTB_StartForceSuccess();
+                    BTB_StartProbability(25);
+                        BTB_AddNode(BT_Node_SpeakString("Whew."));
+                    BTB_End();
+                BTB_End();
                 BTB_StartRandomTimeout(15, 16);
-                    BTB_AddNode(BT_Node_Sit("SeatObject"));
+                    BTB_AddNode(BT_Node_Sit(sSeatObject));
                 BTB_End();
             BTB_End();
             BTB_StartSequence();
-                BTB_AddNode(BT_Node_SelectNextPatrolWaypoint(BTT_PATROL_WP_PREFIX, BTT_NUM_PATROL_WAYPOINTS, 5.0f));
-                BTB_AddNode(BT_Node_MoveToObject("WaypointObject", 2.5f, FALSE));
+                BTB_AddNode(BT_Node_GetNextPatrolWaypoint(sWaypointObject, BTT_PATROL_WP_PREFIX, BTT_NUM_PATROL_WAYPOINTS, 5.0f));
+                BTB_AddNode(BT_Node_MoveToObject(sWaypointObject, 2.5f, FALSE));
                 BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_LOOK_FAR, 2));
                 BTB_StartForceSuccess();
                     BTB_StartRandomCooldown(30, 31);

@@ -13,7 +13,7 @@ const int BT_DEBUG_LOG_TICKS                    = FALSE;
 const int BT_DEBUG_LOG_TICK_INFO                = FALSE;
 const int BT_DEBUG_LOG_MEMORY_INFO              = FALSE;
 
-const int BT_GRAPHVIZ_ENABLED                   = TRUE;
+const int BT_GRAPHVIZ_ENABLED                   = FALSE;
 
 const string BT_BLACKBOARD_TAG_PREFIX           = "BTBB_";
 const string BT_BLACKBOARD_KEY_IS_OPEN           = "IsOpen";

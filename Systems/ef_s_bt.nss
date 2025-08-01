@@ -9,7 +9,7 @@
 
 const string BT_SCRIPT_NAME                     = "ef_s_bt";
 
-const int BT_DEBUG_LOG_TICKS                    = TRUE;
+const int BT_DEBUG_LOG_TICKS                    = FALSE;
 const int BT_DEBUG_LOG_TICK_INFO                = FALSE;
 const int BT_DEBUG_LOG_MEMORY_INFO              = FALSE;
 
@@ -520,7 +520,7 @@ void BT_BehaviorTree_Tick(object oBehaviorTree, object oBlackboard, object oSelf
     BT_BehaviorTree_SetCurrentTickInfo(jTickInfo);
 
     json jRoot = BT_BehaviorTree_GetRoot(oBehaviorTree);
-    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetRoot(oBehaviorTree), jTickInfo);
+    int nNodeState = BT_Node_Execute(jRoot, jTickInfo);
 
     if (BT_GRAPHVIZ_ENABLED && BT_BehaviorTree_GetGraphVizEnabled(oBehaviorTree))
     {

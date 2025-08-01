@@ -59,6 +59,7 @@ void BTB_SetData(json jData);
 
 int BTB_IsValidNodeType(int nNodeType);
 string BTB_NodeTypeToString(int nNodeType);
+void BTB_CheckNoChildren(int nTypeToAdd, json jDataToAdd);
 
 void BTB_InitializeBehaviorTree();
 json BTB_FinalizeBehaviorTree();
@@ -165,6 +166,13 @@ string BTB_NodeTypeToString(int nNodeType)
     return "<UNKNOWN NODE TYPE>(" + IntToString(nNodeType) + ")";
 }
 
+void BTB_CheckNoChildren(int nTypeToAdd, json jDataToAdd)
+{
+    if ((nTypeToAdd == BT_NODE_TYPE_COMPOSITE && !JsonGetLength(JsonObjectGet(jDataToAdd, BT_NODE_KEY_CHILDREN))) ||
+        (nTypeToAdd == BT_NODE_TYPE_DECORATOR && JsonGetType(JsonObjectGet(jDataToAdd, BT_NODE_KEY_CHILDREN)) != JSON_TYPE_OBJECT))
+        BTB_LogWarning("{" + BTB_NodeTypeToString(nTypeToAdd) + "} HAS NO CHILD(REN).");
+}
+
 void BTB_InitializeBehaviorTree()
 {
     BTB_LogDebug("* INITIALIZE BEHAVIOR TREE");
@@ -208,7 +216,10 @@ void BTB_End()
         case BTB_NODE_TYPE_ROOT:
         {
             if (BTB_IsValidNodeType(nTypeToAdd))
+            {
+                BTB_CheckNoChildren(nTypeToAdd, jDataToAdd);
                 BTB_SetData(jDataToAdd);
+            }
             else
                 BTB_LogWarning("TYPE MISMATCH: {BTB_NODE_TYPE_ROOT} does not accept {" + BTB_NodeTypeToString(nTypeToAdd) + "}.");
             break;
@@ -216,7 +227,10 @@ void BTB_End()
         case BTB_NODE_TYPE_COMPOSITE:
         {
             if (BTB_IsValidNodeType(nTypeToAdd))
+            {
+                BTB_CheckNoChildren(nTypeToAdd, jDataToAdd);
                 BTB_SetData(JsonObjectInsertToArrayWithKey(jData, BT_NODE_KEY_CHILDREN, jDataToAdd));
+            }
             else
                 BTB_LogWarning("TYPE MISMATCH: {BTB_NODE_TYPE_COMPOSITE} does not accept {" + BTB_NodeTypeToString(nTypeToAdd) + "}.");
             break;
@@ -224,7 +238,10 @@ void BTB_End()
         case BTB_NODE_TYPE_DECORATOR:
         {
             if (BTB_IsValidNodeType(nTypeToAdd))
+            {
+                BTB_CheckNoChildren(nTypeToAdd, jDataToAdd);
                 BTB_SetData(JsonObjectSet(jData, BT_NODE_KEY_CHILDREN, jDataToAdd));
+            }
             else
                 BTB_LogWarning("TYPE MISMATCH: {BTB_NODE_TYPE_DECORATOR} does not accept {" + BTB_NodeTypeToString(nTypeToAdd) + "}.");
             break;

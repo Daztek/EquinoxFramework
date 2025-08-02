@@ -53,7 +53,7 @@ int BT_Node_GetNextPatrolWaypoint_Tick(json jNode, json jTickInfo)
         if (fCurrentDistance < fDistanceTolerance)
             oNextWaypoint = GetObjectByTag(sWaypointPrefix + IntToString((nSelectedIndex % nNumberOfWayPoints) + 1));
         string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
-        BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo), sTargetObjectVariable, JsonObjectRef(oNextWaypoint));
+        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(jTickInfo), sTargetObjectVariable, oNextWaypoint);
         return BT_NODE_STATE_SUCCESS;
     }
 
@@ -79,7 +79,7 @@ void BT_Node_MoveToObject_Open(json jNode, json jTickInfo)
 int BT_Node_MoveToObject_Tick(json jNode, json jTickInfo)
 {
     string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
-    object oTarget = JsonGetObjectRef(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo), sTargetObjectVariable));
+    object oTarget = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(jTickInfo), sTargetObjectVariable);
 
     if (!GetIsObjectValid(oTarget))
         return BT_NODE_STATE_FAILURE;
@@ -132,13 +132,13 @@ void BT_Node_PlayLoopingAnimation_Open(json jNode, json jTickInfo)
 
     ClearAllActions();
     ActionPlayAnimation(nAnimation, 1.0f, 86400.0f);
-    BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo, jNode), "StartTime", JsonInt(SqlGetUnixEpoch()));
+    BT_Blackboard_ContextSetInt(BT_Blackboard_GetNodeContext(jTickInfo, jNode), "StartTime", SqlGetUnixEpoch());
 }
 
 int BT_Node_PlayLoopingAnimation_Tick(json jNode, json jTickInfo)
 {
     int nDuration = BT_Node_GetDataInt(jNode, "Duration");
-    int nStartTime = JsonGetInt(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo, jNode), "StartTime"));
+    int nStartTime = BT_Blackboard_ContextGetInt(BT_Blackboard_GetNodeContext(jTickInfo, jNode), "StartTime");
 
     if (SqlGetUnixEpoch() - nStartTime > nDuration)
         return BT_NODE_STATE_SUCCESS;
@@ -159,7 +159,7 @@ json BT_Node_GetNearestSeat(string sTargetObjectVariable, string sSeatObjectTag)
 void BT_Node_GetNearestSeat_Open(json jNode, json jTickInfo)
 {
     string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
-    BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo), sTargetObjectVariable, JsonObjectRef(OBJECT_INVALID));
+    BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(jTickInfo), sTargetObjectVariable, OBJECT_INVALID);
 }
 
 int BT_Node_GetNearestSeat_Tick(json jNode, json jTickInfo)
@@ -171,7 +171,7 @@ int BT_Node_GetNearestSeat_Tick(json jNode, json jTickInfo)
     if (GetIsObjectValid(oSeat))
     {
         string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
-        BT_Blackboard_StructSetValue(BT_Blackboard_GetInfo(jTickInfo), sTargetObjectVariable, JsonObjectRef(oSeat));
+        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(jTickInfo), sTargetObjectVariable, oSeat);
         return BT_NODE_STATE_SUCCESS;
     }
 
@@ -191,7 +191,7 @@ int BT_Node_Sit_Tick(json jNode, json jTickInfo)
 {
     object oSelf = OBJECT_SELF;
     string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
-    object oSeat = JsonGetObjectRef(BT_Blackboard_StructGetValue(BT_Blackboard_GetInfo(jTickInfo), sTargetObjectVariable));
+    object oSeat = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(jTickInfo), sTargetObjectVariable);
 
     if (GetIsObjectValid(oSeat))
     {
@@ -226,7 +226,7 @@ void BTT_Post()
 
     BTB_InitializeBehaviorTree();
         BTB_StartReactiveFallback();
-            BTB_StartSequence();
+            BTB_StartSequence("Rest");
                 BTB_StartRandomCooldown(120, 61);
                     BTB_AddNode(BT_Node_GetNearestSeat(sSeatObject, "SEAT"));
                 BTB_End();
@@ -240,7 +240,7 @@ void BTT_Post()
                     BTB_AddNode(BT_Node_Sit(sSeatObject));
                 BTB_End();
             BTB_End();
-            BTB_StartSequence();
+            BTB_StartSequence("Patrol");
                 BTB_AddNode(BT_Node_GetNextPatrolWaypoint(sWaypointObject, BTT_PATROL_WP_PREFIX, BTT_NUM_PATROL_WAYPOINTS, 5.0f));
                 BTB_AddNode(BT_Node_MoveToObject(sWaypointObject, 2.5f, FALSE));
                 BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_LOOK_FAR, 2));

@@ -12,16 +12,43 @@
 const string BTT_SCRIPT_NAME            = "ef_s_bttest";
 
 const string BTT_GUARD_TAG              = "BT_GUARD";
-const string BTT_PATROL_WP_PREFIX       = "WP_PATROL_";
-const int BTT_NUM_PATROL_WAYPOINTS      = 5;
+const string BTT_PATROL_WAYPOINT_TAG    = "WP_EFPATROL";
+const string BTT_PATROL_WAYPOINT_PREFIX = "WP_EFPATROL_";
+const string BTT_PATROL_OBJECT_TAG      = "PatrolWaypoint";
+const string BTT_PATROL_CONNECTIONS     = "Connections";
 
-json BT_Node_GetNextPatrolWaypoint(string sWaypointPrefix, int nNumberOfWaypoints, float fDistanceTolerance, string sOutput)
+// @CORE[CORE_SYSTEM_LOAD]
+void BTT_Load()
+{
+    object oPatrolWaypoint;
+    while ((oPatrolWaypoint = GetObjectByTag(BTT_PATROL_WAYPOINT_TAG, 0)) != OBJECT_INVALID)
+    {
+        string sConnections = GetLocalString(oPatrolWaypoint, "Connections");
+        if (sConnections != "")
+        {
+            json jConnections = JsonArray();
+            json jRegex = RegExpIterate("[^,\\s][^,]*[^,\\s]*|[^,\\s]+", sConnections);
+            int nIndex, nNumItems = JsonGetLength(jRegex);
+            for (nIndex = 0; nIndex < nNumItems; nIndex++)
+            {
+                JsonArrayInsertInplace(jConnections, JsonArrayGet(JsonArrayGet(jRegex, nIndex), 0));
+            }
+            SetLocalJson(oPatrolWaypoint, BTT_PATROL_CONNECTIONS, jConnections);
+            PrintString(JsonDump(jConnections));
+        }
+
+        SetTag(oPatrolWaypoint, BTT_PATROL_WAYPOINT_PREFIX + GetLocalString(oPatrolWaypoint, "ID"));
+        ObjectTag_Add(oPatrolWaypoint, BTT_PATROL_OBJECT_TAG);
+        PrintString(GetTag(oPatrolWaypoint));
+    }
+}
+
+json BT_Node_GetNextPatrolWaypoint(string sWaypointObjectTag, float fDistanceTolerance, string sOutput)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "GetNextPatrolWaypoint");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetNextPatrolWaypoint_Tick");
     BT_Node_SetDefaultOutput(jNode, sOutput);
-    BT_Node_SetDataString(jNode, "WaypointPrefix", sWaypointPrefix);
-    BT_Node_SetDataInt(jNode, "NumberOfWaypoints", nNumberOfWaypoints);
+    BT_Node_SetDataString(jNode, "WaypointObjectTag", sWaypointObjectTag);
     BT_Node_SetDataFloat(jNode, "DistanceTolerance", fDistanceTolerance);
     return jNode;
 }
@@ -29,30 +56,22 @@ json BT_Node_GetNextPatrolWaypoint(string sWaypointPrefix, int nNumberOfWaypoint
 int BT_Node_GetNextPatrolWaypoint_Tick(json jNode)
 {
     object oSelf = OBJECT_SELF;
-    string sWaypointPrefix = BT_Node_GetDataString(jNode, "WaypointPrefix");
-    int nNumberOfWayPoints = BT_Node_GetDataInt(jNode, "NumberOfWaypoints");
+    string sWaypointObjectTag = BT_Node_GetDataString(jNode, "WaypointObjectTag");
+    object oNearestWaypoint = ObjectTag_GetNearestObjectWithTag(oSelf, sWaypointObjectTag);
 
-    object oNextWaypoint = OBJECT_INVALID;
-    float fCurrentDistance = 1000.0f;
-    int nIndex, nSelectedIndex;
-    for (nIndex = 1; nIndex <= nNumberOfWayPoints; nIndex++)
-    {
-        object oWaypoint = GetObjectByTag(sWaypointPrefix + IntToString(nIndex));
-        float fDistance = GetDistanceBetween(oSelf, oWaypoint);
-        if (fDistance < fCurrentDistance)
-        {
-            fCurrentDistance = fDistance;
-            oNextWaypoint = oWaypoint;
-            nSelectedIndex = nIndex;
-        }
-    }
-
-    if (GetIsObjectValid(oNextWaypoint))
+    if (GetIsObjectValid(oNearestWaypoint))
     {
         float fDistanceTolerance = BT_Node_GetDataFloat(jNode, "DistanceTolerance");
-        if (fCurrentDistance < fDistanceTolerance)
-            oNextWaypoint = GetObjectByTag(sWaypointPrefix + IntToString((nSelectedIndex % nNumberOfWayPoints) + 1));
-        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetDefaultOutput(jNode), oNextWaypoint);
+        if (GetDistanceBetween(oSelf, oNearestWaypoint) < fDistanceTolerance)
+        {
+            json jConnections = GetLocalJson(oNearestWaypoint, BTT_PATROL_CONNECTIONS);
+            string sNextWaypointTag = BTT_PATROL_WAYPOINT_PREFIX + JsonArrayGetString(jConnections, Random(JsonGetLength(jConnections)));
+            oNearestWaypoint = GetObjectByTag(sNextWaypointTag);
+
+            if (!GetIsObjectValid(oNearestWaypoint))
+                return BT_NODE_STATE_FAILURE;
+        }
+        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetDefaultOutput(jNode), oNearestWaypoint);
         return BT_NODE_STATE_SUCCESS;
     }
 
@@ -240,7 +259,7 @@ void BTT_Post()
                 BTB_End();
             BTB_End();
             BTB_StartSequence("Patrol");
-                BTB_AddNode(BT_Node_GetNextPatrolWaypoint(BTT_PATROL_WP_PREFIX, BTT_NUM_PATROL_WAYPOINTS, 5.0f, WAYPOINT_OBJECT));
+                BTB_AddNode(BT_Node_GetNextPatrolWaypoint(BTT_PATROL_OBJECT_TAG, 5.0f, WAYPOINT_OBJECT));
                 BTB_AddNode(BT_Node_MoveToObject(WAYPOINT_OBJECT, 2.0f, FALSE));
                 BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_LOOK_FAR, 2));
                 BTB_StartForceSuccess();

@@ -18,6 +18,7 @@ json ObjectTag_GetTags(object oObject);
 void ObjectTag_UpdateAreaAndPosition(object oObject, object oArea, vector vPosition);
 object ObjectTag_GetNearestObjectWithTag(object oOrigin, string sTag);
 json ObjectTag_GetObjectsWithTag(object oOrigin, string sTag);
+int ObjectTag_GetNumberOfObjectsWithTag(string sTag, object oArea = OBJECT_INVALID);
 
 // @CORE[CORE_SYSTEM_INIT]
 void ObjectTag_Init()
@@ -165,4 +166,14 @@ json ObjectTag_GetObjectsWithTag(object oOrigin, string sTag)
     }
 
     return jArray;
+}
+
+int ObjectTag_GetNumberOfObjectsWithTag(string sTag, object oArea = OBJECT_INVALID)
+{
+    sqlquery sql = SqlPrepareQueryModule("SELECT COUNT(object) FROM " + OBJECTTAG_SCRIPT_NAME +
+        " WHERE tag = @tag" + (oArea != OBJECT_INVALID ? " AND area = @area" : "") + ";");
+    SqlBindString(sql, "@tag", sTag);
+    if (oArea != OBJECT_INVALID)
+        SqlBindObjectRef(sql, "@area", oArea);
+    return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
 }

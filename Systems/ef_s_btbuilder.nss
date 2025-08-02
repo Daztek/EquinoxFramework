@@ -72,6 +72,7 @@ void BTB_StartReactiveSequence(string sName = "");
 void BTB_StartFallback(string sName = "");
 void BTB_StartReactiveFallback(string sName = "");
 void BTB_StartParallel(int nSuccessPolicy = BT_NODE_PARALLEL_SUCCESS_POLICY_ANY, string sName = "");
+void BTB_StartRandomChild(string sName = "");
 
 void BTB_StartInverter();
 void BTB_StartForceSuccess();
@@ -292,6 +293,11 @@ void BTB_StartReactiveFallback(string sName = "")
 void BTB_StartParallel(int nSuccessPolicy = BT_NODE_PARALLEL_SUCCESS_POLICY_ANY, string sName = "")
 {
     BTB_StartNode(BT_Node_Parallel(nSuccessPolicy), sName);
+}
+
+void BTB_StartRandomChild(string sName = "")
+{
+    BTB_StartNode(BT_Node_RandomChild(), sName);
 }
 
 // Decorator Node Helpers

@@ -46,8 +46,8 @@ const string BT_NODE_KEY_NAME                   = "Name";
 const string BT_NODE_KEY_INCLUDE                = "Include_";
 const string BT_NODE_KEY_FUNCTION               = "Function_";
 const string BT_NODE_KEY_DATA                   = "Data";
-const string BT_NODE_KEY_DEFAULT_INPUT          = "DefaultInput";
-const string BT_NODE_KEY_DEFAULT_OUTPUT         = "DefaultOutput";
+const string BT_NODE_KEY_INPUT                  = "Input";
+const string BT_NODE_KEY_OUTPUT                 = "Output";
 
 const int BT_NODE_TYPE_BASE                     = 0;
 const int BT_NODE_TYPE_COMPOSITE                = 1;
@@ -157,10 +157,10 @@ string BT_Node_GetDataString(json jNode, string sKey);
 void BT_Node_SetDataFloat(json jNode, string sKey, float fValue);
 float BT_Node_GetDataFloat(json jNode, string sKey);
 string BT_Node_GetDebugInfo(json jNode);
-void BT_Node_SetDefaultInput(json jNode, string sInput);
-string BT_Node_GetDefaultInput(json jNode);
-void BT_Node_SetDefaultOutput(json jNode, string sInput);
-string BT_Node_GetDefaultOutput(json jNode);
+void BT_Node_SetInput(json jNode, string sInput);
+string BT_Node_GetInput(json jNode);
+void BT_Node_SetOutput(json jNode, string sInput);
+string BT_Node_GetOutput(json jNode);
 
 void BT_Node_SetFunction(json jNode, int nFunctionType, string sInclude, string sFunction);
 void BT_Node_AddChild(json jNode, json jChild);
@@ -170,6 +170,7 @@ json BT_Node_ReactiveSequence();
 json BT_Node_Fallback();
 json BT_Node_ReactiveFallback();
 json BT_Node_Parallel(int nSuccessPolicy = BT_NODE_PARALLEL_SUCCESS_POLICY_ANY);
+json BT_Node_RandomChild();
 
 json BT_Node_Inverter();
 json BT_Node_ForceSuccess();
@@ -977,24 +978,24 @@ string BT_Node_GetDebugInfo(json jNode)
     return BT_Node_GetName(jNode) + "@" + IntToString(BT_Node_GetID(jNode));
 }
 
-void BT_Node_SetDefaultInput(json jNode, string sInput)
+void BT_Node_SetInput(json jNode, string sInput)
 {
-    BT_Node_SetDataString(jNode, BT_NODE_KEY_DEFAULT_INPUT, sInput);
+    BT_Node_SetDataString(jNode, BT_NODE_KEY_INPUT, sInput);
 }
 
-string BT_Node_GetDefaultInput(json jNode)
+string BT_Node_GetInput(json jNode)
 {
-    return BT_Node_GetDataString(jNode, BT_NODE_KEY_DEFAULT_INPUT);
+    return BT_Node_GetDataString(jNode, BT_NODE_KEY_INPUT);
 }
 
-void BT_Node_SetDefaultOutput(json jNode, string sInput)
+void BT_Node_SetOutput(json jNode, string sInput)
 {
-    BT_Node_SetDataString(jNode, BT_NODE_KEY_DEFAULT_OUTPUT, sInput);
+    BT_Node_SetDataString(jNode, BT_NODE_KEY_OUTPUT, sInput);
 }
 
-string BT_Node_GetDefaultOutput(json jNode)
+string BT_Node_GetOutput(json jNode)
 {
-    return BT_Node_GetDataString(jNode, BT_NODE_KEY_DEFAULT_OUTPUT);
+    return BT_Node_GetDataString(jNode, BT_NODE_KEY_OUTPUT);
 }
 
 /* *** Base Node *** */
@@ -1197,6 +1198,26 @@ int BT_Node_Parallel_Tick(json jNode)
     }
 
     return BT_NODE_STATE_ERROR;
+}
+
+json BT_Node_RandomChild()
+{
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_COMPOSITE, "RandomChild");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BT_SCRIPT_NAME, "BT_Node_RandomChild_Open");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_RandomChild_Tick");
+    return jNode;
+}
+
+void BT_Node_RandomChild_Open(json jNode)
+{
+    json jChildren = BT_Node_GetChildren(jNode);
+    BT_Blackboard_ContextSetInt(BT_Blackboard_GetNodeContext(jNode), "RandomChild", Random(JsonGetLength(jChildren)));
+}
+
+int BT_Node_RandomChild_Tick(json jNode)
+{
+    int nRandomChild = BT_Blackboard_ContextGetInt(BT_Blackboard_GetNodeContext(jNode), "RandomChild");
+    return BT_Node_Execute(JsonArrayGet(BT_Node_GetChildren(jNode), nRandomChild));
 }
 
 /* *** Decorator Nodes *** */

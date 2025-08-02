@@ -23,8 +23,9 @@ void BTT_Load()
     object oPatrolWaypoint;
     while ((oPatrolWaypoint = GetObjectByTag(BTT_PATROL_WAYPOINT_TAG, 0)) != OBJECT_INVALID)
     {
+        string sID = GetLocalString(oPatrolWaypoint, "ID");
         string sConnections = GetLocalString(oPatrolWaypoint, "Connections");
-        if (sConnections != "")
+        if (sID != "" && sConnections != "")
         {
             json jConnections = JsonArray();
             json jRegex = RegExpIterate("[^,\\s][^,]*[^,\\s]*|[^,\\s]+", sConnections);
@@ -34,12 +35,14 @@ void BTT_Load()
                 JsonArrayInsertInplace(jConnections, JsonArrayGet(JsonArrayGet(jRegex, nIndex), 0));
             }
             SetLocalJson(oPatrolWaypoint, BTT_PATROL_CONNECTIONS, jConnections);
-            PrintString(JsonDump(jConnections));
+            SetTag(oPatrolWaypoint, BTT_PATROL_WAYPOINT_PREFIX + sID);
+            ObjectTag_Add(oPatrolWaypoint, BTT_PATROL_OBJECT_TAG);
         }
-
-        SetTag(oPatrolWaypoint, BTT_PATROL_WAYPOINT_PREFIX + GetLocalString(oPatrolWaypoint, "ID"));
-        ObjectTag_Add(oPatrolWaypoint, BTT_PATROL_OBJECT_TAG);
-        PrintString(GetTag(oPatrolWaypoint));
+        else
+        {
+            LogWarning("Patrol Waypoint without ID or Connections!");
+            SetTag(oPatrolWaypoint, BTT_PATROL_WAYPOINT_PREFIX + "ERROR");
+        }
     }
 }
 
@@ -47,7 +50,7 @@ json BT_Node_GetNextPatrolWaypoint(string sWaypointObjectTag, float fDistanceTol
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "GetNextPatrolWaypoint");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetNextPatrolWaypoint_Tick");
-    BT_Node_SetDefaultOutput(jNode, sOutput);
+    BT_Node_SetOutput(jNode, sOutput);
     BT_Node_SetDataString(jNode, "WaypointObjectTag", sWaypointObjectTag);
     BT_Node_SetDataFloat(jNode, "DistanceTolerance", fDistanceTolerance);
     return jNode;
@@ -71,7 +74,7 @@ int BT_Node_GetNextPatrolWaypoint_Tick(json jNode)
             if (!GetIsObjectValid(oNearestWaypoint))
                 return BT_NODE_STATE_FAILURE;
         }
-        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetDefaultOutput(jNode), oNearestWaypoint);
+        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetOutput(jNode), oNearestWaypoint);
         return BT_NODE_STATE_SUCCESS;
     }
 
@@ -83,7 +86,7 @@ json BT_Node_MoveToObject(string sInput, float fDistanceTolerance, int bRun = FA
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "MoveToObject");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Open");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Tick");
-    BT_Node_SetDefaultInput(jNode, sInput);
+    BT_Node_SetInput(jNode, sInput);
     BT_Node_SetDataFloat(jNode, "DistanceTolerance", fDistanceTolerance);
     BT_Node_SetDataInt(jNode, "Run", bRun);
     return jNode;
@@ -96,7 +99,7 @@ void BT_Node_MoveToObject_Open(json jNode)
 
 int BT_Node_MoveToObject_Tick(json jNode)
 {
-    object oTarget = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetDefaultInput(jNode));
+    object oTarget = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetInput(jNode));
 
     if (!GetIsObjectValid(oTarget))
         return BT_NODE_STATE_FAILURE;
@@ -170,16 +173,10 @@ int BT_Node_PlayLoopingAnimation_Tick(json jNode)
 json BT_Node_GetNearestSeat(string sSeatObjectTag, string sOutput)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "GetNearestSeat");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetNearestSeat_Open");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetNearestSeat_Tick");
-    BT_Node_SetDefaultOutput(jNode, sOutput);
+    BT_Node_SetOutput(jNode, sOutput);
     BT_Node_SetDataString(jNode, "SeatObjectTag", sSeatObjectTag);
     return jNode;
-}
-
-void BT_Node_GetNearestSeat_Open(json jNode)
-{
-    BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetDefaultOutput(jNode), OBJECT_INVALID);
 }
 
 int BT_Node_GetNearestSeat_Tick(json jNode)
@@ -190,25 +187,24 @@ int BT_Node_GetNearestSeat_Tick(json jNode)
 
     if (GetIsObjectValid(oSeat))
     {
-        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetDefaultOutput(jNode), oSeat);
+        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetOutput(jNode), oSeat);
         return BT_NODE_STATE_SUCCESS;
     }
 
     return BT_NODE_STATE_FAILURE;
 }
 
-
 json BT_Node_Sit(string sInput)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "Sit");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_Sit_Tick");
-    BT_Node_SetDefaultInput(jNode, sInput);
+    BT_Node_SetInput(jNode, sInput);
     return jNode;
 }
 
 int BT_Node_Sit_Tick(json jNode)
 {
-    object oSeat = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetDefaultInput(jNode));
+    object oSeat = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(), BT_Node_GetInput(jNode));
 
     if (GetIsObjectValid(oSeat))
     {
@@ -261,7 +257,12 @@ void BTT_Post()
             BTB_StartSequence("Patrol");
                 BTB_AddNode(BT_Node_GetNextPatrolWaypoint(BTT_PATROL_OBJECT_TAG, 5.0f, WAYPOINT_OBJECT));
                 BTB_AddNode(BT_Node_MoveToObject(WAYPOINT_OBJECT, 2.0f, FALSE));
-                BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_LOOK_FAR, 2));
+                BTB_StartRandomChild("Idle Animations");
+                    BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_LOOK_FAR, 3), "LookFar");
+                    BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_PAUSE_TIRED, 3), "Tired");
+                    BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_FIREFORGET_PAUSE_SCRATCH_HEAD, 2), "ScratchHead");
+                    BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_FIREFORGET_PAUSE_BORED, 4), "Bored");
+                BTB_End();
                 BTB_StartForceSuccess();
                     BTB_StartRandomCooldown(30, 31);
                         BTB_AddNode(BT_Node_SpeakString("Nothin' to see here..."));

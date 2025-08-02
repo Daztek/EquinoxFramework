@@ -46,6 +46,8 @@ const string BT_NODE_KEY_NAME                   = "Name";
 const string BT_NODE_KEY_INCLUDE                = "Include_";
 const string BT_NODE_KEY_FUNCTION               = "Function_";
 const string BT_NODE_KEY_DATA                   = "Data";
+const string BT_NODE_KEY_DEFAULT_INPUT          = "DefaultInput";
+const string BT_NODE_KEY_DEFAULT_OUTPUT         = "DefaultOutput";
 
 const int BT_NODE_TYPE_BASE                     = 0;
 const int BT_NODE_TYPE_COMPOSITE                = 1;

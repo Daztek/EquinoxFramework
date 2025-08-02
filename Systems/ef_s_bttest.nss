@@ -26,7 +26,7 @@ json BT_Node_GetNextPatrolWaypoint(string sTargetObjectVariable, string sWaypoin
     return jNode;
 }
 
-int BT_Node_GetNextPatrolWaypoint_Tick(json jNode, json jTickInfo)
+int BT_Node_GetNextPatrolWaypoint_Tick(json jNode)
 {
     object oSelf = OBJECT_SELF;
     string sWaypointPrefix = BT_Node_GetDataString(jNode, "WaypointPrefix");
@@ -71,12 +71,12 @@ json BT_Node_MoveToObject(string sTargetObjectVariable, float fDistanceTolerance
     return jNode;
 }
 
-void BT_Node_MoveToObject_Open(json jNode, json jTickInfo)
+void BT_Node_MoveToObject_Open(json jNode)
 {
     ClearAllActions();
 }
 
-int BT_Node_MoveToObject_Tick(json jNode, json jTickInfo)
+int BT_Node_MoveToObject_Tick(json jNode)
 {
     string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
     object oTarget = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(), sTargetObjectVariable);
@@ -109,7 +109,7 @@ json BT_Node_SpeakString(string sText)
     return jNode;
 }
 
-int BT_Node_SpeakString_Tick(json jNode, json jTickInfo)
+int BT_Node_SpeakString_Tick(json jNode)
 {
     string sText = BT_Node_GetDataString(jNode, "Text");
     SpeakString(sText, TALKVOLUME_TALK);
@@ -126,7 +126,7 @@ json BT_Node_PlayLoopingAnimation(int nAnimation, int nDuration)
     return jNode;
 }
 
-void BT_Node_PlayLoopingAnimation_Open(json jNode, json jTickInfo)
+void BT_Node_PlayLoopingAnimation_Open(json jNode)
 {
     int nAnimation = BT_Node_GetDataInt(jNode, "Animation");
 
@@ -135,7 +135,7 @@ void BT_Node_PlayLoopingAnimation_Open(json jNode, json jTickInfo)
     BT_Blackboard_ContextSetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime", SqlGetUnixEpoch());
 }
 
-int BT_Node_PlayLoopingAnimation_Tick(json jNode, json jTickInfo)
+int BT_Node_PlayLoopingAnimation_Tick(json jNode)
 {
     int nDuration = BT_Node_GetDataInt(jNode, "Duration");
     int nStartTime = BT_Blackboard_ContextGetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime");
@@ -156,13 +156,13 @@ json BT_Node_GetNearestSeat(string sTargetObjectVariable, string sSeatObjectTag)
     return jNode;
 }
 
-void BT_Node_GetNearestSeat_Open(json jNode, json jTickInfo)
+void BT_Node_GetNearestSeat_Open(json jNode)
 {
     string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
     BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), sTargetObjectVariable, OBJECT_INVALID);
 }
 
-int BT_Node_GetNearestSeat_Tick(json jNode, json jTickInfo)
+int BT_Node_GetNearestSeat_Tick(json jNode)
 {
     object oSelf = OBJECT_SELF;
     string sSeatObjectTag = BT_Node_GetDataString(jNode, "SeatObjectTag");
@@ -187,7 +187,7 @@ json BT_Node_Sit(string sTargetObjectVariable)
     return jNode;
 }
 
-int BT_Node_Sit_Tick(json jNode, json jTickInfo)
+int BT_Node_Sit_Tick(json jNode)
 {
     object oSelf = OBJECT_SELF;
     string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");

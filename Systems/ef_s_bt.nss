@@ -157,6 +157,10 @@ string BT_Node_GetDataString(json jNode, string sKey);
 void BT_Node_SetDataFloat(json jNode, string sKey, float fValue);
 float BT_Node_GetDataFloat(json jNode, string sKey);
 string BT_Node_GetDebugInfo(json jNode);
+void BT_Node_SetDefaultInput(json jNode, string sInput);
+string BT_Node_GetDefaultInput(json jNode);
+void BT_Node_SetDefaultOutput(json jNode, string sInput);
+string BT_Node_GetDefaultOutput(json jNode);
 
 void BT_Node_SetFunction(json jNode, int nFunctionType, string sInclude, string sFunction);
 void BT_Node_AddChild(json jNode, json jChild);
@@ -971,6 +975,26 @@ float BT_Node_GetDataFloat(json jNode, string sKey)
 string BT_Node_GetDebugInfo(json jNode)
 {
     return BT_Node_GetName(jNode) + "@" + IntToString(BT_Node_GetID(jNode));
+}
+
+void BT_Node_SetDefaultInput(json jNode, string sInput)
+{
+    BT_Node_SetDataString(jNode, BT_NODE_KEY_DEFAULT_INPUT, sInput);
+}
+
+string BT_Node_GetDefaultInput(json jNode)
+{
+    return BT_Node_GetDataString(jNode, BT_NODE_KEY_DEFAULT_INPUT);
+}
+
+void BT_Node_SetDefaultOutput(json jNode, string sInput)
+{
+    BT_Node_SetDataString(jNode, BT_NODE_KEY_DEFAULT_OUTPUT, sInput);
+}
+
+string BT_Node_GetDefaultOutput(json jNode)
+{
+    return BT_Node_GetDataString(jNode, BT_NODE_KEY_DEFAULT_OUTPUT);
 }
 
 /* *** Base Node *** */

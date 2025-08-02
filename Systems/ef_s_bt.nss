@@ -168,7 +168,6 @@ json BT_Node_Parallel(int nSuccessPolicy = BT_NODE_PARALLEL_SUCCESS_POLICY_ANY);
 json BT_Node_Inverter();
 json BT_Node_ForceSuccess();
 json BT_Node_ForceFailure();
-json BT_Node_Repeater(int nNumberOfRepeats);
 json BT_Node_Timeout(int nTimeout);
 json BT_Node_RandomTimeout(int nMinimumTimeout, int nRandomTimeout);
 json BT_Node_Probability(int nPercentage);
@@ -1239,51 +1238,6 @@ int BT_Node_ForceFailure_Tick(json jNode)
         nNodeState = BT_NODE_STATE_FAILURE;
 
     return nNodeState;
-}
-
-json BT_Node_Repeater(int nNumberOfRepeats)
-{
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_DECORATOR, "Repeater");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BT_SCRIPT_NAME, "BT_Node_Repeater_Tick");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_CLOSE, BT_SCRIPT_NAME, "BT_Node_Repeater_Close");
-    BT_Node_SetDataInt(jNode, "NumberOfRepeats", nNumberOfRepeats);
-    return jNode;
-}
-
-int BT_Node_Repeater_Tick(json jNode)
-{
-    json jChild = BT_Node_GetChildren(jNode);
-    if (JsonGetType(jChild) != JSON_TYPE_OBJECT)
-        return BT_NODE_STATE_ERROR;
-
-    struct BlackboardContext strBlackboardContext = BT_Blackboard_GetNodeContext(jNode);
-    int nNumberOfRepeats = BT_Node_GetDataInt(jNode, "NumberOfRepeats");
-    int nCurrentRepeatCount = BT_Blackboard_ContextGetInt(strBlackboardContext, "RepeatCount");
-    int bDoLoop = nCurrentRepeatCount < nNumberOfRepeats || nNumberOfRepeats == -1;
-
-    while (bDoLoop)
-    {
-        int nNodeState = BT_Node_Execute(jChild);
-        switch (nNodeState)
-        {
-            case BT_NODE_STATE_SUCCESS:
-            {
-                BT_Blackboard_ContextSetInt(strBlackboardContext, "RepeatCount", ++nCurrentRepeatCount);
-                bDoLoop = nCurrentRepeatCount < nNumberOfRepeats || nNumberOfRepeats == -1;
-                break;
-            }
-
-            case BT_NODE_STATE_FAILURE:
-            case BT_NODE_STATE_RUNNING:
-                return nNodeState;
-        }
-    }
-    return BT_NODE_STATE_SUCCESS;
-}
-
-void BT_Node_Repeater_Close(json jNode)
-{
-    BT_Blackboard_ContextSetInt(BT_Blackboard_GetNodeContext(jNode), "RepeatCount", 0);
 }
 
 json BT_Node_Timeout(int nTimeout)

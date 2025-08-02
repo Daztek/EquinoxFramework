@@ -76,7 +76,6 @@ void BTB_StartParallel(int nSuccessPolicy = BT_NODE_PARALLEL_SUCCESS_POLICY_ANY,
 void BTB_StartInverter();
 void BTB_StartForceSuccess();
 void BTB_StartForceFailure();
-void BTB_StartRepeater(int nNumberOfRepeats);
 void BTB_StartTimeout(int nTimeout);
 void BTB_StartRandomTimeout(int nMinimumTimeout, int nRandomTimeout);
 void BTB_StartProbability(int nPercentage);
@@ -310,11 +309,6 @@ void BTB_StartForceSuccess()
 void BTB_StartForceFailure()
 {
     BTB_StartNode(BT_Node_ForceFailure());
-}
-
-void BTB_StartRepeater(int nNumberOfRepeats)
-{
-    BTB_StartNode(BT_Node_Repeater(nNumberOfRepeats));
 }
 
 void BTB_StartTimeout(int nTimeout)

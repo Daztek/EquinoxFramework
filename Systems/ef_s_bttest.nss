@@ -15,11 +15,11 @@ const string BTT_GUARD_TAG              = "BT_GUARD";
 const string BTT_PATROL_WP_PREFIX       = "WP_PATROL_";
 const int BTT_NUM_PATROL_WAYPOINTS      = 5;
 
-json BT_Node_GetNextPatrolWaypoint(string sTargetObjectVariable, string sWaypointPrefix, int nNumberOfWaypoints, float fDistanceTolerance)
+json BT_Node_GetNextPatrolWaypoint(string sBBOutputVar, string sWaypointPrefix, int nNumberOfWaypoints, float fDistanceTolerance)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "GetNextPatrolWaypoint");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetNextPatrolWaypoint_Tick");
-    BT_Node_SetDataString(jNode, "TargetObjectVariable", sTargetObjectVariable);
+    BT_Node_SetDataString(jNode, "BBOutputVar", sBBOutputVar);
     BT_Node_SetDataString(jNode, "WaypointPrefix", sWaypointPrefix);
     BT_Node_SetDataInt(jNode, "NumberOfWaypoints", nNumberOfWaypoints);
     BT_Node_SetDataFloat(jNode, "DistanceTolerance", fDistanceTolerance);
@@ -52,20 +52,20 @@ int BT_Node_GetNextPatrolWaypoint_Tick(json jNode)
         float fDistanceTolerance = BT_Node_GetDataFloat(jNode, "DistanceTolerance");
         if (fCurrentDistance < fDistanceTolerance)
             oNextWaypoint = GetObjectByTag(sWaypointPrefix + IntToString((nSelectedIndex % nNumberOfWayPoints) + 1));
-        string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
-        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), sTargetObjectVariable, oNextWaypoint);
+        string sBBOutputVar = BT_Node_GetDataString(jNode, "BBOutputVar");
+        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), sBBOutputVar, oNextWaypoint);
         return BT_NODE_STATE_SUCCESS;
     }
 
     return BT_NODE_STATE_FAILURE;
 }
 
-json BT_Node_MoveToObject(string sTargetObjectVariable, float fDistanceTolerance, int bRun = FALSE)
+json BT_Node_MoveToObject(string sBBInputVar, float fDistanceTolerance, int bRun = FALSE)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "MoveToObject");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Open");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Tick");
-    BT_Node_SetDataString(jNode, "TargetObjectVariable", sTargetObjectVariable);
+    BT_Node_SetDataString(jNode, "BBInputVar", sBBInputVar);
     BT_Node_SetDataFloat(jNode, "DistanceTolerance", fDistanceTolerance);
     BT_Node_SetDataInt(jNode, "Run", bRun);
     return jNode;
@@ -78,8 +78,8 @@ void BT_Node_MoveToObject_Open(json jNode)
 
 int BT_Node_MoveToObject_Tick(json jNode)
 {
-    string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
-    object oTarget = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(), sTargetObjectVariable);
+    string sBBInputVar = BT_Node_GetDataString(jNode, "BBInputVar");
+    object oTarget = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(), sBBInputVar);
 
     if (!GetIsObjectValid(oTarget))
         return BT_NODE_STATE_FAILURE;
@@ -129,9 +129,10 @@ json BT_Node_PlayLoopingAnimation(int nAnimation, int nDuration)
 void BT_Node_PlayLoopingAnimation_Open(json jNode)
 {
     int nAnimation = BT_Node_GetDataInt(jNode, "Animation");
+    int nDuration = BT_Node_GetDataInt(jNode, "Duration");
 
     ClearAllActions();
-    ActionPlayAnimation(nAnimation, 1.0f, 86400.0f);
+    ActionPlayAnimation(nAnimation, 1.0f, IntToFloat(nDuration));
     BT_Blackboard_ContextSetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime", SqlGetUnixEpoch());
 }
 
@@ -141,25 +142,28 @@ int BT_Node_PlayLoopingAnimation_Tick(json jNode)
     int nStartTime = BT_Blackboard_ContextGetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime");
 
     if (SqlGetUnixEpoch() - nStartTime > nDuration)
+    {
+        ClearAllActions();
         return BT_NODE_STATE_SUCCESS;
+    }
     else
         return BT_NODE_STATE_RUNNING;
 }
 
-json BT_Node_GetNearestSeat(string sTargetObjectVariable, string sSeatObjectTag)
+json BT_Node_GetNearestSeat(string sBBOutputVar, string sSeatObjectTag)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "GetNearestSeat");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetNearestSeat_Open");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetNearestSeat_Tick");
-    BT_Node_SetDataString(jNode, "TargetObjectVariable", sTargetObjectVariable);
+    BT_Node_SetDataString(jNode, "BBOutputVar", sBBOutputVar);
     BT_Node_SetDataString(jNode, "SeatObjectTag", sSeatObjectTag);
     return jNode;
 }
 
 void BT_Node_GetNearestSeat_Open(json jNode)
 {
-    string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
-    BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), sTargetObjectVariable, OBJECT_INVALID);
+    string sBBOutputVar = BT_Node_GetDataString(jNode, "BBOutputVar");
+    BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), sBBOutputVar, OBJECT_INVALID);
 }
 
 int BT_Node_GetNearestSeat_Tick(json jNode)
@@ -170,8 +174,8 @@ int BT_Node_GetNearestSeat_Tick(json jNode)
 
     if (GetIsObjectValid(oSeat))
     {
-        string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
-        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), sTargetObjectVariable, oSeat);
+        string sBBOutputVar = BT_Node_GetDataString(jNode, "BBOutputVar");
+        BT_Blackboard_ContextSetObject(BT_Blackboard_GetTreeContext(), sBBOutputVar, oSeat);
         return BT_NODE_STATE_SUCCESS;
     }
 
@@ -179,19 +183,19 @@ int BT_Node_GetNearestSeat_Tick(json jNode)
 }
 
 
-json BT_Node_Sit(string sTargetObjectVariable)
+json BT_Node_Sit(string sBBInputVar)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "Sit");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_Sit_Tick");
-    BT_Node_SetDataString(jNode, "TargetObjectVariable", sTargetObjectVariable);
+    BT_Node_SetDataString(jNode, "BBInputVar", sBBInputVar);
     return jNode;
 }
 
 int BT_Node_Sit_Tick(json jNode)
 {
     object oSelf = OBJECT_SELF;
-    string sTargetObjectVariable = BT_Node_GetDataString(jNode, "TargetObjectVariable");
-    object oSeat = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(), sTargetObjectVariable);
+    string sBBInputVar = BT_Node_GetDataString(jNode, "BBInputVar");
+    object oSeat = BT_Blackboard_ContextGetObject(BT_Blackboard_GetTreeContext(), sBBInputVar);
 
     if (GetIsObjectValid(oSeat))
     {
@@ -215,7 +219,7 @@ void BTT_RecursiveTick(object oBehaviorTree, object oBlackboard, object oSelf)
     Profiler_Start("BTT_RecursiveTick");
     BT_BehaviorTree_Tick(oBehaviorTree, oBlackboard, oSelf);
     PrintString(Profiler_Stop());
-    DelayCommand(2.5f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oSelf));
+    DelayCommand(1.0f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oSelf));
 }
 
 // @CORE[CORE_SYSTEM_POST]

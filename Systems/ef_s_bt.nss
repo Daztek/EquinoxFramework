@@ -359,9 +359,7 @@ void BT_GraphViz_Update(json jNode)
 
 void BT_GraphViz_ResetLastResult(json jNode)
 {
-    struct BlackboardContext strBlackboardContext = BT_Blackboard_GetNodeContext(jNode);
-
-    BT_Blackboard_ContextDeleteInt(strBlackboardContext, BT_BLACKBOARD_KEY_LAST_RESULT);
+    BT_Blackboard_ContextDeleteInt(BT_Blackboard_GetNodeContext(jNode), BT_BLACKBOARD_KEY_LAST_RESULT);
 
     json jChildren = BT_Node_GetChildren(jNode);
     if (JsonGetType(jChildren) == JSON_TYPE_ARRAY)

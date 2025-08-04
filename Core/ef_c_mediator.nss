@@ -12,6 +12,7 @@ const string MEDIATOR_SCRIPT_NAME                       = "ef_c_mediator";
 const int MEDIATOR_PARSE_SYSTEM_FUNCTION_DEFINITIONS    = TRUE;
 const int MEDIATOR_PRECACHE_SYSTEM_FUNCTIONS            = FALSE;
 
+const string MEDIATOR_FUNCTION_EXISTS                   = "MediatorFunctionExists_";
 const string MEDIATOR_INVALID_FUNCTION                  = "MediatorInvalidFunction";
 const string MEDIATOR_CALLSTACK_DEPTH                   = "MediatorCallStackDepth";
 const string MEDIATOR_CALLSTACK_FUNCTION                = "MediatorCallStackFunction_";
@@ -192,11 +193,18 @@ int GetLambdaIdFromFunction(string sFunction)
 
 int FunctionExists(string sSystem, string sFunction)
 {
-    sqlquery sql = SqlPrepareQueryModule("SELECT function FROM " + MEDIATOR_SCRIPT_NAME + " WHERE " +
-                                         "system = @system AND function = @function;");
-    SqlBindString(sql, "@system", sSystem);
-    SqlBindString(sql, "@function", sFunction);
-    return SqlStep(sql);
+    object oDataObject = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    int nExists = GetLocalInt(oDataObject, MEDIATOR_FUNCTION_EXISTS + sSystem + sFunction);
+    if (!nExists)
+    {
+        sqlquery sql = SqlPrepareQueryModule("SELECT function FROM " + MEDIATOR_SCRIPT_NAME + " WHERE " +
+            "system = @system AND function = @function;");
+        SqlBindString(sql, "@system", sSystem);
+        SqlBindString(sql, "@function", sFunction);
+        nExists = SqlStep(sql) + 1;
+        SetLocalInt(oDataObject, MEDIATOR_FUNCTION_EXISTS + sSystem + sFunction, nExists);
+    }
+    return nExists == 2 ? TRUE : FALSE;
 }
 
 int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)

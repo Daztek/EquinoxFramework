@@ -13,6 +13,11 @@ const string NSS_RETURN_TYPE_VECTOR         = "vector";
 const string NSS_RETURN_TYPE_VOID           = "void";
 
 string nssVoidMain(string sContents);
+string nssIntMain(string sContents, int bAddReturnStatement = TRUE);
+string nssStringMain(string sContents, int bAddReturnStatement = TRUE);
+string nssFloatMain(string sContents, int bAddReturnStatement = TRUE);
+string nssObjectMain(string sContents, int bAddReturnStatement = TRUE);
+string nssJsonMain(string sContents, int bAddReturnStatement = TRUE);
 string nssStartingConditional(string sContents);
 string nssInclude(string sIncludeFile);
 string nssIf(string sLeft, string sComparison = "", string sRight = "");
@@ -39,6 +44,31 @@ string nssConvertType(string sType);
 string nssVoidMain(string sContents)
 {
     return "void main(){" + sContents + "}";
+}
+
+string nssIntMain(string sContents, int bAddReturnStatement = TRUE)
+{
+    return "int main(){" + (bAddReturnStatement ? "return " : "") + sContents + "}";
+}
+
+string nssStringMain(string sContents, int bAddReturnStatement = TRUE)
+{
+    return "string main(){" + (bAddReturnStatement ? "return " : "") + sContents + "}";
+}
+
+string nssFloatMain(string sContents, int bAddReturnStatement = TRUE)
+{
+    return "float main(){" + (bAddReturnStatement ? "return " : "") + sContents + "}";
+}
+
+string nssObjectMain(string sContents, int bAddReturnStatement = TRUE)
+{
+    return "object main(){" + (bAddReturnStatement ? "return " : "") + sContents + "}";
+}
+
+string nssJsonMain(string sContents, int bAddReturnStatement = TRUE)
+{
+    return "json main(){" + (bAddReturnStatement ? "return " : "") + sContents + "}";
 }
 
 string nssStartingConditional(string sContents)

@@ -3,7 +3,7 @@
     Author: Daz
 */
 
-#include "nwnx_util"
+#include "nwnx_json"
 
 json VectorToJson(vector vVector);
 vector JsonToVector(json jVector);
@@ -397,7 +397,7 @@ void JsonObjectSetVectorInplace(json jObject, string sKey, vector vValue)
 
 void JsonSetAtPointerInplace(json jParent, string sPointer, json jValue)
 {
-    NWNX_Util_SetAtPointerInplace(jParent, sPointer, jValue);
+    NWNX_Json_SetAtPointerInplace(jParent, sPointer, jValue);
 }
 
 void JsonObjectSetObjectInplace(json jObject, string sKey, object oValue)

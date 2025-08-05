@@ -12,7 +12,6 @@
 const string BTT_SCRIPT_NAME            = "ef_s_bttest";
 
 const string BTT_GUARD_TAG              = "BT_GUARD";
-const string BTT_PATROL_WAYPOINT_TAG    = "WP_EFPATROL";
 const string BTT_PATROL_WAYPOINT_PREFIX = "WP_EFPATROL_";
 const string BTT_PATROL_OBJECT_TAG      = "PatrolWaypoint";
 const string BTT_PATROL_CONNECTIONS     = "Connections";
@@ -20,12 +19,16 @@ const string BTT_PATROL_CONNECTIONS     = "Connections";
 // @CORE[CORE_SYSTEM_LOAD]
 void BTT_Load()
 {
-    object oPatrolWaypoint;
-    while ((oPatrolWaypoint = GetObjectByTag(BTT_PATROL_WAYPOINT_TAG, 0)) != OBJECT_INVALID)
+    string sQuery = "SELECT oid FROM gameobjects WHERE type = @type AND tag LIKE @tag;";
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
+    SqlBindInt(sql, "@type", OBJECT_TYPE_INTERNAL_WAYPOINT);
+    SqlBindString(sql, "@tag", BTT_PATROL_WAYPOINT_PREFIX + "%");
+
+    while (SqlStep(sql))
     {
-        string sID = GetLocalString(oPatrolWaypoint, "ID");
-        string sConnections = GetLocalString(oPatrolWaypoint, "Connections");
-        if (sID != "" && sConnections != "")
+        object oPatrolWaypoint = SqlGetObjectRef(sql, 0);
+        string sConnections = GetLocalString(oPatrolWaypoint, BTT_PATROL_CONNECTIONS);
+        if (sConnections != "")
         {
             json jConnections = JsonArray();
             json jRegex = RegExpIterate("[^,\\s][^,]*[^,\\s]*|[^,\\s]+", sConnections);
@@ -35,13 +38,11 @@ void BTT_Load()
                 JsonArrayInsertInplace(jConnections, JsonArrayGet(JsonArrayGet(jRegex, nIndex), 0));
             }
             SetLocalJson(oPatrolWaypoint, BTT_PATROL_CONNECTIONS, jConnections);
-            SetTag(oPatrolWaypoint, BTT_PATROL_WAYPOINT_PREFIX + sID);
             ObjectTag_Add(oPatrolWaypoint, BTT_PATROL_OBJECT_TAG);
         }
         else
         {
-            LogWarning("Patrol Waypoint without ID or Connections!");
-            SetTag(oPatrolWaypoint, BTT_PATROL_WAYPOINT_PREFIX + "ERROR");
+            LogWarning("Patrol Waypoint without Connections!");
         }
     }
 }
@@ -226,9 +227,9 @@ int BT_Node_Sit_Tick(json jNode)
 
 void BTT_RecursiveTick(object oBehaviorTree, object oBlackboard, object oSelf)
 {
-    Profiler_Start("BTT_RecursiveTick");
+    //Profiler_Start("BTT_RecursiveTick");
     BT_BehaviorTree_Tick(oBehaviorTree, oBlackboard, oSelf);
-    PrintString(Profiler_Stop());
+   // PrintString(Profiler_Stop());
     DelayCommand(1.0f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oSelf));
 }
 

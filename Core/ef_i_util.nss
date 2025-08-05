@@ -9,6 +9,20 @@
 
 const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
 
+const int OBJECT_TYPE_INTERNAL_MODULE       = 3;
+const int OBJECT_TYPE_INTERNAL_AREA         = 4;
+const int OBJECT_TYPE_INTERNAL_CREATURE     = 5;
+const int OBJECT_TYPE_INTERNAL_ITEM         = 6;
+const int OBJECT_TYPE_INTERNAL_TRIGGER      = 7;
+const int OBJECT_TYPE_INTERNAL_PLACEABLE    = 9;
+const int OBJECT_TYPE_INTERNAL_DOOR         = 10;
+const int OBJECT_TYPE_INTERNAL_AREAOFEFFECT = 11;
+const int OBJECT_TYPE_INTERNAL_WAYPOINT     = 12;
+const int OBJECT_TYPE_INTERNAL_ENCOUNTER    = 13;
+const int OBJECT_TYPE_INTERNAL_STORE        = 14;
+const int OBJECT_TYPE_INTERNAL_PORTAL       = 15;
+const int OBJECT_TYPE_INTERNAL_SOUND        = 16;
+
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "", json jArray = JSON_NULL);
 void RemoveEffectsWithTag(object oObject, string sTag);
 string Get2DAStrRefString(string s2DA, string sColumn, int nRow);

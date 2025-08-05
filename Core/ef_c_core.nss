@@ -8,7 +8,6 @@
 #include "ef_c_log"
 #include "ef_c_mediator"
 #include "nwnx_admin"
-#include "nwnx_util"
 
 const string CORE_SCRIPT_NAME                         = "ef_c_core";
 const int CORE_VALIDATE_SYSTEMS                       = TRUE;
@@ -31,7 +30,7 @@ void Core_Init()
     LogInfo("Starting Equinox Framework...");
 
     NWNX_Administration_SetPlayerPassword(GetRandomUUID());
-    NWNX_Util_SetInstructionLimit(NWNX_Util_GetInstructionLimit() * 64);
+    NWNX_VM_SetInstructionLimit(NWNX_VM_GetInstructionLimit() * 64);
 
     Core_InitializeSystemData();
 
@@ -55,7 +54,7 @@ void Core_Init()
     Core_ExecuteCoreFunction(CORE_SYSTEM_POST);
 
     NWNX_Administration_SetPlayerPassword("");
-    NWNX_Util_SetInstructionLimit(-1);
+    NWNX_VM_SetInstructionLimit(-1);
 }
 
 void Core_InitializeSystemData()

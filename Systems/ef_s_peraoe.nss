@@ -7,6 +7,7 @@
 #include "ef_c_log"
 #include "ef_s_eventman"
 #include "nwnx_object"
+#include "nwnx_util"
 
 const string PERAOE_SCRIPT_NAME         = "ef_s_peraoe";
 const int AOE_MOB_CUSTOM                = 37;

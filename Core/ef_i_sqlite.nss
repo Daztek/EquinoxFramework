@@ -16,7 +16,7 @@ int SqlGetLastInsertIdCampaign(string sDatabase);
 int SqlGetLastInsertIdObject(object oObject);
 int SqlGetAffectedRowsCampaign(string sDatabase);
 int SqlGetAffectedRowsObject(object oObject);
-sqlquery SqlPrepareQueryModule(string sQuery);
+sqlquery SqlPrepareQueryModule(string sQuery, int bClearFunctionResultCache = TRUE);
 void SqlBeginTransactionCampaign(string sDatabase);
 void SqlCommitTransactionCampaign(string sDatabase);
 void SqlBeginTransactionObject(object oObject);
@@ -81,8 +81,10 @@ int SqlGetAffectedRowsObject(object oObject)
     return SqlStep(sql) ? SqlGetInt(sql, 0) : -1;
 }
 
-sqlquery SqlPrepareQueryModule(string sQuery)
+sqlquery SqlPrepareQueryModule(string sQuery, int bClearFunctionResultCache = TRUE)
 {
+    if (bClearFunctionResultCache)
+        NWNX_NWSQLiteExtensions_ClearFunctionResultCache();
     return SqlPrepareQueryObject(GetModule(), sQuery);
 }
 

@@ -23,9 +23,7 @@ const string OBJSIT_SEAT_OBJECT_TAG     = "SEAT";
 // @CORE[CORE_SYSTEM_LOAD]
 void ObjSit_Load()
 {
-    object oSpawnpoint;
     int nObjectDispatchListId = EM_GetObjectDispatchListId(OBJSIT_SCRIPT_NAME, EVENT_SCRIPT_PLACEABLE_ON_USED);
-    int nNth;
 
     struct GffTools_PlaceableData pdSingle;
     pdSingle.nModel = 179;
@@ -37,14 +35,6 @@ void ObjSit_Load()
     pdSingle.scriptOnUsed = TRUE;
     pdSingle.fFacingAdjustment = 180.0f;
     json jChair = GffTools_GeneratePlaceable(pdSingle);
-    nNth = 0;
-    while ((oSpawnpoint = GetObjectByTag(OBJSIT_SINGLE_SPAWN_TAG, nNth++)) != OBJECT_INVALID)
-    {
-        object oChair = GffTools_CreatePlaceable(jChair, GetLocation(oSpawnpoint));
-        ObjectTag_Add(oChair, OBJSIT_SEAT_OBJECT_TAG);
-        EM_ObjectDispatchListInsert(oChair, nObjectDispatchListId);
-    }
-    LogInfo("Created '" + IntToString(--nNth) + "' Single Sitting Objects");
 
     struct GffTools_PlaceableData pdDouble;
     pdDouble.nModel = 178;
@@ -58,21 +48,46 @@ void ObjSit_Load()
     json jBench = GffTools_GeneratePlaceable(pdDouble);
 
     string lmbdCreateSeat = Lambda(
-        "{ object oSelf = OBJECT_SELF; object oArea = GetArea(oSelf); vector vPosition = GetPosition(oSelf); float fFacing = GetFacing(oSelf);" +
-        "  location locSpawn = Location(oArea, vPosition + (AngleToVector(fFacing + (arg1 ? 90.0f : -90.0f)) / 2.0f), fFacing);" +
-        "  object oSeat = CreateObject(OBJECT_TYPE_PLACEABLE, GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, locSpawn);" +
-        "  SetPlotFlag(oSeat, TRUE); SetLocalObject(oSelf, \"SEAT_\" + (arg1 ? \"1\" : \"2\"), oSeat); return oSeat; }",
-        "i", "o", "ef_s_objsit");
+    "{ object oSelf = OBJECT_SELF; object oArea = GetArea(oSelf); vector vPosition = GetPosition(oSelf); float fFacing = GetFacing(oSelf);" +
+    "  location locSpawn = Location(oArea, vPosition + (AngleToVector(fFacing + (arg1 ? 90.0f : -90.0f)) / 2.0f), fFacing);" +
+    "  object oSeat = CreateObject(OBJECT_TYPE_PLACEABLE, GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, locSpawn);" +
+    "  SetPlotFlag(oSeat, TRUE); SetLocalObject(oSelf, \"SEAT_\" + (arg1 ? \"1\" : \"2\"), oSeat); return oSeat; }",
+    "i", "o", "ef_s_objsit");
 
-    nNth = 0;
-    while ((oSpawnpoint = GetObjectByTag(OBJSIT_DOUBLE_SPAWN_TAG, nNth++)) != OBJECT_INVALID)
+    string sQuery = "SELECT oid, tag FROM gameobjects WHERE type = @type AND (tag = @tag1 OR tag = @tag2);";
+    sqlquery sql = SqlPrepareQueryModule(sQuery);
+    SqlBindInt(sql, "@type", OBJECT_TYPE_INTERNAL_WAYPOINT);
+    SqlBindString(sql, "@tag1", OBJSIT_SINGLE_SPAWN_TAG);
+    SqlBindString(sql, "@tag2", OBJSIT_DOUBLE_SPAWN_TAG);
+
+    int nSingle = 0;
+    int nDouble = 0;
+
+    while (SqlStep(sql))
     {
-        object oBench = GffTools_CreatePlaceable(jBench, GetLocation(oSpawnpoint));
-        ObjectTag_Add(RetObject(Call(lmbdCreateSeat, IntArg(TRUE), oBench)), OBJSIT_SEAT_OBJECT_TAG);
-        ObjectTag_Add(RetObject(Call(lmbdCreateSeat, IntArg(FALSE), oBench)), OBJSIT_SEAT_OBJECT_TAG);
-        EM_ObjectDispatchListInsert(oBench, nObjectDispatchListId);
+        object oSpawnpoint = SqlGetObjectRef(sql, 0);
+        string sTag = SqlGetString(sql, 1);
+
+        object oSeat;
+        if (sTag == OBJSIT_SINGLE_SPAWN_TAG)
+        {
+            oSeat = GffTools_CreatePlaceable(jChair, GetLocation(oSpawnpoint));
+            ObjectTag_Add(oSeat, OBJSIT_SEAT_OBJECT_TAG);
+            EM_ObjectDispatchListInsert(oSeat, nObjectDispatchListId);
+            nSingle++;
+        }
+        else if (sTag == OBJSIT_DOUBLE_SPAWN_TAG)
+        {
+            object oBench = GffTools_CreatePlaceable(jBench, GetLocation(oSpawnpoint));
+            ObjectTag_Add(RetObject(Call(lmbdCreateSeat, IntArg(TRUE), oBench)), OBJSIT_SEAT_OBJECT_TAG);
+            ObjectTag_Add(RetObject(Call(lmbdCreateSeat, IntArg(FALSE), oBench)), OBJSIT_SEAT_OBJECT_TAG);
+            EM_ObjectDispatchListInsert(oBench, nObjectDispatchListId);
+            nDouble++;
+        }
     }
-    LogInfo("Created '" + IntToString(--nNth) + "' Double Sitting Objects");
+
+    LogInfo("Created '" + IntToString(nSingle) + "' Single Sitting Objects");
+    LogInfo("Created '" + IntToString(nDouble) + "' Double Sitting Objects");
 }
 
 // @EVENT[EVENT_SCRIPT_PLACEABLE_ON_USED:DL]

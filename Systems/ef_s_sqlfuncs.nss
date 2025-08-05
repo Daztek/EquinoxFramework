@@ -2,57 +2,99 @@
     Script: ef_s_sqlfuncs
     Author: Daz
 
-    @SQLFUNCTION[NAME:ARGUMENTCOUNT:DETERMINISTIC]
+    @SQLFUNCTION[NAME:DETERMINISTIC]
 */
 
 #include "ef_i_include"
 #include "ef_c_annotations"
 #include "ef_c_log"
-#include "ef_c_profiler"
 
 const string SQLFUNCTIONS_SCRIPT_NAME   = "ef_s_sqlfuncs";
 
-int SqlFunctions_GetArgInt(int nArg);
-float SqlFunctions_GetArgFloat(int nArg);
-string SqlFunctions_GetArgString(int nArg);
-object SqlFunctions_GetArgObject(int nArg);
+json SQLFunctions_ParseParameters(struct AnnotationData str)
+{
+    if (FindSubString(str.sParameters, "=", 0) != -1)
+    {
+        LogError("Function '" + str.sSystem + ":" + str.sFunction + "' cannot have default arguments.");
+        return JsonNull();
+    }
+
+    json jRawParameters = RegExpIterate("[^,\\s][^,]*[^,\\s]*|[^,\\s]+", str.sParameters);
+    int nIndex, nNumParameters = JsonGetLength(jRawParameters);
+    string sArguments;
+    for (nIndex = 0; nIndex < nNumParameters; nIndex++)
+    {
+        string sParameter = JsonArrayGetString(JsonArrayGet(jRawParameters, nIndex), 0);
+        string sType = GetStringLeft(sParameter, FindSubString(sParameter, " ", 0));
+
+        if (nIndex)
+            sArguments += ",";
+
+        if (sType == NSS_TYPE_INT)
+            sArguments += "GetLocalInt(oModule, \"CF_ARG_" + IntToString(nIndex + 1) + "\")";
+        else if (sType == NSS_TYPE_STRING)
+            sArguments += "GetLocalString(oModule, \"CF_ARG_" + IntToString(nIndex + 1) + "\")";
+        else if (sType == NSS_TYPE_FLOAT)
+            sArguments += "GetLocalFloat(oModule, \"CF_ARG_" + IntToString(nIndex + 1) + "\")";
+        else if (sType == NSS_TYPE_OBJECT)
+            sArguments += "GetLocalObject(oModule, \"CF_ARG_" + IntToString(nIndex + 1) + "\")";
+        else
+        {
+            LogError("Function '" + str.sSystem + ":" + str.sFunction + "' has invalid parameter type: " + sType);
+            return JsonNull();
+        }
+    }
+
+    json jParsedParameters = JsonArray();
+    JsonArrayInsertIntInplace(jParsedParameters, nNumParameters);
+    JsonArrayInsertStringInplace(jParsedParameters, sArguments);
+
+    return jParsedParameters;
+}
 
 // @PAD[SQLFUNCTION]
 void SqlFunctions_RegisterFunction(struct AnnotationData str)
 {
-    if (str.sReturnType != NSS_RETURN_TYPE_INT &&
-        str.sReturnType != NSS_RETURN_TYPE_STRING &&
-        str.sReturnType != NSS_RETURN_TYPE_FLOAT &&
-        str.sReturnType != NSS_RETURN_TYPE_OBJECT)
+    if (str.sReturnType != NSS_TYPE_INT &&
+        str.sReturnType != NSS_TYPE_STRING &&
+        str.sReturnType != NSS_TYPE_FLOAT &&
+        str.sReturnType != NSS_TYPE_OBJECT)
     {
         LogError("Function '" + str.sSystem + ":" + str.sFunction + "' has an invalid return type!");
         return;
     }
 
     string sName = GetAnnotationStringConstantValue(str, 0);
-    int nArgumentCount = GetAnnotationIntConstantValue(str, 1);
-    int bDeterministic = GetAnnotationIntConstantValue(str, 2);
+    int bDeterministic = GetAnnotationIntConstantValue(str, 1);
+    json jParsedParameters = SQLFunctions_ParseParameters(str);
+
+    if (!JsonGetType(jParsedParameters))
+        return;
+
+    int nArgumentCount = JsonArrayGetInt(jParsedParameters, 0);
+    string sArguments = JsonArrayGetString(jParsedParameters, 1);
+    string sContents = nssObject("oModule", "GetModule()") + " return " + nssFunction(str.sFunction, sArguments);
 
     string sMain;
     int nReturnType;
-    if (str.sReturnType == NSS_RETURN_TYPE_INT)
+    if (str.sReturnType == NSS_TYPE_INT)
     {
-        sMain = nssIntMain(nssFunction(str.sFunction));
+        sMain = nssIntMain(sContents, FALSE);
         nReturnType = NWNX_NWSQLITEEXTENSIONS_RETURN_TYPE_INT;
     }
-    else if (str.sReturnType == NSS_RETURN_TYPE_STRING)
+    else if (str.sReturnType == NSS_TYPE_STRING)
     {
-        sMain = nssStringMain(nssFunction(str.sFunction));
+        sMain = nssStringMain(sContents, FALSE);
         nReturnType = NWNX_NWSQLITEEXTENSIONS_RETURN_TYPE_STRING;
     }
-    else if (str.sReturnType == NSS_RETURN_TYPE_FLOAT)
+    else if (str.sReturnType == NSS_TYPE_FLOAT)
     {
-        sMain = nssFloatMain(nssFunction(str.sFunction));
+        sMain = nssFloatMain(sContents, FALSE);
         nReturnType = NWNX_NWSQLITEEXTENSIONS_RETURN_TYPE_FLOAT;
     }
-    else if (str.sReturnType == NSS_RETURN_TYPE_OBJECT)
+    else if (str.sReturnType == NSS_TYPE_OBJECT)
     {
-        sMain = nssObjectMain(nssFunction(str.sFunction));
+        sMain = nssObjectMain(sContents, FALSE);
         nReturnType = NWNX_NWSQLITEEXTENSIONS_RETURN_TYPE_OBJECT;
     }
 
@@ -68,24 +110,4 @@ void SqlFunctions_RegisterFunction(struct AnnotationData str)
     {
         LogWarning("System '" + str.sSystem + "' failed to register SQL function '" + str.sFunction + "' with name '" + sName + "'");
     }
-}
-
-int SqlFunctions_GetArgInt(int nArg)
-{
-    return GetLocalInt(GetModule(), "CF_ARG_" + IntToString(nArg));
-}
-
-float SqlFunctions_GetArgFloat(int nArg)
-{
-    return GetLocalFloat(GetModule(), "CF_ARG_" + IntToString(nArg));
-}
-
-string SqlFunctions_GetArgString(int nArg)
-{
-    return GetLocalString(GetModule(), "CF_ARG_" + IntToString(nArg));
-}
-
-object SqlFunctions_GetArgObject(int nArg)
-{
-    return GetLocalObject(GetModule(), "CF_ARG_" + IntToString(nArg));
 }

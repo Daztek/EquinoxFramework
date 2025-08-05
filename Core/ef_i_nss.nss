@@ -3,14 +3,14 @@
     Author: Daz
 */
 
-const string NSS_RETURN_TYPE_FLOAT          = "float";
-const string NSS_RETURN_TYPE_INT            = "int";
-const string NSS_RETURN_TYPE_JSON           = "json";
-const string NSS_RETURN_TYPE_LOCATION       = "location";
-const string NSS_RETURN_TYPE_OBJECT         = "object";
-const string NSS_RETURN_TYPE_STRING         = "string";
-const string NSS_RETURN_TYPE_VECTOR         = "vector";
-const string NSS_RETURN_TYPE_VOID           = "void";
+const string NSS_TYPE_FLOAT         = "float";
+const string NSS_TYPE_INT           = "int";
+const string NSS_TYPE_JSON          = "json";
+const string NSS_TYPE_LOCATION      = "location";
+const string NSS_TYPE_OBJECT        = "object";
+const string NSS_TYPE_STRING        = "string";
+const string NSS_TYPE_VECTOR        = "vector";
+const string NSS_TYPE_VOID          = "void";
 
 string nssVoidMain(string sContents);
 string nssIntMain(string sContents, int bAddReturnStatement = TRUE);
@@ -197,13 +197,13 @@ string nssConvertType(string sType)
     string sReturn;
     sType = GetStringLowerCase(sType);
 
-    if (sType == NSS_RETURN_TYPE_OBJECT)        sReturn = "o";
-    else if (sType == NSS_RETURN_TYPE_STRING)   sReturn = "s";
-    else if (sType == NSS_RETURN_TYPE_INT)      sReturn = "i";
-    else if (sType == NSS_RETURN_TYPE_FLOAT)    sReturn = "f";
-    else if (sType == NSS_RETURN_TYPE_LOCATION) sReturn = "l";
-    else if (sType == NSS_RETURN_TYPE_VECTOR)   sReturn = "v";
-    else if (sType == NSS_RETURN_TYPE_JSON)     sReturn = "j";
+    if (sType == NSS_TYPE_OBJECT)        sReturn = "o";
+    else if (sType == NSS_TYPE_STRING)   sReturn = "s";
+    else if (sType == NSS_TYPE_INT)      sReturn = "i";
+    else if (sType == NSS_TYPE_FLOAT)    sReturn = "f";
+    else if (sType == NSS_TYPE_LOCATION) sReturn = "l";
+    else if (sType == NSS_TYPE_VECTOR)   sReturn = "v";
+    else if (sType == NSS_TYPE_JSON)     sReturn = "j";
 
     return sReturn;
 }

@@ -104,7 +104,7 @@ void MusMan_Init()
 // @PAD[MUSICEVENT]
 void MusMan_RegisterMusicEvent(struct AnnotationData str)
 {
-    if (str.sReturnType != NSS_RETURN_TYPE_JSON)
+    if (str.sReturnType != NSS_TYPE_JSON)
     {
         LogError("Music event track function '" + str.sSystem + ":" + str.sFunction + "' has non-json return value!");
         return;

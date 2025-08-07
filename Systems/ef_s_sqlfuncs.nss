@@ -60,17 +60,17 @@ void SqlFunctions_RegisterFunction(struct AnnotationData str)
         str.sReturnType != NSS_TYPE_FLOAT &&
         str.sReturnType != NSS_TYPE_OBJECT)
     {
-        LogError("Function '" + str.sSystem + ":" + str.sFunction + "' has an invalid return type!");
+        LogError("Function '" + str.sSystem + ":" + str.sFunction + "' has an invalid return type: " + str.sReturnType);
         return;
     }
 
-    string sName = GetAnnotationStringConstantValue(str, 0);
-    int bDeterministic = GetAnnotationIntConstantValue(str, 1);
     json jParsedParameters = SQLFunctions_ParseParameters(str);
 
     if (!JsonGetType(jParsedParameters))
         return;
 
+    string sName = GetAnnotationStringConstantValue(str, 0);
+    int bDeterministic = GetAnnotationIntConstantValue(str, 1);
     int nArgumentCount = JsonArrayGetInt(jParsedParameters, 0);
     string sArguments = JsonArrayGetString(jParsedParameters, 1);
     string sContents = nssObject("oModule", "GetModule()") + " return " + nssFunction(str.sFunction, sArguments);
@@ -99,7 +99,7 @@ void SqlFunctions_RegisterFunction(struct AnnotationData str)
     }
 
     string sScriptChunk = nssInclude(str.sSystem) + sMain;
-    int nRetVal = NWNX_NWSQLiteExtensions_RegisterCustomFunction(sName, sScriptChunk, nArgumentCount, nReturnType, bDeterministic);
+    int nRetVal = NWNX_NWSQLiteExtensions_RegisterCustomFunction(GetStringUpperCase(sName), sScriptChunk, nArgumentCount, nReturnType, bDeterministic);
 
     if (nRetVal)
     {
@@ -108,6 +108,6 @@ void SqlFunctions_RegisterFunction(struct AnnotationData str)
     }
     else
     {
-        LogWarning("System '" + str.sSystem + "' failed to register SQL function '" + str.sFunction + "' with name '" + sName + "'");
+        LogError("System '" + str.sSystem + "' failed to register SQL function '" + str.sFunction + "' with name '" + sName + "'");
     }
 }

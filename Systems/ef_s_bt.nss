@@ -17,10 +17,12 @@ const int BT_GRAPHVIZ_ENABLED                   = FALSE;
 
 const string BT_BLACKBOARD_TAG_PREFIX           = "BTBB_";
 const string BT_BLACKBOARD_KEY_IS_OPEN          = "IsOpen";
-const string BT_BLACKBOARD_KEY_OPEN_NODES       = "OpenNodes";
-const string BT_BLACKBOARD_KEY_NODE_COUNT       = "NodeCount";
+const string BT_BLACKBOARD_KEY_LAST_TICKINFO    = "LastTickInfo";
 const string BT_BLACKBOARD_KEY_RUNNING_CHILD    = "RunningChild";
 const string BT_BLACKBOARD_KEY_LAST_RESULT      = "LastResult";
+
+const string BT_TICKINFO_KEY_OPEN_NODES         = "OpenNodes";
+const string BT_TICKINFO_KEY_OPEN_NODE_IDS      = "OpenNodeIDs";
 
 const string BT_BEHAVIORTREE_TAG_PREFIX         = "BT_";
 const string BT_BEHAVIORTREE_ID                 = "BehaviorTreeID";
@@ -120,8 +122,8 @@ json BT_Blackboard_ContextGetJson(struct BlackboardContext strBlackboardContext,
 void BT_Blackboard_ContextDeleteJson(struct BlackboardContext strBlackboardContext, string sKey);
 
 json BT_TickInfo_Initialize();
+json BT_TickInfo_GetOpenNodeIDs(json jTickInfo);
 json BT_TickInfo_GetOpenNodes(json jTickInfo);
-int BT_TickInfo_GetNodeCount(json jTickInfo);
 void BT_TickInfo_EnterNode(json jTickInfo, json jNode);
 void BT_TickInfo_OpenNode(json jTickInfo, json jNode);
 void BT_TickInfo_TickNode(json jTickInfo, json jNode);
@@ -628,19 +630,19 @@ void BT_Blackboard_ContextDeleteJson(struct BlackboardContext strBlackboardConte
 json BT_TickInfo_Initialize()
 {
     json jTickInfo = JsonObject();
-    JsonObjectSetInplace(jTickInfo, "OpenNodes", JsonArray());
-    JsonObjectSetIntInplace(jTickInfo, "NodeCount", 0);
+    JsonObjectSetInplace(jTickInfo, BT_TICKINFO_KEY_OPEN_NODE_IDS, JsonArray());
+    JsonObjectSetInplace(jTickInfo, BT_TICKINFO_KEY_OPEN_NODES, JsonArray());
     return jTickInfo;
+}
+
+json BT_TickInfo_GetOpenNodeIDs(json jTickInfo)
+{
+    return JsonObjectGet(jTickInfo, BT_TICKINFO_KEY_OPEN_NODE_IDS);
 }
 
 json BT_TickInfo_GetOpenNodes(json jTickInfo)
 {
-    return JsonObjectGet(jTickInfo, "OpenNodes");
-}
-
-int BT_TickInfo_GetNodeCount(json jTickInfo)
-{
-    return JsonObjectGetInt(jTickInfo, "NodeCount");
+    return JsonObjectGet(jTickInfo, BT_TICKINFO_KEY_OPEN_NODES);
 }
 
 void BT_TickInfo_EnterNode(json jTickInfo, json jNode)
@@ -648,8 +650,13 @@ void BT_TickInfo_EnterNode(json jTickInfo, json jNode)
     if (BT_DEBUG_LOG_TICK_INFO)
         LogDebug("BT_TickInfo_EnterNode: " + BT_Node_GetDebugInfo(jNode));
 
-    JsonSetAtPointerInplace(jTickInfo, "/" + BT_BLACKBOARD_KEY_NODE_COUNT, JsonInt(BT_TickInfo_GetNodeCount(jTickInfo) + 1));
-    JsonSetAtPointerInplace(jTickInfo, "/" + BT_BLACKBOARD_KEY_OPEN_NODES + "/" + IntToString(JsonGetLength(BT_TickInfo_GetOpenNodes(jTickInfo))), jNode);
+    json jOpenNodeIDs = BT_TickInfo_GetOpenNodeIDs(jTickInfo);
+    JsonArrayInsertIntInplace(jOpenNodeIDs, BT_Node_GetID(jNode));
+    JsonObjectSet(jTickInfo, BT_TICKINFO_KEY_OPEN_NODE_IDS, jOpenNodeIDs);
+
+    json jOpenNodes = BT_TickInfo_GetOpenNodes(jTickInfo);
+    JsonArrayInsertInplace(jOpenNodes, jNode);
+    JsonObjectSet(jTickInfo, BT_TICKINFO_KEY_OPEN_NODES, jOpenNodes);
 }
 
 void BT_TickInfo_OpenNode(json jTickInfo, json jNode)
@@ -669,14 +676,15 @@ void BT_TickInfo_CloseNode(json jTickInfo, json jNode)
     if (BT_DEBUG_LOG_TICK_INFO)
         LogDebug("BT_TickInfo_CloseNode: " + BT_Node_GetDebugInfo(jNode));
 
-    json jOpenNodes = BT_TickInfo_GetOpenNodes(jTickInfo);
-    int nNumNodes = JsonGetLength(jOpenNodes);
+    json jOpenNodeIDs = BT_TickInfo_GetOpenNodeIDs(jTickInfo);
+    int nNumNodes = JsonGetLength(jOpenNodeIDs);
+
     if (!nNumNodes) return;
 
     int nIndex, nNodeID = BT_Node_GetID(jNode), bFound = FALSE;
     for (nIndex = nNumNodes - 1; nIndex >= 0; nIndex--)
     {
-        if (BT_Node_GetID(JsonArrayGet(jOpenNodes, nIndex)) == nNodeID)
+        if (JsonArrayGetInt(jOpenNodeIDs, nIndex) == nNodeID)
         {
             bFound = TRUE;
             break;
@@ -688,8 +696,11 @@ void BT_TickInfo_CloseNode(json jTickInfo, json jNode)
         if (nIndex != (nNumNodes - 1))
             LogWarning(BT_Node_GetDebugInfo(jNode) + ": closing node is not the last element");
 
+        JsonArrayDelInplace(jOpenNodeIDs, nIndex);
+        JsonObjectSetInplace(jTickInfo, BT_TICKINFO_KEY_OPEN_NODE_IDS, jOpenNodeIDs);
+        json jOpenNodes = BT_TickInfo_GetOpenNodes(jTickInfo);
         JsonArrayDelInplace(jOpenNodes, nIndex);
-        JsonSetAtPointerInplace(jTickInfo, "/" + BT_BLACKBOARD_KEY_OPEN_NODES, jOpenNodes);
+        JsonObjectSetInplace(jTickInfo, BT_TICKINFO_KEY_OPEN_NODES, jOpenNodes);
     }
 }
 
@@ -760,37 +771,39 @@ void BT_BehaviorTree_Tick(object oBehaviorTree, object oBlackboard, object oSelf
     }
 
     int nBehaviorTreeID = BT_BehaviorTree_GetID(oBehaviorTree);
-    json jLastOpenNodes = BT_Blackboard_GetJson(oBlackboard, BT_BLACKBOARD_KEY_OPEN_NODES, nBehaviorTreeID);
-    int nLastOpenNodesLength = JsonGetLength(jLastOpenNodes);
-    json jCurrentOpenNodes = BT_TickInfo_GetOpenNodes(jTickInfo);
-    int nCurrentOpenNodesLength = JsonGetLength(jCurrentOpenNodes);
+    json jLastTickInfo = BT_Blackboard_GetJson(oBlackboard, BT_BLACKBOARD_KEY_LAST_TICKINFO, nBehaviorTreeID);
+    json jLastOpenNodesIDs = BT_TickInfo_GetOpenNodeIDs(jLastTickInfo);
+    int nLastOpenNodesIDsLength = JsonGetLength(jLastOpenNodesIDs);
+    json jCurrentOpenNodeIDs = BT_TickInfo_GetOpenNodeIDs(jTickInfo);
+    int nCurrentOpenNodesIDsLength = JsonGetLength(jCurrentOpenNodeIDs);
 
-    int nIndex, nStart = nLastOpenNodesLength, nNumNodes = min(nLastOpenNodesLength, nCurrentOpenNodesLength);
+    int nIndex, nStart = nLastOpenNodesIDsLength, nNumNodes = min(nLastOpenNodesIDsLength, nCurrentOpenNodesIDsLength);
     for (nIndex = 0; nIndex < nNumNodes; nIndex++)
     {
-        if (BT_Node_GetID(JsonArrayGet(jLastOpenNodes, nIndex)) != BT_Node_GetID(JsonArrayGet(jCurrentOpenNodes, nIndex)))
+        if (JsonArrayGet(jLastOpenNodesIDs, nIndex) != JsonArrayGet(jCurrentOpenNodeIDs, nIndex))
         {
             nStart = nIndex;
             break;
         }
     }
 
-    if (nStart == nLastOpenNodesLength && nLastOpenNodesLength > nCurrentOpenNodesLength)
-        nStart = nCurrentOpenNodesLength;
+    if (nStart == nLastOpenNodesIDsLength && nLastOpenNodesIDsLength > nCurrentOpenNodesIDsLength)
+        nStart = nCurrentOpenNodesIDsLength;
 
-    for (nIndex = nLastOpenNodesLength - 1; nIndex >= nStart; nIndex--)
+    json jLastOpenNodes = BT_TickInfo_GetOpenNodes(jLastTickInfo);
+    int bGraphVizEnabled = BT_GRAPHVIZ_ENABLED && BT_BehaviorTree_GetGraphVizEnabled(oBehaviorTree);
+    for (nIndex = nLastOpenNodesIDsLength - 1; nIndex >= nStart; nIndex--)
     {
-        json jNode = JsonArrayGet(jLastOpenNodes, nIndex);
-        if (BT_Blackboard_GetInt(oBlackboard, BT_BLACKBOARD_KEY_IS_OPEN, nBehaviorTreeID, BT_Node_GetID(jNode)))
+        int nNodeID = JsonArrayGetInt(jLastOpenNodesIDs, nIndex);
+        if (BT_Blackboard_GetInt(oBlackboard, BT_BLACKBOARD_KEY_IS_OPEN, nBehaviorTreeID, nNodeID))
         {
-            BT_Node_ExecuteFunction(jNode, jTickInfo, BT_NODE_FUNCTION_CLOSE);
-            if (BT_GRAPHVIZ_ENABLED && BT_BehaviorTree_GetGraphVizEnabled(oBehaviorTree))
-                BT_Blackboard_DeleteInt(oBlackboard, BT_BLACKBOARD_KEY_LAST_RESULT, nBehaviorTreeID, BT_Node_GetID(jNode));
+            BT_Node_ExecuteFunction(JsonArrayGet(jLastOpenNodes, nIndex), jTickInfo, BT_NODE_FUNCTION_CLOSE);
+            if (bGraphVizEnabled)
+                BT_Blackboard_DeleteInt(oBlackboard, BT_BLACKBOARD_KEY_LAST_RESULT, nBehaviorTreeID, nNodeID);
         }
     }
 
-    BT_Blackboard_SetJson(oBlackboard, BT_BLACKBOARD_KEY_OPEN_NODES, jCurrentOpenNodes, nBehaviorTreeID);
-    BT_Blackboard_SetInt(oBlackboard, BT_BLACKBOARD_KEY_NODE_COUNT, BT_TickInfo_GetNodeCount(jTickInfo), nBehaviorTreeID);
+    BT_Blackboard_SetJson(oBlackboard, BT_BLACKBOARD_KEY_LAST_TICKINFO, jTickInfo, nBehaviorTreeID);
 
     if (BT_DEBUG_LOG_TICKS)
         LogDebug("--- TICK END ---");

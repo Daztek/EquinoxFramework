@@ -118,7 +118,6 @@ int BT_Node_MoveToObject_Tick(json jNode)
         ClearAllActions();
         ActionMoveToObject(oTarget, bRun, 1.0f);
     }
-
     return BT_NODE_STATE_RUNNING;
 }
 
@@ -225,96 +224,44 @@ int BT_Node_Sit_Tick(json jNode)
     return BT_NODE_STATE_FAILURE;
 }
 
-json BT_Node_GetIsDawn()
+json BT_Node_ManageTorch(string sTorchTag)
 {
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_CONDITION, "GetIsDawn");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetIsDawn_Tick");
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_CONDITION, "ManageTorch");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_ManageTorch_Tick");
+    BT_Node_SetDataString(jNode, "TorchTag", sTorchTag);
     return jNode;
 }
 
-int BT_Node_GetIsDawn_Tick(json jNode)
+int BT_Node_ManageTorch_Tick(json jNode)
 {
-    return GetIsDawn() ? BT_NODE_STATE_SUCCESS : BT_NODE_STATE_FAILURE;
-}
+    string sTorchTag = BT_Node_GetDataString(jNode, "TorchTag");
+    object oEquippedItem = GetItemInSlot(INVENTORY_SLOT_LEFTHAND, OBJECT_SELF);
+    int bHasTorchEquipped = GetIsObjectValid(oEquippedItem) && GetTag(oEquippedItem) == sTorchTag;
+    int bShouldHaveTorchEquipped = GetIsDusk() || GetIsNight();
 
-json BT_Node_GetIsDusk()
-{
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_CONDITION, "GetIsDusk");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetIsDusk_Tick");
-    return jNode;
-}
-
-int BT_Node_GetIsDusk_Tick(json jNode)
-{
-    return GetIsDusk() ? BT_NODE_STATE_SUCCESS : BT_NODE_STATE_FAILURE;
-}
-
-json BT_Node_GetHasItemInSlot(int nInventorySlot)
-{
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_CONDITION, "GetHasItemInSlot");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_GetHasItemInSlot_Tick");
-    BT_Node_SetDataInt(jNode, "InventorySlot", nInventorySlot);
-    return jNode;
-}
-
-int BT_Node_GetHasItemInSlot_Tick(json jNode)
-{
-    int nInventorySlot = BT_Node_GetDataInt(jNode, "InventorySlot");
-    object oItem = GetItemInSlot(nInventorySlot, OBJECT_SELF);
-    if (GetIsObjectValid(oItem))
-        return BT_NODE_STATE_SUCCESS;
-    return BT_NODE_STATE_FAILURE;
-}
-
-json BT_Node_EquipItemWithTag(int nInventorySlot, string sItemTag)
-{
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_CONDITION, "EquipItemWithTag");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_EquipItemWithTag_Tick");
-    BT_Node_SetDataInt(jNode, "InventorySlot", nInventorySlot);
-    BT_Node_SetDataString(jNode, "ItemTag", sItemTag);
-    return jNode;
-}
-
-int BT_Node_EquipItemWithTag_Tick(json jNode)
-{
-    int nInventorySlot = BT_Node_GetDataInt(jNode, "InventorySlot");
-    string sTag = BT_Node_GetDataString(jNode, "ItemTag");
-    object oItem = GetItemPossessedBy(OBJECT_SELF, sTag);
-    if (GetIsObjectValid(oItem))
+    if (bShouldHaveTorchEquipped && !bHasTorchEquipped)
+    {
+        object oTorch = GetItemPossessedBy(OBJECT_SELF, sTorchTag);
+        if (GetIsObjectValid(oTorch))
+        {
+            ClearAllActions();
+            ActionEquipItem(oTorch, INVENTORY_SLOT_LEFTHAND);
+        }
+    }
+    else if (!bShouldHaveTorchEquipped && bHasTorchEquipped)
     {
         ClearAllActions();
-        ActionEquipItem(oItem, nInventorySlot);
-        return BT_NODE_STATE_SUCCESS;
+        ActionUnequipItem(oEquippedItem);
     }
-    return BT_NODE_STATE_FAILURE;
-}
 
-json BT_Node_UnEquipItem(int nInventorySlot)
-{
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_CONDITION, "UnEquipItem");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_UnEquipItem_Tick");
-    BT_Node_SetDataInt(jNode, "InventorySlot", nInventorySlot);
-    return jNode;
-}
-
-int BT_Node_UnEquipItem_Tick(json jNode)
-{
-    int nInventorySlot = BT_Node_GetDataInt(jNode, "InventorySlot");
-    object oItem = GetItemInSlot(nInventorySlot, OBJECT_SELF);
-    if (GetIsObjectValid(oItem))
-    {
-        ClearAllActions();
-        ActionUnequipItem(oItem);
-        return BT_NODE_STATE_SUCCESS;
-    }
-    return BT_NODE_STATE_FAILURE;
+    return BT_NODE_STATE_SUCCESS;
 }
 
 void BTT_RecursiveTick(object oBehaviorTree, object oBlackboard, object oSelf)
 {
-    //Profiler_Start("BTT_RecursiveTick");
+    Profiler_Start("BTT_RecursiveTick");
     BT_BehaviorTree_Tick(oBehaviorTree, oBlackboard, oSelf);
-   // PrintString(Profiler_Stop());
+    PrintString(Profiler_Stop());
     DelayCommand(1.0f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oSelf));
 }
 
@@ -326,18 +273,6 @@ void BTT_Post()
 
     BTB_InitializeBehaviorTree();
         BTB_StartReactiveFallback();
-            BTB_StartSequence("Equip Torch");
-                BTB_AddNode(BT_Node_GetIsDusk());
-                BTB_StartInverter();
-                    BTB_AddNode(BT_Node_GetHasItemInSlot(INVENTORY_SLOT_LEFTHAND));
-                BTB_End();
-                BTB_AddNode(BT_Node_EquipItemWithTag(INVENTORY_SLOT_LEFTHAND, "NW_IT_TORCH001"));
-            BTB_End();
-            BTB_StartSequence("UnEquip Torch");
-                BTB_AddNode(BT_Node_GetIsDawn());
-                BTB_AddNode(BT_Node_GetHasItemInSlot(INVENTORY_SLOT_LEFTHAND));
-                BTB_AddNode(BT_Node_UnEquipItem(INVENTORY_SLOT_LEFTHAND));
-            BTB_End();
             BTB_StartSequence("Rest");
                 BTB_StartRandomCooldown(120, 61);
                     BTB_AddNode(BT_Node_GetNearestSeat("SEAT", SEAT_OBJECT));
@@ -357,7 +292,7 @@ void BTT_Post()
                 BTB_AddNode(BT_Node_MoveToObject(WAYPOINT_OBJECT, 2.0f, FALSE));
                 BTB_StartRandomChild("Idle Animations");
                     BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_LOOK_FAR, 3), "LookFar");
-                    BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_PAUSE_TIRED, 3), "Tired");
+                    BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_LOOPING_LISTEN, 3), "Tired");
                     BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_FIREFORGET_PAUSE_SCRATCH_HEAD, 2), "ScratchHead");
                     BTB_AddNode(BT_Node_PlayLoopingAnimation(ANIMATION_FIREFORGET_PAUSE_BORED, 4), "Bored");
                 BTB_End();
@@ -366,6 +301,7 @@ void BTT_Post()
                         BTB_AddNode(BT_Node_SpeakString("Nothin' to see here..."));
                     BTB_End();
                 BTB_End();
+                BTB_AddNode(BT_Node_ManageTorch("NW_IT_TORCH001"));
             BTB_End();
         BTB_End();
     json jTree = BTB_FinalizeBehaviorTree();

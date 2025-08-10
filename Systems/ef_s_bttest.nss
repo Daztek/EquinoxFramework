@@ -306,7 +306,7 @@ void BTT_Post()
         BTB_End();
     json jBehaviorTree = BTB_FinalizeBehaviorTree();
     PrintString(BTB_DebugPrintTree(JsonObjectGetInt(jBehaviorTree, BTB_ROOT_NODE_ID), JsonObjectGet(jBehaviorTree, BTB_NODES)));
-    //PrintString(JsonDump(jTree));
+    //PrintString(JsonDump(jBehaviorTree));
 
     object oGuard = GetObjectByTag(BTT_GUARD_TAG);
     object oBlackboard = BT_Blackboard_GetOrCreate("GuardPatrolBB");

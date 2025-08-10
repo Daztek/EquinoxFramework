@@ -635,12 +635,14 @@ void BT_TickInfo_CloseNode(json jOpenNodes, json jNode)
 
     int nNumOpenNodes = JsonGetLength(jOpenNodes);
 
-    if (!nNumOpenNodes) return;
+    if (!nNumOpenNodes)
+        return;
 
-    int nIndex, nNodeID = BT_Node_GetID(jNode), bFound = FALSE;
+    int nIndex, bFound = FALSE;
+    json jNodeID = JsonInt(BT_Node_GetID(jNode));
     for (nIndex = nNumOpenNodes - 1; nIndex >= 0; nIndex--)
     {
-        if (JsonArrayGetInt(jOpenNodes, nIndex) == nNodeID)
+        if (JsonArrayGet(jOpenNodes, nIndex) == jNodeID)
         {
             bFound = TRUE;
             break;
@@ -689,13 +691,13 @@ void BT_BehaviorTree_InitializeTree(object oBehaviorTree, json jBehaviorTree)
         string sNodeID = JsonArrayGetString(jNodeKeys, nNodeIndex);
         json jNode = JsonObjectGet(jNodes, sNodeID);
         int nFunctionType;
-        for (nFunctionType = 1; nFunctionType <= BT_NODE_FUNCTION_EXIT; nFunctionType++)
+        for (nFunctionType = BT_NODE_FUNCTION_ENTER; nFunctionType <= BT_NODE_FUNCTION_EXIT; nFunctionType++)
         {
             string sScriptChunk = BT_Node_GetScriptChunk(jNode, nFunctionType);
             if (sScriptChunk != "")
             {
-                string sFunctionType = IntToString(nFunctionType);
                 int nHash = HashString(sScriptChunk);
+                string sFunctionType = IntToString(nFunctionType);
                 JsonObjectSetIntInplace(jNode, BT_NODE_KEY_FUNCTION_HASH + sFunctionType, nHash);
                 JsonObjectDelInplace(jNode, BT_NODE_KEY_SCRIPT_CHUNK + sFunctionType);
                 JsonObjectSetStringInplace(jFunctionHashes, IntToString(nHash), sScriptChunk);
@@ -1274,11 +1276,7 @@ json BT_Node_Inverter()
 
 int BT_Node_Inverter_Tick(json jNode)
 {
-    json jChild = BT_Node_GetChildren(jNode);
-    if (JsonGetLength(jChild) != 1)
-        return BT_NODE_STATE_ERROR;
-
-    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(jChild, 0)));
+    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
 
     if (nNodeState == BT_NODE_STATE_SUCCESS)
         nNodeState = BT_NODE_STATE_FAILURE;
@@ -1297,11 +1295,7 @@ json BT_Node_ForceSuccess()
 
 int BT_Node_ForceSuccess_Tick(json jNode)
 {
-    json jChild = BT_Node_GetChildren(jNode);
-    if (JsonGetLength(jChild) != 1)
-        return BT_NODE_STATE_ERROR;
-
-    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(jChild, 0)));
+    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
 
     if (nNodeState != BT_NODE_STATE_RUNNING)
         nNodeState = BT_NODE_STATE_SUCCESS;
@@ -1318,11 +1312,7 @@ json BT_Node_ForceFailure()
 
 int BT_Node_ForceFailure_Tick(json jNode)
 {
-    json jChild = BT_Node_GetChildren(jNode);
-    if (JsonGetLength(jChild) != 1)
-        return BT_NODE_STATE_ERROR;
-
-    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(jChild, 0)));
+    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
 
     if (nNodeState != BT_NODE_STATE_RUNNING)
         nNodeState = BT_NODE_STATE_FAILURE;
@@ -1346,17 +1336,13 @@ void BT_Node_Timeout_Open(json jNode)
 
 int BT_Node_Timeout_Tick(json jNode)
 {
-    json jChild = BT_Node_GetChildren(jNode);
-    if (JsonGetLength(jChild) != 1)
-        return BT_NODE_STATE_ERROR;
-
     int nTimeout = BT_Node_GetDataInt(jNode, "Timeout");
     int nStartTime = BT_Blackboard_ContextGetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime");
 
     if (GetCurrentTimeSeconds() - nStartTime > nTimeout)
         return BT_NODE_STATE_FAILURE;
     else
-        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(jChild, 0)));
+        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
 }
 
 json BT_Node_RandomTimeout(int nMinimumTimeout, int nRandomTimeout)
@@ -1381,10 +1367,6 @@ void BT_Node_RandomTimeout_Open(json jNode)
 
 int BT_Node_RandomTimeout_Tick(json jNode)
 {
-    json jChild = BT_Node_GetChildren(jNode);
-    if (JsonGetLength(jChild) != 1)
-        return BT_NODE_STATE_ERROR;
-
     struct BlackboardContext strBlackboardContext = BT_Blackboard_GetNodeContext(jNode);
     int nTimeout = BT_Blackboard_ContextGetInt(strBlackboardContext, "Timeout");
     int nStartTime = BT_Blackboard_ContextGetInt(strBlackboardContext, "StartTime");
@@ -1392,7 +1374,7 @@ int BT_Node_RandomTimeout_Tick(json jNode)
     if (GetCurrentTimeSeconds() - nStartTime > nTimeout)
         return BT_NODE_STATE_FAILURE;
     else
-        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(jChild, 0)));
+        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
 }
 
 json BT_Node_Probability(int nPercentage)
@@ -1405,14 +1387,10 @@ json BT_Node_Probability(int nPercentage)
 
 int BT_Node_Probability_Tick(json jNode)
 {
-    json jChild = BT_Node_GetChildren(jNode);
-    if (JsonGetLength(jChild) != 1)
-        return BT_NODE_STATE_ERROR;
-
     int nChance = BT_Node_GetDataInt(jNode, "Chance");
 
     if (Random(100) + 1 <= nChance)
-        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(jChild, 0)));
+        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
     else
         return BT_NODE_STATE_FAILURE;
 }
@@ -1427,10 +1405,6 @@ json BT_Node_Cooldown(int nCooldown)
 
 int BT_Node_Cooldown_Tick(json jNode)
 {
-    json jChild = BT_Node_GetChildren(jNode);
-    if (JsonGetLength(jChild) != 1)
-        return BT_NODE_STATE_ERROR;
-
     struct BlackboardContext strBlackboardContext = BT_Blackboard_GetNodeContext(jNode);
     int nCooldown = BT_Node_GetDataInt(jNode, "Cooldown");
     int nLastExecutionTime = BT_Blackboard_ContextGetInt(strBlackboardContext, "LastExecution");
@@ -1438,7 +1412,7 @@ int BT_Node_Cooldown_Tick(json jNode)
     if (GetCurrentTimeSeconds() - nLastExecutionTime < nCooldown)
         return BT_NODE_STATE_FAILURE;
 
-    int nResult = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(jChild, 0)));
+    int nResult = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
     if (nResult == BT_NODE_STATE_SUCCESS)
         BT_Blackboard_ContextSetInt(strBlackboardContext, "LastExecution", GetCurrentTimeSeconds());
 
@@ -1469,10 +1443,6 @@ void BT_Node_RandomCooldown_Open(json jNode)
 
 int BT_Node_RandomCooldown_Tick(json jNode)
 {
-    json jChild = BT_Node_GetChildren(jNode);
-    if (JsonGetLength(jChild) != 1)
-        return BT_NODE_STATE_ERROR;
-
     struct BlackboardContext strBlackboardContext = BT_Blackboard_GetNodeContext(jNode);
     int nCooldown = BT_Blackboard_ContextGetInt(strBlackboardContext, "Cooldown");
     int nLastExecutionTime = BT_Blackboard_ContextGetInt(strBlackboardContext, "LastExecution");
@@ -1480,7 +1450,7 @@ int BT_Node_RandomCooldown_Tick(json jNode)
     if (GetCurrentTimeSeconds() - nLastExecutionTime < nCooldown)
         return BT_NODE_STATE_FAILURE;
 
-    int nResult = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(jChild, 0)));
+    int nResult = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
     if (nResult == BT_NODE_STATE_SUCCESS)
     {
         int nMinimumCooldown = BT_Node_GetDataInt(jNode, "MinimumCooldown");

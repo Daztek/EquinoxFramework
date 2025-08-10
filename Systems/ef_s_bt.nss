@@ -48,8 +48,7 @@ const string BT_NODE_KEY_TYPE                   = "T";
 const string BT_NODE_KEY_TYPENAME               = "TN";
 const string BT_NODE_KEY_CHILDREN               = "C";
 const string BT_NODE_KEY_NAME                   = "N";
-const string BT_NODE_KEY_INCLUDE                = "I_";
-const string BT_NODE_KEY_FUNCTION               = "F_";
+const string BT_NODE_KEY_SCRIPT_CHUNK           = "S_";
 const string BT_NODE_KEY_DATA                   = "D";
 const string BT_NODE_KEY_INPUT                  = "I";
 const string BT_NODE_KEY_OUTPUT                 = "O";
@@ -84,6 +83,7 @@ object BT_GetCurrentSelf();
 
 string BT_NodeStateToString(int nNodeState);
 string BT_NodeTypeToString(int nNodeType);
+string BT_NodeFunctionTypeToString(int nFunctionType);
 
 void BT_GraphViz_Update(json jNode);
 void BT_GraphViz_ResetLastResult(json jNode);
@@ -154,8 +154,7 @@ string BT_Node_GetTypeName(json jNode);
 json BT_Node_GetChildren(json jNode);
 json BT_Node_SetName(json jNode, string sName);
 string BT_Node_GetName(json jNode);
-string BT_Node_GetInclude(json jNode, int nFunctionType);
-string BT_Node_GetFunction(json jNode, int nFunctionType);
+string BT_Node_GetScriptChunk(json jNode, int nFunctionType);
 void BT_Node_SetData(json jNode, string sKey, json jValue);
 json BT_Node_GetData(json jNode, string sKey);
 void BT_Node_SetDataInt(json jNode, string sKey, int nValue);
@@ -268,6 +267,19 @@ string BT_NodeTypeToString(int nNodeType)
         case BT_NODE_TYPE_ACTION: return "Action";
     }
     return "Unknown Node Type";
+}
+
+string BT_NodeFunctionTypeToString(int nFunctionType)
+{
+    switch (nFunctionType)
+    {
+        case BT_NODE_FUNCTION_ENTER: return "Enter";
+        case BT_NODE_FUNCTION_OPEN: return "Open";
+        case BT_NODE_FUNCTION_TICK: return "Tick";
+        case BT_NODE_FUNCTION_CLOSE: return "Close";
+        case BT_NODE_FUNCTION_EXIT: return "Exit";
+    }
+    return "Unknown Function Type";
 }
 
 /* *** GraphViz Functions *** */
@@ -803,15 +815,18 @@ void BT_BehaviorTree_Tick(object oBehaviorTree, object oBlackboard, object oSelf
 
 int BT_Node_ExecuteNodeFunction(json jNode, int nFunctionType)
 {
-    string sFunction = BT_Node_GetFunction(jNode, nFunctionType);
-    if (sFunction != "")
+    string sScriptChunk = BT_Node_GetScriptChunk(jNode, nFunctionType);
+    if (sScriptChunk != "")
     {
         BT_SetCurrentNode(jNode);
         int nRetVal = BT_NODE_STATE_FAILURE;
+        string sError = ExecuteScriptChunk(sScriptChunk, BT_GetCurrentSelf(), FALSE);
+
+        if (sError != "")
+            LogError(BT_Node_GetDebugInfo(jNode) + " failed to run function '" + BT_NodeFunctionTypeToString(nFunctionType) + "' with error: " + sError);
+
         if (nFunctionType == BT_NODE_FUNCTION_TICK)
-            nRetVal = ExecuteScriptChunkAndReturnInt(BT_Node_GetInclude(jNode, nFunctionType), sFunction, BT_GetCurrentSelf());
-        else
-            ExecuteScriptChunkAndReturnVoid(BT_Node_GetInclude(jNode, nFunctionType), sFunction, BT_GetCurrentSelf());
+            nRetVal = NWNX_VM_GetScriptReturnValueInt();
 
         return nRetVal != 0 ? nRetVal : BT_NODE_STATE_FAILURE;
     }
@@ -924,14 +939,9 @@ string BT_Node_GetName(json jNode)
     return sName == "" ? BT_Node_GetTypeName(jNode) : sName;
 }
 
-string BT_Node_GetInclude(json jNode, int nFunctionType)
+string BT_Node_GetScriptChunk(json jNode, int nFunctionType)
 {
-    return JsonObjectGetString(jNode, BT_NODE_KEY_INCLUDE + IntToString(nFunctionType));
-}
-
-string BT_Node_GetFunction(json jNode, int nFunctionType)
-{
-    return JsonObjectGetString(jNode, BT_NODE_KEY_FUNCTION + IntToString(nFunctionType));
+    return JsonObjectGetString(jNode, BT_NODE_KEY_SCRIPT_CHUNK + IntToString(nFunctionType));
 }
 
 void BT_Node_SetData(json jNode, string sKey, json jValue)
@@ -1014,9 +1024,13 @@ json BT_Node_BaseNode(int nNodeType, string sTypeName)
 
 void BT_Node_SetFunction(json jNode, int nFunctionType, string sInclude, string sFunction)
 {
-    string sFunctionChunk = nssFunction(sFunction, "BT_GetCurrentNode()");
-    JsonObjectSetStringInplace(jNode, BT_NODE_KEY_INCLUDE + IntToString(nFunctionType), sInclude);
-    JsonObjectSetStringInplace(jNode, BT_NODE_KEY_FUNCTION + IntToString(nFunctionType), sFunctionChunk);
+    string sScriptChunk = nssInclude(sInclude);
+    if (nFunctionType == BT_NODE_FUNCTION_TICK)
+        sScriptChunk += nssIntMain(nssFunction(sFunction, "BT_GetCurrentNode()"));
+    else
+        sScriptChunk += nssVoidMain(nssFunction(sFunction, "BT_GetCurrentNode()"));
+
+    JsonObjectSetStringInplace(jNode, BT_NODE_KEY_SCRIPT_CHUNK + IntToString(nFunctionType), sScriptChunk);
 }
 
 /* *** Composite Nodes *** */

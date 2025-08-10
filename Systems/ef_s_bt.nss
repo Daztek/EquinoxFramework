@@ -31,6 +31,7 @@ const string BT_BEHAVIORTREE_ROOT               = "BehaviorTreeRoot";
 const string BT_BEHAVIORTREE_NODES              = "BehaviorTreeNodes";
 const string BT_BEHAVIORTREE_FUNCTION_HASHES    = "BehaviorTreeFunctionHashes";
 const string BT_BEHAVIORTREE_GRAPHVIZ_ENABLED   = "BehaviorTreeGraphVizEnabled";
+const string BT_BEHAVIORTREE_NODE_HAS_FUNCTION  = "BehaviorTreeNodeHasFunction_";
 
 const string BT_BEHAVIORTREE_KEY_ROOT           = "Root";
 const string BT_BEHAVIORTREE_KEY_NODES          = "Nodes";
@@ -51,8 +52,8 @@ const string BT_NODE_KEY_TYPE                   = "T";
 const string BT_NODE_KEY_TYPENAME               = "TN";
 const string BT_NODE_KEY_CHILDREN               = "C";
 const string BT_NODE_KEY_NAME                   = "N";
-const string BT_NODE_KEY_SCRIPT_CHUNK           = "S_";
-const string BT_NODE_KEY_FUNCTION_HASH          = "H_";
+const string BT_NODE_KEY_SCRIPT_CHUNK           = "S";
+const string BT_NODE_KEY_FUNCTION_HASH          = "H";
 const string BT_NODE_KEY_DATA                   = "D";
 const string BT_NODE_KEY_INPUT                  = "I";
 const string BT_NODE_KEY_OUTPUT                 = "O";
@@ -140,6 +141,7 @@ object BT_BehaviorTree_GetOrCreate(string sTag);
 void BT_BehaviorTree_InitializeTree(object oBehaviorTree, json jBehaviorTree);
 json BT_BehaviorTree_GetNodeByID(int nNodeID, object oBehaviorTree = OBJECT_INVALID);
 string BT_BehaviorTree_GetFunctionByHash(int nHash, object oBehaviorTree = OBJECT_INVALID);
+int BT_BehaviorTree_NodeHasFunction(json jNode, int nFunctionType, object oBehaviorTree = OBJECT_INVALID);
 int BT_BehaviorTree_GetID(object oBehaviorTree);
 void BT_BehaviorTree_SetRoot(object oBehaviorTree, json jRoot);
 json BT_BehaviorTree_GetRoot(object oBehaviorTree);
@@ -728,6 +730,7 @@ void BT_BehaviorTree_InitializeTree(object oBehaviorTree, json jBehaviorTree)
                 JsonObjectSetIntInplace(jNode, BT_NODE_KEY_FUNCTION_HASH + sFunctionType, nHash);
                 JsonObjectDelInplace(jNode, BT_NODE_KEY_SCRIPT_CHUNK + sFunctionType);
                 JsonObjectSetStringInplace(jFunctionHashes, IntToString(nHash), sScriptChunk);
+                SetLocalInt(oBehaviorTree, BT_BEHAVIORTREE_NODE_HAS_FUNCTION + sNodeID + sFunctionType, TRUE);
             }
         }
 
@@ -757,6 +760,13 @@ string BT_BehaviorTree_GetFunctionByHash(int nHash, object oBehaviorTree = OBJEC
         oBehaviorTree = BT_GetCurrentBehaviorTree();
     json jFunctionHashes = BT_BehaviorTree_GetFunctionHashes(oBehaviorTree);
     return JsonObjectGetString(jFunctionHashes, IntToString(nHash));
+}
+
+int BT_BehaviorTree_NodeHasFunction(json jNode, int nFunctionType, object oBehaviorTree = OBJECT_INVALID)
+{
+    if (oBehaviorTree == OBJECT_INVALID)
+        oBehaviorTree = BT_GetCurrentBehaviorTree();
+    return GetLocalInt(oBehaviorTree, BT_BEHAVIORTREE_NODE_HAS_FUNCTION + IntToString(BT_Node_GetID(jNode)) + IntToString(nFunctionType));
 }
 
 int BT_BehaviorTree_GetID(object oBehaviorTree)
@@ -870,7 +880,11 @@ void BT_BehaviorTree_Tick(object oBehaviorTree, object oBlackboard, object oSelf
 int BT_Node_ExecuteNodeFunction(json jNode, int nFunctionType)
 {
     int nRetVal = BT_NODE_STATE_FAILURE;
-    string sFunctionScriptChunk = BT_BehaviorTree_GetFunctionByHash(BT_Node_GetFunctionHash(jNode, nFunctionType));
+    object oBehaviorTree = BT_GetCurrentBehaviorTree();
+    if (!BT_BehaviorTree_NodeHasFunction(jNode, nFunctionType, oBehaviorTree))
+        return nRetVal;
+
+    string sFunctionScriptChunk = BT_BehaviorTree_GetFunctionByHash(BT_Node_GetFunctionHash(jNode, nFunctionType), oBehaviorTree);
     if (sFunctionScriptChunk != "")
     {
         BT_SetCurrentNode(jNode);

@@ -5,6 +5,7 @@
 
 #include "ef_i_include"
 #include "ef_c_log"
+#include "ef_c_profiler"
 #include "nwnx_httpclient"
 
 const string BT_SCRIPT_NAME                     = "ef_s_bt";
@@ -652,11 +653,11 @@ void BT_TickInfo_EnterNode(json jTickInfo, json jNode)
 
     json jOpenNodeIDs = BT_TickInfo_GetOpenNodeIDs(jTickInfo);
     JsonArrayInsertIntInplace(jOpenNodeIDs, BT_Node_GetID(jNode));
-    JsonObjectSet(jTickInfo, BT_TICKINFO_KEY_OPEN_NODE_IDS, jOpenNodeIDs);
+    JsonObjectSetInplace(jTickInfo, BT_TICKINFO_KEY_OPEN_NODE_IDS, jOpenNodeIDs);
 
     json jOpenNodes = BT_TickInfo_GetOpenNodes(jTickInfo);
     JsonArrayInsertInplace(jOpenNodes, jNode);
-    JsonObjectSet(jTickInfo, BT_TICKINFO_KEY_OPEN_NODES, jOpenNodes);
+    JsonObjectSetInplace(jTickInfo, BT_TICKINFO_KEY_OPEN_NODES, jOpenNodes);
 }
 
 void BT_TickInfo_OpenNode(json jTickInfo, json jNode)
@@ -1309,7 +1310,7 @@ json BT_Node_Timeout(int nTimeout)
 
 void BT_Node_Timeout_Open(json jNode)
 {
-    BT_Blackboard_ContextSetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime", SqlGetUnixEpoch());
+    BT_Blackboard_ContextSetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime", GetCurrentTimeSeconds());
 }
 
 int BT_Node_Timeout_Tick(json jNode)
@@ -1321,7 +1322,7 @@ int BT_Node_Timeout_Tick(json jNode)
     int nTimeout = BT_Node_GetDataInt(jNode, "Timeout");
     int nStartTime = BT_Blackboard_ContextGetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime");
 
-    if (SqlGetUnixEpoch() - nStartTime > nTimeout)
+    if (GetCurrentTimeSeconds() - nStartTime > nTimeout)
         return BT_NODE_STATE_FAILURE;
     else
         return BT_Node_Execute(jChild);
@@ -1344,7 +1345,7 @@ void BT_Node_RandomTimeout_Open(json jNode)
     int nTimeout = nMinimumTimeout + Random(nRandomTimeout);
     struct BlackboardContext strBlackboardContext = BT_Blackboard_GetNodeContext(jNode);
     BT_Blackboard_ContextSetInt(strBlackboardContext, "Timeout", nTimeout);
-    BT_Blackboard_ContextSetInt(strBlackboardContext, "StartTime", SqlGetUnixEpoch());
+    BT_Blackboard_ContextSetInt(strBlackboardContext, "StartTime", GetCurrentTimeSeconds());
 }
 
 int BT_Node_RandomTimeout_Tick(json jNode)
@@ -1357,7 +1358,7 @@ int BT_Node_RandomTimeout_Tick(json jNode)
     int nTimeout = BT_Blackboard_ContextGetInt(strBlackboardContext, "Timeout");
     int nStartTime = BT_Blackboard_ContextGetInt(strBlackboardContext, "StartTime");
 
-    if (SqlGetUnixEpoch() - nStartTime > nTimeout)
+    if (GetCurrentTimeSeconds() - nStartTime > nTimeout)
         return BT_NODE_STATE_FAILURE;
     else
         return BT_Node_Execute(jChild);
@@ -1403,12 +1404,12 @@ int BT_Node_Cooldown_Tick(json jNode)
     int nCooldown = BT_Node_GetDataInt(jNode, "Cooldown");
     int nLastExecutionTime = BT_Blackboard_ContextGetInt(strBlackboardContext, "LastExecution");
 
-    if (SqlGetUnixEpoch() - nLastExecutionTime < nCooldown)
+    if (GetCurrentTimeSeconds() - nLastExecutionTime < nCooldown)
         return BT_NODE_STATE_FAILURE;
 
     int nResult = BT_Node_Execute(jChild);
     if (nResult == BT_NODE_STATE_SUCCESS)
-        BT_Blackboard_ContextSetInt(strBlackboardContext, "LastExecution", SqlGetUnixEpoch());
+        BT_Blackboard_ContextSetInt(strBlackboardContext, "LastExecution", GetCurrentTimeSeconds());
 
     return nResult;
 }
@@ -1445,7 +1446,7 @@ int BT_Node_RandomCooldown_Tick(json jNode)
     int nCooldown = BT_Blackboard_ContextGetInt(strBlackboardContext, "Cooldown");
     int nLastExecutionTime = BT_Blackboard_ContextGetInt(strBlackboardContext, "LastExecution");
 
-    if (SqlGetUnixEpoch() - nLastExecutionTime < nCooldown)
+    if (GetCurrentTimeSeconds() - nLastExecutionTime < nCooldown)
         return BT_NODE_STATE_FAILURE;
 
     int nResult = BT_Node_Execute(jChild);
@@ -1455,7 +1456,7 @@ int BT_Node_RandomCooldown_Tick(json jNode)
         int nRandomCooldown = BT_Node_GetDataInt(jNode, "RandomCooldown");
         int nNextCooldown = nMinimumCooldown + Random(nRandomCooldown);
         BT_Blackboard_ContextSetInt(strBlackboardContext, "Cooldown", nNextCooldown);
-        BT_Blackboard_ContextSetInt(strBlackboardContext, "LastExecution", SqlGetUnixEpoch());
+        BT_Blackboard_ContextSetInt(strBlackboardContext, "LastExecution", GetCurrentTimeSeconds());
     }
 
     return nResult;

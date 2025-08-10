@@ -44,6 +44,7 @@ int Get2DAInt(string s2DA, string sColumn, int nRow);
 int IncrementLocalInt(object oObject, string sVarName);
 int DecrementLocalInt(object oObject, string sVarName);
 int GetIsDMExtended(object oCreature, int bIncludePlayerDMs = FALSE);
+int GetCurrentTimeSeconds();
 
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "", json jArray = JSON_NULL)
 {
@@ -267,4 +268,14 @@ int GetIsDMExtended(object oCreature, int bIncludePlayerDMs = FALSE)
     if (GetIsDMPossessed(oCreature))
         return TRUE;
     return GetIsDM(oCreature) && (bIncludePlayerDMs || !GetIsPlayerDM(oCreature));
+}
+
+int GetCurrentTimeSeconds()
+{
+    return GetCalendarYear() * 12 * 28 * 24 * 60 * 60 +
+            (GetCalendarMonth() - 1) * 28 * 24 * 60 * 60 +
+            (GetCalendarDay() - 1) * 24 * 60 * 60 +
+            GetTimeHour()  * 60 * 60 +
+            GetTimeMinute() * 60 +
+            GetTimeSecond();
 }

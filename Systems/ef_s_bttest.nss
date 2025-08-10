@@ -226,7 +226,7 @@ int BT_Node_Sit_Tick(json jNode)
 
 json BT_Node_ManageTorch(string sTorchTag)
 {
-    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_CONDITION, "ManageTorch");
+    json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "ManageTorch");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_ManageTorch_Tick");
     BT_Node_SetDataString(jNode, "TorchTag", sTorchTag);
     return jNode;
@@ -262,7 +262,7 @@ void BTT_RecursiveTick(object oBehaviorTree, object oBlackboard, object oSelf)
     Profiler_Start("BTT_RecursiveTick");
     BT_BehaviorTree_Tick(oBehaviorTree, oBlackboard, oSelf);
     PrintString(Profiler_Stop());
-    DelayCommand(1.0f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oSelf));
+    DelayCommand(3.0f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oSelf));
 }
 
 // @CORE[CORE_SYSTEM_POST]

@@ -41,7 +41,7 @@ const string BTB_TYPE                   = "Type_";
 const string BTB_DATA                   = "Data_";
 
 const string BTB_ROOT                   = BT_BEHAVIORTREE_KEY_ROOT;
-const string BTB_CHILD_NODES            = BT_BEHAVIORTREE_KEY_CHILD_NODES;
+const string BTB_NODES                  = BT_BEHAVIORTREE_KEY_NODES;
 
 const int BTB_NODE_TYPE_ROOT            = BT_NODE_TYPE_BASE;
 const int BTB_NODE_TYPE_COMPOSITE       = BT_NODE_TYPE_COMPOSITE;
@@ -59,11 +59,11 @@ int BTB_GetType();
 void BTB_SetType(int nType);
 json BTB_GetData();
 void BTB_SetData(json jData);
-void BTB_InitializeChildNodes();
-json BTB_GetChildNodes();
-int BTB_AddNodeToChildNodes(json jNode);
+void BTB_InitializeNodes();
+json BTB_GetNodes();
+int BTB_AddNodeToNodes(json jNode);
 
-string BTB_DebugPrintTree(json jRoot, json jChildNodes, int nDepth = 0);
+string BTB_DebugPrintTree(json jRoot, json jNodes, int nDepth = 0);
 int BTB_IsValidNodeType(int nNodeType);
 string BTB_NodeTypeToString(int nNodeType);
 void BTB_CheckNoChildren(int nTypeToAdd, json jDataToAdd);
@@ -149,24 +149,24 @@ void BTB_SetData(json jData)
     SetLocalJson(BTB_GetDataObject(), BTB_DATA + IntToString(BTB_GetDepth()), jData);
 }
 
-void BTB_InitializeChildNodes()
+void BTB_InitializeNodes()
 {
-    SetLocalJson(BTB_GetDataObject(), BTB_CHILD_NODES, JsonObject());
+    SetLocalJson(BTB_GetDataObject(), BTB_NODES, JsonObject());
 }
 
-json BTB_GetChildNodes()
+json BTB_GetNodes()
 {
-    return GetLocalJson(BTB_GetDataObject(), BTB_CHILD_NODES);
+    return GetLocalJson(BTB_GetDataObject(), BTB_NODES);
 }
 
-int BTB_AddNodeToChildNodes(json jNode)
+int BTB_AddNodeToNodes(json jNode)
 {
     int nNodeID = BT_Node_GetID(jNode);
-    JsonObjectSetInplace(BTB_GetChildNodes(), IntToString(nNodeID), jNode);
+    JsonObjectSetInplace(BTB_GetNodes(), IntToString(nNodeID), jNode);
     return nNodeID;
 }
 
-string BTB_DebugPrintTree(json jRoot, json jChildNodes, int nDepth = 0)
+string BTB_DebugPrintTree(json jRoot, json jNodes, int nDepth = 0)
 {
     string sIndent = "";
     int nIndex;
@@ -176,15 +176,12 @@ string BTB_DebugPrintTree(json jRoot, json jChildNodes, int nDepth = 0)
     }
 
     string sResult = sIndent + "|- " + BT_Node_GetName(jRoot) + " [" + BT_Node_GetTypeName(jRoot) + "]\n";
-
     json jChildren = BT_Node_GetChildren(jRoot);
-    if (JsonGetType(jChildren) == JSON_TYPE_ARRAY)
+    int nCount = JsonGetLength(jChildren);
+    for (nIndex = 0; nIndex < nCount; nIndex++)
     {
-        int nCount = JsonGetLength(jChildren);
-        for (nIndex = 0; nIndex < nCount; nIndex++)
-        {
-            sResult += BTB_DebugPrintTree(JsonObjectGet(jChildNodes, IntToString(JsonArrayGetInt(jChildren, nIndex))), jChildNodes, nDepth + 1);
-        }
+        int nChildNodeID = JsonArrayGetInt(jChildren, nIndex);
+        sResult += BTB_DebugPrintTree(JsonObjectGet(jNodes, IntToString(nChildNodeID)), jNodes, nDepth + 1);
     }
 
     return sResult;
@@ -228,7 +225,7 @@ void BTB_CheckNoChildren(int nTypeToAdd, json jDataToAdd)
 void BTB_InitializeBehaviorTree()
 {
     BTB_LogDebug("* INITIALIZE BEHAVIOR TREE");
-    BTB_InitializeChildNodes();
+    BTB_InitializeNodes();
     BTB_SetDepth(0);
 }
 
@@ -271,9 +268,10 @@ void BTB_End()
             if (BTB_IsValidNodeType(nTypeToAdd))
             {
                 BTB_CheckNoChildren(nTypeToAdd, jDataToAdd);
+                BTB_AddNodeToNodes(jDataToAdd);
                 json jBehaviorTree = JsonObject();
                 JsonObjectSetInplace(jBehaviorTree, BTB_ROOT, jDataToAdd);
-                JsonObjectSetInplace(jBehaviorTree, BTB_CHILD_NODES, BTB_GetChildNodes());
+                JsonObjectSetInplace(jBehaviorTree, BTB_NODES, BTB_GetNodes());
                 BTB_SetData(jBehaviorTree);
             }
             else
@@ -285,8 +283,7 @@ void BTB_End()
             if (BTB_IsValidNodeType(nTypeToAdd))
             {
                 BTB_CheckNoChildren(nTypeToAdd, jDataToAdd);
-                int nNodeID = BTB_AddNodeToChildNodes(jDataToAdd);
-                BTB_SetData(JsonObjectInsertToArrayWithKey(jData, BT_NODE_KEY_CHILDREN, JsonInt(nNodeID)));
+                BTB_SetData(JsonObjectInsertToArrayWithKey(jData, BT_NODE_KEY_CHILDREN, JsonInt(BTB_AddNodeToNodes(jDataToAdd))));
             }
             else
                 BTB_LogWarning("TYPE MISMATCH: {BTB_NODE_TYPE_COMPOSITE} does not accept {" + BTB_NodeTypeToString(nTypeToAdd) + "}.");
@@ -297,8 +294,7 @@ void BTB_End()
             if (BTB_IsValidNodeType(nTypeToAdd))
             {
                 BTB_CheckNoChildren(nTypeToAdd, jDataToAdd);
-                int nNodeID = BTB_AddNodeToChildNodes(jDataToAdd);
-                BTB_SetData(JsonObjectInsertToArrayWithKey(jData, BT_NODE_KEY_CHILDREN, JsonInt(nNodeID)));
+                BTB_SetData(JsonObjectInsertToArrayWithKey(jData, BT_NODE_KEY_CHILDREN, JsonInt(BTB_AddNodeToNodes(jDataToAdd))));
             }
             else
                 BTB_LogWarning("TYPE MISMATCH: {BTB_NODE_TYPE_DECORATOR} does not accept {" + BTB_NodeTypeToString(nTypeToAdd) + "}.");

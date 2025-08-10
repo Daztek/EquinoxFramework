@@ -259,9 +259,9 @@ int BT_Node_ManageTorch_Tick(json jNode)
 
 void BTT_RecursiveTick(object oBehaviorTree, object oBlackboard, object oSelf)
 {
-    Profiler_Start("BTT_RecursiveTick");
+    //Profiler_Start("BTT_RecursiveTick");
     BT_BehaviorTree_Tick(oBehaviorTree, oBlackboard, oSelf);
-    PrintString(Profiler_Stop());
+    //PrintString(Profiler_Stop());
     DelayCommand(3.0f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oSelf));
 }
 
@@ -304,15 +304,15 @@ void BTT_Post()
                 BTB_AddNode(BT_Node_ManageTorch("NW_IT_TORCH001"));
             BTB_End();
         BTB_End();
-    json jTree = BTB_FinalizeBehaviorTree();
-    PrintString(BTB_DebugPrintTree(JsonObjectGet(jTree, BTB_ROOT), JsonObjectGet(jTree, BTB_CHILD_NODES)));
-    PrintString(JsonDump(jTree));
+    json jBehaviorTree = BTB_FinalizeBehaviorTree();
+    PrintString(BTB_DebugPrintTree(JsonObjectGet(jBehaviorTree, BTB_ROOT), JsonObjectGet(jBehaviorTree, BTB_NODES)));
+    //PrintString(JsonDump(jTree));
 
     object oGuard = GetObjectByTag(BTT_GUARD_TAG);
     object oBlackboard = BT_Blackboard_GetOrCreate("GuardPatrolBB");
     object oBehaviorTree = BT_BehaviorTree_GetOrCreate("GuardPatrolBT");
     BT_BehaviorTree_SetGraphVizEnabled(oBehaviorTree, BT_GRAPHVIZ_ENABLED);
-    BT_BehaviorTree_InitializeTree(oBehaviorTree, jTree);
+    BT_BehaviorTree_InitializeTree(oBehaviorTree, jBehaviorTree);
 
     DelayCommand(5.0f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oGuard));
 }

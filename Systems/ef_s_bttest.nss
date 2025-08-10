@@ -153,7 +153,7 @@ void BT_Node_PlayLoopingAnimation_Open(json jNode)
 
     ClearAllActions();
     ActionPlayAnimation(nAnimation, 1.0f, IntToFloat(nDuration));
-    BT_Blackboard_ContextSetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime", SqlGetUnixEpoch());
+    BT_Blackboard_ContextSetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime", GetCurrentTimeSeconds());
 }
 
 int BT_Node_PlayLoopingAnimation_Tick(json jNode)
@@ -161,7 +161,7 @@ int BT_Node_PlayLoopingAnimation_Tick(json jNode)
     int nDuration = BT_Node_GetDataInt(jNode, "Duration");
     int nStartTime = BT_Blackboard_ContextGetInt(BT_Blackboard_GetNodeContext(jNode), "StartTime");
 
-    if (SqlGetUnixEpoch() - nStartTime > nDuration)
+    if (GetCurrentTimeSeconds() - nStartTime > nDuration)
     {
         ClearAllActions();
         return BT_NODE_STATE_SUCCESS;
@@ -305,13 +305,14 @@ void BTT_Post()
             BTB_End();
         BTB_End();
     json jTree = BTB_FinalizeBehaviorTree();
-    PrintString(BT_DebugPrintTree(jTree));
+    PrintString(BTB_DebugPrintTree(JsonObjectGet(jTree, "Root"), JsonObjectGet(jTree, "ChildNodes")));
+    //PrintString(JsonDump(jTree));
 
     object oGuard = GetObjectByTag(BTT_GUARD_TAG);
     object oBlackboard = BT_Blackboard_GetOrCreate("GuardPatrolBB");
     object oBehaviorTree = BT_BehaviorTree_GetOrCreate("GuardPatrolBT");
     BT_BehaviorTree_SetGraphVizEnabled(oBehaviorTree, BT_GRAPHVIZ_ENABLED);
-    BT_BehaviorTree_SetRoot(oBehaviorTree, jTree);
+    BT_BehaviorTree_InitializeTree(oBehaviorTree, jTree);
 
     DelayCommand(5.0f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oGuard));
 }

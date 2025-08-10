@@ -40,7 +40,7 @@ const string BTB_DEPTH                  = "Depth";
 const string BTB_TYPE                   = "Type_";
 const string BTB_DATA                   = "Data_";
 
-const string BTB_ROOT                   = BT_BEHAVIORTREE_KEY_ROOT;
+const string BTB_ROOT_NODE_ID           = BT_BEHAVIORTREE_KEY_ROOT_NODE_ID;
 const string BTB_NODES                  = BT_BEHAVIORTREE_KEY_NODES;
 
 const int BTB_NODE_TYPE_ROOT            = BT_NODE_TYPE_BASE;
@@ -63,7 +63,7 @@ void BTB_InitializeNodes();
 json BTB_GetNodes();
 int BTB_AddNodeToNodes(json jNode);
 
-string BTB_DebugPrintTree(json jRoot, json jNodes, int nDepth = 0);
+string BTB_DebugPrintTree(int nRootNodeID, json jNodes, int nDepth = 0);
 int BTB_IsValidNodeType(int nNodeType);
 string BTB_NodeTypeToString(int nNodeType);
 void BTB_CheckNoChildren(int nTypeToAdd, json jDataToAdd);
@@ -166,7 +166,7 @@ int BTB_AddNodeToNodes(json jNode)
     return nNodeID;
 }
 
-string BTB_DebugPrintTree(json jRoot, json jNodes, int nDepth = 0)
+string BTB_DebugPrintTree(int nRootNodeID, json jNodes, int nDepth = 0)
 {
     string sIndent = "";
     int nIndex;
@@ -174,14 +174,14 @@ string BTB_DebugPrintTree(json jRoot, json jNodes, int nDepth = 0)
     {
         sIndent += "  ";
     }
-
-    string sResult = sIndent + "|- " + BT_Node_GetName(jRoot) + " [" + BT_Node_GetTypeName(jRoot) + "]\n";
-    json jChildren = BT_Node_GetChildren(jRoot);
+    json jNode = JsonObjectGet(jNodes, IntToString(nRootNodeID));
+    string sResult = sIndent + "|- " + BT_Node_GetName(jNode) + " [" + BT_Node_GetTypeName(jNode) + "]\n";
+    json jChildren = BT_Node_GetChildren(jNode);
     int nCount = JsonGetLength(jChildren);
     for (nIndex = 0; nIndex < nCount; nIndex++)
     {
         int nChildNodeID = JsonArrayGetInt(jChildren, nIndex);
-        sResult += BTB_DebugPrintTree(JsonObjectGet(jNodes, IntToString(nChildNodeID)), jNodes, nDepth + 1);
+        sResult += BTB_DebugPrintTree(nChildNodeID, jNodes, nDepth + 1);
     }
 
     return sResult;
@@ -268,9 +268,8 @@ void BTB_End()
             if (BTB_IsValidNodeType(nTypeToAdd))
             {
                 BTB_CheckNoChildren(nTypeToAdd, jDataToAdd);
-                BTB_AddNodeToNodes(jDataToAdd);
                 json jBehaviorTree = JsonObject();
-                JsonObjectSetInplace(jBehaviorTree, BTB_ROOT, jDataToAdd);
+                JsonObjectSetIntInplace(jBehaviorTree, BTB_ROOT_NODE_ID, BTB_AddNodeToNodes(jDataToAdd));
                 JsonObjectSetInplace(jBehaviorTree, BTB_NODES, BTB_GetNodes());
                 BTB_SetData(jBehaviorTree);
             }

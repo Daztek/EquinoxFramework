@@ -305,7 +305,7 @@ void BTT_Post()
             BTB_End();
         BTB_End();
     json jBehaviorTree = BTB_FinalizeBehaviorTree();
-    PrintString(BTB_DebugPrintTree(JsonObjectGet(jBehaviorTree, BTB_ROOT), JsonObjectGet(jBehaviorTree, BTB_NODES)));
+    PrintString(BTB_DebugPrintTree(JsonObjectGetInt(jBehaviorTree, BTB_ROOT_NODE_ID), JsonObjectGet(jBehaviorTree, BTB_NODES)));
     //PrintString(JsonDump(jTree));
 
     object oGuard = GetObjectByTag(BTT_GUARD_TAG);

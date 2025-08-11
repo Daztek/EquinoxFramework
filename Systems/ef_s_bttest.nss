@@ -85,7 +85,7 @@ int BT_Node_GetNextPatrolWaypoint_Tick(json jNode)
 json BT_Node_MoveToObject(string sInput, float fDistanceTolerance, int bRun = FALSE)
 {
     json jNode = BT_Node_BaseNode(BT_NODE_TYPE_ACTION, "MoveToObject");
-    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Open");
+    BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_OPEN, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Open");
     BT_Node_SetFunction(jNode, BT_NODE_FUNCTION_TICK, BTT_SCRIPT_NAME, "BT_Node_MoveToObject_Tick");
     BT_Node_SetInput(jNode, sInput);
     BT_Node_SetDataFloat(jNode, "DistanceTolerance", fDistanceTolerance);

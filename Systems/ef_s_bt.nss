@@ -16,6 +16,13 @@ const int BT_DEBUG_LOG_MEMORY_INFO              = FALSE;
 const int BT_CACHE_SCRIPT_CHUNKS                = TRUE;
 const int BT_GRAPHVIZ_ENABLED                   = FALSE;
 
+const string BT_UNIQUE_ID                       = "BTUniqueID";
+const string BT_CURRENT_BEHAVIOR_TREE           = "BTCurrentBehaviorTree";
+const string BT_CURRENT_BLACKBOARD              = "BTCurrentBlackboard";
+const string BT_CURRENT_OPEN_NODES              = "BTCurrentOpenNodes";
+const string BT_CURRENT_NODE                    = "BTCurrentNode";
+const string BT_CURRENT_SELF                    = "BTCurrentSelf";
+
 const string BT_BLACKBOARD_TAG_PREFIX           = "BTBB_";
 const string BT_BLACKBOARD_KEY_IS_OPEN          = "IsOpen";
 const string BT_BLACKBOARD_KEY_LAST_OPEN_NODES  = "LastOpenNodes";
@@ -155,6 +162,7 @@ int BT_Node_GetID(json jNode);
 int BT_Node_GetType(json jNode);
 string BT_Node_GetTypeName(json jNode);
 json BT_Node_GetChildren(json jNode);
+int BT_Node_GetFirstChildID(json jNode);
 json BT_Node_SetName(json jNode, string sName);
 string BT_Node_GetName(json jNode);
 string BT_Node_GetScriptChunk(json jNode, int nFunctionType);
@@ -195,57 +203,57 @@ json BT_Node_RandomCooldown(int nMinimumCooldown, int nRandomCooldown);
 
 int BT_GetUniqueID()
 {
-    return IncrementLocalInt(GetDataObject(BT_SCRIPT_NAME), "BTUniqueID");
+    return IncrementLocalInt(GetDataObject(BT_SCRIPT_NAME), BT_UNIQUE_ID);
 }
 
 void BT_SetCurrentBehaviorTree(object oBehaviorTree)
 {
-    SetLocalObject(GetModule(), "BTCurrentBehaviorTree", oBehaviorTree);
+    SetLocalObject(GetModule(), BT_CURRENT_BEHAVIOR_TREE, oBehaviorTree);
 }
 
 object BT_GetCurrentBehaviorTree()
 {
-    return GetLocalObject(GetModule(), "BTCurrentBehaviorTree");
+    return GetLocalObject(GetModule(), BT_CURRENT_BEHAVIOR_TREE);
 }
 
 void BT_SetCurrentBlackboard(object oBlackboard)
 {
-    SetLocalObject(GetModule(), "BTCurrentBlackboard", oBlackboard);
+    SetLocalObject(GetModule(), BT_CURRENT_BLACKBOARD, oBlackboard);
 }
 
 object BT_GetCurrentBlackboard()
 {
-    return GetLocalObject(GetModule(), "BTCurrentBlackboard");
+    return GetLocalObject(GetModule(), BT_CURRENT_BLACKBOARD);
 }
 
 void BT_SetCurrentOpenNodes(json jOpenNodes)
 {
-    SetLocalJson(GetModule(), "BTCurrentOpenNodes", jOpenNodes);
+    SetLocalJson(GetModule(), BT_CURRENT_OPEN_NODES, jOpenNodes);
 }
 
 json BT_GetCurrentOpenNodes()
 {
-    return GetLocalJson(GetModule(), "BTCurrentOpenNodes");
+    return GetLocalJson(GetModule(), BT_CURRENT_OPEN_NODES);
 }
 
 json BT_GetCurrentNode()
 {
-    return GetLocalJson(GetModule(), "BTCurrentNode");
+    return GetLocalJson(GetModule(), BT_CURRENT_NODE);
 }
 
 void BT_SetCurrentNode(json jNode)
 {
-    SetLocalJson(GetModule(), "BTCurrentNode", jNode);
+    SetLocalJson(GetModule(), BT_CURRENT_NODE, jNode);
 }
 
 void BT_SetCurrentSelf(object oSelf)
 {
-    SetLocalObject(GetModule(), "BTCurrentSelf", oSelf);
+    SetLocalObject(GetModule(), BT_CURRENT_SELF, oSelf);
 }
 
 object BT_GetCurrentSelf()
 {
-    return GetLocalObject(GetModule(), "BTCurrentSelf");
+    return GetLocalObject(GetModule(), BT_CURRENT_SELF);
 }
 
 string BT_NodeStateToString(int nNodeState)
@@ -961,6 +969,11 @@ json BT_Node_GetChildren(json jNode)
     return JsonObjectGet(jNode, BT_NODE_KEY_CHILDREN);
 }
 
+int BT_Node_GetFirstChildID(json jNode)
+{
+    return JsonArrayGetInt(BT_Node_GetChildren(jNode), 0);
+}
+
 json BT_Node_SetName(json jNode, string sName)
 {
     JsonObjectSetStringInplace(jNode, BT_NODE_KEY_NAME, sName);
@@ -1025,7 +1038,7 @@ float BT_Node_GetDataFloat(json jNode, string sKey)
 
 string BT_Node_GetDebugInfo(json jNode)
 {
-    return BT_Node_GetName(jNode) + "@" + IntToString(BT_Node_GetID(jNode));
+    return BT_Node_GetName(jNode) + "[" + BT_Node_GetTypeName(jNode) + "]ID:" + IntToString(BT_Node_GetID(jNode));
 }
 
 void BT_Node_SetInput(json jNode, string sInput)
@@ -1064,10 +1077,11 @@ json BT_Node_BaseNode(int nNodeType, string sTypeName)
 void BT_Node_SetFunction(json jNode, int nFunctionType, string sInclude, string sFunction)
 {
     string sScriptChunk = nssInclude(sInclude);
+    sFunction = nssFunction(sFunction, "BT_GetCurrentNode()");
     if (nFunctionType == BT_NODE_FUNCTION_TICK)
-        sScriptChunk += nssIntMain(nssFunction(sFunction, "BT_GetCurrentNode()"));
+        sScriptChunk += nssIntMain(sFunction);
     else
-        sScriptChunk += nssVoidMain(nssFunction(sFunction, "BT_GetCurrentNode()"));
+        sScriptChunk += nssVoidMain(sFunction);
 
     JsonObjectSetStringInplace(jNode, BT_NODE_KEY_SCRIPT_CHUNK + IntToString(nFunctionType), sScriptChunk);
     CacheScriptChunk(sScriptChunk, FALSE, BT_CACHE_SCRIPT_CHUNKS);
@@ -1276,7 +1290,7 @@ json BT_Node_Inverter()
 
 int BT_Node_Inverter_Tick(json jNode)
 {
-    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
+    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(BT_Node_GetFirstChildID(jNode)));
 
     if (nNodeState == BT_NODE_STATE_SUCCESS)
         nNodeState = BT_NODE_STATE_FAILURE;
@@ -1295,7 +1309,7 @@ json BT_Node_ForceSuccess()
 
 int BT_Node_ForceSuccess_Tick(json jNode)
 {
-    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
+    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(BT_Node_GetFirstChildID(jNode)));
 
     if (nNodeState != BT_NODE_STATE_RUNNING)
         nNodeState = BT_NODE_STATE_SUCCESS;
@@ -1312,7 +1326,7 @@ json BT_Node_ForceFailure()
 
 int BT_Node_ForceFailure_Tick(json jNode)
 {
-    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
+    int nNodeState = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(BT_Node_GetFirstChildID(jNode)));
 
     if (nNodeState != BT_NODE_STATE_RUNNING)
         nNodeState = BT_NODE_STATE_FAILURE;
@@ -1342,7 +1356,7 @@ int BT_Node_Timeout_Tick(json jNode)
     if (GetCurrentTimeSeconds() - nStartTime > nTimeout)
         return BT_NODE_STATE_FAILURE;
     else
-        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
+        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(BT_Node_GetFirstChildID(jNode)));
 }
 
 json BT_Node_RandomTimeout(int nMinimumTimeout, int nRandomTimeout)
@@ -1374,7 +1388,7 @@ int BT_Node_RandomTimeout_Tick(json jNode)
     if (GetCurrentTimeSeconds() - nStartTime > nTimeout)
         return BT_NODE_STATE_FAILURE;
     else
-        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
+        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(BT_Node_GetFirstChildID(jNode)));
 }
 
 json BT_Node_Probability(int nPercentage)
@@ -1389,8 +1403,8 @@ int BT_Node_Probability_Tick(json jNode)
 {
     int nChance = BT_Node_GetDataInt(jNode, "Chance");
 
-    if (Random(100) + 1 <= nChance)
-        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
+    if (Random(100) < nChance)
+        return BT_Node_Execute(BT_BehaviorTree_GetNodeByID(BT_Node_GetFirstChildID(jNode)));
     else
         return BT_NODE_STATE_FAILURE;
 }
@@ -1412,7 +1426,7 @@ int BT_Node_Cooldown_Tick(json jNode)
     if (GetCurrentTimeSeconds() - nLastExecutionTime < nCooldown)
         return BT_NODE_STATE_FAILURE;
 
-    int nResult = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
+    int nResult = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(BT_Node_GetFirstChildID(jNode)));
     if (nResult == BT_NODE_STATE_SUCCESS)
         BT_Blackboard_ContextSetInt(strBlackboardContext, "LastExecution", GetCurrentTimeSeconds());
 
@@ -1450,7 +1464,7 @@ int BT_Node_RandomCooldown_Tick(json jNode)
     if (GetCurrentTimeSeconds() - nLastExecutionTime < nCooldown)
         return BT_NODE_STATE_FAILURE;
 
-    int nResult = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(JsonArrayGetInt(BT_Node_GetChildren(jNode), 0)));
+    int nResult = BT_Node_Execute(BT_BehaviorTree_GetNodeByID(BT_Node_GetFirstChildID(jNode)));
     if (nResult == BT_NODE_STATE_SUCCESS)
     {
         int nMinimumCooldown = BT_Node_GetDataInt(jNode, "MinimumCooldown");

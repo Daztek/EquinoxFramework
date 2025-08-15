@@ -695,10 +695,7 @@ void BT_BehaviorTree_InitializeTree(object oBehaviorTree, json jBehaviorTree)
         {
             string sScriptChunk = BT_Node_GetFunctionChunk(jNode, nFunctionType);
             if (sScriptChunk != "")
-            {
-                string sFunctionType = IntToString(nFunctionType);
-                SetLocalInt(oBehaviorTree, BT_BEHAVIORTREE_NODE_HAS_FUNCTION + sNodeID + sFunctionType, TRUE);
-            }
+                SetLocalInt(oBehaviorTree, BT_BEHAVIORTREE_NODE_HAS_FUNCTION + sNodeID + IntToString(nFunctionType), TRUE);
         }
 
         if (sNodeID == sRootID)

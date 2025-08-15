@@ -6,6 +6,7 @@
 #include "ef_i_dataobject"
 #include "ef_i_sqlite"
 #include "ef_i_util"
+#include "ef_i_vm"
 #include "ef_c_log"
 
 const string MEDIATOR_SCRIPT_NAME                       = "ef_c_mediator";
@@ -25,11 +26,15 @@ const string MEDIATOR_FUNCTION_PARAMETERS               = "MediatorFunctionParam
 const string MEDIATOR_FUNCTION_RETURN_TYPE              = "MediatorFunctionReturnType_";
 const string MEDIATOR_LAMBDA_ID                         = "MediatorLambdaId_";
 const string MEDIATOR_LAMBDA_FUNCTION                   = "Lambda::";
+const string MEDIATOR_CLOSURE_ID                        = "MediatorClosureId_";
+const string MEDIATOR_CLOSURE_FUNCTION                  = "Closure::";
+
 
 int FunctionExists(string sSystem, string sFunction);
 int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF);
 string Function(string sSystem, string sFunction);
 string Lambda(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "");
+string Closure(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "");
 string ObjectArg(object oValue);
 string IntArg(int nValue);
 string FloatArg(float fValue);
@@ -191,6 +196,19 @@ int GetLambdaIdFromFunction(string sFunction)
     return 0;
 }
 
+int GetNextClosureId(object oFDO)
+{
+    return IncrementLocalInt(oFDO, MEDIATOR_CLOSURE_ID);
+}
+
+int GetClosureIdFromFunction(string sFunction)
+{
+    int nPrefixLength = GetStringLength(MEDIATOR_CLOSURE_FUNCTION);
+    if (GetStringLeft(sFunction, nPrefixLength) == MEDIATOR_CLOSURE_FUNCTION)
+        return StringToInt(GetStringRight(sFunction, GetStringLength(sFunction) - nPrefixLength));
+    return 0;
+}
+
 int FunctionExists(string sSystem, string sFunction)
 {
     object oDataObject = GetDataObject(MEDIATOR_SCRIPT_NAME);
@@ -211,9 +229,10 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 {
     object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
     int nLambdaId = GetLambdaIdFromFunction(sFunction);
+    int nClosureId = GetClosureIdFromFunction(sFunction);
     int nCallStackDepth = 0;
 
-    if (!MEDIATOR_PARSE_SYSTEM_FUNCTION_DEFINITIONS && !nLambdaId)
+    if (!MEDIATOR_PARSE_SYSTEM_FUNCTION_DEFINITIONS && !nLambdaId && !nClosureId)
     {
         LogError("Function Parsing Disabled: could not execute '" + sFunction + "'");
         return nCallStackDepth;
@@ -221,7 +240,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 
     ClearArgumentCount(oFDO);
 
-    if (sFunction != MEDIATOR_INVALID_FUNCTION || nLambdaId)
+    if (sFunction != MEDIATOR_INVALID_FUNCTION || nLambdaId || nClosureId)
     {
         string sParameters = GetLocalString(oFDO, MEDIATOR_FUNCTION_PARAMETERS + sFunction);
         string sReturnType = GetLocalString(oFDO, MEDIATOR_FUNCTION_RETURN_TYPE + sFunction);
@@ -329,6 +348,108 @@ string Lambda(string sBody, string sParameters = "", string sReturnType = "", st
     }
 
     return MEDIATOR_LAMBDA_FUNCTION + IntToString(nLambdaId);
+}
+
+string Closure(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "")
+{
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    struct VMFrame strFrame = GetVMFrame(2);
+    string sHash = IntToString(HashString(sReturnType + sBody + sParameters + strFrame.sFunction + IntToString(strFrame.nLine)));
+    int nClosureId = GetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash);
+
+    if (!nClosureId)
+    {
+        nClosureId = GetNextClosureId(oFDO);
+        string sClosureSymbol = MEDIATOR_CLOSURE_FUNCTION + IntToString(nClosureId);
+        string sArguments, sClosureParameters;
+        int nArgument, nNumArguments = GetStringLength(sParameters);
+
+        sClosureParameters += "(";
+        for (nArgument = 0; nArgument < nNumArguments; nArgument++)
+        {
+            string sParameter = GetSubString(sParameters, nArgument, 1);
+            sArguments += (!nArgument ? "" : ", ") +
+                nssFunction("GetLocal" + nssConvertShortType(sParameter),
+                    "oFDO, " + nssEscape(MEDIATOR_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
+            sClosureParameters += (!nArgument ? "" : ", ") +
+                nssParameter(nssConvertShortType(sParameter, TRUE), "arg" + IntToString(nArgument + 1));
+        }
+        sClosureParameters += ")";
+
+        json jStack = NWNX_VM_GetCurrentStack(2);
+        int nIndex, nNumVariables = JsonGetLength(jStack);
+        string sGetStackVars, sSetStackVars;
+        for (nIndex = 0; nIndex < nNumVariables; nIndex++)
+        {
+            json jVar = JsonArrayGet(jStack, nIndex);
+            string sName = JsonObjectGetString(jVar, "name");
+
+            if (FindSubString(sBody, sName, 0) == -1)
+                continue;
+
+            string sType = JsonObjectGetString(jVar, "type");
+            int nStackLocation = JsonObjectGetInt(jVar, "stack_location");
+
+            if (sType == "i")
+            {
+                sGetStackVars += nssInt(sName, nssFunction("NWNX_VM_GetStackIntegerValue", IntToString(nStackLocation)));
+                sSetStackVars += nssFunction("NWNX_VM_SetStackIntegerValue", IntToString(nStackLocation) + ", " + sName);
+            }
+            else if (sType == "f")
+            {
+                sGetStackVars += nssFloat(sName, nssFunction("NWNX_VM_GetStackFloatValue", IntToString(nStackLocation)));
+                sSetStackVars += nssFunction("NWNX_VM_SetStackFloatValue", IntToString(nStackLocation) + ", " + sName);
+            }
+            else if (sType == "o")
+            {
+                sGetStackVars += nssObject(sName, nssFunction("NWNX_VM_GetStackObjectValue", IntToString(nStackLocation)));
+                sSetStackVars += nssFunction("NWNX_VM_SetStackObjectValue", IntToString(nStackLocation) + ", " + sName);
+            }
+            else if (sType == "s")
+            {
+                sGetStackVars += nssString(sName, nssFunction("NWNX_VM_GetStackStringValue", IntToString(nStackLocation)));
+                sSetStackVars += nssFunction("NWNX_VM_SetStackStringValue", IntToString(nStackLocation) + ", " + sName);
+            }
+        }
+
+        if (FindSubString(sBody, "return") == -1)
+        {
+            sBody = GetSubString(sBody, 1, GetStringLength(sBody) - 2);
+            sBody = "{ " + sGetStackVars + " " + sBody + " " + sSetStackVars + " }";
+        }
+        else
+        {
+            sBody = GetSubString(sBody, 1, GetStringLength(sBody) - 2);
+            sBody = "{ " + sGetStackVars + " " + sBody +  " }";
+            sBody = RegExpReplace("\\breturn\\b[^;]+;", sBody, "{ " + sSetStackVars + " $& }");
+        }
+
+        string sClosureFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "ClosureFunction" + sClosureParameters + sBody;
+        string sFunctionBody = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME))) +
+            nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "oFDO", FALSE)));
+
+        if (sReturnType != "")
+        {
+            sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
+                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
+            sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
+                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("ClosureFunction", sArguments, FALSE));
+        }
+        else
+            sFunctionBody += nssFunction("ClosureFunction", sArguments);
+
+        SetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash, nClosureId);
+
+        SetLocalString(oFDO, MEDIATOR_FUNCTION_RETURN_TYPE + sClosureSymbol, sReturnType);
+        SetLocalString(oFDO, MEDIATOR_FUNCTION_PARAMETERS + sClosureSymbol, sParameters);
+
+        string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sInclude) + sClosureFunction + nssVoidMain(sFunctionBody);
+        SetLocalString(oFDO, MEDIATOR_FUNCTION_SCRIPT_CHUNK + sClosureSymbol, sScriptChunk);
+
+        return sClosureSymbol;
+    }
+
+    return MEDIATOR_CLOSURE_FUNCTION + IntToString(nClosureId);
 }
 
 string ObjectArg(object oValue)

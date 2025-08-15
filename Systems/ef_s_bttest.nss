@@ -259,9 +259,9 @@ int BT_Node_ManageTorch_Tick(json jNode)
 
 void BTT_RecursiveTick(object oBehaviorTree, object oBlackboard, object oSelf)
 {
-    Profiler_Start("BTT_RecursiveTick");
+    //Profiler_Start("BTT_RecursiveTick");
     BT_BehaviorTree_Tick(oBehaviorTree, oBlackboard, oSelf);
-    PrintString(Profiler_Stop());
+    //PrintString(Profiler_Stop());
     DelayCommand(3.0f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oSelf));
 }
 

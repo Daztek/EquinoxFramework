@@ -47,11 +47,12 @@ void ObjSit_Load()
     pdDouble.fFacingAdjustment = 180.0f;
     json jBench = GffTools_GeneratePlaceable(pdDouble);
 
-    string lmbdCreateSeat = Lambda(
-    "{ object oSelf = OBJECT_SELF; object oArea = GetArea(oSelf); vector vPosition = GetPosition(oSelf); float fFacing = GetFacing(oSelf);" +
+    object oBench;
+    string lmbdCreateSeat = Closure(
+    "{ object oArea = GetArea(oBench); vector vPosition = GetPosition(oBench); float fFacing = GetFacing(oBench);" +
     "  location locSpawn = Location(oArea, vPosition + (AngleToVector(fFacing + (arg1 ? 90.0f : -90.0f)) / 2.0f), fFacing);" +
     "  object oSeat = CreateObject(OBJECT_TYPE_PLACEABLE, GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, locSpawn);" +
-    "  SetPlotFlag(oSeat, TRUE); SetLocalObject(oSelf, \"SEAT_\" + (arg1 ? \"1\" : \"2\"), oSeat); return oSeat; }",
+    "  SetPlotFlag(oSeat, TRUE); SetLocalObject(oBench, \"SEAT_\" + (arg1 ? \"1\" : \"2\"), oSeat); return oSeat; }",
     "i", "o", "ef_s_objsit");
 
     string sQuery = "SELECT oid, tag FROM gameobjects WHERE type = @type AND (tag = @tag1 OR tag = @tag2);";
@@ -78,9 +79,9 @@ void ObjSit_Load()
         }
         else if (sTag == OBJSIT_DOUBLE_SPAWN_TAG)
         {
-            object oBench = GffTools_CreatePlaceable(jBench, GetLocation(oSpawnpoint));
-            ObjectTag_Add(RetObject(Call(lmbdCreateSeat, IntArg(TRUE), oBench)), OBJSIT_SEAT_OBJECT_TAG);
-            ObjectTag_Add(RetObject(Call(lmbdCreateSeat, IntArg(FALSE), oBench)), OBJSIT_SEAT_OBJECT_TAG);
+            oBench = GffTools_CreatePlaceable(jBench, GetLocation(oSpawnpoint));
+            ObjectTag_Add(RetObject(Call(lmbdCreateSeat, IntArg(TRUE))), OBJSIT_SEAT_OBJECT_TAG);
+            ObjectTag_Add(RetObject(Call(lmbdCreateSeat, IntArg(FALSE))), OBJSIT_SEAT_OBJECT_TAG);
             EM_ObjectDispatchListInsert(oBench, nObjectDispatchListId);
             nDouble++;
         }

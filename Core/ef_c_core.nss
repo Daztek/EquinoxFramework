@@ -12,7 +12,7 @@
 const string CORE_SCRIPT_NAME                       = "ef_c_core";
 const int CORE_VALIDATE_SYSTEMS                     = TRUE;
 const int CORE_SHUTDOWN_ON_VALIDATION_FAILURE       = FALSE;
-const int CORE_DEBUG_MINIMAL_LOAD                   = TRUE;
+const int CORE_DEBUG_MINIMAL_LOAD                   = FALSE;
 
 const int CORE_SYSTEM_INIT                          = 1;
 const int CORE_SYSTEM_LOAD                          = 2;

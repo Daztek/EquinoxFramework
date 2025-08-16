@@ -42,15 +42,20 @@ void Debug_OnResourceModified()
 
 int TestFunction(int nTest)
 {
-    string sClosure = MutableClosure("{ nTest += arg1; string sNestedClosure = MutableClosure(\"{ PrintInteger(nTest); nTest += arg1 * 2; }\"); Call(sNestedClosure); }", "i");
-    Call(sClosure, IntArg(5));
+    string sString = "Hi!";
+    string sClosure = CapturedClosure("{ PrintString(sString); nTest += arg1; string sNestedClosure = MutableClosure(\"{ PrintInteger(nTest); nTest += arg1 * 2; sString = \\\"Yo!\\\"; }\"); Call(sNestedClosure); sString += \" Hello!\"; return sString; }", "&nTest,=sString", "i", "s");
+    string sRet = RetString(Call(sClosure, IntArg(5)));
+    PrintString("'" + sString + "' != '" + sRet + "'");
     return nTest;
 }
 
 // @CORE[CORE_SYSTEM_LOAD]
 void Debug_Load()
 {
-    int nRet = TestFunction(5);
+    /*
+    string sLambda = Lambda("{ return TestFunction(arg1); }", "i", "i", "ef_s_debug");
+    int nRet = RetInt(Call(sLambda, IntArg(5)));
     string sClosure = Closure("{ PrintString(\"The return value is: \" + IntToString(nRet)); }");
     Call(sClosure);
+    */
 }

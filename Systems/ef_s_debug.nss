@@ -6,6 +6,7 @@
 #include "ef_i_include"
 #include "ef_c_log"
 #include "ef_c_profiler"
+#include "ef_c_mediator"
 #include "ef_s_eventman"
 #include "nwnx_nwsqliteext"
 
@@ -39,16 +40,17 @@ void Debug_OnResourceModified()
     }
 }
 
+int TestFunction(int nTest)
+{
+    string sClosure = MutableClosure("{ nTest += arg1; string sNestedClosure = MutableClosure(\"{ PrintInteger(nTest); nTest += arg1 * 2; }\"); Call(sNestedClosure); }", "i");
+    Call(sClosure, IntArg(5));
+    return nTest;
+}
+
 // @CORE[CORE_SYSTEM_LOAD]
 void Debug_Load()
 {
-/*
-   NWNX_NWSQLiteExtensions_CreateVirtual2DATable("classes", "01111101000001001111111101110111111111111111111110111111011111110021111");
-
-    sqlquery sql = SqlPrepareQueryObject(GetModule(), "SELECT name FROM classes WHERE label IS NOT NULL AND playerclass = 1 AND hitdie > 8;");
-    while (SqlStep(sql))
-    {
-        PrintString(GetStringByStrRef(SqlGetInt(sql, 0)));
-    }
-*/
+    int nRet = TestFunction(5);
+    string sClosure = Closure("{ PrintString(\"The return value is: \" + IntToString(nRet)); }");
+    Call(sClosure);
 }

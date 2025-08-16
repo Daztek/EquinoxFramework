@@ -9,16 +9,17 @@
 #include "ef_c_mediator"
 #include "nwnx_admin"
 
-const string CORE_SCRIPT_NAME                         = "ef_c_core";
-const int CORE_VALIDATE_SYSTEMS                       = TRUE;
-const int CORE_SHUTDOWN_ON_VALIDATION_FAILURE         = FALSE;
+const string CORE_SCRIPT_NAME                       = "ef_c_core";
+const int CORE_VALIDATE_SYSTEMS                     = TRUE;
+const int CORE_SHUTDOWN_ON_VALIDATION_FAILURE       = FALSE;
+const int CORE_DEBUG_MINIMAL_LOAD                   = TRUE;
 
-const int CORE_SYSTEM_INIT                            = 1;
-const int CORE_SYSTEM_LOAD                            = 2;
-const int CORE_SYSTEM_POST                            = 3;
+const int CORE_SYSTEM_INIT                          = 1;
+const int CORE_SYSTEM_LOAD                          = 2;
+const int CORE_SYSTEM_POST                          = 3;
 
-const string CORE_CORE_SCRIPT_PREFIX                  = "ef_c_";
-const string CORE_SYSTEM_SCRIPT_PREFIX                = "ef_s_";
+const string CORE_CORE_SCRIPT_PREFIX                = "ef_c_";
+const string CORE_SYSTEM_SCRIPT_PREFIX              = "ef_s_";
 
 void Core_InitializeSystemData();
 void Core_ParseSystem(string sSystem);
@@ -89,6 +90,9 @@ void Core_InsertSystem(string sSystem, string sScriptData)
 void Core_ParseSystem(string sSystem)
 {
     string sScriptData = ResManGetFileContents(sSystem, RESTYPE_NSS);
+
+    if (CORE_DEBUG_MINIMAL_LOAD && sSystem != "ef_s_debug" && sSystem != "ef_s_eventman")
+        return;
 
     if (FindSubString(sScriptData, "@SKIPSYSTEM") != -1)
         return;

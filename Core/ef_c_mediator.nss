@@ -35,6 +35,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF);
 string Function(string sSystem, string sFunction);
 string Lambda(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "");
 string Closure(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "");
+string MutableClosure(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "");
 string ObjectArg(object oValue);
 string IntArg(int nValue);
 string FloatArg(float fValue);
@@ -378,6 +379,105 @@ string Closure(string sBody, string sParameters = "", string sReturnType = "", s
 
         json jStack = NWNX_VM_GetCurrentStack(2);
         int nIndex, nNumVariables = JsonGetLength(jStack);
+        string sGetStackVars;
+        for (nIndex = 0; nIndex < nNumVariables; nIndex++)
+        {
+            json jVar = JsonArrayGet(jStack, nIndex);
+            string sName = JsonObjectGetString(jVar, "name");
+
+            if (FindSubString(sBody, sName, 0) == -1)
+                continue;
+
+            string sType = JsonObjectGetString(jVar, "type");
+            int nStackLocation = JsonObjectGetInt(jVar, "stack_location");
+
+            if (sType == "i")
+            {
+                sGetStackVars += nssInt(sName, IntToString(NWNX_VM_GetStackIntegerValue(nStackLocation)));
+            }
+            else if (sType == "f")
+            {
+                sGetStackVars += nssFloat(sName, FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 18, 9));
+            }
+            else if (sType == "o")
+            {
+                sGetStackVars += nssObject(sName, nssFunction("StringToObject", nssEscape(ObjectToString(NWNX_VM_GetStackObjectValue(nStackLocation)))));
+            }
+            else if (sType == "s")
+            {
+                sGetStackVars += nssString(sName, nssEscape(NWNX_VM_GetStackStringValue(nStackLocation)));
+            }
+            else if (sType == "e2")
+            {
+                string sLocation = RegExpReplace("\"", JsonDump(LocationToJson(NWNX_VM_GetStackLocationValue(nStackLocation))), "\\\"");
+                sGetStackVars += nssLocation(sName, nssFunction("JsonToLocation", nssFunction("JsonParse", nssEscape(sLocation), FALSE)));
+            }
+            else if (sType == "e7")
+            {
+                string sJson = RegExpReplace("\"", JsonDump(NWNX_VM_GetStackJsonValue(nStackLocation)), "\\\"");
+                sGetStackVars += nssJson(sName, nssFunction("JsonParse", nssEscape(sJson)));
+            }
+        }
+
+        sBody = GetSubString(sBody, 1, GetStringLength(sBody));
+        sBody = "{ " + sGetStackVars + " " + sBody;
+
+        string sClosureFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "ClosureFunction" + sClosureParameters + sBody;
+        string sFunctionBody = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME))) +
+            nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "oFDO", FALSE)));
+
+        if (sReturnType != "")
+        {
+            sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
+                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
+            sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
+                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("ClosureFunction", sArguments, FALSE));
+        }
+        else
+            sFunctionBody += nssFunction("ClosureFunction", sArguments);
+
+        SetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash, nClosureId);
+
+        SetLocalString(oFDO, MEDIATOR_FUNCTION_RETURN_TYPE + sClosureSymbol, sReturnType);
+        SetLocalString(oFDO, MEDIATOR_FUNCTION_PARAMETERS + sClosureSymbol, sParameters);
+
+        string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sInclude) + sClosureFunction + nssVoidMain(sFunctionBody);
+        SetLocalString(oFDO, MEDIATOR_FUNCTION_SCRIPT_CHUNK + sClosureSymbol, sScriptChunk);
+
+        return sClosureSymbol;
+    }
+
+    return MEDIATOR_CLOSURE_FUNCTION + IntToString(nClosureId);
+}
+
+string MutableClosure(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "")
+{
+    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
+    struct VMFrame strFrame = GetVMFrame(2);
+    string sHash = IntToString(HashString(sReturnType + sBody + sParameters + strFrame.sFunction + IntToString(strFrame.nLine)));
+    int nClosureId = GetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash);
+
+    if (!nClosureId)
+    {
+        nClosureId = GetNextClosureId(oFDO);
+        string sClosureSymbol = MEDIATOR_CLOSURE_FUNCTION + IntToString(nClosureId);
+        string sArguments, sClosureParameters;
+        int nArgument, nNumArguments = GetStringLength(sParameters);
+
+        sClosureParameters += "(";
+        for (nArgument = 0; nArgument < nNumArguments; nArgument++)
+        {
+            string sParameter = GetSubString(sParameters, nArgument, 1);
+            sArguments += (!nArgument ? "" : ", ") +
+                nssFunction("GetLocal" + nssConvertShortType(sParameter),
+                    "oFDO, " + nssEscape(MEDIATOR_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
+            sClosureParameters += (!nArgument ? "" : ", ") +
+                nssParameter(nssConvertShortType(sParameter, TRUE), "arg" + IntToString(nArgument + 1));
+        }
+        sClosureParameters += ")";
+
+        json jStack = NWNX_VM_GetCurrentStack(2);
+        int nIndex, nNumVariables = JsonGetLength(jStack);
         string sGetStackVars, sSetStackVars;
         for (nIndex = 0; nIndex < nNumVariables; nIndex++)
         {
@@ -409,6 +509,16 @@ string Closure(string sBody, string sParameters = "", string sReturnType = "", s
             {
                 sGetStackVars += nssString(sName, nssFunction("NWNX_VM_GetStackStringValue", IntToString(nStackLocation)));
                 sSetStackVars += nssFunction("NWNX_VM_SetStackStringValue", IntToString(nStackLocation) + ", " + sName);
+            }
+            else if (sType == "e2")
+            {
+                sGetStackVars += nssLocation(sName, nssFunction("NWNX_VM_GetStackLocationValue", IntToString(nStackLocation)));
+                sSetStackVars += nssFunction("NWNX_VM_SetStackLocationValue", IntToString(nStackLocation) + ", " + sName);
+            }
+            else if (sType == "e7")
+            {
+                sGetStackVars += nssJson(sName, nssFunction("NWNX_VM_GetStackJsonValue", IntToString(nStackLocation)));
+                sSetStackVars += nssFunction("NWNX_VM_SetStackJsonValue", IntToString(nStackLocation) + ", " + sName);
             }
         }
 

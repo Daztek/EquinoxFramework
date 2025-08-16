@@ -48,7 +48,7 @@ void ObjSit_Load()
     json jBench = GffTools_GeneratePlaceable(pdDouble);
 
     object oBench;
-    string lmbdCreateSeat = Closure(
+    string mutclsCreateSeat = MutableClosure(
     "{ object oArea = GetArea(oBench); vector vPosition = GetPosition(oBench); float fFacing = GetFacing(oBench);" +
     "  location locSpawn = Location(oArea, vPosition + (AngleToVector(fFacing + (arg1 ? 90.0f : -90.0f)) / 2.0f), fFacing);" +
     "  object oSeat = CreateObject(OBJECT_TYPE_PLACEABLE, GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, locSpawn);" +
@@ -69,10 +69,9 @@ void ObjSit_Load()
         object oSpawnpoint = SqlGetObjectRef(sql, 0);
         string sTag = SqlGetString(sql, 1);
 
-        object oSeat;
-        if (sTag == OBJSIT_SINGLE_SPAWN_TAG)
+         if (sTag == OBJSIT_SINGLE_SPAWN_TAG)
         {
-            oSeat = GffTools_CreatePlaceable(jChair, GetLocation(oSpawnpoint));
+            object oSeat = GffTools_CreatePlaceable(jChair, GetLocation(oSpawnpoint));
             ObjectTag_Add(oSeat, OBJSIT_SEAT_OBJECT_TAG);
             EM_ObjectDispatchListInsert(oSeat, nObjectDispatchListId);
             nSingle++;
@@ -80,8 +79,8 @@ void ObjSit_Load()
         else if (sTag == OBJSIT_DOUBLE_SPAWN_TAG)
         {
             oBench = GffTools_CreatePlaceable(jBench, GetLocation(oSpawnpoint));
-            ObjectTag_Add(RetObject(Call(lmbdCreateSeat, IntArg(TRUE))), OBJSIT_SEAT_OBJECT_TAG);
-            ObjectTag_Add(RetObject(Call(lmbdCreateSeat, IntArg(FALSE))), OBJSIT_SEAT_OBJECT_TAG);
+            ObjectTag_Add(RetObject(Call(mutclsCreateSeat, IntArg(TRUE))), OBJSIT_SEAT_OBJECT_TAG);
+            ObjectTag_Add(RetObject(Call(mutclsCreateSeat, IntArg(FALSE))), OBJSIT_SEAT_OBJECT_TAG);
             EM_ObjectDispatchListInsert(oBench, nObjectDispatchListId);
             nDouble++;
         }

@@ -40,10 +40,30 @@ void Debug_OnResourceModified()
     }
 }
 
+int GetInteger()
+{
+    return RetInt(Call(GetLocalString(GetModule(), "GetInteger")));
+}
+
+void SetInteger(int nValue)
+{
+    Call(GetLocalString(GetModule(), "SetInteger"), IntArg(nValue));
+}
+
+void SomeFunction()
+{
+    Profiler_Start("SomeFunction");
+    SetInteger(GetInteger() + 1);
+    PrintString(Profiler_Stop());
+
+    while (GetInteger() < 10)
+        SomeFunction();
+}
+
 int TestFunction(int nTest)
 {
     string sString = "Hi!";
-    string sClosure = CapturedClosure("{ PrintString(sString); nTest += arg1; string sNestedClosure = MutableClosure(\"{ PrintInteger(nTest); nTest += arg1 * 2; sString = \\\"Yo!\\\"; }\"); Call(sNestedClosure); sString += \" Hello!\"; return sString; }", "&nTest,=sString", "i", "s");
+    string sClosure = Closure("{ PrintString(sString); nTest += arg1; string sNestedClosure = Closure(\"{ PrintInteger(nTest); nTest += arg1 * 2; sString = \\\"Yo!\\\"; }\", \"&nTest,&sString,&arg1\"); Call(sNestedClosure); sString += \" Hello!\"; return sString; }", "&nTest,=sString", "i", "s");
     string sRet = RetString(Call(sClosure, IntArg(5)));
     PrintString("'" + sString + "' != '" + sRet + "'");
     return nTest;
@@ -52,10 +72,23 @@ int TestFunction(int nTest)
 // @CORE[CORE_SYSTEM_LOAD]
 void Debug_Load()
 {
-    /*
-    string sLambda = Lambda("{ return TestFunction(arg1); }", "i", "i", "ef_s_debug");
-    int nRet = RetInt(Call(sLambda, IntArg(5)));
-    string sClosure = Closure("{ PrintString(\"The return value is: \" + IntToString(nRet)); }");
+    int nInteger = 5;
+
+    Profiler_Start("sGetInteger");
+    string sGetInteger = Closure("{ return nInteger; }", "&nInteger", "", "i");
+    PrintString(Profiler_Stop());
+    SetLocalString(GetModule(), "GetInteger", sGetInteger);
+
+    Profiler_Start("sSetInteger");
+    string sSetInteger = Closure("{ nInteger = arg1; }", "&nInteger", "i");
+    PrintString(Profiler_Stop());
+    SetLocalString(GetModule(), "SetInteger", sSetInteger);
+
+    SomeFunction();
+    PrintInteger(nInteger);
+
+    string sLambdaClosure = Closure("{ return TestFunction(arg1); }", "", "i", "i", "ef_s_debug");
+    int nRet = RetInt(Call(sLambdaClosure, IntArg(7)));
+    string sClosure = Closure("{ PrintString(\"The value is: \" + IntToString(nRet)); }", "=nRet");
     Call(sClosure);
-    */
 }

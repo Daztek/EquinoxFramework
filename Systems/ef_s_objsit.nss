@@ -48,7 +48,7 @@ void ObjSit_Load()
     json jBench = GffTools_GeneratePlaceable(pdDouble);
 
     object oBench;
-    string capclsCreateSeat = CapturedClosure(
+    string clsCreateSeat = Closure(
     "{ object oArea = GetArea(oBench); vector vPosition = GetPosition(oBench); float fFacing = GetFacing(oBench);" +
     "  location locSpawn = Location(oArea, vPosition + (AngleToVector(fFacing + (arg1 ? 90.0f : -90.0f)) / 2.0f), fFacing);" +
     "  object oSeat = CreateObject(OBJECT_TYPE_PLACEABLE, GFFTOOLS_INVISIBLE_OBJECT_PLC_RESREF, locSpawn);" +
@@ -79,8 +79,8 @@ void ObjSit_Load()
         else if (sTag == OBJSIT_DOUBLE_SPAWN_TAG)
         {
             oBench = GffTools_CreatePlaceable(jBench, GetLocation(oSpawnpoint));
-            ObjectTag_Add(RetObject(Call(capclsCreateSeat, IntArg(TRUE))), OBJSIT_SEAT_OBJECT_TAG);
-            ObjectTag_Add(RetObject(Call(capclsCreateSeat, IntArg(FALSE))), OBJSIT_SEAT_OBJECT_TAG);
+            ObjectTag_Add(RetObject(Call(clsCreateSeat, IntArg(TRUE))), OBJSIT_SEAT_OBJECT_TAG);
+            ObjectTag_Add(RetObject(Call(clsCreateSeat, IntArg(FALSE))), OBJSIT_SEAT_OBJECT_TAG);
             EM_ObjectDispatchListInsert(oBench, nObjectDispatchListId);
             nDouble++;
         }

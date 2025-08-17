@@ -10,33 +10,28 @@
 #include "ef_c_log"
 
 const string MEDIATOR_SCRIPT_NAME                       = "ef_c_mediator";
+
 const int MEDIATOR_PARSE_SYSTEM_FUNCTION_DEFINITIONS    = TRUE;
+const int MEDIATOR_VALIDATE_CLOSURE_CAPTURE_LIST        = TRUE;
+
+const int MEDIATIOR_OVERRIDE_GLOBAL_CACHE_SETTING       = FALSE;
 const int MEDIATOR_PRECACHE_SYSTEM_FUNCTIONS            = FALSE;
+const int MEDIATOR_CACHE_CLOSURE_ON_CREATION            = FALSE;
 
 const string MEDIATOR_FUNCTION_EXISTS                   = "MediatorFunctionExists_";
 const string MEDIATOR_INVALID_FUNCTION                  = "MediatorInvalidFunction";
-const string MEDIATOR_CALLSTACK_DEPTH                   = "MediatorCallStackDepth";
-const string MEDIATOR_CALLSTACK_FUNCTION                = "MediatorCallStackFunction_";
-const string MEDIATOR_CALLSTACK_RETURN_TYPE             = "MediatorCallStackReturnType_";
 const string MEDIATOR_ARGUMENT_COUNT                    = "MediatorArgumentCount";
 const string MEDIATOR_ARGUMENT_PREFIX                   = "MediatorArgument_";
-const string MEDIATOR_RETURN_VALUE_PREFIX               = "MediatorReturnValue_";
 const string MEDIATOR_FUNCTION_SCRIPT_CHUNK             = "MediatorFunctionScriptChunk_";
 const string MEDIATOR_FUNCTION_PARAMETERS               = "MediatorFunctionParameters_";
 const string MEDIATOR_FUNCTION_RETURN_TYPE              = "MediatorFunctionReturnType_";
-const string MEDIATOR_LAMBDA_ID                         = "MediatorLambdaId_";
-const string MEDIATOR_LAMBDA_FUNCTION                   = "Lambda::";
 const string MEDIATOR_CLOSURE_ID                        = "MediatorClosureId_";
-const string MEDIATOR_CLOSURE_FUNCTION                  = "Closure::";
-
+const string MEDIATOR_CLOSURE_FUNCTION                  = "Closure_";
 
 int FunctionExists(string sSystem, string sFunction);
 int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF);
 string Function(string sSystem, string sFunction);
-string Lambda(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "");
-string Closure(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "");
-string MutableClosure(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "");
-string CapturedClosure(string sBody, string sCaptureList, string sParameters = "", string sReturnType = "", string sInclude = "");
+string Closure(string sFunctionBody, string sCaptureList = "", string sParameters = "", string sReturnType = "", string sInclude = "", int nDepthOffset = 0);
 string ObjectArg(object oValue);
 string IntArg(int nValue);
 string FloatArg(float fValue);
@@ -44,14 +39,12 @@ string StringArg(string sValue);
 string JsonArg(json jValue);
 string VectorArg(vector vValue);
 string LocationArg(location locValue);
-object RetObject(int nCallStackDepth);
-int RetInt(int nCallStackDepth);
-float RetFloat(int nCallStackDepth);
-string RetString(int nCallStackDepth);
-json RetJson(int nCallStackDepth);
-vector RetVector(int nCallStackDepth);
-location RetLocation(int nCallStackDepth);
-void RetVoid(int nCallStackDepth);
+object RetObject(int bSuccess);
+int RetInt(int bSuccess);
+float RetFloat(int bSuccess);
+string RetString(int bSuccess);
+json RetJson(int bSuccess);
+void RetVoid(int bSuccess);
 
 void Mediator_Init()
 {
@@ -73,14 +66,11 @@ int Mediator_ParseFunctionDefinition(string sLine, string sSystem)
         GetStringLeft(sLine, 3) == "int" ||
         GetStringLeft(sLine, 6) == "string" ||
         GetStringLeft(sLine, 4) == "json" ||
-        GetStringLeft(sLine, 5) == "float" ||
-        GetStringLeft(sLine, 6) == "vector" ||
-        GetStringLeft(sLine, 8) == "location") &&
+        GetStringLeft(sLine, 5) == "float") &&
         FindSubString(sLine, "=", 0) == -1)
     {
-
-        json jMatch = RegExpMatch("(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary)\\s?.*)" +
-                                  "(void|object|int|float|string|json|vector|location)\\s(\\w+)\\((.*)\\);", sLine);
+        json jMatch = RegExpMatch("(?!.*\\s?(?:action|effect|event|itemproperty|sqlquery|struct|talent|cassowary|vector|location)\\s?.*)" +
+                                  "(void|object|int|float|string|json)\\s(\\w+)\\((.*)\\);", sLine);
         if (JsonGetLength(jMatch))
         {
             string sReturnType = nssConvertType(JsonArrayGetString(jMatch, 1));
@@ -107,23 +97,17 @@ int Mediator_ParseFunctionDefinition(string sLine, string sSystem)
                         "oFDO, " + nssEscape(MEDIATOR_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
             }
 
-            string sFunctionBody = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME)));
-                sFunctionBody += nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "oFDO", FALSE)));
-
+            string sDataObject = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME)));
+            string sFunctionBody;
             if (sReturnType != "")
-            {
-                sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
-                                    "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
-                sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
-                                    "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction(sFunctionName, sArguments, FALSE));
-            }
+                sFunctionBody = nssConvertShortType(sReturnType, TRUE) + " main() { " + sDataObject + " return " + nssFunction(sFunctionName, sArguments) + "}";
             else
-                sFunctionBody += nssFunction(sFunctionName, sArguments);
+                sFunctionBody = nssVoidMain(sDataObject + nssFunction(sFunctionName, sArguments));
 
-            string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sFunctionBody);
+            string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sSystem) + sFunctionBody;
 
             if (MEDIATOR_PRECACHE_SYSTEM_FUNCTIONS)
-                CacheScriptChunk(sScriptChunk);
+                CacheScriptChunk(sScriptChunk, FALSE, MEDIATIOR_OVERRIDE_GLOBAL_CACHE_SETTING);
 
             string sQuery = "INSERT INTO " + MEDIATOR_SCRIPT_NAME + "(system, function, returntype, parameters, scriptchunk) " +
                             "VALUES(@system, @function, @returntype, @parameters, @scriptchunk);";
@@ -142,37 +126,6 @@ int Mediator_ParseFunctionDefinition(string sLine, string sSystem)
     return FALSE;
 }
 
-int GetCallStackDepth(object oFDO)
-{
-    return GetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH);
-}
-
-int IncrementCallStackDepth(string sFunction, string sReturnType, object oFDO)
-{
-    int nCallStackDepth = GetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH) + 1;
-    SetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH, nCallStackDepth);
-    SetLocalString(oFDO, MEDIATOR_CALLSTACK_FUNCTION + IntToString(nCallStackDepth), sFunction);
-    SetLocalString(oFDO, MEDIATOR_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth), sReturnType);
-    return nCallStackDepth;
-}
-
-int DecrementCallStackDepth(object oFDO)
-{
-    int nCallStackDepth = GetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH) - 1;
-    SetLocalInt(oFDO, MEDIATOR_CALLSTACK_DEPTH, nCallStackDepth);
-    return nCallStackDepth;
-}
-
-string GetCallStackReturnType(object oFDO, int nCallStackDepth)
-{
-    return GetLocalString(oFDO, MEDIATOR_CALLSTACK_RETURN_TYPE + IntToString(nCallStackDepth));
-}
-
-string GetCallStackFunction(object oFDO, int nCallStackDepth)
-{
-    return GetLocalString(oFDO, MEDIATOR_CALLSTACK_FUNCTION + IntToString(nCallStackDepth));
-}
-
 void ClearArgumentCount(object oFDO)
 {
     DeleteLocalInt(oFDO, MEDIATOR_ARGUMENT_COUNT);
@@ -183,19 +136,6 @@ int IncrementArgumentCount(object oFDO)
     int nCount = GetLocalInt(oFDO, MEDIATOR_ARGUMENT_COUNT);
     SetLocalInt(oFDO, MEDIATOR_ARGUMENT_COUNT, nCount + 1);
     return nCount;
-}
-
-int GetNextLambdaId(object oFDO)
-{
-    return IncrementLocalInt(oFDO, MEDIATOR_LAMBDA_ID);
-}
-
-int GetLambdaIdFromFunction(string sFunction)
-{
-    int nPrefixLength = GetStringLength(MEDIATOR_LAMBDA_FUNCTION);
-    if (GetStringLeft(sFunction, nPrefixLength) == MEDIATOR_LAMBDA_FUNCTION)
-        return StringToInt(GetStringRight(sFunction, GetStringLength(sFunction) - nPrefixLength));
-    return 0;
 }
 
 int GetNextClosureId(object oFDO)
@@ -230,32 +170,28 @@ int FunctionExists(string sSystem, string sFunction)
 int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 {
     object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    int nLambdaId = GetLambdaIdFromFunction(sFunction);
     int nClosureId = GetClosureIdFromFunction(sFunction);
-    int nCallStackDepth = 0;
 
-    if (!MEDIATOR_PARSE_SYSTEM_FUNCTION_DEFINITIONS && !nLambdaId && !nClosureId)
+    if (!MEDIATOR_PARSE_SYSTEM_FUNCTION_DEFINITIONS && !nClosureId)
     {
         LogError("Function Parsing Disabled: could not execute '" + sFunction + "'");
-        return nCallStackDepth;
+        return FALSE;
     }
 
     ClearArgumentCount(oFDO);
 
-    if (sFunction != MEDIATOR_INVALID_FUNCTION || nLambdaId || nClosureId)
+    if (sFunction != MEDIATOR_INVALID_FUNCTION || nClosureId)
     {
         string sParameters = GetLocalString(oFDO, MEDIATOR_FUNCTION_PARAMETERS + sFunction);
-        string sReturnType = GetLocalString(oFDO, MEDIATOR_FUNCTION_RETURN_TYPE + sFunction);
-
         if (sParameters == sArgs)
         {
-            nCallStackDepth = IncrementCallStackDepth(sFunction, sReturnType, oFDO);
             string sScriptChunk = GetLocalString(oFDO, MEDIATOR_FUNCTION_SCRIPT_CHUNK + sFunction);
             string sError = ExecuteScriptChunk(sScriptChunk, oTarget, FALSE);
-            DecrementCallStackDepth(oFDO);
 
-            if (sError != "")
-                LogError("Failed to execute '" + sFunction + "' with error: " + sError);
+            if (sError == "")
+                return TRUE;
+
+            LogError("Failed to execute '" + sFunction + "' with error: " + sError);
         }
         else
         {
@@ -267,7 +203,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
         LogError("Function '" + sFunction + "' does not exist");
     }
 
-    return nCallStackDepth;
+    return FALSE;
 }
 
 string Function(string sSystem, string sFunction)
@@ -299,428 +235,167 @@ string Function(string sSystem, string sFunction)
     return sFunctionSymbol;
 }
 
-string Lambda(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "")
+string Closure(string sFunctionBody, string sCaptureList = "", string sParameters = "", string sReturnType = "", string sInclude = "", int nDepthOffset = 0)
 {
     object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    string sHash = IntToString(HashString(sReturnType + sBody + sParameters));
-    int nLambdaId = GetLocalInt(oFDO, MEDIATOR_LAMBDA_ID + sHash);
-
-    if (!nLambdaId)
-    {
-        nLambdaId = GetNextLambdaId(oFDO);
-        string sLambdaSymbol = MEDIATOR_LAMBDA_FUNCTION + IntToString(nLambdaId);
-        string sArguments, sLambdaParameters;
-        int nArgument, nNumArguments = GetStringLength(sParameters);
-
-        sLambdaParameters += "(";
-        for (nArgument = 0; nArgument < nNumArguments; nArgument++)
-        {
-            string sParameter = GetSubString(sParameters, nArgument, 1);
-            sArguments += (!nArgument ? "" : ", ") +
-                nssFunction("GetLocal" + nssConvertShortType(sParameter),
-                    "oFDO, " + nssEscape(MEDIATOR_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
-            sLambdaParameters += (!nArgument ? "" : ", ") +
-                nssParameter(nssConvertShortType(sParameter, TRUE), "arg" + IntToString(nArgument + 1));
-        }
-        sLambdaParameters += ")";
-
-        string sLambdaFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "LambdaFunction" + sLambdaParameters + sBody;
-        string sFunctionBody = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME))) +
-            nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "oFDO", FALSE)));
-
-        if (sReturnType != "")
-        {
-            sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
-                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
-            sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
-                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("LambdaFunction", sArguments, FALSE));
-        }
-        else
-            sFunctionBody += nssFunction("LambdaFunction", sArguments);
-
-        SetLocalInt(oFDO, MEDIATOR_LAMBDA_ID + sHash, nLambdaId);
-
-        SetLocalString(oFDO, MEDIATOR_FUNCTION_RETURN_TYPE + sLambdaSymbol, sReturnType);
-        SetLocalString(oFDO, MEDIATOR_FUNCTION_PARAMETERS + sLambdaSymbol, sParameters);
-
-        string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sInclude) + sLambdaFunction + nssVoidMain(sFunctionBody);
-        SetLocalString(oFDO, MEDIATOR_FUNCTION_SCRIPT_CHUNK + sLambdaSymbol, sScriptChunk);
-
-        return sLambdaSymbol;
-    }
-
-    return MEDIATOR_LAMBDA_FUNCTION + IntToString(nLambdaId);
-}
-
-string Closure(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "")
-{
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    struct VMFrame strFrame = GetVMFrame(2);
-    string sHash = IntToString(HashString(sReturnType + sBody + sParameters + strFrame.sFunction + IntToString(strFrame.nLine)));
+    int nDepth = 2 + nDepthOffset;
+    struct VMFrame strFrame = GetVMFrame(nDepth);
+    string sHash = IntToString(HashString(sReturnType + sFunctionBody + sParameters + sCaptureList + strFrame.sFunction + IntToString(strFrame.nLine)));
     int nClosureId = GetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash);
 
     if (!nClosureId)
     {
         nClosureId = GetNextClosureId(oFDO);
         string sClosureSymbol = MEDIATOR_CLOSURE_FUNCTION + IntToString(nClosureId);
-        string sArguments, sClosureParameters;
+        string sArguments, sClosureFunctionParameters;
         int nArgument, nNumArguments = GetStringLength(sParameters);
 
-        sClosureParameters += "(";
+        sClosureFunctionParameters += "(";
         for (nArgument = 0; nArgument < nNumArguments; nArgument++)
         {
             string sParameter = GetSubString(sParameters, nArgument, 1);
             sArguments += (!nArgument ? "" : ", ") +
                 nssFunction("GetLocal" + nssConvertShortType(sParameter),
                     "oFDO, " + nssEscape(MEDIATOR_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
-            sClosureParameters += (!nArgument ? "" : ", ") +
+            sClosureFunctionParameters += (!nArgument ? "" : ", ") +
                 nssParameter(nssConvertShortType(sParameter, TRUE), "arg" + IntToString(nArgument + 1));
         }
-        sClosureParameters += ")";
+        sClosureFunctionParameters += ")";
 
-        json jStack = NWNX_VM_GetCurrentStack(2);
-        int nIndex, nNumVariables = JsonGetLength(jStack);
-        string sGetStackVars;
-        for (nIndex = 0; nIndex < nNumVariables; nIndex++)
+        if (sCaptureList != "")
         {
-            json jVar = JsonArrayGet(jStack, nIndex);
-            string sName = JsonObjectGetString(jVar, "name");
+            if (MEDIATOR_VALIDATE_CLOSURE_CAPTURE_LIST)
+            {
+                json jValidateCaptureList = RegExpMatch("^[=&]\\w+(\\s*,\\s*[=&]\\w+)*$", sCaptureList);
+                if (!JsonGetType(jValidateCaptureList) || !JsonGetLength(jValidateCaptureList))
+                {
+                    LogError("Invalid capture list syntax: " + sCaptureList);
+                    return MEDIATOR_INVALID_FUNCTION;
+                }
+            }
 
-            if (FindSubString(sBody, sName, 0) == -1)
-                continue;
+            json jStack = NWNX_VM_GetCurrentStack(nDepth);
+            int nIndex, nNumVariables = JsonGetLength(jStack);
+            string sGetStackVars, sSetStackVars;
+            for (nIndex = 0; nIndex < nNumVariables; nIndex++)
+            {
+                json jVar = JsonArrayGet(jStack, nIndex);
+                string sName = JsonObjectGetString(jVar, "name");
 
-            string sType = JsonObjectGetString(jVar, "type");
-            int nStackLocation = JsonObjectGetInt(jVar, "stack_location");
+                if (FindSubString(sCaptureList, sName, 0) == -1 )
+                    continue;
 
-            if (sType == "i")
-            {
-                sGetStackVars += nssInt(sName, IntToString(NWNX_VM_GetStackIntegerValue(nStackLocation)));
+                json jMatch = RegExpMatch("([=&]{1})(" + sName + ")", sCaptureList);
+                string sCaptureType = JsonArrayGetString(jMatch, 1);
+                string sType = JsonObjectGetString(jVar, "type");
+                int nStackLocation = JsonObjectGetInt(jVar, "stack_location");
+
+                if (sType == "i")
+                {
+                    if (sCaptureType == "&")
+                    {
+                        sGetStackVars += nssInt(sName, nssFunction("NWNX_VM_GetStackIntegerValue", IntToString(nStackLocation)));
+                        sSetStackVars += nssFunction("NWNX_VM_SetStackIntegerValue", IntToString(nStackLocation) + ", " + sName);
+                    }
+                    else if (sCaptureType == "=")
+                    {
+                        sGetStackVars += nssInt(sName, IntToString(NWNX_VM_GetStackIntegerValue(nStackLocation)));
+                    }
+                }
+                else if (sType == "f")
+                {
+                    if (sCaptureType == "&")
+                    {
+                        sGetStackVars += nssFloat(sName, nssFunction("NWNX_VM_GetStackFloatValue", IntToString(nStackLocation)));
+                        sSetStackVars += nssFunction("NWNX_VM_SetStackFloatValue", IntToString(nStackLocation) + ", " + sName);
+                    }
+                    else if (sCaptureType == "=")
+                    {
+                        sGetStackVars += nssFloat(sName, FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 18, 9));
+                    }
+                }
+                else if (sType == "o")
+                {
+                    if (sCaptureType == "&")
+                    {
+                        sGetStackVars += nssObject(sName, nssFunction("NWNX_VM_GetStackObjectValue", IntToString(nStackLocation)));
+                        sSetStackVars += nssFunction("NWNX_VM_SetStackObjectValue", IntToString(nStackLocation) + ", " + sName);
+                    }
+                    else if (sCaptureType == "=")
+                    {
+                        sGetStackVars += nssObject(sName, nssFunction("StringToObject", nssEscape(ObjectToString(NWNX_VM_GetStackObjectValue(nStackLocation)))));
+                    }
+                }
+                else if (sType == "s")
+                {
+                    if (sCaptureType == "&")
+                    {
+                        sGetStackVars += nssString(sName, nssFunction("NWNX_VM_GetStackStringValue", IntToString(nStackLocation)));
+                        sSetStackVars += nssFunction("NWNX_VM_SetStackStringValue", IntToString(nStackLocation) + ", " + sName);
+                    }
+                    else if (sCaptureType == "=")
+                    {
+                        sGetStackVars += nssString(sName, nssEscape(NWNX_VM_GetStackStringValue(nStackLocation)));
+                    }
+                }
+                else if (sType == "e2")
+                {
+                    if (sCaptureType == "&")
+                    {
+                        sGetStackVars += nssLocation(sName, nssFunction("NWNX_VM_GetStackLocationValue", IntToString(nStackLocation)));
+                        sSetStackVars += nssFunction("NWNX_VM_SetStackLocationValue", IntToString(nStackLocation) + ", " + sName);
+                    }
+                    else if (sCaptureType == "=")
+                    {
+                        string sLocation = RegExpReplace("\"", JsonDump(LocationToJson(NWNX_VM_GetStackLocationValue(nStackLocation))), "\\\"");
+                        sGetStackVars += nssLocation(sName, nssFunction("JsonToLocation", nssFunction("JsonParse", nssEscape(sLocation), FALSE)));
+                    }
+                }
+                else if (sType == "e7")
+                {
+                    if (sCaptureType == "&")
+                    {
+                        sGetStackVars += nssJson(sName, nssFunction("NWNX_VM_GetStackJsonValue", IntToString(nStackLocation)));
+                        sSetStackVars += nssFunction("NWNX_VM_SetStackJsonValue", IntToString(nStackLocation) + ", " + sName);
+                    }
+                    else if (sCaptureType == "=")
+                    {
+                        string sJson = RegExpReplace("\"", JsonDump(NWNX_VM_GetStackJsonValue(nStackLocation)), "\\\"");
+                        sGetStackVars += nssJson(sName, nssFunction("JsonParse", nssEscape(sJson)));
+                    }
+                }
             }
-            else if (sType == "f")
+            sFunctionBody = trim(sFunctionBody);
+            if (FindSubString(sFunctionBody, "return") == -1)
             {
-                sGetStackVars += nssFloat(sName, FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 18, 9));
+                sFunctionBody = GetSubString(sFunctionBody, 1, GetStringLength(sFunctionBody) - 2);
+                sFunctionBody = "{ " + sGetStackVars + " " + sFunctionBody + " " + sSetStackVars + " }";
             }
-            else if (sType == "o")
+            else
             {
-                sGetStackVars += nssObject(sName, nssFunction("StringToObject", nssEscape(ObjectToString(NWNX_VM_GetStackObjectValue(nStackLocation)))));
-            }
-            else if (sType == "s")
-            {
-                sGetStackVars += nssString(sName, nssEscape(NWNX_VM_GetStackStringValue(nStackLocation)));
-            }
-            else if (sType == "e2")
-            {
-                string sLocation = RegExpReplace("\"", JsonDump(LocationToJson(NWNX_VM_GetStackLocationValue(nStackLocation))), "\\\"");
-                sGetStackVars += nssLocation(sName, nssFunction("JsonToLocation", nssFunction("JsonParse", nssEscape(sLocation), FALSE)));
-            }
-            else if (sType == "e7")
-            {
-                string sJson = RegExpReplace("\"", JsonDump(NWNX_VM_GetStackJsonValue(nStackLocation)), "\\\"");
-                sGetStackVars += nssJson(sName, nssFunction("JsonParse", nssEscape(sJson)));
+                sFunctionBody = GetSubString(sFunctionBody, 1, GetStringLength(sFunctionBody) - 2);
+                sFunctionBody = "{ " + sGetStackVars + " " + sFunctionBody +  " }";
+                sFunctionBody = RegExpReplace("\\breturn\\b[^;]+;", sFunctionBody, "{ " + sSetStackVars + " $& }");
             }
         }
 
-        sBody = GetSubString(sBody, 1, GetStringLength(sBody));
-        sBody = "{ " + sGetStackVars + " " + sBody;
+        string sClosureFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "ClosureFunction" + sClosureFunctionParameters + sFunctionBody;
+        string sDataObject = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME)));
 
-        string sClosureFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "ClosureFunction" + sClosureParameters + sBody;
-        string sFunctionBody = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME))) +
-            nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "oFDO", FALSE)));
-
+        string sClosureMainFunction;
         if (sReturnType != "")
-        {
-            sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
-                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
-            sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
-                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("ClosureFunction", sArguments, FALSE));
-        }
+            sClosureMainFunction += nssConvertShortType(sReturnType, TRUE) + " main() { " + sDataObject + " return " + nssFunction("ClosureFunction", sArguments) + "}";
         else
-            sFunctionBody += nssFunction("ClosureFunction", sArguments);
+            sClosureMainFunction += nssVoidMain(sDataObject + nssFunction("ClosureFunction", sArguments));
+
+        string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sInclude) + sClosureFunction + sClosureMainFunction;
+
+        if (MEDIATOR_CACHE_CLOSURE_ON_CREATION)
+            CacheScriptChunk(sScriptChunk, FALSE, MEDIATIOR_OVERRIDE_GLOBAL_CACHE_SETTING);
 
         SetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash, nClosureId);
-
         SetLocalString(oFDO, MEDIATOR_FUNCTION_RETURN_TYPE + sClosureSymbol, sReturnType);
         SetLocalString(oFDO, MEDIATOR_FUNCTION_PARAMETERS + sClosureSymbol, sParameters);
-
-        string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sInclude) + sClosureFunction + nssVoidMain(sFunctionBody);
-        SetLocalString(oFDO, MEDIATOR_FUNCTION_SCRIPT_CHUNK + sClosureSymbol, sScriptChunk);
-
-        return sClosureSymbol;
-    }
-
-    return MEDIATOR_CLOSURE_FUNCTION + IntToString(nClosureId);
-}
-
-string MutableClosure(string sBody, string sParameters = "", string sReturnType = "", string sInclude = "")
-{
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    struct VMFrame strFrame = GetVMFrame(2);
-    string sHash = IntToString(HashString(sReturnType + sBody + sParameters + strFrame.sFunction + IntToString(strFrame.nLine)));
-    int nClosureId = GetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash);
-
-    if (!nClosureId)
-    {
-        nClosureId = GetNextClosureId(oFDO);
-        string sClosureSymbol = MEDIATOR_CLOSURE_FUNCTION + IntToString(nClosureId);
-        string sArguments, sClosureParameters;
-        int nArgument, nNumArguments = GetStringLength(sParameters);
-
-        sClosureParameters += "(";
-        for (nArgument = 0; nArgument < nNumArguments; nArgument++)
-        {
-            string sParameter = GetSubString(sParameters, nArgument, 1);
-            sArguments += (!nArgument ? "" : ", ") +
-                nssFunction("GetLocal" + nssConvertShortType(sParameter),
-                    "oFDO, " + nssEscape(MEDIATOR_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
-            sClosureParameters += (!nArgument ? "" : ", ") +
-                nssParameter(nssConvertShortType(sParameter, TRUE), "arg" + IntToString(nArgument + 1));
-        }
-        sClosureParameters += ")";
-
-        json jStack = NWNX_VM_GetCurrentStack(2);
-        int nIndex, nNumVariables = JsonGetLength(jStack);
-        string sGetStackVars, sSetStackVars;
-        for (nIndex = 0; nIndex < nNumVariables; nIndex++)
-        {
-            json jVar = JsonArrayGet(jStack, nIndex);
-            string sName = JsonObjectGetString(jVar, "name");
-
-            if (FindSubString(sBody, sName, 0) == -1)
-                continue;
-
-            string sType = JsonObjectGetString(jVar, "type");
-            int nStackLocation = JsonObjectGetInt(jVar, "stack_location");
-
-            if (sType == "i")
-            {
-                sGetStackVars += nssInt(sName, nssFunction("NWNX_VM_GetStackIntegerValue", IntToString(nStackLocation)));
-                sSetStackVars += nssFunction("NWNX_VM_SetStackIntegerValue", IntToString(nStackLocation) + ", " + sName);
-            }
-            else if (sType == "f")
-            {
-                sGetStackVars += nssFloat(sName, nssFunction("NWNX_VM_GetStackFloatValue", IntToString(nStackLocation)));
-                sSetStackVars += nssFunction("NWNX_VM_SetStackFloatValue", IntToString(nStackLocation) + ", " + sName);
-            }
-            else if (sType == "o")
-            {
-                sGetStackVars += nssObject(sName, nssFunction("NWNX_VM_GetStackObjectValue", IntToString(nStackLocation)));
-                sSetStackVars += nssFunction("NWNX_VM_SetStackObjectValue", IntToString(nStackLocation) + ", " + sName);
-            }
-            else if (sType == "s")
-            {
-                sGetStackVars += nssString(sName, nssFunction("NWNX_VM_GetStackStringValue", IntToString(nStackLocation)));
-                sSetStackVars += nssFunction("NWNX_VM_SetStackStringValue", IntToString(nStackLocation) + ", " + sName);
-            }
-            else if (sType == "e2")
-            {
-                sGetStackVars += nssLocation(sName, nssFunction("NWNX_VM_GetStackLocationValue", IntToString(nStackLocation)));
-                sSetStackVars += nssFunction("NWNX_VM_SetStackLocationValue", IntToString(nStackLocation) + ", " + sName);
-            }
-            else if (sType == "e7")
-            {
-                sGetStackVars += nssJson(sName, nssFunction("NWNX_VM_GetStackJsonValue", IntToString(nStackLocation)));
-                sSetStackVars += nssFunction("NWNX_VM_SetStackJsonValue", IntToString(nStackLocation) + ", " + sName);
-            }
-        }
-
-        if (FindSubString(sBody, "return") == -1)
-        {
-            sBody = GetSubString(sBody, 1, GetStringLength(sBody) - 2);
-            sBody = "{ " + sGetStackVars + " " + sBody + " " + sSetStackVars + " }";
-        }
-        else
-        {
-            sBody = GetSubString(sBody, 1, GetStringLength(sBody) - 2);
-            sBody = "{ " + sGetStackVars + " " + sBody +  " }";
-            sBody = RegExpReplace("\\breturn\\b[^;]+;", sBody, "{ " + sSetStackVars + " $& }");
-        }
-
-        //PrintString(sBody);
-
-        string sClosureFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "ClosureFunction" + sClosureParameters + sBody;
-        string sFunctionBody = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME))) +
-            nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "oFDO", FALSE)));
-
-        if (sReturnType != "")
-        {
-            sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
-                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
-            sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
-                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("ClosureFunction", sArguments, FALSE));
-        }
-        else
-            sFunctionBody += nssFunction("ClosureFunction", sArguments);
-
-        SetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash, nClosureId);
-
-        SetLocalString(oFDO, MEDIATOR_FUNCTION_RETURN_TYPE + sClosureSymbol, sReturnType);
-        SetLocalString(oFDO, MEDIATOR_FUNCTION_PARAMETERS + sClosureSymbol, sParameters);
-
-        string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sInclude) + sClosureFunction + nssVoidMain(sFunctionBody);
-        SetLocalString(oFDO, MEDIATOR_FUNCTION_SCRIPT_CHUNK + sClosureSymbol, sScriptChunk);
-
-        return sClosureSymbol;
-    }
-
-    return MEDIATOR_CLOSURE_FUNCTION + IntToString(nClosureId);
-}
-
-string CapturedClosure(string sBody, string sCaptureList, string sParameters = "", string sReturnType = "", string sInclude = "")
-{
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    struct VMFrame strFrame = GetVMFrame(2);
-    string sHash = IntToString(HashString(sReturnType + sBody + sParameters + sCaptureList + strFrame.sFunction + IntToString(strFrame.nLine)));
-    int nClosureId = GetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash);
-
-    if (!nClosureId)
-    {
-        nClosureId = GetNextClosureId(oFDO);
-        string sClosureSymbol = MEDIATOR_CLOSURE_FUNCTION + IntToString(nClosureId);
-        string sArguments, sClosureParameters;
-        int nArgument, nNumArguments = GetStringLength(sParameters);
-
-        sClosureParameters += "(";
-        for (nArgument = 0; nArgument < nNumArguments; nArgument++)
-        {
-            string sParameter = GetSubString(sParameters, nArgument, 1);
-            sArguments += (!nArgument ? "" : ", ") +
-                nssFunction("GetLocal" + nssConvertShortType(sParameter),
-                    "oFDO, " + nssEscape(MEDIATOR_ARGUMENT_PREFIX + IntToString(nArgument)), FALSE);
-            sClosureParameters += (!nArgument ? "" : ", ") +
-                nssParameter(nssConvertShortType(sParameter, TRUE), "arg" + IntToString(nArgument + 1));
-        }
-        sClosureParameters += ")";
-
-        json jStack = NWNX_VM_GetCurrentStack(2);
-        int nIndex, nNumVariables = JsonGetLength(jStack);
-        string sGetStackVars, sSetStackVars;
-        for (nIndex = 0; nIndex < nNumVariables; nIndex++)
-        {
-            json jVar = JsonArrayGet(jStack, nIndex);
-            string sName = JsonObjectGetString(jVar, "name");
-
-            if (FindSubString(sCaptureList, sName, 0) == -1 )
-                continue;
-
-            json jMatch = RegExpMatch("([=&]{1})(" + sName + ")", sCaptureList);
-            if (!JsonGetType(jMatch))
-            {
-                LogError("Capture list variable '" + sName + "' is missing a capture type.");
-                return MEDIATOR_INVALID_FUNCTION;
-            }
-
-            string sCaptureType = JsonArrayGetString(jMatch, 1);
-            string sType = JsonObjectGetString(jVar, "type");
-            int nStackLocation = JsonObjectGetInt(jVar, "stack_location");
-
-            if (sType == "i")
-            {
-                if (sCaptureType == "&")
-                {
-                    sGetStackVars += nssInt(sName, nssFunction("NWNX_VM_GetStackIntegerValue", IntToString(nStackLocation)));
-                    sSetStackVars += nssFunction("NWNX_VM_SetStackIntegerValue", IntToString(nStackLocation) + ", " + sName);
-                }
-                else if (sCaptureType == "=")
-                {
-                    sGetStackVars += nssInt(sName, IntToString(NWNX_VM_GetStackIntegerValue(nStackLocation)));
-                }
-            }
-            else if (sType == "f")
-            {
-                if (sCaptureType == "&")
-                {
-                    sGetStackVars += nssFloat(sName, nssFunction("NWNX_VM_GetStackFloatValue", IntToString(nStackLocation)));
-                    sSetStackVars += nssFunction("NWNX_VM_SetStackFloatValue", IntToString(nStackLocation) + ", " + sName);
-                }
-                else if (sCaptureType == "=")
-                {
-                    sGetStackVars += nssFloat(sName, FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 18, 9));
-                }
-            }
-            else if (sType == "o")
-            {
-                if (sCaptureType == "&")
-                {
-                    sGetStackVars += nssObject(sName, nssFunction("NWNX_VM_GetStackObjectValue", IntToString(nStackLocation)));
-                    sSetStackVars += nssFunction("NWNX_VM_SetStackObjectValue", IntToString(nStackLocation) + ", " + sName);
-                }
-                else if (sCaptureType == "=")
-                {
-                    sGetStackVars += nssObject(sName, nssFunction("StringToObject", nssEscape(ObjectToString(NWNX_VM_GetStackObjectValue(nStackLocation)))));
-                }
-            }
-            else if (sType == "s")
-            {
-                if (sCaptureType == "&")
-                {
-                    sGetStackVars += nssString(sName, nssFunction("NWNX_VM_GetStackStringValue", IntToString(nStackLocation)));
-                    sSetStackVars += nssFunction("NWNX_VM_SetStackStringValue", IntToString(nStackLocation) + ", " + sName);
-                }
-                else if (sCaptureType == "=")
-                {
-                    sGetStackVars += nssString(sName, nssEscape(NWNX_VM_GetStackStringValue(nStackLocation)));
-                }
-            }
-            else if (sType == "e2")
-            {
-                if (sCaptureType == "&")
-                {
-                    sGetStackVars += nssLocation(sName, nssFunction("NWNX_VM_GetStackLocationValue", IntToString(nStackLocation)));
-                    sSetStackVars += nssFunction("NWNX_VM_SetStackLocationValue", IntToString(nStackLocation) + ", " + sName);
-                }
-                else if (sCaptureType == "=")
-                {
-                    string sLocation = RegExpReplace("\"", JsonDump(LocationToJson(NWNX_VM_GetStackLocationValue(nStackLocation))), "\\\"");
-                    sGetStackVars += nssLocation(sName, nssFunction("JsonToLocation", nssFunction("JsonParse", nssEscape(sLocation), FALSE)));
-                }
-            }
-            else if (sType == "e7")
-            {
-                if (sCaptureType == "&")
-                {
-                    sGetStackVars += nssJson(sName, nssFunction("NWNX_VM_GetStackJsonValue", IntToString(nStackLocation)));
-                    sSetStackVars += nssFunction("NWNX_VM_SetStackJsonValue", IntToString(nStackLocation) + ", " + sName);
-                }
-                else if (sCaptureType == "=")
-                {
-                    string sJson = RegExpReplace("\"", JsonDump(NWNX_VM_GetStackJsonValue(nStackLocation)), "\\\"");
-                    sGetStackVars += nssJson(sName, nssFunction("JsonParse", nssEscape(sJson)));
-                }
-            }
-        }
-
-        if (FindSubString(sBody, "return") == -1)
-        {
-            sBody = GetSubString(sBody, 1, GetStringLength(sBody) - 2);
-            sBody = "{ " + sGetStackVars + " " + sBody + " " + sSetStackVars + " }";
-        }
-        else
-        {
-            sBody = GetSubString(sBody, 1, GetStringLength(sBody) - 2);
-            sBody = "{ " + sGetStackVars + " " + sBody +  " }";
-            sBody = RegExpReplace("\\breturn\\b[^;]+;", sBody, "{ " + sSetStackVars + " $& }");
-        }
-
-        string sClosureFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "ClosureFunction" + sClosureParameters + sBody;
-        string sFunctionBody = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME))) +
-            nssString("sCallStackDepth", nssFunction("IntToString", nssFunction("GetCallStackDepth", "oFDO", FALSE)));
-
-        if (sReturnType != "")
-        {
-            sFunctionBody += nssFunction("DeleteLocal" + nssConvertShortType(sReturnType),
-                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth");
-            sFunctionBody += nssFunction("SetLocal" + nssConvertShortType(sReturnType),
-                                "oFDO, " + nssEscape(MEDIATOR_RETURN_VALUE_PREFIX) + "+sCallStackDepth, " + nssFunction("ClosureFunction", sArguments, FALSE));
-        }
-        else
-            sFunctionBody += nssFunction("ClosureFunction", sArguments);
-
-        SetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash, nClosureId);
-
-        SetLocalString(oFDO, MEDIATOR_FUNCTION_RETURN_TYPE + sClosureSymbol, sReturnType);
-        SetLocalString(oFDO, MEDIATOR_FUNCTION_PARAMETERS + sClosureSymbol, sParameters);
-
-        string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sInclude) + sClosureFunction + nssVoidMain(sFunctionBody);
         SetLocalString(oFDO, MEDIATOR_FUNCTION_SCRIPT_CHUNK + sClosureSymbol, sScriptChunk);
 
         return sClosureSymbol;
@@ -778,89 +453,59 @@ string LocationArg(location locValue)
     return "l";
 }
 
-int ValidateReturnType(object oFDO, int nCallStackDepth, string sRequestedType)
+int ValidateReturnType(int nRequestedReturnType)
 {
-    if (nCallStackDepth == 0)
+    int nReturnType = NWNX_VM_GetScriptReturnValueType();
+    if (nReturnType == nRequestedReturnType)
+        return TRUE;
+    else
     {
-        LogError("Tried to get return value for an invalid call stack depth");
+        LogError("Return Type Mismatch: GOT: " + IntToString(nReturnType) + ", EXPECTED: " + IntToString(nRequestedReturnType));
         return FALSE;
     }
-
-    string sReturnType = GetCallStackReturnType(oFDO, nCallStackDepth);
-    if (sReturnType != sRequestedType)
-    {
-        LogError("Tried to get return type '" + sRequestedType + "' for function '" +
-                 GetCallStackFunction(oFDO, nCallStackDepth) + "' with return type: " + sReturnType);
-        return FALSE;
-    }
-
-    return TRUE;
 }
 
-object RetObject(int nCallStackDepth)
+object RetObject(int bSuccess)
 {
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    if (ValidateReturnType(oFDO, nCallStackDepth, "o"))
-        return GetLocalObject(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    if (bSuccess && ValidateReturnType(NWNX_VM_SCRIPT_RETURN_VALUE_TYPE_OBJECT))
+        return NWNX_VM_GetScriptReturnValueObject();
     else
         return OBJECT_INVALID;
 }
 
-int RetInt(int nCallStackDepth)
+int RetInt(int bSuccess)
 {
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    if (ValidateReturnType(oFDO, nCallStackDepth, "i"))
-        return GetLocalInt(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    if (bSuccess && ValidateReturnType(NWNX_VM_SCRIPT_RETURN_VALUE_TYPE_INT))
+        return NWNX_VM_GetScriptReturnValueInt();
     else
         return 0;
 }
 
-float RetFloat(int nCallStackDepth)
+float RetFloat(int bSuccess)
 {
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    if (ValidateReturnType(oFDO, nCallStackDepth, "f"))
-        return GetLocalFloat(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    if (bSuccess && ValidateReturnType(NWNX_VM_SCRIPT_RETURN_VALUE_TYPE_FLOAT))
+        return NWNX_VM_GetScriptReturnValueFloat();
     else
         return 0.0f;
 }
 
-string RetString(int nCallStackDepth)
+string RetString(int bSuccess)
 {
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    if (ValidateReturnType(oFDO, nCallStackDepth, "s"))
-        return GetLocalString(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    if (bSuccess && ValidateReturnType(NWNX_VM_SCRIPT_RETURN_VALUE_TYPE_STRING))
+        return NWNX_VM_GetScriptReturnValueString();
     else
         return "";
 }
 
-json RetJson(int nCallStackDepth)
+json RetJson(int bSuccess)
 {
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    if (ValidateReturnType(oFDO, nCallStackDepth, "j"))
-        return GetLocalJson(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
+    if (bSuccess && ValidateReturnType(NWNX_VM_SCRIPT_RETURN_VALUE_TYPE_JSON))
+        return NWNX_VM_GetScriptReturnValueJson();
     else
         return JsonNull();
 }
 
-vector RetVector(int nCallStackDepth)
-{
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    if (ValidateReturnType(oFDO, nCallStackDepth, "v"))
-        return GetLocalVector(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
-    else
-        return Vector(0.0f, 0.0f, 0.0f);
-}
-
-location RetLocation(int nCallStackDepth)
-{
-    object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    if (ValidateReturnType(oFDO, nCallStackDepth, "l"))
-        return GetLocalLocation(oFDO, MEDIATOR_RETURN_VALUE_PREFIX + IntToString(nCallStackDepth));
-    else
-        return Location(OBJECT_INVALID, Vector(0.0f, 0.0f, 0.0f), 0.0f);
-}
-
-void RetVoid(int nCallStackDepth)
+void RetVoid(int bSuccess)
 {
 
 }

@@ -125,7 +125,7 @@ void Core_ParseSystem(string sSystem)
 
                 if (!bFoundFunction)
                 {
-                    LogWarning("Didn't find a function for the following annotations: " + JsonDump(jAnnotations));
+                    LogWarning("Didn't find a function for the following annotations: {jAnnotations}");
                 }
 
                 bFoundAnnotations = FALSE;
@@ -149,13 +149,12 @@ int Core_ValidateSystems()
     {
         string sSystem = SqlGetString(sql, 0);
         string sScriptData = SqlGetString(sql, 1);
-
         string sError = ExecuteScriptChunk(sScriptData + " " + nssVoidMain(""),  oModule, FALSE);
 
         if (sError != "")
         {
             bValidated = FALSE;
-            LogError("System '" + sSystem + "' failed to validate with error: " + sError);
+            LogError("System '{sSystem}' failed to validate with error: {sError}");
         }
     }
 
@@ -178,10 +177,8 @@ void Core_ExecuteCoreFunction(int nCoreFunctionType)
         if (GetConstantIntValue(JsonArrayGetString(jData, 0), CORE_SCRIPT_NAME) == nCoreFunctionType)
         {
             string sError = ExecuteScriptChunk(nssInclude(sSystem) + nssVoidMain(nssFunction(sFunction)), oModule, FALSE);
-
             if (sError != "")
-                LogError("Function '" + sFunction + "' for '" + sSystem + "' failed with error: " + sError);
-
+                LogError("Function '{sFunction}' for '{sSystem}' failed with error: {sError}");
             ResetScriptInstructions();
         }
     }

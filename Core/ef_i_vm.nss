@@ -10,6 +10,22 @@
 const string VM_SCRIPT_NAME = "ef_i_vm";
 const int VM_ENABLE_SCRIPTCHUNK_PRECACHING = FALSE;
 
+const int VM_AUXTYPE_INVALID        = 0x00;
+const int VM_AUXTYPE_VOID           = 0x01;
+const int VM_AUXTYPE_COMMAND        = 0x02;
+const int VM_AUXTYPE_INT            = 0x03;
+const int VM_AUXTYPE_FLOAT          = 0x04;
+const int VM_AUXTYPE_STRING         = 0x05;
+const int VM_AUXTYPE_OBJECT         = 0x06;
+const int VM_AUXTYPE_EFFECT         = 0x10;
+const int VM_AUXTYPE_EVENT          = 0x11;
+const int VM_AUXTYPE_LOCATION       = 0x12;
+const int VM_AUXTYPE_TALENT         = 0x13;
+const int VM_AUXTYPE_ITEMPROPERTY   = 0x14;
+const int VM_AUXTYPE_SQLQUERY       = 0x15;
+const int VM_AUXTYPE_CSWYSOLVER     = 0x16;
+const int VM_AUXTYPE_JSON           = 0x17;
+
 struct VMFrame
 {
     string sFile;
@@ -29,6 +45,7 @@ int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object 
 void ExecuteScriptChunkAndReturnVoid(string sInclude, string sScriptChunk, object oObject);
 string CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE, int bAlwaysPrecache = FALSE);
 void ResetScriptInstructions();
+string AuxTypeToString(int nAuxType);
 
 struct VMFrame GetVMFrame(int nDepth = 0)
 {
@@ -127,4 +144,28 @@ string CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE, int bAlw
 void ResetScriptInstructions()
 {
     NWNX_VM_SetInstructionsExecuted(0);
+}
+
+string AuxTypeToString(int nAuxType)
+{
+    switch (nAuxType)
+    {
+        case VM_AUXTYPE_INVALID:      return "INVALID";
+        case VM_AUXTYPE_VOID:         return "VOID";
+        case VM_AUXTYPE_COMMAND:      return "COMMAND";
+        case VM_AUXTYPE_INT:          return "INT";
+        case VM_AUXTYPE_FLOAT:        return "FLOAT";
+        case VM_AUXTYPE_STRING:       return "STRING";
+        case VM_AUXTYPE_OBJECT:       return "OBJECT";
+        case VM_AUXTYPE_EFFECT:       return "EFFECT";
+        case VM_AUXTYPE_EVENT:        return "EVENT";
+        case VM_AUXTYPE_LOCATION:     return "LOCATION";
+        case VM_AUXTYPE_TALENT:       return "TALENT";
+        case VM_AUXTYPE_ITEMPROPERTY: return "ITEMPROPERTY";
+        case VM_AUXTYPE_SQLQUERY:     return "SQLQUERY";
+        case VM_AUXTYPE_CSWYSOLVER:   return "CSWYSOLVER";
+        case VM_AUXTYPE_JSON:         return "JSON";
+    }
+
+    return "UNKNOWN AUXTYPE";
 }

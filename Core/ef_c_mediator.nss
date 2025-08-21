@@ -174,7 +174,7 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
 
     if (!MEDIATOR_PARSE_SYSTEM_FUNCTION_DEFINITIONS && !nClosureId)
     {
-        LogError("Function Parsing Disabled: could not execute '" + sFunction + "'");
+        LogError("Function Parsing Disabled: could not execute '{sFunction}'");
         return FALSE;
     }
 
@@ -191,16 +191,16 @@ int Call(string sFunction, string sArgs = "", object oTarget = OBJECT_SELF)
             if (sError == "")
                 return TRUE;
 
-            LogError("Failed to execute '" + sFunction + "' with error: " + sError);
+            LogError("Failed to execute '{sFunction}' with error: {sError}");
         }
         else
         {
-            LogError("Parameter Mismatch: EXPECTED: '" + sFunction + "(" + sParameters + ")' -> GOT: '"  + sFunction + "(" + sArgs + ")'");
+            LogError("Parameter Mismatch: EXPECTED: '{sFunction}({sParameters})' -> GOT: '{sFunction}({sArgs})'");
         }
     }
     else
     {
-        LogError("Function '" + sFunction + "' does not exist");
+        LogError("Function '{sFunction}' does not exist");
     }
 
     return FALSE;
@@ -269,102 +269,121 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
                 json jValidateCaptureList = RegExpMatch("^[=&]\\w+(\\s*,\\s*[=&]\\w+)*$", sCaptureList);
                 if (!JsonGetType(jValidateCaptureList) || !JsonGetLength(jValidateCaptureList))
                 {
-                    LogError("Invalid capture list syntax: " + sCaptureList);
+                    LogError("Invalid capture list syntax: {sCaptureList}");
                     return MEDIATOR_INVALID_FUNCTION;
                 }
             }
 
+            json jCaptureList = GetJsonArrayFromTokenizedString(sCaptureList, ",");
             json jStack = NWNX_VM_GetCurrentStack(nDepth);
-            int nIndex, nNumVariables = JsonGetLength(jStack);
+
+            int nIndex, nNumVariables = JsonGetLength(jCaptureList);
             string sGetStackVars, sSetStackVars;
             for (nIndex = 0; nIndex < nNumVariables; nIndex++)
             {
-                json jVar = JsonArrayGet(jStack, nIndex);
-                string sName = JsonObjectGetString(jVar, "name");
+                string sCapturedVariable = JsonArrayGetString(jCaptureList, nIndex);
+                string sCaptureType = GetStringLeft(sCapturedVariable, 1);
+                string sName = GetSubString(sCapturedVariable, 1, GetStringLength(sCapturedVariable) - 1);
 
-                if (FindSubString(sCaptureList, sName, 0) == -1 )
-                    continue;
+                json jStackVar;
+                if (JsonObjectContainsKey(jStack, sName))
+                    jStackVar = JsonObjectGet(jStack, sName);
 
-                json jMatch = RegExpMatch("([=&]{1})(" + sName + ")", sCaptureList);
-                string sCaptureType = JsonArrayGetString(jMatch, 1);
-                string sType = JsonObjectGetString(jVar, "type");
-                int nStackLocation = JsonObjectGetInt(jVar, "stack_location");
+                if (JsonGetType(jStackVar) == JSON_TYPE_OBJECT)
+                {
+                    int nAuxType = JsonObjectGetInt(jStackVar, "type");
+                    int nStackLocation = JsonObjectGetInt(jStackVar, "stack_location");
 
-                if (sType == "i")
-                {
-                    if (sCaptureType == "&")
+                    switch (nAuxType)
                     {
-                        sGetStackVars += nssInt(sName, nssFunction("NWNX_VM_GetStackIntegerValue", IntToString(nStackLocation)));
-                        sSetStackVars += nssFunction("NWNX_VM_SetStackIntegerValue", IntToString(nStackLocation) + ", " + sName);
-                    }
-                    else if (sCaptureType == "=")
-                    {
-                        sGetStackVars += nssInt(sName, IntToString(NWNX_VM_GetStackIntegerValue(nStackLocation)));
+                        case VM_AUXTYPE_INT:
+                        {
+                            if (sCaptureType == "&")
+                            {
+                                sGetStackVars += nssInt(sName, nssFunction("NWNX_VM_GetStackIntegerValue", IntToString(nStackLocation)));
+                                sSetStackVars += nssFunction("NWNX_VM_SetStackIntegerValue", IntToString(nStackLocation) + ", " + sName);
+                            }
+                            else if (sCaptureType == "=")
+                            {
+                                sGetStackVars += nssInt(sName, IntToString(NWNX_VM_GetStackIntegerValue(nStackLocation)));
+                            }
+                            break;
+                        }
+                        case VM_AUXTYPE_FLOAT:
+                        {
+                            if (sCaptureType == "&")
+                            {
+                                sGetStackVars += nssFloat(sName, nssFunction("NWNX_VM_GetStackFloatValue", IntToString(nStackLocation)));
+                                sSetStackVars += nssFunction("NWNX_VM_SetStackFloatValue", IntToString(nStackLocation) + ", " + sName);
+                            }
+                            else if (sCaptureType == "=")
+                            {
+                                sGetStackVars += nssFloat(sName, FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 18, 9));
+                            }
+                            break;
+                        }
+                        case VM_AUXTYPE_OBJECT:
+                        {
+                            if (sCaptureType == "&")
+                            {
+                                sGetStackVars += nssObject(sName, nssFunction("NWNX_VM_GetStackObjectValue", IntToString(nStackLocation)));
+                                sSetStackVars += nssFunction("NWNX_VM_SetStackObjectValue", IntToString(nStackLocation) + ", " + sName);
+                            }
+                            else if (sCaptureType == "=")
+                            {
+                                sGetStackVars += nssObject(sName, nssFunction("StringToObject", nssEscape(ObjectToString(NWNX_VM_GetStackObjectValue(nStackLocation)))));
+                            }
+                            break;
+                        }
+                        case VM_AUXTYPE_STRING:
+                        {
+                            if (sCaptureType == "&")
+                            {
+                                sGetStackVars += nssString(sName, nssFunction("NWNX_VM_GetStackStringValue", IntToString(nStackLocation)));
+                                sSetStackVars += nssFunction("NWNX_VM_SetStackStringValue", IntToString(nStackLocation) + ", " + sName);
+                            }
+                            else if (sCaptureType == "=")
+                            {
+                                sGetStackVars += nssString(sName, nssEscape(NWNX_VM_GetStackStringValue(nStackLocation)));
+                            }
+                            break;
+                        }
+                        case VM_AUXTYPE_LOCATION:
+                        {
+                            if (sCaptureType == "&")
+                            {
+                                sGetStackVars += nssLocation(sName, nssFunction("NWNX_VM_GetStackLocationValue", IntToString(nStackLocation)));
+                                sSetStackVars += nssFunction("NWNX_VM_SetStackLocationValue", IntToString(nStackLocation) + ", " + sName);
+                            }
+                            else if (sCaptureType == "=")
+                            {
+                                string sLocation = RegExpReplace("\"", JsonDump(LocationToJson(NWNX_VM_GetStackLocationValue(nStackLocation))), "\\\"");
+                                sGetStackVars += nssLocation(sName, nssFunction("JsonToLocation", nssFunction("JsonParse", nssEscape(sLocation), FALSE)));
+                            }
+                            break;
+                        }
+                        case VM_AUXTYPE_JSON:
+                        {
+                            if (sCaptureType == "&")
+                            {
+                                sGetStackVars += nssJson(sName, nssFunction("NWNX_VM_GetStackJsonValue", IntToString(nStackLocation)));
+                                sSetStackVars += nssFunction("NWNX_VM_SetStackJsonValue", IntToString(nStackLocation) + ", " + sName);
+                            }
+                            else if (sCaptureType == "=")
+                            {
+                                string sJson = RegExpReplace("\"", JsonDump(NWNX_VM_GetStackJsonValue(nStackLocation)), "\\\"");
+                                sGetStackVars += nssJson(sName, nssFunction("JsonParse", nssEscape(sJson)));
+                            }
+                            break;
+                        }
+                        default:
+                            LogWarning("Unhandled Capture AuxType: {sName} -> {nAuxType}");
                     }
                 }
-                else if (sType == "f")
-                {
-                    if (sCaptureType == "&")
-                    {
-                        sGetStackVars += nssFloat(sName, nssFunction("NWNX_VM_GetStackFloatValue", IntToString(nStackLocation)));
-                        sSetStackVars += nssFunction("NWNX_VM_SetStackFloatValue", IntToString(nStackLocation) + ", " + sName);
-                    }
-                    else if (sCaptureType == "=")
-                    {
-                        sGetStackVars += nssFloat(sName, FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 18, 9));
-                    }
-                }
-                else if (sType == "o")
-                {
-                    if (sCaptureType == "&")
-                    {
-                        sGetStackVars += nssObject(sName, nssFunction("NWNX_VM_GetStackObjectValue", IntToString(nStackLocation)));
-                        sSetStackVars += nssFunction("NWNX_VM_SetStackObjectValue", IntToString(nStackLocation) + ", " + sName);
-                    }
-                    else if (sCaptureType == "=")
-                    {
-                        sGetStackVars += nssObject(sName, nssFunction("StringToObject", nssEscape(ObjectToString(NWNX_VM_GetStackObjectValue(nStackLocation)))));
-                    }
-                }
-                else if (sType == "s")
-                {
-                    if (sCaptureType == "&")
-                    {
-                        sGetStackVars += nssString(sName, nssFunction("NWNX_VM_GetStackStringValue", IntToString(nStackLocation)));
-                        sSetStackVars += nssFunction("NWNX_VM_SetStackStringValue", IntToString(nStackLocation) + ", " + sName);
-                    }
-                    else if (sCaptureType == "=")
-                    {
-                        sGetStackVars += nssString(sName, nssEscape(NWNX_VM_GetStackStringValue(nStackLocation)));
-                    }
-                }
-                else if (sType == "e2")
-                {
-                    if (sCaptureType == "&")
-                    {
-                        sGetStackVars += nssLocation(sName, nssFunction("NWNX_VM_GetStackLocationValue", IntToString(nStackLocation)));
-                        sSetStackVars += nssFunction("NWNX_VM_SetStackLocationValue", IntToString(nStackLocation) + ", " + sName);
-                    }
-                    else if (sCaptureType == "=")
-                    {
-                        string sLocation = RegExpReplace("\"", JsonDump(LocationToJson(NWNX_VM_GetStackLocationValue(nStackLocation))), "\\\"");
-                        sGetStackVars += nssLocation(sName, nssFunction("JsonToLocation", nssFunction("JsonParse", nssEscape(sLocation), FALSE)));
-                    }
-                }
-                else if (sType == "e7")
-                {
-                    if (sCaptureType == "&")
-                    {
-                        sGetStackVars += nssJson(sName, nssFunction("NWNX_VM_GetStackJsonValue", IntToString(nStackLocation)));
-                        sSetStackVars += nssFunction("NWNX_VM_SetStackJsonValue", IntToString(nStackLocation) + ", " + sName);
-                    }
-                    else if (sCaptureType == "=")
-                    {
-                        string sJson = RegExpReplace("\"", JsonDump(NWNX_VM_GetStackJsonValue(nStackLocation)), "\\\"");
-                        sGetStackVars += nssJson(sName, nssFunction("JsonParse", nssEscape(sJson)));
-                    }
-                }
+                else
+                    LogWarning("Unable to capture variable: {sName}");
             }
+
             sFunctionBody = trim(sFunctionBody);
             if (FindSubString(sFunctionBody, "return") == -1)
             {
@@ -460,14 +479,14 @@ int ValidateReturnType(int nRequestedReturnType)
         return TRUE;
     else
     {
-        LogError("Return Type Mismatch: GOT: " + IntToString(nReturnType) + ", EXPECTED: " + IntToString(nRequestedReturnType));
+        LogError("Return Type Mismatch: GOT: {nReturnType}, EXPECTED: {nRequestedReturnType}");
         return FALSE;
     }
 }
 
 object RetObject(int bSuccess)
 {
-    if (bSuccess && ValidateReturnType(NWNX_VM_SCRIPT_RETURN_VALUE_TYPE_OBJECT))
+    if (bSuccess && ValidateReturnType(VM_AUXTYPE_OBJECT))
         return NWNX_VM_GetScriptReturnValueObject();
     else
         return OBJECT_INVALID;
@@ -475,7 +494,7 @@ object RetObject(int bSuccess)
 
 int RetInt(int bSuccess)
 {
-    if (bSuccess && ValidateReturnType(NWNX_VM_SCRIPT_RETURN_VALUE_TYPE_INT))
+    if (bSuccess && ValidateReturnType(VM_AUXTYPE_INT))
         return NWNX_VM_GetScriptReturnValueInt();
     else
         return 0;
@@ -483,7 +502,7 @@ int RetInt(int bSuccess)
 
 float RetFloat(int bSuccess)
 {
-    if (bSuccess && ValidateReturnType(NWNX_VM_SCRIPT_RETURN_VALUE_TYPE_FLOAT))
+    if (bSuccess && ValidateReturnType(VM_AUXTYPE_FLOAT))
         return NWNX_VM_GetScriptReturnValueFloat();
     else
         return 0.0f;
@@ -491,7 +510,7 @@ float RetFloat(int bSuccess)
 
 string RetString(int bSuccess)
 {
-    if (bSuccess && ValidateReturnType(NWNX_VM_SCRIPT_RETURN_VALUE_TYPE_STRING))
+    if (bSuccess && ValidateReturnType(VM_AUXTYPE_STRING))
         return NWNX_VM_GetScriptReturnValueString();
     else
         return "";
@@ -499,7 +518,7 @@ string RetString(int bSuccess)
 
 json RetJson(int bSuccess)
 {
-    if (bSuccess && ValidateReturnType(NWNX_VM_SCRIPT_RETURN_VALUE_TYPE_JSON))
+    if (bSuccess && ValidateReturnType(VM_AUXTYPE_JSON))
         return NWNX_VM_GetScriptReturnValueJson();
     else
         return JsonNull();

@@ -34,7 +34,7 @@ void Debug_OnResourceModified()
                 string sResult = ExecuteScriptChunk(sScriptChunk, GetModule(), FALSE);
 
                 if (sResult != "")
-                    LogError("Failed to execute debug script, error: " + sResult);
+                    LogError("Failed to execute debug script, error: {sResult}");
             }
         }
     }
@@ -91,4 +91,10 @@ void Debug_Load()
     int nRet = RetInt(Call(sLambdaClosure, IntArg(7)));
     string sClosure = Closure("{ PrintString(\"The value is: \" + IntToString(nRet)); }", "=nRet");
     Call(sClosure);
+
+    string sName = "Daz";
+    object oDataObject = GetDataObject(DEBUG_SCRIPT_NAME);
+    location loc = GetStartingLocation();
+
+    LogInfo("Hi, my name is {sName} and I like {oDataObject:%i}. I'm currently at {loc}.");
 }

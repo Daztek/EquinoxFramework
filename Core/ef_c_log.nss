@@ -7,6 +7,7 @@
 #include "ef_i_vm"
 #include "ef_i_ringbuffer"
 #include "ef_i_sqlite"
+#include "ef_i_string"
 #include "ef_c_messagebus"
 
 const string LOG_SCRIPT_NAME        = "ef_c_log";
@@ -58,21 +59,25 @@ void WriteLog(int nType, string sMessage, int bShowFunctionName, int bIncludeBac
 
 void LogInfo(string sMessage)
 {
+    sMessage = FormatString(sMessage, 1);
     WriteLog(LOG_TYPE_INFO, sMessage, FALSE, FALSE);
 }
 
 void LogDebug(string sMessage, int bIncludeBacktrace = FALSE)
 {
+    sMessage = FormatString(sMessage, 1);
     WriteLog(LOG_TYPE_DEBUG, sMessage, TRUE, bIncludeBacktrace);
 }
 
 void LogWarning(string sMessage)
 {
+    sMessage = FormatString(sMessage, 1);
     WriteLog(LOG_TYPE_WARNING, sMessage, TRUE, FALSE);
 }
 
 void LogError(string sMessage, int bIncludeBacktrace = TRUE)
 {
+    sMessage = FormatString(sMessage, 1);
     WriteLog(LOG_TYPE_ERROR, sMessage, TRUE, TRUE);
 }
 
@@ -83,13 +88,14 @@ json LogGetRingBufferAsArray()
 
 string LogTypeToString(int nType)
 {
-    string sType = "?";
+    string sType;
     switch (nType)
     {
         case LOG_TYPE_INFO: sType = ""; break;
         case LOG_TYPE_WARNING: sType = "WARNING"; break;
         case LOG_TYPE_ERROR: sType = "ERROR"; break;
         case LOG_TYPE_DEBUG: sType = "DEBUG"; break;
+        default: sType = "?"; break;
     }
     return sType;
 }

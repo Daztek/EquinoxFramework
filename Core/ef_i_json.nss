@@ -63,6 +63,7 @@ void JsonObjectSetObjectInplace(json jObject, string sKey, object oValue);
 object JsonObjectGetObject(json jObject, string sKey);
 json JsonObjectRef(object oObject);
 object JsonGetObjectRef(json jValue);
+int JsonObjectContainsKey(json jObject, string sKey);
 
 json VectorToJson(vector vVector)
 {
@@ -418,4 +419,9 @@ json JsonObjectRef(object oObject)
 object JsonGetObjectRef(json jValue)
 {
     return StringToObject(JsonGetString(jValue));
+}
+
+int JsonObjectContainsKey(json jObject, string sKey)
+{
+    return NWNX_Json_JsonObjectContainsKey(jObject, sKey);
 }

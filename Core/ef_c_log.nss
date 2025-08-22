@@ -7,7 +7,7 @@
 #include "ef_i_vm"
 #include "ef_i_ringbuffer"
 #include "ef_i_sqlite"
-#include "ef_i_string"
+#include "ef_i_strfmt"
 #include "ef_c_messagebus"
 
 const string LOG_SCRIPT_NAME        = "ef_c_log";
@@ -54,7 +54,7 @@ void WriteLog(int nType, string sMessage, int bShowFunctionName, int bIncludeBac
     string sType = LogTypeToString(nType);
     if (bIncludeBacktrace)
         sMessage += "\nBACKTRACE:\n" + GetVMBacktrace(2);
-    PrintString("(" + str.sFile + (bShowFunctionName ? ":" + str.sFunction : "") + ":" + IntToString(str.nLine) + ") " + (sType != "" && sType != "I" ? sType + ": " : "") + sMessage);
+    PrintString("(" + str.sFile + (bShowFunctionName ? ":" + str.sFunction : "") + ":" + IntToString(str.nLine) + ") " + (sType != "" ? sType + ": " : "") + sMessage);
 }
 
 void LogInfo(string sMessage)

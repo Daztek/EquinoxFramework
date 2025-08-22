@@ -93,8 +93,7 @@ void Debug_Load()
 
     string sName = "Daz";
     object oDataObject = GetDataObject(DEBUG_SCRIPT_NAME);
-    struct Vector2 str;
-    str.nX = 5;
-    str.nY = 10;
-    LogInfo("Hi, my name is {sName} and I like {oDataObject:%i}. I'm currently at {{str.nX},{str.nY}}.");
+    location loc = GetStartingLocation();
+
+    LogInfo("Hi, my name is {sName} and I like {oDataObject}. I'm currently at {loc}.");
 }

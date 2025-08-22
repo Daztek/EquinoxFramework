@@ -9,6 +9,7 @@
 #include "ef_i_parser"
 #include "ef_i_ringbuffer"
 #include "ef_i_sqlite"
+#include "ef_i_strfmt"
 #include "ef_i_string"
 #include "ef_i_util"
 #include "ef_i_vm"

@@ -69,6 +69,26 @@ int TestFunction(int nTest)
     return nTest;
 }
 
+struct MoreStruct
+{
+    string sWtf;
+    object oSendHelp;
+};
+
+struct AnotherStruct
+{
+    int nFoo;
+    struct MoreStruct strOhGod;
+};
+
+struct TestStruct
+{
+    object oObject;
+    string sString;
+    int nInt;
+    struct AnotherStruct strAnother;
+};
+
 // @CORE[CORE_SYSTEM_LOAD]
 void Debug_Load()
 {
@@ -96,4 +116,17 @@ void Debug_Load()
     location loc = GetStartingLocation();
 
     LogInfo("Hi, my name is {sName} and I like {oDataObject}. I'm currently at {loc}.");
+
+    struct TestStruct str;
+    str.oObject = GetModule();
+    str.sString = "Hello!";
+    str.nInt = 123;
+    str.strAnother.nFoo = 5;
+    str.strAnother.strOhGod.sWtf = "Aaaaa";
+
+    LogInfo("{str}");
+    LogInfo("{str.strAnother.strOhGod.sWtf}");
+
+    vector vPosition = GetPosition(oDataObject);
+    LogInfo("{vPosition}");
 }

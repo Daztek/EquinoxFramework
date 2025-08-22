@@ -14,7 +14,7 @@ string FormatAsInteger(int nAuxType, int nStackLocation);
 string FormatAsFloat(int nAuxType, int nStackLocation);
 string FormatAsHex(int nAuxType, int nStackLocation);
 string FormatAsBoolean(int nAuxType, int nStackLocation);
-string RegExpEscape(string sInput);
+string DumpStruct(json jStack, json jStackVar, string sVarName, string sInstanceName = "");
 
 string FormatString(string sString, int nDepthOverride = 0)
 {
@@ -30,7 +30,7 @@ string FormatString(string sString, int nDepthOverride = 0)
     json jStack = NWNX_VM_GetCurrentStack(2 + nDepthOverride);
     string sResult = sString;
 
-    for (nIndex = nNumVariables - 1; nIndex >= 0; nIndex--)
+    for (nIndex = 0; nIndex < nNumVariables; nIndex++)
     {
         json jVariable = JsonArrayGet(jVariables, nIndex);
         string sFullMatch = JsonArrayGetString(jVariable, 0);
@@ -52,13 +52,17 @@ string FormatString(string sString, int nDepthOverride = 0)
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier)
 {
     if (!JsonObjectContainsKey(jStack, sVarName))
-        return "[MISSING:" + sVarName + "]";
+        return "[MISSING_VAR:" + sVarName + "]";
 
     json jStackVar = JsonObjectGet(jStack, sVarName);
     if (JsonGetType(jStackVar) != JSON_TYPE_OBJECT)
         return "[INVALID_STACK_VAR:" + sVarName + "]";
 
     int nAuxType = JsonObjectGetInt(jStackVar, "type");
+
+    if (nAuxType == VM_AUXTYPE_VOID)
+        return DumpStruct(jStack, jStackVar, sVarName);
+
     int nStackLocation = JsonObjectGetInt(jStackVar, "stack_location");
     if (sFormatSpecifier == "")
         sFormatSpecifier = "%s";
@@ -79,7 +83,7 @@ string FormatValueByType(int nAuxType, int nStackLocation, string sFormatSpecifi
     else if (sFormatSpecifier == "%b")
         return FormatAsBoolean(nAuxType, nStackLocation);
 
-    return "[INVALID_FORMAT:" + sFormatSpecifier + " -> " + AuxTypeToString(nAuxType) + "]";
+    return "[INVALID_FORMAT:" + sFormatSpecifier + "->" + AuxTypeToString(nAuxType) + "]";
 }
 
 string FormatAsString(int nAuxType, int nStackLocation)
@@ -93,8 +97,8 @@ string FormatAsString(int nAuxType, int nStackLocation)
         {
             object oObject = NWNX_VM_GetStackObjectValue(nStackLocation);
             if (!GetIsObjectValid(oObject))
-                return "[INVALID_OBJECT:0x" + ObjectToString(oObject) + "]";
-            return GetName(oObject) + " (" + GetTag(oObject)+ ":0x" + ObjectToString(oObject) + ")";
+                return "[INVALID_OBJECT|OID:0x" + ObjectToString(oObject) + "]";
+            return GetName(oObject) + "(TAG:" + GetTag(oObject)+ "|OID:0x" + ObjectToString(oObject) + ")";
         }
         case VM_AUXTYPE_LOCATION:
         {
@@ -103,12 +107,11 @@ string FormatAsString(int nAuxType, int nStackLocation)
             if (!GetIsObjectValid(oArea))
                 return "[INVALID_LOCATION]";
 
-            vector vPos = GetPositionFromLocation(locLocation);
+            vector vPosition = GetPositionFromLocation(locLocation);
             float fFacing = GetFacingFromLocation(locLocation);
 
-            return GetTag(oArea) + "[" + FloatToString(vPos.x, 0, 2) + "," +
-                    FloatToString(vPos.y, 0, 2) + "," + FloatToString(vPos.z, 0, 2) + "]@" +
-                    FloatToString(fFacing, 0, 1);
+            return GetTag(oArea) + "[" + FloatToString(vPosition.x, 0, 2) + "," + FloatToString(vPosition.y, 0, 2) + "," +
+                FloatToString(vPosition.z, 0, 2) + "]@" + FloatToString(fFacing, 0, 1);
         }
         case VM_AUXTYPE_JSON:
         {
@@ -119,7 +122,7 @@ string FormatAsString(int nAuxType, int nStackLocation)
             return sJson;
         }
     }
-    return "[UNSUPPORTED_TYPE:" + AuxTypeToString(nAuxType) + "]";
+    return "[TYPE_MISMATCH:" + AuxTypeToString(nAuxType) + "->%s]";
 }
 
 string FormatAsInteger(int nAuxType, int nStackLocation)
@@ -178,4 +181,38 @@ string FormatAsBoolean(int nAuxType, int nStackLocation)
         default:                return "[TYPE_MISMATCH:" + AuxTypeToString(nAuxType) + "->%b]";
     }
     return nValue ? "TRUE" : "FALSE";
+}
+
+string DumpStruct(json jStack, json jStackVar, string sVarName, string sInstanceName = "")
+{
+    json jStackKeys = JsonObjectKeys(jStack);
+    int nVarNameLength = GetStringLength(sVarName);
+    int nKey, nNumKeys = JsonGetLength(jStackKeys);
+    string sResult = "struct " + JsonObjectGetString(jStackVar, "struct_name") + " " + (sInstanceName  != "" ? sInstanceName : sVarName) + " { ";
+
+    for (nKey = 0; nKey < nNumKeys; nKey++)
+    {
+        string sKey = JsonArrayGetString(jStackKeys, nKey);
+        if (GetStringLeft(sKey, nVarNameLength) == sVarName && sKey != sVarName)
+        {
+            json jStructVar = JsonObjectGet(jStack, sKey);
+            int nAuxType = JsonObjectGetInt(jStructVar, "type");
+            string sMemberPath = GetSubString(sKey, nVarNameLength + 1, GetStringLength(sKey) - nVarNameLength - 1);
+
+            if (FindSubString(sMemberPath, ".", 0) == -1)
+            {
+                if (nAuxType == VM_AUXTYPE_VOID)
+                    sResult += DumpStruct(jStack, jStructVar, sKey, sMemberPath);
+                else
+                {
+                    int nStackLocation = JsonObjectGetInt(jStructVar, "stack_location");
+                    string sValue = FormatAsString(nAuxType, nStackLocation);
+                    sResult += GetStringLowerCase(AuxTypeToString(nAuxType)) + " " + sMemberPath + " = " + sValue + "; ";
+                }
+            }
+        }
+    }
+
+    sResult += "} ";
+    return sResult;
 }

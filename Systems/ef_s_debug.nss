@@ -79,6 +79,7 @@ struct AnotherStruct
 {
     int nFoo;
     struct MoreStruct strOhGod;
+    vector vVector;
 };
 
 struct TestStruct

@@ -317,7 +317,7 @@ void WG_SetWorldSeed(int nSeed)
 {
     SetLocalInt(GetDataObject(WG_SCRIPT_NAME), WG_WORLD_SEED_NAME, nSeed);
     SqlMersenneTwisterSetSeed(WG_WORLD_SEED_NAME, nSeed);
-    LogInfo("World Seed: " + IntToString(nSeed));
+    LogInfo("World Seed: {nSeed}");
 }
 
 int WG_GetWorldSeed()
@@ -518,7 +518,7 @@ void WG_GenerateArea()
 {
     string sAreaID = WG_QueueGet();
 
-    LogInfo("Processing Area: " + sAreaID);
+    LogInfo("Processing Area: {sAreaID}");
 
     if (!WG_InitializeAreaFromCache(sAreaID))
     {
@@ -605,8 +605,9 @@ void WG_OnAreaGenerated(string sAreaID)
     {
         object oArea = WG_CreateArea(sAreaID);
         int bCached = WG_GetAreaIsCached(sAreaID);
+        string sFromCache = bCached ? "From Cache" : "";
 
-        LogInfo("Generated Area " + (bCached ? "From Cache" : "") +  ": " + sAreaID);
+        LogInfo("Generated Area {sFromCache}: {sAreaID}");
 
         if (!bCached)
             WG_CacheArea(sAreaID);

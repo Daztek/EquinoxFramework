@@ -45,7 +45,7 @@ void AIMan_RegisterAIBehaviorEvent(struct AnnotationData str)
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     if (nEventType == -1)
-        LogWarning("System '" + str.sSystem + "' tried to register '" + str.sFunction + "' for behavior '" + sBehavior + "' with an invalid creature event: " + sEventType);
+        LogWarning("System '{str.sSystem}' tried to register '{str.sFunction}' for behavior '{sBehavior}' with an invalid creature event: {sEventType}");
     else
     {
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + AIMAN_SCRIPT_NAME + "(behavior, eventtype, scriptchunk) VALUES(@behavior, @eventtype, @scriptchunk);");
@@ -56,7 +56,7 @@ void AIMan_RegisterAIBehaviorEvent(struct AnnotationData str)
 
         CacheScriptChunk(sScriptChunk);
 
-        LogInfo("System '" + str.sSystem + "' registered '" + str.sFunction + "' for behavior '" + sBehavior + "' and event '" + sEventType + "'");
+        LogInfo("System '{str.sSystem}' registered '{str.sFunction}' for behavior '{sBehavior}' and event '{sEventType}'");
     }
 }
 
@@ -206,9 +206,7 @@ void AIMan_HandleAIEvent(int nEventType)
                 string sError = ExecuteScriptChunk(sScriptchunk, oCreature, FALSE);
 
                 if (AIMAN_DEBUG_EVENTS && sError != "")
-                {
-                    LogError(GetName(oCreature) + "' failed event '" + IntToString(nEventType) + "' for behavior '" + sBehavior + "' with error: " + sError);
-                }
+                    LogError("{oCreature} failed event '{nEventType}' for behavior '{sBehavior}' with error: {sError}");
             }
         }
     }

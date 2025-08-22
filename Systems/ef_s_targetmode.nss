@@ -37,7 +37,7 @@ void TargetMode_OnPlayerTarget()
                 string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
                 if (sError != "")
-                    LogError("ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+                    LogError("ScriptChunk '{sScriptChunk}' failed with error: {sError}");
             }
         }
 
@@ -53,12 +53,12 @@ void TargetMode_RegisterFunction(struct AnnotationData str)
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     if (sTargetModeId == "")
-        LogWarning("System '" + str.sSystem + "' tried to register function '" + str.sFunction + "' with an invalid target mode id");
+        LogWarning("System '{str.sSystem}' tried to register function '{str.sFunction}' with an invalid target mode id.");
     else
     {
         CacheScriptChunk(sScriptChunk);
         InsertStringToLocalJsonArray(GetDataObject(TARGETMODE_SCRIPT_NAME), TARGETMODE_FUNCTIONS_ARRAY_PREFIX + sTargetModeId, sScriptChunk);
-        LogInfo("System '" + str.sSystem + "' registered function '" + str.sFunction + "' for target mode id: " + sTargetModeId);
+        LogInfo("System '{str.sSystem}' registered function '{str.sFunction}' for target mode id: {sTargetModeId}");
     }
 }
 

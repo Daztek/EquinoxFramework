@@ -413,7 +413,7 @@ void BT_Blackboard_SetInt(object oBlackboard, string sKey, int nValue, int nBeha
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     SetLocalInt(oBlackboard, sValueKey, nValue);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("SET INT '" + sKey + "' -> '" + IntToString(nValue) + "' (" + sValueKey + ")");
+        LogDebug("SET INT '{sKey}' -> '{nValue}' ({sValueKey})");
 }
 
 int BT_Blackboard_GetInt(object oBlackboard, string sKey, int nBehaviorTreeID = 0, int nNodeID = 0)
@@ -421,7 +421,7 @@ int BT_Blackboard_GetInt(object oBlackboard, string sKey, int nBehaviorTreeID = 
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     int nValue = GetLocalInt(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("GET INT '" + sKey + "' -> '" + IntToString(nValue) + "' (" + sValueKey + ")");
+        LogDebug("GET INT '{sKey}' -> '{nValue}' ({sValueKey})");
     return nValue;
 }
 
@@ -430,7 +430,7 @@ void BT_Blackboard_DeleteInt(object oBlackboard, string sKey, int nBehaviorTreeI
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     DeleteLocalInt(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("DELETE INT '" + sKey + "' -> (" + sValueKey + ")");
+        LogDebug("DELETE INT '{sKey}' -> ({sValueKey})");
 }
 
 void BT_Blackboard_ContextSetInt(struct BlackboardContext strBlackboardContext, string sKey, int nValue)
@@ -453,7 +453,7 @@ void BT_Blackboard_SetString(object oBlackboard, string sKey, string sValue, int
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     SetLocalString(oBlackboard, sValueKey, sValue);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("SET STRING '" + sKey + "' -> '" + sValue + "' (" + sValueKey + ")");
+        LogDebug("SET STRING '{sKey}' -> '{sValue}' ({sValueKey})");
 }
 
 string BT_Blackboard_GetString(object oBlackboard, string sKey, int nBehaviorTreeID = 0, int nNodeID = 0)
@@ -461,7 +461,7 @@ string BT_Blackboard_GetString(object oBlackboard, string sKey, int nBehaviorTre
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     string sValue = GetLocalString(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("GET STRING '" + sKey + "' -> '" + sValue + "' (" + sValueKey + ")");
+        LogDebug("GET STRING '{sKey}' -> '{sValue}' ({sValueKey})");
     return sValue;
 }
 
@@ -470,7 +470,7 @@ void BT_Blackboard_DeleteString(object oBlackboard, string sKey, int nBehaviorTr
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     DeleteLocalString(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("DELETE STRING '" + sKey + "' -> (" + sValueKey + ")");
+        LogDebug("DELETE STRING '{sKey}' -> ({sValueKey})");
 }
 
 void BT_Blackboard_ContextSetString(struct BlackboardContext strBlackboardContext, string sKey, string sValue)
@@ -493,7 +493,7 @@ void BT_Blackboard_SetFloat(object oBlackboard, string sKey, float fValue, int n
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     SetLocalFloat(oBlackboard, sValueKey, fValue);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("SET FLOAT '" + sKey + "' -> '" + FloatToString(fValue) + "' (" + sValueKey + ")");
+        LogDebug("SET FLOAT '{sKey}' -> '{fValue}' ({sValueKey})");
 }
 
 float BT_Blackboard_GetFloat(object oBlackboard, string sKey, int nBehaviorTreeID = 0, int nNodeID = 0)
@@ -501,7 +501,7 @@ float BT_Blackboard_GetFloat(object oBlackboard, string sKey, int nBehaviorTreeI
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     float fValue = GetLocalFloat(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("GET FLOAT '" + sKey + "' -> '" + FloatToString(fValue) + "' (" + sValueKey + ")");
+        LogDebug("GET FLOAT '{sKey}' -> '{fValue}' ({sValueKey})");
     return fValue;
 }
 
@@ -510,7 +510,7 @@ void BT_Blackboard_DeleteFloat(object oBlackboard, string sKey, int nBehaviorTre
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     DeleteLocalFloat(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("DELETE FLOAT '" + sKey + "' -> (" + sValueKey + ")");
+        LogDebug("DELETE FLOAT '{sKey}' -> ({sValueKey})");
 }
 
 void BT_Blackboard_ContextSetFloat(struct BlackboardContext strBlackboardContext, string sKey, float fValue)
@@ -533,7 +533,7 @@ void BT_Blackboard_SetObject(object oBlackboard, string sKey, object oValue, int
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     SetLocalObject(oBlackboard, sValueKey, oValue);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("SET OBJECT '" + sKey + "' -> '" + ObjectToString(oValue) + "' (" + sValueKey + ")");
+        LogDebug("SET OBJECT '{sKey}' -> '{oValue:%i}' ({sValueKey})");
 }
 
 object BT_Blackboard_GetObject(object oBlackboard, string sKey, int nBehaviorTreeID = 0, int nNodeID = 0)
@@ -541,7 +541,7 @@ object BT_Blackboard_GetObject(object oBlackboard, string sKey, int nBehaviorTre
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     object oValue = GetLocalObject(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("GET OBJECT '" + sKey + "' -> '" + ObjectToString(oValue) + "' (" + sValueKey + ")");
+        LogDebug("GET OBJECT '{sKey}' -> '{oValue:%i}' ({sValueKey})");
     return oValue;
 }
 
@@ -550,7 +550,7 @@ void BT_Blackboard_DeleteObject(object oBlackboard, string sKey, int nBehaviorTr
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     DeleteLocalObject(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("DELETE OBJECT '" + sKey + "' -> (" + sValueKey + ")");
+        LogDebug("DELETE OBJECT '{sKey}' -> ({sValueKey})");
 }
 
 void BT_Blackboard_ContextSetObject(struct BlackboardContext strBlackboardContext, string sKey, object oValue)
@@ -573,7 +573,7 @@ void BT_Blackboard_SetJson(object oBlackboard, string sKey, json jValue, int nBe
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     SetLocalJson(oBlackboard, sValueKey, jValue);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("SET JSON '" + sKey + "' -> '" + JsonDump(jValue) + "' (" + sValueKey + ")");
+        LogDebug("SET JSON '{sKey}' -> '{jValue}' ({sValueKey})");
 }
 
 json BT_Blackboard_GetJson(object oBlackboard, string sKey, int nBehaviorTreeID = 0, int nNodeID = 0)
@@ -581,7 +581,7 @@ json BT_Blackboard_GetJson(object oBlackboard, string sKey, int nBehaviorTreeID 
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     json jValue = GetLocalJson(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("GET JSON '" + sKey + "' -> '" + JsonDump(jValue) + "' (" + sValueKey + ")");
+        LogDebug("GET JSON '{sKey}' -> '{jValue}' ({sValueKey})");
     return jValue;
 }
 
@@ -590,7 +590,7 @@ void BT_Blackboard_DeleteJson(object oBlackboard, string sKey, int nBehaviorTree
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     DeleteLocalJson(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("DELETE JSON '" + sKey + "' -> (" + sValueKey + ")");
+        LogDebug("DELETE JSON '{sKey}' -> ({sValueKey})");
 }
 
 void BT_Blackboard_ContextSetJson(struct BlackboardContext strBlackboardContext, string sKey, json jValue)

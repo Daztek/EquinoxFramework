@@ -963,7 +963,10 @@ void QC_InitializeSpellData()
         SqlBindString(sql, "@spelltable", sSpellTable);
 
         if (SqlStep(sql))
-            LogInfo("SpellTable: " + sSpellTable + " -> " + IntToString(SqlGetInt(sql, 0)) + " spells");
+        {
+            int nNumSpells = SqlGetInt(sql, 0);
+            LogInfo("SpellTable: {sSpellTable} -> {nNumSpells} spells");
+        }
     }
 }
 

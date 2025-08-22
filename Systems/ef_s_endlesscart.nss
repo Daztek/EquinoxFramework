@@ -25,6 +25,6 @@ void EC_OnAreaPostProcessed()
         int nTileID = SqlGetInt(sql, 0);
         int nTileX = SqlGetInt(sql, 1);
         int nTileY = SqlGetInt(sql, 2);
-        LogInfo("Found Cart @ " + IntToString(nTileX) + "," + IntToString(nTileY) + " in area: " + sAreaID);
+        LogInfo("Found Cart @ {nTileX},{nTileY} in area: {sAreaID}");
     }
 }

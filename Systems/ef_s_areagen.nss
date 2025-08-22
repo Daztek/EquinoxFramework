@@ -632,7 +632,7 @@ struct TS_TileStruct AG_GetNeighborTileStruct(string sAreaID, string sTileset, i
         struct Vector2 strTilePos = AG_GetTilePosition(sAreaID, nTile);
         if (strTilePos.nX == AG_INVALID_TILE_ID && strTilePos.nY == AG_INVALID_TILE_ID)
         {
-            LogWarning("INVALID TILE POSITION -> nTile: " + IntToString(nTile) + ", Direction: " + IntToString(nDirection));
+            LogWarning("INVALID TILE POSITION -> nTile: {nTile}, Direction: {nDirection}");
         }
 
         switch (nDirection)
@@ -1236,9 +1236,10 @@ void AG_GenerateArea(string sAreaID, object oAreaDataObject = OBJECT_INVALID)
     {
         if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS, oAreaDataObject))
         {
-            LogInfo("Finished Generating Area: " + sAreaID);
-            LogInfo("> Result: " + (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED, oAreaDataObject) ? "FAILURE" : "Success") +
-                     ", Iterations: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS, oAreaDataObject)));
+            LogInfo("Finished Generating Area: {sAreaID}");
+            string sResult = (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED, oAreaDataObject) ? "FAILURE" : "Success");
+            int nIterations = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS, oAreaDataObject);
+            LogInfo("> Result: {sResult}, Iterations: {nIterations}");
         }
         string sCallback = AG_GetCallbackFunction(sAreaID);
         if (sCallback != "")
@@ -1256,11 +1257,13 @@ void AG_GenerateArea(string sAreaID, object oAreaDataObject = OBJECT_INVALID)
         {
             if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
             {
-                LogInfo("Generating Area: " + sAreaID);
-                LogInfo("> Tileset: " + AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET, oAreaDataObject) +
-                         ", Width: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH, oAreaDataObject)) +
-                         ", Height: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT, oAreaDataObject)));
-                LogInfo("> Generation Type: " + AG_GetGenerationTypeAsString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, oAreaDataObject)));
+                string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET, oAreaDataObject);
+                int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH, oAreaDataObject);
+                int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT, oAreaDataObject);
+                string sGenerationType = AG_GetGenerationTypeAsString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE, oAreaDataObject));
+                LogInfo("Generating Area: {sAreaID}");
+                LogInfo("> Tileset: {sTileset}, Width: {nWidth}, Height: {nHeight}");
+                LogInfo("> Generation Type: {sGenerationType}");
             }
 
             AG_GenerateGenerationTileArray(sAreaID);
@@ -1356,7 +1359,7 @@ int AG_GetTileOrientationFromEdge(string sAreaID, int nEdge, int nTileID)
             return 1;
     }
     else
-        LogWarning("Unknown tile: " + sTileset + "(" + IntToString(nTileID) + ")");
+        LogWarning("Unknown tile: {sTileset}({nTileID})");
 
     return -1;
 }
@@ -2112,9 +2115,10 @@ void AG_GenerateAreaChunk(string sAreaID, int nChunk)
     {
         if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
         {
-            LogInfo("Finished Generating Area Chunk: " + sAreaID + "[" + IntToString(nChunk) + "]");
-            LogInfo("> Result: " + (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED) ? "FAILURE" : "Success") +
-                     ", Iterations: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS)));
+            string sResult = (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED) ? "FAILURE" : "Success");
+            int nIterations = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS);
+            LogInfo("Finished Generating Area Chunk: {sAreaID}[{nChunk}]");
+            LogInfo("> Result: {sResult}, Iterations: {nIterations}");
         }
         string sCallback = AG_GetCallbackFunction(sAreaID);
         if (sCallback != "")
@@ -2130,10 +2134,11 @@ void AG_GenerateAreaChunk(string sAreaID, int nChunk)
         {
             if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_LOG_STATUS))
             {
-                LogInfo("Generating Area Chunk: " + sAreaID + "[" + IntToString(nChunk) + "]");
-                LogInfo("> Tileset: " + AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET) +
-                         ", Width: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH)) +
-                         ", Height: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT)));
+                string sTileset = AG_GetStringDataByKey(sAreaID, AG_DATA_KEY_TILESET);
+                int nWidth = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_WIDTH);
+                int nHeight = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_HEIGHT);
+                LogInfo("Generating Area Chunk: {sAreaID}[{nChunk}]");
+                LogInfo("> Tileset: {sTileset}, Width: {nWidth}, Height: {nHeight}");
             }
 
             AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_CURRENT_CHUNK, nChunk);

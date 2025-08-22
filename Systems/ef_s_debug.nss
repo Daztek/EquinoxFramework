@@ -73,7 +73,6 @@ int TestFunction(int nTest)
 void Debug_Load()
 {
     int nInteger = 5;
-
     Profiler_Start("sGetInteger");
     string sGetInteger = Closure("{ return nInteger; }", "&nInteger", "", "i");
     PrintString(Profiler_Stop());
@@ -89,12 +88,13 @@ void Debug_Load()
 
     string sLambdaClosure = Closure("{ return TestFunction(arg1); }", "", "i", "i", "ef_s_debug");
     int nRet = RetInt(Call(sLambdaClosure, IntArg(7)));
-    string sClosure = Closure("{ PrintString(\"The value is: \" + IntToString(nRet)); }", "=nRet");
+    string sClosure = Closure("{ LogInfo(\"The value is: {nRet}\"); }", "=nRet");
     Call(sClosure);
 
     string sName = "Daz";
     object oDataObject = GetDataObject(DEBUG_SCRIPT_NAME);
-    location loc = GetStartingLocation();
-
-    LogInfo("Hi, my name is {sName} and I like {oDataObject:%i}. I'm currently at {loc}.");
+    struct Vector2 str;
+    str.nX = 5;
+    str.nY = 10;
+    LogInfo("Hi, my name is {sName} and I like {oDataObject:%i}. I'm currently at {{str.nX},{str.nY}}.");
 }

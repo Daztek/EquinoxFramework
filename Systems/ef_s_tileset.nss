@@ -698,7 +698,7 @@ void TS_LoadTilesetData(string sTileset)
 
     string sName = (str.nDisplayNameStrRef != -1 ? GetStringByStrRef(str.nDisplayNameStrRef) : str.sUnlocalizedName);
 
-    LogInfo("Loading Tileset Data: " + sTileset + " -> " + sName);
+    LogInfo("Loading Tileset Data: {sTileset} -> {sName}");
 
     json jTC = JsonArray(), jTerrain = JsonArray(), jCrosser = JsonArray();
     int nTerrainNum;

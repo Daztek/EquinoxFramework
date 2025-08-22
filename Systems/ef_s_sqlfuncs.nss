@@ -15,7 +15,7 @@ json SQLFunctions_ParseParameters(struct AnnotationData str)
 {
     if (FindSubString(str.sParameters, "=", 0) != -1)
     {
-        LogError("Function '" + str.sSystem + ":" + str.sFunction + "' cannot have default arguments.");
+        LogError("Function '{str.sSystem}:{str.sFunction}' cannot have default arguments.");
         return JsonNull();
     }
 
@@ -40,7 +40,7 @@ json SQLFunctions_ParseParameters(struct AnnotationData str)
             sArguments += "GetLocalObject(oModule, \"CF_ARG_" + IntToString(nIndex + 1) + "\")";
         else
         {
-            LogError("Function '" + str.sSystem + ":" + str.sFunction + "' has invalid parameter type: " + sType);
+            LogError("Function '{str.sSystem}:{str.sFunction}' has invalid parameter type: {sType}");
             return JsonNull();
         }
     }
@@ -60,7 +60,7 @@ void SqlFunctions_RegisterFunction(struct AnnotationData str)
         str.sReturnType != NSS_TYPE_FLOAT &&
         str.sReturnType != NSS_TYPE_OBJECT)
     {
-        LogError("Function '" + str.sSystem + ":" + str.sFunction + "' has an invalid return type: " + str.sReturnType);
+        LogError("Function '{str.sSystem}:{str.sFunction}' has an invalid return type: {str.sReturnType}");
         return;
     }
 
@@ -104,10 +104,10 @@ void SqlFunctions_RegisterFunction(struct AnnotationData str)
     if (nRetVal)
     {
         CacheScriptChunk(sScriptChunk, FALSE, TRUE);
-        LogInfo("System '" + str.sSystem + "' registered SQL function '" + str.sFunction + "' with name '" + sName + "'");
+        LogInfo("System '{str.sSystem}' registered SQL function '{str.sFunction}' with name '{sName}'");
     }
     else
     {
-        LogError("System '" + str.sSystem + "' failed to register SQL function '" + str.sFunction + "' with name '" + sName + "'");
+        LogError("System '{str.sSystem}' failed to register SQL function '{str.sFunction}' with name '{sName}'");
     }
 }

@@ -42,7 +42,7 @@ void BTT_Load()
         }
         else
         {
-            LogWarning("Patrol Waypoint without Connections: " + GetTag(oPatrolWaypoint));
+            LogWarning("Patrol Waypoint without Connections: {oPatrolWaypoint}");
         }
     }
 }

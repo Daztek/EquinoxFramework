@@ -36,7 +36,10 @@ void Rest_OnPlayerRest()
         string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
-            LogError("(" + IntToString(nRestEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+        {
+            string sSystem = SqlGetString(sql, 0);
+            LogError("({nRestEventType}) System '{sSystem}' + ScriptChunk '{sScriptChunk}' failed with error: {sError}");
+        }
     }
 }
 
@@ -55,5 +58,5 @@ void Rest_RegisterFunction(struct AnnotationData str)
 
     CacheScriptChunk(sScriptChunk);
 
-    LogInfo("System '" + str.sSystem + "' registered function '" + str.sFunction + "' for rest event type: " + sRestEventTypeConstant);
+    LogInfo("System '{str.sSystem}' registered function '{str.sFunction}' for rest event type: {sRestEventTypeConstant}");
 }

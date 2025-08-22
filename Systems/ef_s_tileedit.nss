@@ -85,12 +85,6 @@ json TE_GetTCColor(json jTCColorArray, int nFlag);
 void TE_UpdateTileList();
 void TE_SetAreaTilesColorBinds(object oArea, int nAreaWidth, int nAreaHeight);
 
-// @CORE[CORE_SYSTEM_INIT]
-void TE_Init()
-{
-
-}
-
 // @CORE[CORE_SYSTEM_LOAD]
 void TE_Load()
 {
@@ -691,7 +685,7 @@ json TE_GetTCColorArray(string sTileset)
 
 void TE_LoadTileset(string sTileset)
 {
-    LogInfo("Loading Tile Data: " + sTileset);
+    LogInfo("Loading Tile Data: {sTileset}");
 
     SqlBeginTransactionModule();
 

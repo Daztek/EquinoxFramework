@@ -46,7 +46,7 @@ void ED_OnAreaPostProcessed()
 
     int nLimit = nMax / 10;
 
-    LogInfo("Spawning Deer for Area: " + sAreaID + " -> Tiles: " + IntToString(nMax) + ", Spawning: " + IntToString(nLimit));
+    LogInfo("Spawning Deer for Area: '{sAreaID}' -> Tiles: {nMax}, Spawning: {nLimit}");
 
     if (!nLimit)
         return;

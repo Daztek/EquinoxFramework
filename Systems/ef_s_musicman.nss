@@ -106,7 +106,7 @@ void MusMan_RegisterMusicEvent(struct AnnotationData str)
 {
     if (str.sReturnType != NSS_TYPE_JSON)
     {
-        LogError("Music event track function '" + str.sSystem + ":" + str.sFunction + "' has non-json return value!");
+        LogError("Music event track function '{str.sSystem}:{str.sFunction}' has non-json return value!");
         return;
     }
 
@@ -122,8 +122,7 @@ void MusMan_RegisterMusicEvent(struct AnnotationData str)
     SqlBindString(sql, "@track_function", nssFunction(str.sFunction));
     SqlStep(sql);
 
-    LogInfo("System '" + str.sSystem + "' registered music event '" + sEvent + "' with priority '" +
-            IntToString(nPriority) + "' and fadetime '" + FloatToString(fFadeTime, 0, 2) + "'");
+    LogInfo("System '{str.sSystem}' registered music event '{sEvent}' with priority '{nPriority}' and fadetime '{fFadeTime}'");
 }
 
 // @GUIEVENT[GUIEVENT_AREA_LOADSCREEN_FINISHED]

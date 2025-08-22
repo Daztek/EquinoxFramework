@@ -34,7 +34,7 @@ const int SA_AREA_CHASM_CHANCE                      = 10;
 void SA_Init()
 {
     int nSeed = Random(2147483647);
-    LogInfo("Seed: " + IntToString(nSeed));
+    LogInfo("Seed: {nSeed}");
     SqlMersenneTwisterSetSeed(SA_SCRIPT_NAME, nSeed);
 }
 
@@ -86,7 +86,7 @@ void SA_OnAreaGenerated(string sAreaID)
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
     {
         if (SA_DEBUG_LOG)
-            LogDebug("Area Generation Failure: " + sAreaID + ", retrying...");
+            LogDebug("Area Generation Failure: {sAreaID}, retrying...");
 
         int nChunk, nNumChunks = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_CHUNK_AMOUNT);
         for (nChunk = 0; nChunk < nNumChunks; nChunk++)

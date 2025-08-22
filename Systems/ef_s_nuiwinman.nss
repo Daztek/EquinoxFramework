@@ -78,7 +78,7 @@ void NWM_RegisterWindow(struct AnnotationData str)
 {
     if (str.sReturnType != NSS_TYPE_JSON)
     {
-        LogError("Function '" + str.sFunction + "'' from system '" + str.sSystem + "' has an non-json return type!");
+        LogError("Function '{str.sFunction}' from system '{str.sSystem}' has an non-json return type!");
         return;
     }
 
@@ -87,16 +87,16 @@ void NWM_RegisterWindow(struct AnnotationData str)
     json jWindow = ExecuteScriptChunkAndReturnJson(str.sSystem, nssFunction(str.sFunction), GetDataObject(NB_SCRIPT_NAME));
 
     if (!JsonGetType(jWindow))
-        LogError("System '" + str.sSystem + "' tried to register window with no data!");
+        LogError("System '{str.sSystem}' tried to register window with no data!");
     else if (JsonGetType(NWM_GetWindowJson(sWindowId)))
-        LogError("System '" + str.sSystem + "' tried to register already registered window: " + sWindowId);
+        LogError("System '{str.sSystem}' tried to register already registered window: {sWindowId}");
     else
     {
         object oDataObject = GetDataObject(NWM_SCRIPT_NAME);
         json jGeometry = JsonObjectGet(jWindow, NUI_DEFAULT_GEOMETRY_NAME);
         SetLocalJson(oDataObject, NWM_REGISTERED_WINDOW + sWindowId, jWindow);
         SetLocalJson(oDataObject, NWM_WINDOW_GEOMETRY + sWindowId, jGeometry);
-        LogInfo("System '" + str.sSystem + "' registered window: " + sWindowId);
+        LogInfo("System '{str.sSystem}' registered window: {sWindowId}");
     }
 }
 
@@ -115,7 +115,7 @@ void NWM_RegisterEvent(struct AnnotationData str)
     if (NWM_DEBUG_LOG_EVENTS)
     {
         if (!JsonGetType(NWM_GetWindowJson(sWindowId)))
-            LogWarning("System '" + str.sSystem + "' tried to register event for a window that does not exist: " + sWindowId);
+            LogWarning("System '{str.sSystem}' tried to register event for a window that does not exist: {sWindowId}");
     }
 
     if (bPrefix)
@@ -131,7 +131,7 @@ void NWM_RegisterEvent(struct AnnotationData str)
 
     CacheScriptChunk(sScriptChunk);
 
-    LogInfo("System '" + str.sSystem + "' registered event '" + sEventType + "' for element '" + sElement + "' with function '" + str.sFunction + "' for window: " + sWindowId);
+    LogInfo("System '{str.sSystem}' registered event '{sEventType}' -> E: {sElement}, F: {str.sFunction}, W: {sWindowId}");
 }
 
 // @EVENT[EVENT_SCRIPT_MODULE_ON_NUI_EVENT]
@@ -144,7 +144,11 @@ void NWM_NuiEvent()
     if (sWindowId == "" || !JsonGetType(NWM_GetWindowJson(sWindowId)))
     {
         if (NWM_DEBUG_LOG_EVENTS && NWM_DEBUG_LOG_ANONYMOUS_OR_INVALID)
-            LogDebug("Unknown or Anonymous Window: (" + sWindowId + ") Event: " + NuiGetEventType() + ", Element: " + NuiGetEventElement());
+        {
+            string sEventType = NuiGetEventType();
+            string sElement = NuiGetEventElement();
+            LogDebug("Unknown or Anonymous Window: ({sWindowId}) Event: {sEventType}, Element: {sElement}");
+        }
         return;
     }
 
@@ -156,7 +160,7 @@ void NWM_NuiEvent()
         json jPayload = NuiGetEventPayload();
         string sBindName = JsonObjectGetString(jPayload, "bind");
         json jBindValue = JsonObjectGet(jPayload, "value");
-        LogWarning("(" + IntToString(nToken) + ":" + sWindowId + ") Client Received Unknown Bind -> Name: '" + sBindName + "', Value: " + JsonDump(jBindValue));
+        LogWarning("({nToken}:{sWindowId}) Client Received Unknown Bind -> Name: {sBindName}, Value: {jBindValue}");
     }
 
     if (sEventType == NUI_EVENT_WATCH && sElement == NUI_WINDOW_GEOMETRY_BIND)
@@ -164,13 +168,7 @@ void NWM_NuiEvent()
         json jGeometry = NuiGetBind(oPlayer, nToken, NUI_WINDOW_GEOMETRY_BIND);
 
         if (NWM_DEBUG_LOG_EVENTS)
-        {
-            LogDebug("(" + IntToString(nToken) + ":" + sWindowId +
-                     ") Geometry Update: x=" + FloatToString(JsonObjectGetFloat(jGeometry, "x"), 0, 0) +
-                     ", y=" + FloatToString(JsonObjectGetFloat(jGeometry, "y"), 0, 0) +
-                     ", w=" + FloatToString(JsonObjectGetFloat(jGeometry, "w"), 0, 0) +
-                     ", h=" + FloatToString(JsonObjectGetFloat(jGeometry, "h"), 0, 0));
-        }
+            LogDebug("({nToken}:{sWindowId}) Geometry Update: {jGeometry}");
 
         if (!GetIsDefaultNuiRect(jGeometry))
         {
@@ -182,8 +180,7 @@ void NWM_NuiEvent()
     {
         int nArrayIndex = NuiGetEventArrayIndex();
         json jPayload = NuiGetEventPayload();
-
-        LogDebug("(" + IntToString(nToken) + ":" + sWindowId + ") T: " + sEventType + ", E: " + sElement + ", AI: " + IntToString(nArrayIndex) + ", P: " + JsonDump(jPayload));
+        LogDebug("({nToken}:{sWindowId}) T: {sEventType}, E: {sElement}, AI: {nArrayIndex}, P: {jPayload}");
     }
 
     NWM_SetPlayer(oPlayer);
@@ -432,7 +429,7 @@ void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string s
     }
 
     if (NWM_DEBUG_LOG_EVENTS)
-        LogDebug("(" + sWindowId + ") Running Event '" + sEventType + "' for Element '" + sElement + "'");
+        LogDebug("({sWindowId}) Running Event '{sEventType}' for Element '{sElement}'");
 
     sqlquery sql = SqlPrepareQueryModule("SELECT scriptchunk FROM " + NWM_SCRIPT_NAME + " WHERE windowid = @windowid AND eventtype = @eventtype AND element = @element;");
     SqlBindString(sql, "@windowid", sWindowId);
@@ -447,7 +444,7 @@ void NWM_RunEvents(object oPlayer, string sWindowId, string sEventType, string s
         if (NWM_DEBUG_LOG_EVENTS)
         {
             if (sError != "")
-                LogError("Event Chunk '" + sScriptChunk + "' failed with error: " + sError);
+                LogError("Event Chunk '{sScriptChunk}' failed with error: {sError}");
         }
     }
 }

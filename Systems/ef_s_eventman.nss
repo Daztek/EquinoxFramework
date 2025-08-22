@@ -100,7 +100,7 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
         string sError = ExecuteScriptChunk(sScriptChunk, oTarget, FALSE);
 
         if (EM_LOG_DEBUG && sError != "")
-            LogError("Failed to run scriptchunk '" + sScriptChunk + "' with error: " + sError);
+            LogError("Failed to run scriptchunk '{sScriptChunk}' with error: {sError}");
     }
 }
 
@@ -117,7 +117,7 @@ void EM_InsertObjectEventAnnotations(struct AnnotationData str)
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction, sEventTypeFunction));
 
     if (nEventType == -1 || GetStringLeft(sEventType, GetStringLength("EVENT_SCRIPT_")) != "EVENT_SCRIPT_")
-        LogWarning("System '" + str.sSystem + "' tried to register '" + str.sFunction + "' for an invalid object event: " + sEventType);
+        LogWarning("System '{str.sSystem}' tried to register '{str.sFunction}' for an invalid object event: {sEventType}");
     else
     {
         string sQuery = "INSERT INTO " + EM_SCRIPT_NAME + "_events(system, eventtype, scriptchunk, priority, dispatchlist) " +
@@ -139,9 +139,7 @@ void EM_InsertObjectEventAnnotations(struct AnnotationData str)
                 LogError("Failed to insert event: " + sError);
         }
 
-        LogInfo("System '" + str.sSystem + "' subscribed to '" + sEventType +
-                 "' with priority '" + IntToString(nPriority) + "', DL=" +
-                 IntToString(bDispatchListMode) + ", PET=" + IntToString(bPassEventType));
+        LogInfo("System '{str.sSystem}' subscribed to '{sEventType}' with priority '{nPriority}', DL={bDispatchListMode}, PET={bPassEventType}");
     }
 }
 
@@ -194,7 +192,7 @@ void EM_SetObjectEventScript(object oObject, int nEvent, int bStoreOriginalEvent
     int bSet = SetEventScript(oObject, nEvent, sEventScript);
 
     if (!bSet)
-        LogWarning("Failed to set event script for object: " + GetName(oObject) + "(" + sEvent + ")");
+        LogWarning("Failed to set event script for object: {oObject}({sEvent})");
     else if (bStoreOriginalEvent && sOriginalScript != "" && sOriginalScript != sEventScript)
         SetLocalString(oObject, EM_ORIGINAL_EVENT_SCRIPT_PREFIX + sEvent, sOriginalScript);
 }
@@ -309,7 +307,7 @@ void EM_NWNXSubscribeAnnotations(struct AnnotationData str)
 
 void EM_NWNXSubscribeEvent(string sSystem, string sEvent, string sScriptChunk, int bDispatchListMode = FALSE, int bWrapIntoMain = FALSE)
 {
-    LogInfo("System '" + sSystem + "' subscribed to NWNX event '" + sEvent + "', DL=" + IntToString(bDispatchListMode));
+    LogInfo("System '{sSystem}' subscribed to NWNX event '{sEvent}', DL={bDispatchListMode}");
 
     NWNX_Events_SubscribeEventScriptChunk(sEvent, sScriptChunk, bWrapIntoMain);
     if (bDispatchListMode)

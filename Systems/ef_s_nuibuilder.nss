@@ -207,7 +207,7 @@ void NB_End()
             if (NB_IsLayoutType(nTypeToAdd))
                 NB_SetData(jDataToAdd);
             else
-                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_ROOT} only accepts {NB_TYPE_COLUMN|NB_TYPE_ROW|NB_TYPE_GROUP}.");
+                NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_ROOT' only accepts 'NB_TYPE_COLUMN|NB_TYPE_ROW|NB_TYPE_GROUP'.");
             break;
         }
         case NB_TYPE_COLUMN:
@@ -218,7 +218,7 @@ void NB_End()
             else if (nTypeToAdd == NB_TYPE_DRAWLIST)
                 NB_SetData(JsonMerge(jData, jDataToAdd));
             else
-                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_COLUMN|NB_TYPE_ROW} only accepts {NB_TYPE_COLUMN|NB_TYPE_ROW|NB_TYPE_GROUP|NB_TYPE_ELEMENT|NB_TYPE_LIST|NB_TYPE_STATIC_COMBO|NB_TYPE_STATIC_OPTIONS|NB_TYPE_DRAWLIST}.");
+                NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_COLUMN|NB_TYPE_ROW' only accepts 'NB_TYPE_COLUMN|NB_TYPE_ROW|NB_TYPE_GROUP|NB_TYPE_ELEMENT|NB_TYPE_LIST|NB_TYPE_STATIC_COMBO|NB_TYPE_STATIC_OPTIONS|NB_TYPE_DRAWLIST'.");
             break;
         }
         case NB_TYPE_GROUP:
@@ -228,7 +228,7 @@ void NB_End()
             else if (nTypeToAdd == NB_TYPE_DRAWLIST)
                 NB_SetData(JsonMerge(jData, jDataToAdd));
             else
-                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_GROUP} only accepts {NB_TYPE_COLUMN|NB_TYPE_ROW|NB_TYPE_GROUP|NB_TYPE_ELEMENT|NB_TYPE_LIST|NB_TYPE_STATIC_COMBO|NB_TYPE_STATIC_OPTIONS|NB_TYPE_DRAWLIST}.");
+                NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_GROUP' only accepts 'NB_TYPE_COLUMN|NB_TYPE_ROW|NB_TYPE_GROUP|NB_TYPE_ELEMENT|NB_TYPE_LIST|NB_TYPE_STATIC_COMBO|NB_TYPE_STATIC_OPTIONS|NB_TYPE_DRAWLIST'.");
             break;
         }
         case NB_TYPE_ELEMENT:
@@ -236,7 +236,7 @@ void NB_End()
             if (nTypeToAdd == NB_TYPE_DRAWLIST)
                 NB_SetData(JsonMerge(jData, jDataToAdd));
             else
-                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_ELEMENT} only accepts {NB_TYPE_DRAWLIST}.");
+                NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_ELEMENT' only accepts 'NB_TYPE_DRAWLIST'.");
             break;
         }
         case NB_TYPE_LIST:
@@ -246,12 +246,12 @@ void NB_End()
                 if (JsonGetLength(JsonObjectGet(jData,  "row_template")) < 16)
                     NB_SetData(JsonObjectInsertToArrayWithKey(jData, "row_template", jDataToAdd));
                 else
-                    NB_LogWarning("{NB_TYPE_LIST} only supports up to 16 {NB_TYPE_LIST_TEMPLATE_CELL} elements.");
+                    NB_LogWarning("'NB_TYPE_LIST' only supports up to 16 'NB_TYPE_LIST_TEMPLATE_CELL' elements.");
             }
             else if (nTypeToAdd == NB_TYPE_DRAWLIST)
                 NB_SetData(JsonMerge(jData, jDataToAdd));
             else
-                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_LIST} only accepts {NB_TYPE_LIST_TEMPLATE_CELL|NB_TYPE_DRAWLIST}.");
+                NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_LIST' only accepts 'NB_TYPE_LIST_TEMPLATE_CELL|NB_TYPE_DRAWLIST'.");
             break;
         }
         case NB_TYPE_LIST_TEMPLATE_CELL:
@@ -259,7 +259,7 @@ void NB_End()
             if (NB_IsElementType(nTypeToAdd) || nTypeToAdd == NB_TYPE_GROUP)
                 NB_SetData(JsonArraySet(jData, 0, jDataToAdd));
             else
-                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_LIST_TEMPLATE_CELL} only accepts {NB_TYPE_ELEMENT|NB_TYPE_LIST|NB_TYPE_STATIC_COMBO|NB_TYPE_STATIC_OPTIONS|NB_TYPE_GROUP}.");
+                NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_LIST_TEMPLATE_CELL' only accepts 'NB_TYPE_ELEMENT|NB_TYPE_LIST|NB_TYPE_STATIC_COMBO|NB_TYPE_STATIC_OPTIONS|NB_TYPE_GROUP'.");
             break;
         }
         case NB_TYPE_DRAWLIST:
@@ -267,12 +267,12 @@ void NB_End()
             if (nTypeToAdd == NB_TYPE_DRAWLIST_ITEM)
                 NB_SetData(JsonObjectInsertToArrayWithKey(jData, "draw_list", jDataToAdd));
             else
-                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_DRAWLIST} only accepts {NB_TYPE_DRAWLIST_ITEM}.");
+                NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_DRAWLIST' only accepts 'NB_TYPE_DRAWLIST_ITEM'.");
             break;
         }
         case NB_TYPE_DRAWLIST_ITEM:
         {
-            NB_LogWarning("TYPE MISMATCH: {NB_TYPE_DRAWLIST_ITEM} does not accept other types.");
+            NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_DRAWLIST_ITEM' does not accept other types.");
             break;
         }
         case NB_TYPE_STATIC_COMBO:
@@ -282,12 +282,12 @@ void NB_End()
             else if (nTypeToAdd == NB_TYPE_DRAWLIST)
                 NB_SetData(JsonMerge(jData, jDataToAdd));
             else
-                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_STATIC_COMBO} only accepts {NB_TYPE_STATIC_COMBO_ENTRY|NB_TYPE_DRAWLIST}.");
+                NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_STATIC_COMBO' only accepts 'NB_TYPE_STATIC_COMBO_ENTRY|NB_TYPE_DRAWLIST'.");
             break;
         }
         case NB_TYPE_STATIC_COMBO_ENTRY:
         {
-            NB_LogWarning("TYPE MISMATCH: {NB_TYPE_STATIC_COMBO_ENTRY} does not accept other types.");
+            NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_STATIC_COMBO_ENTRY' does not accept other types.");
             break;
         }
         case NB_TYPE_STATIC_OPTIONS:
@@ -297,12 +297,12 @@ void NB_End()
             else if (nTypeToAdd == NB_TYPE_DRAWLIST)
                 NB_SetData(JsonMerge(jData, jDataToAdd));
             else
-                NB_LogWarning("TYPE MISMATCH: {NB_TYPE_STATIC_OPTIONS} only accepts {NB_TYPE_STATIC_OPTIONS_ENTRY|NB_TYPE_DRAWLIST}.");
+                NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_STATIC_OPTIONS' only accepts 'NB_TYPE_STATIC_OPTIONS_ENTRY|NB_TYPE_DRAWLIST'.");
             break;
         }
         case NB_TYPE_STATIC_OPTIONS_ENTRY:
         {
-            NB_LogWarning("TYPE MISMATCH: {NB_TYPE_STATIC_OPTIONS_ENTRY} does not accept other types.");
+            NB_LogWarning("TYPE MISMATCH: 'NB_TYPE_STATIC_OPTIONS_ENTRY' does not accept other types.");
             break;
         }
         default:

@@ -27,6 +27,6 @@ void EC_OnAreaPostProcessed()
         int nTileID = SqlGetInt(sql, 0);
         int nTileX = SqlGetInt(sql, 1);
         int nTileY = SqlGetInt(sql, 2);
-        LogInfo("Found Campsite Type '" + IntToString(nTileID) + "' @ " + IntToString(nTileX) + "," + IntToString(nTileY) + " in area: " + sAreaID);
+        LogInfo("Found Campsite Type '{nTileID}' @ {nTileX},{nTileY} in area: {sAreaID}");
     }
 }

@@ -285,7 +285,7 @@ void EP_OnAreaGenerated(string sAreaID)
     if (AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_FAILED))
     {
         if (EP_DEBUG_LOG)
-            LogDebug("Area Generation Failure: " + sAreaID + ", retrying...");
+            LogDebug("Area Generation Failure: {sAreaID}, retrying...");
 
         object oDataObject = GetDataObject(EP_SCRIPT_NAME);
         object oArea = GetLocalObject(oDataObject, "LAST_AREA");
@@ -312,9 +312,9 @@ void EP_OnAreaGenerated(string sAreaID)
 
         AG_ExtractExitEdgeTerrains(sAreaID);
 
-        LogInfo("Creating Area: " + GetTag(oArea) + " -> Generation Type: " + AG_GetGenerationTypeAsString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE)));
-        LogInfo(" > Iterations: " + IntToString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS)) +
-                ", Exit Height: " + IntToString( AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX))));
+        string sGenerationType = AG_GetGenerationTypeAsString(AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_TYPE));
+        int nIterations = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_GENERATION_ITERATIONS);
+        LogInfo("Creating Area: {sAreaID} -> Generation Type: {sGenerationType}, Iterations: {nIterations}");
 
         DelayCommand(EP_POSTPROCESS_DELAY, EP_PostProcess(oArea));
     }

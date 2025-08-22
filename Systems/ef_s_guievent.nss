@@ -30,7 +30,9 @@ void GuiEvent_OnPlayerGuiEvent()
 
     if (GUIEVENT_DEBUG_EVENTS)
     {
-        LogDebug("Event=" + IntToString(nGuiEventType) + ", Int=" + IntToString(GetLastGuiEventInteger()) + ", Object=" + ObjectToString(GetLastGuiEventObject()));
+        int nInt = GetLastGuiEventInteger();
+        object oObject = GetLastGuiEventObject();
+        LogDebug("Event={nGuiEventType}, Int={nInt}, Object={oObject:%i}");
     }
 
     sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptchunk FROM " + GUIEVENT_SCRIPT_NAME + " WHERE guieventtype = @guieventtype;");
@@ -42,7 +44,10 @@ void GuiEvent_OnPlayerGuiEvent()
         string sError = ExecuteScriptChunk(sScriptChunk, oPlayer, FALSE);
 
         if (sError != "")
-            LogError("(" + IntToString(nGuiEventType) + ") System '" + SqlGetString(sql, 0) + "' + ScriptChunk '" + sScriptChunk + "' failed with error: " + sError);
+        {
+            string sSystem = SqlGetString(sql, 0);
+            LogError("({nGuiEventType}) System '{sSystem}' + ScriptChunk '{sScriptChunk}' failed with error: {sError}");
+        }
     }
 }
 
@@ -54,7 +59,7 @@ void GuiEvent_RegisterFunction(struct AnnotationData str)
     string sScriptChunk = nssInclude(str.sSystem) + nssVoidMain(nssFunction(str.sFunction));
 
     if (nGuiEventType == -1)
-        LogWarning("System '" + str.sSystem + "' tried to register '" + str.sFunction + "' for an invalid gui event: " + sGuiEventType);
+        LogWarning("System '{str.sSystem}' tried to register '{str.sFunction}' for an invalid gui event: {sGuiEventType}");
     else
     {
         sqlquery sql = SqlPrepareQueryModule("INSERT INTO " + GUIEVENT_SCRIPT_NAME + " (guieventtype, system, scriptchunk) VALUES(@guieventtype, @system, @scriptchunk);");
@@ -65,6 +70,6 @@ void GuiEvent_RegisterFunction(struct AnnotationData str)
 
         CacheScriptChunk(sScriptChunk);
 
-        LogInfo("System '" + str.sSystem + "' registered '" + str.sFunction + "' for gui event '" + sGuiEventType + "'");
+        LogInfo("System '{str.sSystem}' registered '{str.sFunction}' for gui event '{sGuiEventType}'");
     }
 }

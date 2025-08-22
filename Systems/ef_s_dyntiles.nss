@@ -220,7 +220,7 @@ void DT_OnAreaGenerated(string sAreaID)
         DelayCommand(fDelay, DT_SetTile(oArea, nTile, strTile));
     }
 
-    LogInfo("TileHeight: Min=" + IntToString(nMin) + ", Max=" + IntToString(nMax));
+    LogInfo("TileHeight: Min={nMin}, Max={nMax}");
 
     DelayCommand(fDelay + DT_START_DELAY + DT_LERP_SPEED + 0.5f, DT_ReloadTileStuff(oArea));
 }

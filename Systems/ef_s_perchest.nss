@@ -290,7 +290,6 @@ void PC_WithdrawItem()
         }
         else
         {
-
             SendMessageToPC(oPlayer, "Item '" + sItemName + "' does not fit in your inventory!");
         }
     }

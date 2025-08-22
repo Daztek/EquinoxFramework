@@ -251,8 +251,7 @@ void Console_SetOutput(string sOutput)
 
 void Console_SelectCommand(int nCommand)
 {
-    string sQuery = "SELECT name, icon, parameters, script_chunk FROM " + CONSOLE_SCRIPT_NAME + " WHERE " +
-                    "id = @id;";
+    string sQuery = "SELECT name, icon, parameters, script_chunk FROM " + CONSOLE_SCRIPT_NAME + " WHERE id = @id;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@id", nCommand);
 
@@ -504,5 +503,5 @@ void Console_RegisterCommand(struct AnnotationData str)
 
     CacheScriptChunk(sScriptChunk);
 
-    LogInfo("System '" + str.sSystem + "' registered command '" + sName + "' with '" + IntToString(nNumArguments) + "' parameters");
+    LogInfo("System '{str.sSystem}' registered command '{sName}' with '{nNumArguments}' parameters");
 }

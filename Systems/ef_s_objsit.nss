@@ -86,8 +86,8 @@ void ObjSit_Load()
         }
     }
 
-    LogInfo("Created '" + IntToString(nSingle) + "' Single Sitting Objects");
-    LogInfo("Created '" + IntToString(nDouble) + "' Double Sitting Objects");
+    LogInfo("Created '{nSingle}' Single Sitting Objects");
+    LogInfo("Created '{nDouble}' Double Sitting Objects");
 }
 
 // @EVENT[EVENT_SCRIPT_PLACEABLE_ON_USED:DL]

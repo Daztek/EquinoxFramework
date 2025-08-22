@@ -1,6 +1,8 @@
 /*
     Script: ef_s_version
     Author: Daz
+
+    @SKIPSYSTEM
 */
 
 #include "ef_i_include"

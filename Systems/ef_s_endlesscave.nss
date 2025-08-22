@@ -100,16 +100,17 @@ void EC_OnAreaPostProcessed()
     int nCave, nNumCaves = JsonGetLength(jCaves);
     if (nNumCaves)
     {
-        LogInfo("Generating Caves for Area: " + sParentAreaID + " -> Amount: " + IntToString(nNumCaves));
+        LogInfo("Generating Caves for Area: {sParentAreaID} -> Amount: {nNumCaves}");
 
         for (nCave = 0; nCave < nNumCaves; nCave++)
         {
             json jCave = JsonArrayGet(jCaves, nCave);
+            int nTile = JsonObjectGetInt(jCave, "exit_index");
+            int nType = JsonObjectGetInt(jCave, "type");
+            string sAreaID = JsonObjectGetString(jCave, "area_id");
+            string sLighting = Get2DAString("environment", "LABEL", JsonObjectGetInt(jCave, "lighting_scheme"));
 
-            LogInfo("> Tile: " + IntToString(JsonObjectGetInt(jCave, "exit_index")) +
-                     ", Type: " + IntToString(JsonObjectGetInt(jCave, "type")) +
-                     ", ID: " + JsonObjectGetString(jCave, "area_id") +
-                     ", Lighting: " + Get2DAString("environment", "LABEL", JsonObjectGetInt(jCave, "lighting_scheme")));
+            LogInfo("> Tile: {nTile}, Type: {nType}, ID: {sAreaID}, Lighting: {sLighting}");
 
             DelayCommand(EC_CAVE_GENERATION_DELAY * (nCave + 1), EC_GenerateCave(jCave));
         }

@@ -217,9 +217,9 @@ void BTB_CheckNoChildren(int nTypeToAdd, json jDataToAdd)
 {
     int nNumChildren = JsonGetLength(JsonObjectGet(jDataToAdd, BT_NODE_KEY_CHILDREN));
     if ((nTypeToAdd == BTB_NODE_TYPE_ROOT || nTypeToAdd == BT_NODE_TYPE_COMPOSITE || nTypeToAdd == BT_NODE_TYPE_DECORATOR) && !nNumChildren)
-        BTB_LogWarning("{" + BTB_NodeTypeToString(nTypeToAdd) + "} HAS NO CHILD(REN).");
+        BTB_LogWarning("'" + BTB_NodeTypeToString(nTypeToAdd) + "' HAS NO CHILD(REN).");
     if (nTypeToAdd == BT_NODE_TYPE_DECORATOR && nNumChildren > 1)
-        BTB_LogWarning("{" + BTB_NodeTypeToString(nTypeToAdd) + "} HAS TOO MANY CHILDREN.");
+        BTB_LogWarning("'" + BTB_NodeTypeToString(nTypeToAdd) + "' HAS TOO MANY CHILDREN.");
 }
 
 void BTB_InitializeBehaviorTree()
@@ -274,7 +274,7 @@ void BTB_End()
                 BTB_SetData(jBehaviorTree);
             }
             else
-                BTB_LogWarning("TYPE MISMATCH: {BTB_NODE_TYPE_ROOT} does not accept {" + BTB_NodeTypeToString(nTypeToAdd) + "}.");
+                BTB_LogWarning("TYPE MISMATCH: 'BTB_NODE_TYPE_ROOT' does not accept '" + BTB_NodeTypeToString(nTypeToAdd) + "'.");
             break;
         }
         case BTB_NODE_TYPE_COMPOSITE:
@@ -285,7 +285,7 @@ void BTB_End()
                 BTB_SetData(JsonObjectInsertToArrayWithKey(jData, BT_NODE_KEY_CHILDREN, JsonInt(BTB_AddNodeToNodes(jDataToAdd))));
             }
             else
-                BTB_LogWarning("TYPE MISMATCH: {BTB_NODE_TYPE_COMPOSITE} does not accept {" + BTB_NodeTypeToString(nTypeToAdd) + "}.");
+                BTB_LogWarning("TYPE MISMATCH: 'BTB_NODE_TYPE_COMPOSITE' does not accept '" + BTB_NodeTypeToString(nTypeToAdd) + "'.");
             break;
         }
         case BTB_NODE_TYPE_DECORATOR:
@@ -296,19 +296,19 @@ void BTB_End()
                 BTB_SetData(JsonObjectInsertToArrayWithKey(jData, BT_NODE_KEY_CHILDREN, JsonInt(BTB_AddNodeToNodes(jDataToAdd))));
             }
             else
-                BTB_LogWarning("TYPE MISMATCH: {BTB_NODE_TYPE_DECORATOR} does not accept {" + BTB_NodeTypeToString(nTypeToAdd) + "}.");
+                BTB_LogWarning("TYPE MISMATCH: 'BTB_NODE_TYPE_DECORATOR' does not accept '" + BTB_NodeTypeToString(nTypeToAdd) + "'.");
             break;
         }
 
         case BTB_NODE_TYPE_CONDITION:
         case BTB_NODE_TYPE_ACTION:
         {
-            BTB_LogWarning("TYPE MISMATCH: {BTB_NODE_TYPE_CONDITION|BTB_NODE_TYPE_ACTION} does not accept children.");
+            BTB_LogWarning("TYPE MISMATCH: 'BTB_NODE_TYPE_CONDITION|BTB_NODE_TYPE_ACTION' does not accept children.");
             break;
         }
 
         default:
-            BTB_LogWarning("UNKNOWN TYPE: " + IntToString(nTypeToAdd));
+            BTB_LogWarning("UNKNOWN TYPE: {nTypeToAdd}");
         break;
     }
 }

@@ -85,7 +85,7 @@ string SecondsToStringTimestamp(int nSeconds)
 
 string FormatString(string sString, int nDepthOverride = 0)
 {
-    json jVariables = RegExpIterate("\\{(\\w+)(?::(%[a-z]))?\\}", sString);
+    json jVariables = RegExpIterate("\\{([\\.\\w]+)(?::(%[a-z]))?\\}", sString);
     int nIndex, nNumVariables = JsonGetLength(jVariables);
     if (!nNumVariables)
         return sString;
@@ -115,7 +115,7 @@ string FormatString(string sString, int nDepthOverride = 0)
                 {
                     case VM_AUXTYPE_STRING: sValue = NWNX_VM_GetStackStringValue(nStackLocation); break;
                     case VM_AUXTYPE_INT:    sValue = IntToString(NWNX_VM_GetStackIntegerValue(nStackLocation)); break;
-                    case VM_AUXTYPE_FLOAT:  sValue = FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation)); break;
+                    case VM_AUXTYPE_FLOAT:  sValue = FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 0, 2); break;
                     case VM_AUXTYPE_OBJECT:
                     {
                         object oObject = NWNX_VM_GetStackObjectValue(nStackLocation);

@@ -83,5 +83,5 @@ void PM_RegisterButton(struct AnnotationData str)
     InsertStringToLocalJsonArray(oDataObject, PM_FUNCTION_ARRAY, sScriptChunk);
     CacheScriptChunk(sScriptChunk);
 
-    LogInfo("System '" + str.sSystem + "' registered player menu button '" + sButton + "' with tooltip: \""  + sTooltip + "\"");
+    LogInfo("System '{str.sSystem}' registered button '{sButton}' with tooltip: \"{sTooltip}\"");
 }

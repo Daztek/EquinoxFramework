@@ -9,20 +9,21 @@
 string FormatString(string sString, int nDepthOverride = 0);
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier);
 string FormatValueByType(int nAuxType, int nStackLocation, string sFormatSpecifier);
-string FormatAsString(int nAuxType, int nStackLocation);
-string FormatAsInteger(int nAuxType, int nStackLocation);
-string FormatAsFloat(int nAuxType, int nStackLocation);
-string FormatAsHex(int nAuxType, int nStackLocation);
-string FormatAsBoolean(int nAuxType, int nStackLocation);
-string DumpVector(json jStack, string sVarName);
-string DumpStruct(json jStack, json jStackVar, string sVarName, string sInstanceName = "");
+string FormatAsString(int nAuxType, int nStackLocation, string sFormatSpecifier);
+string FormatAsInteger(int nAuxType, int nStackLocation, string sFormatSpecifier);
+string FormatAsFloat(int nAuxType, int nStackLocation, string sFormatSpecifier);
+string FormatAsHex(int nAuxType, int nStackLocation, string sFormatSpecifier);
+string FormatAsBoolean(int nAuxType, int nStackLocation, string sFormatSpecifier);
+string FormatAsObject(int nAuxType, int nStackLocation, string sFormatSpecifier);
+string FormatAsVector(json jStack, string sVarName, string sFormatSpecifier);
+string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "");
 
 string FormatString(string sString, int nDepthOverride = 0)
 {
-    if (sString == "")
+    if (sString == "" || FindSubString(sString, "{", 0) == -1)
         return sString;
 
-    json jVariables = RegExpIterate("\\{([\\w\\.]+)(?::(%[a-z]))?\\}", sString);
+    json jVariables = RegExpIterate("\\{([\\w\\.]+)(?::(%[a-z0-9\\.]{0,5}))?\\}", sString);
     int nIndex, nNumVariables = JsonGetLength(jVariables);
 
     if (!nNumVariables)
@@ -61,44 +62,65 @@ string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier)
 
     int nAuxType = JsonObjectGetInt(jStackVar, "type");
 
-    if (nAuxType == VM_AUXTYPE_VOID)
-    {
-        if (JsonObjectGetString(jStackVar, "struct_name") == "vector")
-            return DumpVector(jStack, sVarName);
-        else
-            return DumpStruct(jStack, jStackVar, sVarName);
-    }
-
-    int nStackLocation = JsonObjectGetInt(jStackVar, "stack_location");
     if (sFormatSpecifier == "")
         sFormatSpecifier = "%s";
 
+    if (nAuxType == VM_AUXTYPE_VOID)
+    {
+        string sStructName = JsonObjectGetString(jStackVar, "struct_name");
+        if (sStructName == "vector")
+            return FormatAsVector(jStack, sVarName, sFormatSpecifier);
+        else
+            return DumpStruct(jStack, sVarName, sStructName);
+    }
+
+    int nStackLocation = JsonObjectGetInt(jStackVar, "stack_location");
     return FormatValueByType(nAuxType, nStackLocation, sFormatSpecifier);
 }
 
 string FormatValueByType(int nAuxType, int nStackLocation, string sFormatSpecifier)
 {
     if (sFormatSpecifier == "%s")
-        return FormatAsString(nAuxType, nStackLocation);
-    else if (sFormatSpecifier == "%i")
-        return FormatAsInteger(nAuxType, nStackLocation);
-    else if (sFormatSpecifier == "%f")
-        return FormatAsFloat(nAuxType, nStackLocation);
-    else if (sFormatSpecifier == "%x")
-        return FormatAsHex(nAuxType, nStackLocation);
-    else if (sFormatSpecifier == "%b")
-        return FormatAsBoolean(nAuxType, nStackLocation);
+    {
+        return FormatAsString(nAuxType, nStackLocation, sFormatSpecifier);
+    }
+
+    if (sFormatSpecifier == "%i")
+    {
+        return FormatAsInteger(nAuxType, nStackLocation, sFormatSpecifier);
+    }
+
+    if (sFormatSpecifier == "%f" ||
+        (GetStringLeft(sFormatSpecifier, 2) == "%." && GetStringRight(sFormatSpecifier, 1) == "f"))
+    {
+        return FormatAsFloat(nAuxType, nStackLocation, sFormatSpecifier);
+    }
+
+    if (sFormatSpecifier == "%x")
+    {
+        return FormatAsHex(nAuxType, nStackLocation, sFormatSpecifier);
+    }
+
+    if (sFormatSpecifier == "%b")
+    {
+        return FormatAsBoolean(nAuxType, nStackLocation, sFormatSpecifier);
+    }
+
+    if (sFormatSpecifier == "%o" || GetStringLeft(sFormatSpecifier, 2) == "%o")
+    {
+        return FormatAsObject(nAuxType, nStackLocation, sFormatSpecifier);
+    }
 
     return "[INVALID_FORMAT:" + sFormatSpecifier + "->" + AuxTypeToString(nAuxType) + "]";
 }
 
-string FormatAsString(int nAuxType, int nStackLocation)
+string FormatAsString(int nAuxType, int nStackLocation, string sFormatSpecifier)
 {
     switch (nAuxType)
     {
         case VM_AUXTYPE_STRING: return NWNX_VM_GetStackStringValue(nStackLocation);
         case VM_AUXTYPE_INT:    return IntToString(NWNX_VM_GetStackIntegerValue(nStackLocation));
-        case VM_AUXTYPE_FLOAT:  return FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 0, 4);
+        case VM_AUXTYPE_FLOAT:  return FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 0, 2);
         case VM_AUXTYPE_OBJECT:
         {
             object oObject = NWNX_VM_GetStackObjectValue(nStackLocation);
@@ -131,7 +153,7 @@ string FormatAsString(int nAuxType, int nStackLocation)
     return "[TYPE_MISMATCH:" + AuxTypeToString(nAuxType) + "->%s]";
 }
 
-string FormatAsInteger(int nAuxType, int nStackLocation)
+string FormatAsInteger(int nAuxType, int nStackLocation, string sFormatSpecifier)
 {
     switch (nAuxType)
     {
@@ -150,18 +172,26 @@ string FormatAsInteger(int nAuxType, int nStackLocation)
     return "[TYPE_MISMATCH:" + AuxTypeToString(nAuxType) + "->%i]";
 }
 
-string FormatAsFloat(int nAuxType, int nStackLocation)
+string FormatAsFloat(int nAuxType, int nStackLocation, string sFormatSpecifier)
 {
+    int nPrecision = 2;
+    if (GetStringLength(sFormatSpecifier) > 2 && (GetStringLeft(sFormatSpecifier, 2) == "%." && GetStringRight(sFormatSpecifier, 1) == "f"))
+    {
+        nPrecision = StringToInt(GetSubString(sFormatSpecifier, 2, GetStringLength(sFormatSpecifier) - 3));
+        if (nPrecision > 18)
+            nPrecision = 18;
+    }
+
     switch (nAuxType)
     {
-        case VM_AUXTYPE_STRING: return FloatToString(StringToFloat(NWNX_VM_GetStackStringValue(nStackLocation)), 0, 4);
-        case VM_AUXTYPE_INT:    return FloatToString(IntToFloat(NWNX_VM_GetStackIntegerValue(nStackLocation)), 0, 2);
-        case VM_AUXTYPE_FLOAT:  return FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 0, 4);
+        case VM_AUXTYPE_STRING: return FloatToString(StringToFloat(NWNX_VM_GetStackStringValue(nStackLocation)), 0, nPrecision);
+        case VM_AUXTYPE_INT:    return FloatToString(IntToFloat(NWNX_VM_GetStackIntegerValue(nStackLocation)), 0, nPrecision);
+        case VM_AUXTYPE_FLOAT:  return FloatToString(NWNX_VM_GetStackFloatValue(nStackLocation), 0, nPrecision);
     }
     return "[TYPE_MISMATCH:" + AuxTypeToString(nAuxType) + "->%f]";
 }
 
-string FormatAsHex(int nAuxType, int nStackLocation)
+string FormatAsHex(int nAuxType, int nStackLocation, string sFormatSpecifier)
 {
     int nValue;
     switch (nAuxType)
@@ -174,7 +204,7 @@ string FormatAsHex(int nAuxType, int nStackLocation)
     return EFIntToHexString(nValue);
 }
 
-string FormatAsBoolean(int nAuxType, int nStackLocation)
+string FormatAsBoolean(int nAuxType, int nStackLocation, string sFormatSpecifier)
 {
     int nValue;
     switch (nAuxType)
@@ -189,20 +219,42 @@ string FormatAsBoolean(int nAuxType, int nStackLocation)
     return nValue ? "TRUE" : "FALSE";
 }
 
-string DumpVector(json jStack, string sVarName)
+string FormatAsObject(int nAuxType, int nStackLocation, string sFormatSpecifier)
 {
-    float fX = NWNX_VM_GetStackFloatValue(JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".x"), "stack_location"));
-    float fY = NWNX_VM_GetStackFloatValue(JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".y"), "stack_location"));
-    float fZ = NWNX_VM_GetStackFloatValue(JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".z"), "stack_location"));
-    return "[" + FloatToString(fX, 0, 2) + "," + FloatToString(fY, 0, 2) + "," + FloatToString(fZ, 0, 2) + "]";
+    if (nAuxType == VM_AUXTYPE_OBJECT)
+    {
+        if (GetStringLength(sFormatSpecifier) == 3)
+        {
+            string sFormatType = GetStringRight(sFormatSpecifier, 1);
+            if (sFormatType == "x")
+                return FormatAsHex(nAuxType, nStackLocation, "%x");
+            else if (sFormatType == "i")
+                return FormatAsInteger(nAuxType, nStackLocation, "%i");
+            else if (sFormatType == "n")
+                return GetName(NWNX_VM_GetStackObjectValue(nStackLocation));
+            else if (sFormatType == "t")
+                return GetTag(NWNX_VM_GetStackObjectValue(nStackLocation));
+        }
+        else
+            return FormatAsString(nAuxType, nStackLocation, "%s");
+    }
+    return "[TYPE_MISMATCH:" + AuxTypeToString(nAuxType) + "->%o]";
 }
 
-string DumpStruct(json jStack, json jStackVar, string sVarName, string sInstanceName = "")
+string FormatAsVector(json jStack, string sVarName, string sFormatSpecifier)
+{
+    string sX = FormatValueByType(VM_AUXTYPE_FLOAT, JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".x"), "stack_location"), sFormatSpecifier);
+    string sY = FormatValueByType(VM_AUXTYPE_FLOAT, JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".y"), "stack_location"), sFormatSpecifier);
+    string sZ = FormatValueByType(VM_AUXTYPE_FLOAT, JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".z"), "stack_location"), sFormatSpecifier);
+    return "[" + sX + "," + sY + "," + sZ + "]";
+}
+
+string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "")
 {
     json jStackKeys = JsonObjectKeys(jStack);
     int nVarNameLength = GetStringLength(sVarName);
     int nKey, nNumKeys = JsonGetLength(jStackKeys);
-    string sResult = "struct " + JsonObjectGetString(jStackVar, "struct_name") + " " + (sInstanceName  != "" ? sInstanceName : sVarName) + " { ";
+    string sResult = "struct " + sStructName + " " + (sInstanceName  != "" ? sInstanceName : sVarName) + " { ";
 
     for (nKey = 0; nKey < nNumKeys; nKey++)
     {
@@ -214,18 +266,22 @@ string DumpStruct(json jStack, json jStackVar, string sVarName, string sInstance
             {
                 json jStructVar = JsonObjectGet(jStack, sKey);
                 int nAuxType = JsonObjectGetInt(jStructVar, "type");
-                if (nAuxType == VM_AUXTYPE_VOID && JsonObjectGetString(jStructVar, "struct_name") != "vector")
-                    sResult += DumpStruct(jStack, jStructVar, sKey, sMemberPath);
+
+                if (nAuxType == VM_AUXTYPE_VOID)
+                {
+                    string sChildStructName = JsonObjectGetString(jStructVar, "struct_name");
+                    if (sChildStructName != "vector")
+                        sResult += DumpStruct(jStack, sKey, sChildStructName, sMemberPath);
+                    else
+                    {
+                        string sValue = GetFormattedValue(jStack, sKey, "%s");
+                        sResult += "vector " + sMemberPath + " = " + sValue + "; ";
+                    }
+                }
                 else
                 {
                     string sValue = GetFormattedValue(jStack, sKey, "%s");
-
-                    string sVariableType;
-                    if (nAuxType == VM_AUXTYPE_VOID)
-                        sVariableType = "vector";
-                    else
-                        sVariableType = GetStringLowerCase(AuxTypeToString(nAuxType));
-
+                    string sVariableType = GetStringLowerCase(AuxTypeToString(nAuxType));
                     sResult += sVariableType + " " + sMemberPath + " = " + sValue + "; ";
                 }
             }

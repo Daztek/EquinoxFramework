@@ -116,7 +116,7 @@ void Debug_Load()
     object oDataObject = GetDataObject(DEBUG_SCRIPT_NAME);
     location loc = GetStartingLocation();
 
-    LogInfo("Hi, my name is {sName} and I like {oDataObject}. I'm currently at {loc}.");
+    LogInfo("Hi, my name is {sName} and I like {oDataObject:%ot}. I'm currently at {loc}.");
 
     struct TestStruct str;
     str.oObject = GetModule();
@@ -130,4 +130,7 @@ void Debug_Load()
 
     vector vPosition = GetPosition(oDataObject);
     LogInfo("{vPosition}");
+
+    float f = 56.72345;
+    LogInfo("{f:%.3f}");
 }

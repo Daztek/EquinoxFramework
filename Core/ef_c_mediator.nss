@@ -291,8 +291,8 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
 
                 if (JsonGetType(jStackVar) == JSON_TYPE_OBJECT)
                 {
-                    int nAuxType = JsonObjectGetInt(jStackVar, "type");
-                    int nStackLocation = JsonObjectGetInt(jStackVar, "stack_location");
+                    int nAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
+                    int nStackLocation = JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY);
 
                     switch (nAuxType)
                     {

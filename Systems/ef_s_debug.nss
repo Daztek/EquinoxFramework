@@ -163,7 +163,7 @@ void Debug_Load()
     PrintString(Profiler_Stop());
     struct AnotherTestStruct strCopy;
     Profiler_Start("JsonToStruct");
-    JsonToStruct(jStruct, "strCopy");
+    JsonToStruct("strCopy", jStruct);
     PrintString(Profiler_Stop());
     LogInfo("{strCopy}");
 }

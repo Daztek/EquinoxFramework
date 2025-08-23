@@ -60,21 +60,21 @@ string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier)
     if (JsonGetType(jStackVar) != JSON_TYPE_OBJECT)
         return "[INVALID_STACK_VAR:" + sVarName + "]";
 
-    int nAuxType = JsonObjectGetInt(jStackVar, "type");
+    int nAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
 
     if (sFormatSpecifier == "")
         sFormatSpecifier = "%s";
 
     if (nAuxType == NWNX_VM_AUXTYPE_VOID)
     {
-        string sStructName = JsonObjectGetString(jStackVar, "struct_name");
+        string sStructName = JsonObjectGetString(jStackVar, NWNX_VM_STRUCT_NAME_KEY);
         if (sStructName == "vector")
             return FormatAsVector(jStack, sVarName, sFormatSpecifier);
         else
             return DumpStruct(jStack, sVarName, sStructName);
     }
 
-    int nStackLocation = JsonObjectGetInt(jStackVar, "stack_location");
+    int nStackLocation = JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY);
     return FormatValueByType(nAuxType, nStackLocation, sFormatSpecifier);
 }
 
@@ -243,9 +243,15 @@ string FormatAsObject(int nAuxType, int nStackLocation, string sFormatSpecifier)
 
 string FormatAsVector(json jStack, string sVarName, string sFormatSpecifier)
 {
-    string sX = FormatValueByType(NWNX_VM_AUXTYPE_FLOAT, JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".x"), "stack_location"), sFormatSpecifier);
-    string sY = FormatValueByType(NWNX_VM_AUXTYPE_FLOAT, JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".y"), "stack_location"), sFormatSpecifier);
-    string sZ = FormatValueByType(NWNX_VM_AUXTYPE_FLOAT, JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".z"), "stack_location"), sFormatSpecifier);
+    string sX = FormatValueByType(NWNX_VM_AUXTYPE_FLOAT,
+        JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".x"),
+        NWNX_VM_STACK_LOCATION_KEY), sFormatSpecifier);
+    string sY = FormatValueByType(NWNX_VM_AUXTYPE_FLOAT,
+        JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".y"),
+        NWNX_VM_STACK_LOCATION_KEY), sFormatSpecifier);
+    string sZ = FormatValueByType(NWNX_VM_AUXTYPE_FLOAT,
+        JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".z"),
+        NWNX_VM_STACK_LOCATION_KEY), sFormatSpecifier);
     return "[" + sX + "," + sY + "," + sZ + "]";
 }
 
@@ -265,11 +271,11 @@ string DumpStruct(json jStack, string sVarName, string sStructName, string sInst
             if (FindSubString(sMemberPath, ".", 0) == -1)
             {
                 json jStructVar = JsonObjectGet(jStack, sKey);
-                int nAuxType = JsonObjectGetInt(jStructVar, "type");
+                int nAuxType = JsonObjectGetInt(jStructVar, NWNX_VM_TYPE_KEY);
 
                 if (nAuxType == NWNX_VM_AUXTYPE_VOID)
                 {
-                    string sChildStructName = JsonObjectGetString(jStructVar, "struct_name");
+                    string sChildStructName = JsonObjectGetString(jStructVar, NWNX_VM_STRUCT_NAME_KEY);
                     if (sChildStructName != "vector")
                         sResult += DumpStruct(jStack, sKey, sChildStructName, sMemberPath);
                     else

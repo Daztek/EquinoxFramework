@@ -93,6 +93,7 @@ struct TestStruct
 struct StructWithVector
 {
     vector vPosition;
+    location locStart;
     json jStuff;
 };
 
@@ -157,6 +158,7 @@ void Debug_Load()
     strOriginal.oQux = GetDataObject(DEBUG_SCRIPT_NAME);
     strOriginal.vTest = GetPosition(strOriginal.oQux);
     strOriginal.strNested.vPosition = Vector(1.0, 2.0, 3.0);
+    strOriginal.strNested.locStart = loc;
     strOriginal.strNested.jStuff = JsonObjectSetString(JsonObject(), "key", "value");
     Profiler_Start("StructToJson");
     json jStruct = StructToJson("strOriginal");

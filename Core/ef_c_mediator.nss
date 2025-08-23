@@ -296,7 +296,7 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
 
                     switch (nAuxType)
                     {
-                        case VM_AUXTYPE_INT:
+                        case NWNX_VM_AUXTYPE_INT:
                         {
                             if (sCaptureType == "&")
                             {
@@ -309,7 +309,7 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
                             }
                             break;
                         }
-                        case VM_AUXTYPE_FLOAT:
+                        case NWNX_VM_AUXTYPE_FLOAT:
                         {
                             if (sCaptureType == "&")
                             {
@@ -322,7 +322,7 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
                             }
                             break;
                         }
-                        case VM_AUXTYPE_OBJECT:
+                        case NWNX_VM_AUXTYPE_OBJECT:
                         {
                             if (sCaptureType == "&")
                             {
@@ -335,7 +335,7 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
                             }
                             break;
                         }
-                        case VM_AUXTYPE_STRING:
+                        case NWNX_VM_AUXTYPE_STRING:
                         {
                             if (sCaptureType == "&")
                             {
@@ -348,7 +348,7 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
                             }
                             break;
                         }
-                        case VM_AUXTYPE_LOCATION:
+                        case NWNX_VM_AUXTYPE_LOCATION:
                         {
                             if (sCaptureType == "&")
                             {
@@ -362,7 +362,7 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
                             }
                             break;
                         }
-                        case VM_AUXTYPE_JSON:
+                        case NWNX_VM_AUXTYPE_JSON:
                         {
                             if (sCaptureType == "&")
                             {
@@ -486,7 +486,7 @@ int ValidateReturnType(int nRequestedReturnType)
 
 object RetObject(int bSuccess)
 {
-    if (bSuccess && ValidateReturnType(VM_AUXTYPE_OBJECT))
+    if (bSuccess && ValidateReturnType(NWNX_VM_AUXTYPE_OBJECT))
         return NWNX_VM_GetScriptReturnValueObject();
     else
         return OBJECT_INVALID;
@@ -494,7 +494,7 @@ object RetObject(int bSuccess)
 
 int RetInt(int bSuccess)
 {
-    if (bSuccess && ValidateReturnType(VM_AUXTYPE_INT))
+    if (bSuccess && ValidateReturnType(NWNX_VM_AUXTYPE_INT))
         return NWNX_VM_GetScriptReturnValueInt();
     else
         return 0;
@@ -502,7 +502,7 @@ int RetInt(int bSuccess)
 
 float RetFloat(int bSuccess)
 {
-    if (bSuccess && ValidateReturnType(VM_AUXTYPE_FLOAT))
+    if (bSuccess && ValidateReturnType(NWNX_VM_AUXTYPE_FLOAT))
         return NWNX_VM_GetScriptReturnValueFloat();
     else
         return 0.0f;
@@ -510,7 +510,7 @@ float RetFloat(int bSuccess)
 
 string RetString(int bSuccess)
 {
-    if (bSuccess && ValidateReturnType(VM_AUXTYPE_STRING))
+    if (bSuccess && ValidateReturnType(NWNX_VM_AUXTYPE_STRING))
         return NWNX_VM_GetScriptReturnValueString();
     else
         return "";
@@ -518,7 +518,7 @@ string RetString(int bSuccess)
 
 json RetJson(int bSuccess)
 {
-    if (bSuccess && ValidateReturnType(VM_AUXTYPE_JSON))
+    if (bSuccess && ValidateReturnType(NWNX_VM_AUXTYPE_JSON))
         return NWNX_VM_GetScriptReturnValueJson();
     else
         return JsonNull();

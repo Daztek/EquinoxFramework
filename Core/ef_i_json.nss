@@ -4,6 +4,7 @@
 */
 
 #include "nwnx_json"
+#include "nwnx_vm"
 
 json VectorToJson(vector vVector);
 vector JsonToVector(json jVector);
@@ -64,6 +65,8 @@ object JsonObjectGetObject(json jObject, string sKey);
 json JsonObjectRef(object oObject);
 object JsonGetObjectRef(json jValue);
 int JsonObjectContainsKey(json jObject, string sKey);
+json StructToJson(string sStructVarName);
+int JsonToStruct(json jStruct, string sStructVarName);
 
 json VectorToJson(vector vVector)
 {
@@ -424,4 +427,242 @@ object JsonGetObjectRef(json jValue)
 int JsonObjectContainsKey(json jObject, string sKey)
 {
     return NWNX_Json_JsonObjectContainsKey(jObject, sKey);
+}
+
+json NestedStructToJson(json jParentStruct, string sParentStructName, string sMemberStructVarName, json jStack)
+{
+    string sStructVarName = sParentStructName + "." + sMemberStructVarName;
+
+    if (!JsonObjectContainsKey(jStack, sStructVarName))
+        return JsonNull();
+    json jStructVar = JsonObjectGet(jStack, sStructVarName);
+    if (JsonObjectGetInt(jStructVar, "type") != NWNX_VM_AUXTYPE_VOID)
+        return JsonNull();
+    string sStructName = JsonObjectGetString(jStructVar, "struct_name");
+    if (sStructName == "")
+        return JsonNull();
+
+    json jStruct = JsonObject();
+    JsonObjectSetStringInplace(jStruct, "struct_name", sStructName);
+
+    json jStackKeys = JsonObjectKeys(jStack);
+    int nStructVarNameLength = GetStringLength(sStructVarName);
+    int nKey, nNumKeys = JsonGetLength(jStackKeys);
+
+    for (nKey = 0; nKey < nNumKeys; nKey++)
+    {
+        string sKey = JsonArrayGetString(jStackKeys, nKey);
+        if (GetStringLeft(sKey, nStructVarNameLength) == sStructVarName && sKey != sStructVarName)
+        {
+            string sMemberName = GetSubString(sKey, nStructVarNameLength + 1, GetStringLength(sKey) - nStructVarNameLength - 1);
+            if (FindSubString(sMemberName, ".", 0) == -1)
+            {
+                json jStructVar = JsonObjectGet(jStack, sKey);
+                int nAuxType = JsonObjectGetInt(jStructVar, "type");
+                int nStackLocation = JsonObjectGetInt(jStructVar, "stack_location");
+
+                json jMember = JsonObject();
+                JsonObjectSetIntInplace(jMember, "type", nAuxType);
+
+                switch (nAuxType)
+                {
+                    case NWNX_VM_AUXTYPE_INT:
+                        JsonObjectSetIntInplace(jMember, "value", NWNX_VM_GetStackIntegerValue(nStackLocation));
+                        break;
+                    case NWNX_VM_AUXTYPE_FLOAT:
+                        JsonObjectSetFloatInplace(jMember, "value", NWNX_VM_GetStackFloatValue(nStackLocation));
+                        break;
+                    case NWNX_VM_AUXTYPE_STRING:
+                        JsonObjectSetStringInplace(jMember, "value", NWNX_VM_GetStackStringValue(nStackLocation));
+                        break;
+                    case NWNX_VM_AUXTYPE_OBJECT:
+                        JsonObjectSetStringInplace(jMember, "value", ObjectToString(NWNX_VM_GetStackObjectValue(nStackLocation)));
+                        break;
+                    case NWNX_VM_AUXTYPE_JSON:
+                        JsonObjectSetInplace(jMember, "value", NWNX_VM_GetStackJsonValue(nStackLocation));
+                        break;
+                    case NWNX_VM_AUXTYPE_VOID:
+                        JsonObjectSetInplace(jMember, "value", NestedStructToJson(jStruct, sStructVarName, sMemberName, jStack));
+                        break;
+                }
+                JsonObjectSetInplace(jStruct, sMemberName, jMember);
+            }
+        }
+    }
+
+    return jStruct;
+}
+
+json StructToJson(string sStructVarName)
+{
+    json jStack = NWNX_VM_GetCurrentStack(2);
+    if (!JsonObjectContainsKey(jStack, sStructVarName))
+        return JsonNull();
+    json jStructVar = JsonObjectGet(jStack, sStructVarName);
+    if (JsonObjectGetInt(jStructVar, "type") != NWNX_VM_AUXTYPE_VOID)
+        return JsonNull();
+    string sStructName = JsonObjectGetString(jStructVar, "struct_name");
+    if (sStructName == "")
+        return JsonNull();
+
+    json jStruct = JsonObject();
+    JsonObjectSetStringInplace(jStruct, "struct_name", sStructName);
+
+    json jStackKeys = JsonObjectKeys(jStack);
+    int nStructVarNameLength = GetStringLength(sStructVarName);
+    int nKey, nNumKeys = JsonGetLength(jStackKeys);
+
+    for (nKey = 0; nKey < nNumKeys; nKey++)
+    {
+        string sKey = JsonArrayGetString(jStackKeys, nKey);
+        if (GetStringLeft(sKey, nStructVarNameLength) == sStructVarName && sKey != sStructVarName)
+        {
+            string sMemberName = GetSubString(sKey, nStructVarNameLength + 1, GetStringLength(sKey) - nStructVarNameLength - 1);
+            if (FindSubString(sMemberName, ".", 0) == -1)
+            {
+                json jStructVar = JsonObjectGet(jStack, sKey);
+                int nAuxType = JsonObjectGetInt(jStructVar, "type");
+                int nStackLocation = JsonObjectGetInt(jStructVar, "stack_location");
+
+                json jMember = JsonObject();
+                JsonObjectSetIntInplace(jMember, "type", nAuxType);
+
+                switch (nAuxType)
+                {
+                    case NWNX_VM_AUXTYPE_INT:
+                        JsonObjectSetIntInplace(jMember, "value", NWNX_VM_GetStackIntegerValue(nStackLocation));
+                        break;
+                    case NWNX_VM_AUXTYPE_FLOAT:
+                        JsonObjectSetFloatInplace(jMember, "value", NWNX_VM_GetStackFloatValue(nStackLocation));
+                        break;
+                    case NWNX_VM_AUXTYPE_STRING:
+                        JsonObjectSetStringInplace(jMember, "value", NWNX_VM_GetStackStringValue(nStackLocation));
+                        break;
+                    case NWNX_VM_AUXTYPE_OBJECT:
+                        JsonObjectSetStringInplace(jMember, "value", ObjectToString(NWNX_VM_GetStackObjectValue(nStackLocation)));
+                        break;
+                    case NWNX_VM_AUXTYPE_JSON:
+                        JsonObjectSetInplace(jMember, "value", NWNX_VM_GetStackJsonValue(nStackLocation));
+                        break;
+                    case NWNX_VM_AUXTYPE_VOID:
+                        JsonObjectSetInplace(jMember, "value", NestedStructToJson(jStruct, sStructVarName, sMemberName, jStack));
+                        break;
+                }
+                JsonObjectSetInplace(jStruct, sMemberName, jMember);
+            }
+        }
+    }
+
+    return jStruct;
+}
+
+int NestedJsonToStruct(string sParentStructName, string sMemberStructName, json jStruct, json jStack)
+{
+    string sStructVarName = sParentStructName + "." + sMemberStructName;
+    if (!JsonGetType(jStruct) || sStructVarName == "")
+        return FALSE;
+    if (!JsonObjectContainsKey(jStack, sStructVarName))
+        return FALSE;
+    if (JsonObjectGetString(JsonObjectGet(jStack, sStructVarName), "struct_name") != JsonObjectGetString(jStruct, "struct_name"))
+        return FALSE;
+
+    int nRetVal = TRUE;
+    jStruct = JsonObjectDel(jStruct, "struct_name");
+    json jStructKeys = JsonObjectKeys(jStruct);
+    int nStructKey, nNumStructKeys = JsonGetLength(jStructKeys);
+    for (nStructKey = 0; nStructKey < nNumStructKeys; nStructKey++)
+    {
+        string sStructKey = JsonArrayGetString(jStructKeys, nStructKey);
+        string sTargetKey = sStructVarName + "." + sStructKey;
+        if (JsonObjectContainsKey(jStack, sTargetKey))
+        {
+            json jStructMember = JsonObjectGet(jStruct, sStructKey);
+            int nAuxType = JsonObjectGetInt(jStructMember, "type");
+            json jTargetStructMember = JsonObjectGet(jStack, sTargetKey);
+            int nTargetAuxType = JsonObjectGetInt(jTargetStructMember, "type");
+
+            if (nAuxType == nTargetAuxType)
+            {
+                int nTargetStackLocation = JsonObjectGetInt(JsonObjectGet(jStack, sTargetKey), "stack_location");
+                switch (nAuxType)
+                {
+                    case NWNX_VM_AUXTYPE_INT:
+                        NWNX_VM_SetStackIntegerValue(nTargetStackLocation, JsonObjectGetInt(jStructMember, "value"));
+                        break;
+                    case NWNX_VM_AUXTYPE_FLOAT:
+                        NWNX_VM_SetStackFloatValue(nTargetStackLocation, JsonObjectGetFloat(jStructMember, "value"));
+                        break;
+                    case NWNX_VM_AUXTYPE_STRING:
+                        NWNX_VM_SetStackStringValue(nTargetStackLocation, JsonObjectGetString(jStructMember, "value"));
+                        break;
+                    case NWNX_VM_AUXTYPE_OBJECT:
+                        NWNX_VM_SetStackObjectValue(nTargetStackLocation, StringToObject(JsonObjectGetString(jStructMember, "value")));
+                        break;
+                    case NWNX_VM_AUXTYPE_JSON:
+                        NWNX_VM_SetStackJsonValue(nTargetStackLocation, JsonObjectGet(jStructMember, "value"));
+                        break;
+                    case NWNX_VM_AUXTYPE_VOID:
+                        nRetVal = NestedJsonToStruct(sStructVarName, sStructKey, JsonObjectGet(jStructMember, "value"), jStack);
+                        break;
+                }
+            }
+        }
+    }
+    return nRetVal;
+}
+
+int JsonToStruct(json jStruct, string sStructVarName)
+{
+    if (!JsonGetType(jStruct) || sStructVarName == "")
+        return FALSE;
+    json jStack = NWNX_VM_GetCurrentStack(2);
+    if (!JsonObjectContainsKey(jStack, sStructVarName))
+        return FALSE;
+    if (JsonObjectGetString(JsonObjectGet(jStack, sStructVarName), "struct_name") != JsonObjectGetString(jStruct, "struct_name"))
+        return FALSE;
+
+    int nRetVal = TRUE;
+    jStruct = JsonObjectDel(jStruct, "struct_name");
+    json jStructKeys = JsonObjectKeys(jStruct);
+    int nStructKey, nNumStructKeys = JsonGetLength(jStructKeys);
+    for (nStructKey = 0; nStructKey < nNumStructKeys; nStructKey++)
+    {
+        string sStructKey = JsonArrayGetString(jStructKeys, nStructKey);
+        string sTargetKey = sStructVarName + "." + sStructKey;
+        if (JsonObjectContainsKey(jStack, sTargetKey))
+        {
+            json jStructMember = JsonObjectGet(jStruct, sStructKey);
+            int nAuxType = JsonObjectGetInt(jStructMember, "type");
+            json jTargetStructMember = JsonObjectGet(jStack, sTargetKey);
+            int nTargetAuxType = JsonObjectGetInt(jTargetStructMember, "type");
+
+            if (nAuxType == nTargetAuxType)
+            {
+                int nTargetStackLocation = JsonObjectGetInt(JsonObjectGet(jStack, sTargetKey), "stack_location");
+                switch (nAuxType)
+                {
+                    case NWNX_VM_AUXTYPE_INT:
+                        NWNX_VM_SetStackIntegerValue(nTargetStackLocation, JsonObjectGetInt(jStructMember, "value"));
+                        break;
+                    case NWNX_VM_AUXTYPE_FLOAT:
+                        NWNX_VM_SetStackFloatValue(nTargetStackLocation, JsonObjectGetFloat(jStructMember, "value"));
+                        break;
+                    case NWNX_VM_AUXTYPE_STRING:
+                        NWNX_VM_SetStackStringValue(nTargetStackLocation, JsonObjectGetString(jStructMember, "value"));
+                        break;
+                    case NWNX_VM_AUXTYPE_OBJECT:
+                        NWNX_VM_SetStackObjectValue(nTargetStackLocation, StringToObject(JsonObjectGetString(jStructMember, "value")));
+                        break;
+                    case NWNX_VM_AUXTYPE_JSON:
+                        NWNX_VM_SetStackJsonValue(nTargetStackLocation, JsonObjectGet(jStructMember, "value"));
+                        break;
+                    case NWNX_VM_AUXTYPE_VOID:
+                        nRetVal = NestedJsonToStruct(sStructVarName, sStructKey, JsonObjectGet(jStructMember, "value"), jStack);
+                        break;
+                }
+            }
+
+        }
+    }
+    return nRetVal;
 }

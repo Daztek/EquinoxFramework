@@ -90,6 +90,22 @@ struct TestStruct
     struct AnotherStruct strAnother;
 };
 
+struct StructWithVector
+{
+    vector vPosition;
+    json jStuff;
+};
+
+struct AnotherTestStruct
+{
+    int nFoo;
+    float fBar;
+    string sBaz;
+    object oQux;
+    vector vTest;
+    struct StructWithVector strNested;
+};
+
 // @CORE[CORE_SYSTEM_LOAD]
 void Debug_Load()
 {
@@ -133,4 +149,21 @@ void Debug_Load()
 
     float f = 56.72345;
     LogInfo("{f:%.3f}");
+
+    struct AnotherTestStruct strOriginal;
+    strOriginal.nFoo = 5;
+    strOriginal.fBar = 2.5f;
+    strOriginal.sBaz = "Hello!";
+    strOriginal.oQux = GetDataObject(DEBUG_SCRIPT_NAME);
+    strOriginal.vTest = GetPosition(strOriginal.oQux);
+    strOriginal.strNested.vPosition = Vector(1.0, 2.0, 3.0);
+    strOriginal.strNested.jStuff = JsonObjectSetString(JsonObject(), "key", "value");
+    Profiler_Start("StructToJson");
+    json jStruct = StructToJson("strOriginal");
+    PrintString(Profiler_Stop());
+    struct AnotherTestStruct strCopy;
+    Profiler_Start("JsonToStruct");
+    JsonToStruct(jStruct, "strCopy");
+    PrintString(Profiler_Stop());
+    LogInfo("{strCopy}");
 }

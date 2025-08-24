@@ -133,7 +133,14 @@ void Debug_Load()
     object oDataObject = GetDataObject(DEBUG_SCRIPT_NAME);
     location loc = GetStartingLocation();
 
-    LogInfo("Hi, my name is {sName} and I like {oDataObject:%ot}. I'm currently at {loc}.");
+    LogInfo("Hi, my name is {sName} and I like {oDataObject}. I'm currently at {loc}.");
+
+    object oObject = GetNearestCreature(CREATURE_TYPE_IS_ALIVE, TRUE, oDataObject);
+    SetLocalString(oObject, "TestLocal", "Does it work?");
+    LogInfo("Hi, I'm {oObject>name}, but you can call me {oObject>name>upper>sub(0,12)>trim>right(6)>replace(AN,ER)}. {oObject>local(s,TestLocal)}");
+
+    string sTest = "   Hello!    ";
+    LogInfo("'{sTest>trim>upper}'");
 
     struct TestStruct str;
     str.oObject = GetModule();
@@ -144,11 +151,12 @@ void Debug_Load()
 
     LogInfo("{str}");
     LogInfo("{str.strAnother.strOhGod.sWtf}");
+    LogInfo("{str.strAnother.strOhGod.sWtf>length:%x}");
 
     vector vPosition = GetPosition(oDataObject);
     LogInfo("{vPosition}");
 
-    float f = 56.72345;
+    float f = 56.723457675;
     LogInfo("{f:%.3f}");
 
     struct AnotherTestStruct strOriginal;
@@ -157,15 +165,18 @@ void Debug_Load()
     strOriginal.sBaz = "Hello!";
     strOriginal.oQux = GetDataObject(DEBUG_SCRIPT_NAME);
     strOriginal.vTest = GetPosition(strOriginal.oQux);
-    strOriginal.strNested.vPosition = Vector(1.0, 2.0, 3.0);
+    strOriginal.strNested.vPosition = Vector(1.234, 56.7, 8910.111213);
     strOriginal.strNested.locStart = loc;
     strOriginal.strNested.jStuff = JsonObjectSetString(JsonObject(), "key", "value");
+
     Profiler_Start("StructToJson");
     json jStruct = StructToJson("strOriginal");
     PrintString(Profiler_Stop());
+
     struct AnotherTestStruct strCopy;
     Profiler_Start("JsonToStruct");
     JsonToStruct("strCopy", jStruct);
     PrintString(Profiler_Stop());
+
     LogInfo("{strCopy}");
 }

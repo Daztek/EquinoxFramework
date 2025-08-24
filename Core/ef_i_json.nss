@@ -538,7 +538,7 @@ int JsonToStructImpl(string sParentStructVarName, string sMemberStructVarName, j
 
             if (nAuxType == nTargetAuxType)
             {
-                int nTargetStackLocation = JsonObjectGetInt(JsonObjectGet(jStack, sTargetKey), NWNX_VM_STACK_LOCATION_KEY);
+                int nTargetStackLocation = JsonObjectGetInt(jTargetStructMember, NWNX_VM_STACK_LOCATION_KEY);
                 switch (nAuxType)
                 {
                     case NWNX_VM_AUXTYPE_INT:

@@ -18,6 +18,7 @@ string ObjectTypeToString(int nObjectType);
 int MetaMagicConstantTo2DARow(int nMetaMagic);
 int AbilityToConstant(string sStringAbility);
 string AbilityConstantToName(int nAbility);
+string GetObjectTypeName(object oObject);
 
 int EffectIconToEffectType(int nEffectIcon)
 {
@@ -466,4 +467,27 @@ string AbilityConstantToName(int nAbility)
         return "Charisma";
 
     return "";
+}
+
+string GetObjectTypeName(object oObject)
+{
+    int nObjectType = GetObjectType(oObject);
+    switch (nObjectType)
+    {
+        case OBJECT_TYPE_CREATURE:          return "Creature";
+        case OBJECT_TYPE_TRIGGER:           return "Trigger";
+        case OBJECT_TYPE_DOOR:              return "Door";
+        case OBJECT_TYPE_AREA_OF_EFFECT:    return "AreaOfEffect";
+        case OBJECT_TYPE_PLACEABLE:         return "Placeable";
+        case OBJECT_TYPE_STORE:             return "Store";
+        case OBJECT_TYPE_ENCOUNTER:         return "Encounter";
+        default:
+        {
+            if (oObject == GetArea(oObject))
+                return "Area";
+            else if (oObject == GetModule())
+                return "Module";
+        }
+    }
+    return "[UNKNOWN_OBJECT_TYPE]";
 }

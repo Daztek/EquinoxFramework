@@ -3,6 +3,7 @@
     Author: Daz
 */
 
+#include "ef_i_json"
 #include "ef_i_sqlite"
 #include "ef_i_vm"
 
@@ -108,12 +109,13 @@ void Annotations_ParseAnnotationData()
 
         while (SqlStep(sqlAnnotationData))
         {
-            json jAnnotationData = JsonArray();
-            JsonArrayInsertStringInplace(jAnnotationData, SqlGetString(sqlAnnotationData, 0));
-            JsonArrayInsertStringInplace(jAnnotationData, SqlGetString(sqlAnnotationData, 1));
-            JsonArrayInsertStringInplace(jAnnotationData, SqlGetString(sqlAnnotationData, 2));
-            JsonArrayInsertStringInplace(jAnnotationData, SqlGetString(sqlAnnotationData, 3));
-            JsonArrayInsertInplace(jAnnotationData, SqlGetJson(sqlAnnotationData, 4));
+            struct AnnotationData str;
+            str.sSystem = SqlGetString(sqlAnnotationData, 0);
+            str.sFunction = SqlGetString(sqlAnnotationData, 1);
+            str.sParameters = SqlGetString(sqlAnnotationData, 2);
+            str.sReturnType = SqlGetString(sqlAnnotationData, 3);
+            str.jArguments = SqlGetJson(sqlAnnotationData, 4);
+            json jAnnotationData = StructToJson("str");
 
             SetLocalJson(oModule, ANNOTATIONS_ANNOTATION_DATA, jAnnotationData);
             ExecuteScriptChunk(nssInclude(ANNOTATIONS_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sAnnotationFunction), oModule, FALSE);
@@ -127,11 +129,7 @@ void Annotations_ParseAnnotationData()
 struct AnnotationData GetAnnotationDataStruct(json jAnnotationData)
 {
     struct AnnotationData str;
-    str.sSystem = JsonArrayGetString(jAnnotationData, 0);
-    str.sFunction = JsonArrayGetString(jAnnotationData, 1);
-    str.sParameters = JsonArrayGetString(jAnnotationData, 2);
-    str.sReturnType = JsonArrayGetString(jAnnotationData, 3);
-    str.jArguments = JsonArrayGet(jAnnotationData, 4);
+    JsonToStruct("str", jAnnotationData);
     return str;
 }
 

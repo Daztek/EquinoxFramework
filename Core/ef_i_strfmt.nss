@@ -4,10 +4,9 @@
 */
 
 #include "ef_i_convert"
+#include "ef_i_math"
 #include "ef_i_string"
-#include "ef_i_util"
-#include "ef_i_vm"
-#include "nwnx_object"
+#include "nwnx_vm"
 
 struct Value
 {
@@ -440,7 +439,7 @@ string GetPropertyValue(struct PropertyChain strPC)
     while (strPC.sRemainingPropertyPath != "" && strPC.strValue.nAuxType != NWNX_VM_AUXTYPE_INVALID);
 
     if (strPC.strValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
-        return "[INVALID_PROPERT_CHAIN:" + strPC.sBaseVarName + ">" + strPC.sFullPropertyPath + ":FAILED@" + strPC.sCurrentProperty + "]";
+        return "[INVALID_PROPERTY_CHAIN:" + strPC.sBaseVarName + ">" + strPC.sFullPropertyPath + ":FAILED@" + strPC.sCurrentProperty + "]";
     else
         return FormatValueByType(strPC.strValue);
 }
@@ -480,13 +479,27 @@ json ParseParameters(string sParameters)
 
 struct PropertyChain GetIntProperty(struct PropertyChain strPC)
 {
-    strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    if (strPC.sCurrentProperty == "abs")
+        strPC.strValue = GetValueFromInt(abs(strPC.strValue.nValue), strPC.strValue.sFormatSpecifier);
+    else
+        strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+
     return strPC;
 }
 
 struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
 {
-    strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    if (strPC.sCurrentProperty == "fabs")
+        strPC.strValue = GetValueFromFloat(fabs(strPC.strValue.fValue), strPC.strValue.sFormatSpecifier);
+    else if (strPC.sCurrentProperty == "floor")
+        strPC.strValue = GetValueFromInt(floor(strPC.strValue.fValue), strPC.strValue.sFormatSpecifier);
+    else if (strPC.sCurrentProperty == "ceil")
+        strPC.strValue = GetValueFromInt(ceil(strPC.strValue.fValue), strPC.strValue.sFormatSpecifier);
+    else if (strPC.sCurrentProperty == "round")
+        strPC.strValue = GetValueFromInt(round(strPC.strValue.fValue), strPC.strValue.sFormatSpecifier);
+    else
+        strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+
     return strPC;
 }
 
@@ -591,7 +604,7 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
         string sZ = FormatValueByType(GetValueFromFloat(vPosition.z, strPC.strValue.sFormatSpecifier));
         strPC.strValue = GetValueFromString("[" + sX + "," + sY + ","  + sZ + "]", "%s");
     }
-    else if (strPC.sCurrentProperty == "local")
+    else if (strPC.sCurrentProperty == "localvar")
     {
         json jParameters = ParseParameters(strPC.sCurrentParameters);
         if (JsonGetLength(jParameters) >= 2)
@@ -655,8 +668,82 @@ struct PropertyChain GetLocationProperty(struct PropertyChain strPC)
     return strPC;
 }
 
+struct Value GetJsonValueByType(json jValue, string sFormatSpecifier)
+{
+    struct Value strValue;
+    int nType = JsonGetType(jValue);
+    switch (nType)
+    {
+        case JSON_TYPE_NULL:
+        case JSON_TYPE_OBJECT:
+        case JSON_TYPE_ARRAY:
+            strValue = GetValueFromJson(jValue, sFormatSpecifier);
+            break;
+        case JSON_TYPE_STRING:
+            strValue = GetValueFromString(JsonGetString(jValue), sFormatSpecifier);
+            break;
+        case JSON_TYPE_INTEGER:
+        case JSON_TYPE_BOOL:
+            strValue = GetValueFromInt(JsonGetInt(jValue), sFormatSpecifier);
+            break;
+        case JSON_TYPE_FLOAT:
+            strValue = GetValueFromFloat(JsonGetFloat(jValue), sFormatSpecifier);
+            break;
+        default: strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID; break;
+    }
+    return strValue;
+}
+
 struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
 {
-    strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    int nType = JsonGetType(strPC.strValue.jValue);
+    if (strPC.sCurrentProperty == "idx" && nType == JSON_TYPE_ARRAY)
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 1)
+        {
+            int nIndex = StringToInt(JsonArrayGetString(jParameters, 0));
+            if (nIndex >= 0 && nIndex < JsonGetLength(strPC.strValue.jValue))
+                strPC.strValue = GetJsonValueByType(JsonArrayGet(strPC.strValue.jValue, nIndex), strPC.strValue.sFormatSpecifier);
+            else
+                strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+        }
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else if (strPC.sCurrentProperty == "key" && nType == JSON_TYPE_OBJECT)
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 1)
+        {
+            string sKey = JsonArrayGetString(jParameters, 0);
+            if (JsonObjectContainsKey(strPC.strValue.jValue, sKey))
+                strPC.strValue = GetJsonValueByType(JsonObjectGet(strPC.strValue.jValue, sKey), strPC.strValue.sFormatSpecifier);
+            else
+                strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+        }
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else if (strPC.sCurrentProperty == "length")
+    {
+        if (nType == JSON_TYPE_ARRAY || nType == JSON_TYPE_OBJECT)
+            strPC.strValue = GetValueFromInt(JsonGetLength(strPC.strValue.jValue), strPC.strValue.sFormatSpecifier);
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else if (strPC.sCurrentProperty == "keys" && nType == JSON_TYPE_OBJECT)
+        strPC.strValue = GetJsonValueByType(JsonObjectKeys(strPC.strValue.jValue), strPC.strValue.sFormatSpecifier);
+    else if (strPC.sCurrentProperty == "contains" && nType == JSON_TYPE_OBJECT)
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 1)
+            strPC.strValue = GetValueFromInt(JsonObjectContainsKey(strPC.strValue.jValue, JsonArrayGetString(jParameters, 0)), strPC.strValue.sFormatSpecifier);
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else
+        strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+
     return strPC;
 }

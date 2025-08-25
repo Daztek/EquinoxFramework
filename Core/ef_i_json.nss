@@ -564,7 +564,11 @@ int JsonToStructImpl(string sParentStructVarName, string sMemberStructVarName, j
                         break;
                 }
             }
+            else
+                nRetVal &= FALSE;
         }
+        else
+            nRetVal &= FALSE;
     }
     return nRetVal;
 }

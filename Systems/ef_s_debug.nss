@@ -135,9 +135,10 @@ void Debug_Load()
 
     LogInfo("Hi, my name is {sName} and I like {oDataObject}. I'm currently at {loc}.");
 
+
+
     object oObject = GetNearestCreature(CREATURE_TYPE_IS_ALIVE, TRUE, oDataObject);
-    SetLocalString(oObject, "TestLocal", "Does it work?");
-    LogInfo("Hi, I'm {oObject>name}, but you can call me {oObject>name>upper>sub(0,12)>trim>right(6)>replace(AN,ER)}. {oObject>local(s,TestLocal)}");
+    LogInfo("Hi, I'm {oObject>name}, but you can call me {oObject>name>upper>sub(0,12)>trim>right(6)>replace(AN,ER)}.");
 
     string sTest = "   Hello!    ";
     LogInfo("'{sTest>trim>upper}'");
@@ -167,7 +168,21 @@ void Debug_Load()
     strOriginal.vTest = GetPosition(strOriginal.oQux);
     strOriginal.strNested.vPosition = Vector(1.234, 56.7, 8910.111213);
     strOriginal.strNested.locStart = loc;
-    strOriginal.strNested.jStuff = JsonObjectSetString(JsonObject(), "key", "value");
+
+    json jArray = JsonArray();
+    json jObject = JsonObject();
+    JsonObjectSetStringInplace(jObject, "strkey1", "hello!");
+    JsonObjectSetStringInplace(jObject, "strkey2", "hi!");
+    JsonArrayInsertInplace(jArray, jObject);
+    JsonArrayInsertInplace(jArray, JsonObjectSetInt(JsonObject(), "intkey", 1234));
+    JsonArrayInsertInplace(jArray, JsonObjectSet(JsonObject(), "boolkey", JsonBool(TRUE)));
+    strOriginal.strNested.jStuff = jArray;
+
+    LogInfo("{strOriginal.strNested.jStuff>idx(0)>keys>idx(1)}");
+
+    LogInfo("{strOriginal.strNested.jStuff>idx(0)>key(strkey1)>upper>left(5)}");
+
+    LogInfo("{strOriginal.strNested.jStuff>idx(0)>contains(strkey2):%b}");
 
     Profiler_Start("StructToJson");
     json jStruct = StructToJson("strOriginal");

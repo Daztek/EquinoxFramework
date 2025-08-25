@@ -31,14 +31,6 @@ struct PropertyChain
     struct Value strValue;
 };
 
-struct Value GetValueFromStackLocation(int nAuxType, int nStackLocation, string sFormatSpecifier);
-struct Value GetValueFromInt(int nValue, string sFormatSpecifier);
-struct Value GetValueFromFloat(float fValue, string sFormatSpecifier);
-struct Value GetValueFromString(string sValue, string sFormatSpecifier);
-struct Value GetValueFromObject(object oValue, string sFormatSpecifier);
-struct Value GetValueFromLocation(location locValue, string sFormatSpecifier);
-struct Value GetValueFromJson(json jValue, string sFormatSpecifier);
-
 string FormatString(string sString, int nDepthOverride = 0);
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier);
 string FormatValueByType(struct Value strValue);
@@ -50,6 +42,16 @@ string FormatAsBoolean(struct Value strValue);
 string FormatAsVector(json jStack, string sVarName, string sFormatSpecifier);
 string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "");
 
+struct Value GetValueFromStackLocation(int nAuxType, int nStackLocation, string sFormatSpecifier);
+struct Value GetValueFromInt(int nValue, string sFormatSpecifier);
+struct Value GetValueFromFloat(float fValue, string sFormatSpecifier);
+struct Value GetValueFromString(string sValue, string sFormatSpecifier);
+struct Value GetValueFromObject(object oValue, string sFormatSpecifier);
+struct Value GetValueFromLocation(location locValue, string sFormatSpecifier);
+struct Value GetValueFromJson(json jValue, string sFormatSpecifier);
+
+struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, string sPropertySegment);
+json ParseParameters(string sParameters);
 string GetPropertyValue(struct PropertyChain strPC);
 struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC);
 struct PropertyChain GetIntProperty(struct PropertyChain strPC);
@@ -59,76 +61,6 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC);
 struct PropertyChain GetLocationProperty(struct PropertyChain strPC);
 struct PropertyChain GetJsonProperty(struct PropertyChain strPC);
 
-struct Value GetValueFromStackLocation(int nAuxType, int nStackLocation, string sFormatSpecifier)
-{
-    struct Value str;
-    str.nAuxType = nAuxType;
-    str.sFormatSpecifier = sFormatSpecifier;
-    switch (nAuxType)
-    {
-        case NWNX_VM_AUXTYPE_INT: str.nValue = NWNX_VM_GetStackIntegerValue(nStackLocation); break;
-        case NWNX_VM_AUXTYPE_FLOAT: str.fValue = NWNX_VM_GetStackFloatValue(nStackLocation); break;
-        case NWNX_VM_AUXTYPE_STRING: str.sValue = NWNX_VM_GetStackStringValue(nStackLocation); break;
-        case NWNX_VM_AUXTYPE_OBJECT: str.oValue = NWNX_VM_GetStackObjectValue(nStackLocation); break;
-        case NWNX_VM_AUXTYPE_LOCATION: str.locValue = NWNX_VM_GetStackLocationValue(nStackLocation); break;
-        case NWNX_VM_AUXTYPE_JSON: str.jValue = NWNX_VM_GetStackJsonValue(nStackLocation); break;
-    }
-    return str;
-}
-
-struct Value GetValueFromInt(int nValue, string sFormatSpecifier)
-{
-    struct Value str;
-    str.nAuxType = NWNX_VM_AUXTYPE_INT;
-    str.sFormatSpecifier = sFormatSpecifier;
-    str.nValue = nValue;
-    return str;
-}
-
-struct Value GetValueFromFloat(float fValue, string sFormatSpecifier)
-{
-    struct Value str;
-    str.nAuxType = NWNX_VM_AUXTYPE_FLOAT;
-    str.sFormatSpecifier = sFormatSpecifier;
-    str.fValue = fValue;
-    return str;
-}
-
-struct Value GetValueFromString(string sValue, string sFormatSpecifier)
-{
-    struct Value str;
-    str.nAuxType = NWNX_VM_AUXTYPE_STRING;
-    str.sFormatSpecifier = sFormatSpecifier;
-    str.sValue = sValue;
-    return str;
-}
-
-struct Value GetValueFromObject(object oValue, string sFormatSpecifier)
-{
-    struct Value str;
-    str.nAuxType = NWNX_VM_AUXTYPE_OBJECT;
-    str.sFormatSpecifier = sFormatSpecifier;
-    str.oValue = oValue;
-    return str;
-}
-
-struct Value GetValueFromLocation(location locValue, string sFormatSpecifier)
-{
-    struct Value str;
-    str.nAuxType = NWNX_VM_AUXTYPE_LOCATION;
-    str.sFormatSpecifier = sFormatSpecifier;
-    str.locValue = locValue;
-    return str;
-}
-
-struct Value GetValueFromJson(json jValue, string sFormatSpecifier)
-{
-    struct Value str;
-    str.nAuxType = NWNX_VM_AUXTYPE_JSON;
-    str.sFormatSpecifier = sFormatSpecifier;
-    str.jValue = jValue;
-    return str;
-}
 
 string FormatString(string sString, int nDepthOverride = 0)
 {
@@ -373,13 +305,10 @@ string DumpStruct(json jStack, string sVarName, string sStructName, string sInst
                 if (nAuxType == NWNX_VM_AUXTYPE_VOID)
                 {
                     string sChildStructName = JsonObjectGetString(jStructVar, NWNX_VM_STRUCT_NAME_KEY);
-                    if (sChildStructName != "vector")
-                        sResult += DumpStruct(jStack, sKey, sChildStructName, sMemberPath);
+                    if (sChildStructName == "vector")
+                        sResult += "vector " + sMemberPath + " = " + FormatAsVector(jStack, sKey, "%s") + "; ";
                     else
-                    {
-                        string sValue = GetFormattedValue(jStack, sKey, "%s");
-                        sResult += "vector " + sMemberPath + " = " + sValue + "; ";
-                    }
+                        sResult += DumpStruct(jStack, sKey, sChildStructName, sMemberPath);
                 }
                 else
                 {
@@ -393,6 +322,77 @@ string DumpStruct(json jStack, string sVarName, string sStructName, string sInst
 
     sResult += "} ";
     return sResult;
+}
+
+struct Value GetValueFromStackLocation(int nAuxType, int nStackLocation, string sFormatSpecifier)
+{
+    struct Value str;
+    str.nAuxType = nAuxType;
+    str.sFormatSpecifier = sFormatSpecifier;
+    switch (nAuxType)
+    {
+        case NWNX_VM_AUXTYPE_INT: str.nValue = NWNX_VM_GetStackIntegerValue(nStackLocation); break;
+        case NWNX_VM_AUXTYPE_FLOAT: str.fValue = NWNX_VM_GetStackFloatValue(nStackLocation); break;
+        case NWNX_VM_AUXTYPE_STRING: str.sValue = NWNX_VM_GetStackStringValue(nStackLocation); break;
+        case NWNX_VM_AUXTYPE_OBJECT: str.oValue = NWNX_VM_GetStackObjectValue(nStackLocation); break;
+        case NWNX_VM_AUXTYPE_LOCATION: str.locValue = NWNX_VM_GetStackLocationValue(nStackLocation); break;
+        case NWNX_VM_AUXTYPE_JSON: str.jValue = NWNX_VM_GetStackJsonValue(nStackLocation); break;
+    }
+    return str;
+}
+
+struct Value GetValueFromInt(int nValue, string sFormatSpecifier)
+{
+    struct Value str;
+    str.nAuxType = NWNX_VM_AUXTYPE_INT;
+    str.sFormatSpecifier = sFormatSpecifier;
+    str.nValue = nValue;
+    return str;
+}
+
+struct Value GetValueFromFloat(float fValue, string sFormatSpecifier)
+{
+    struct Value str;
+    str.nAuxType = NWNX_VM_AUXTYPE_FLOAT;
+    str.sFormatSpecifier = sFormatSpecifier;
+    str.fValue = fValue;
+    return str;
+}
+
+struct Value GetValueFromString(string sValue, string sFormatSpecifier)
+{
+    struct Value str;
+    str.nAuxType = NWNX_VM_AUXTYPE_STRING;
+    str.sFormatSpecifier = sFormatSpecifier;
+    str.sValue = sValue;
+    return str;
+}
+
+struct Value GetValueFromObject(object oValue, string sFormatSpecifier)
+{
+    struct Value str;
+    str.nAuxType = NWNX_VM_AUXTYPE_OBJECT;
+    str.sFormatSpecifier = sFormatSpecifier;
+    str.oValue = oValue;
+    return str;
+}
+
+struct Value GetValueFromLocation(location locValue, string sFormatSpecifier)
+{
+    struct Value str;
+    str.nAuxType = NWNX_VM_AUXTYPE_LOCATION;
+    str.sFormatSpecifier = sFormatSpecifier;
+    str.locValue = locValue;
+    return str;
+}
+
+struct Value GetValueFromJson(json jValue, string sFormatSpecifier)
+{
+    struct Value str;
+    str.nAuxType = NWNX_VM_AUXTYPE_JSON;
+    str.sFormatSpecifier = sFormatSpecifier;
+    str.jValue = jValue;
+    return str;
 }
 
 struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, string sPropertySegment)
@@ -416,6 +416,24 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
     return strPC;
 }
 
+json ParseParameters(string sParameters)
+{
+    if (sParameters == "")
+        return JsonArray();
+
+    json jParams = JsonArray();
+    json jMatches = RegExpIterate("([^,]+)", sParameters);
+
+    int nIndex, nCount = JsonGetLength(jMatches);
+    for (nIndex = 0; nIndex < nCount; nIndex++)
+    {
+        string sParam = trim(JsonArrayGetString(JsonArrayGet(jMatches, nIndex), 1));
+        JsonArrayInsertInplace(jParams, JsonString(sParam));
+    }
+
+    return jParams;
+}
+
 string GetPropertyValue(struct PropertyChain strPC)
 {
     do
@@ -429,11 +447,11 @@ string GetPropertyValue(struct PropertyChain strPC)
             break;
         }
 
-        string sCurrentSegment = GetStringLeft(strPC.sRemainingPropertyPath, nPropertyPosition);
+        string sPropertySegment = GetStringLeft(strPC.sRemainingPropertyPath, nPropertyPosition);
         strPC.sRemainingPropertyPath = GetSubString(strPC.sRemainingPropertyPath, nPropertyPosition + 1,
             GetStringLength(strPC.sRemainingPropertyPath) - nPropertyPosition - 1);
 
-        strPC = ParsePropertyAndParameters(strPC, sCurrentSegment);
+        strPC = ParsePropertyAndParameters(strPC, sPropertySegment);
         strPC = GetPropertyValueByType(strPC);
     }
     while (strPC.sRemainingPropertyPath != "" && strPC.strValue.nAuxType != NWNX_VM_AUXTYPE_INVALID);
@@ -457,24 +475,6 @@ struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC)
         default: strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID; break;
     }
     return strPC;
-}
-
-json ParseParameters(string sParameters)
-{
-    if (sParameters == "")
-        return JsonArray();
-
-    json jParams = JsonArray();
-    json jMatches = RegExpIterate("([^,]+)", sParameters);
-
-    int nIndex, nCount = JsonGetLength(jMatches);
-    for (nIndex = 0; nIndex < nCount; nIndex++)
-    {
-        string sParam = trim(JsonArrayGetString(JsonArrayGet(jMatches, nIndex), 1));
-        JsonArrayInsertInplace(jParams, JsonString(sParam));
-    }
-
-    return jParams;
 }
 
 struct PropertyChain GetIntProperty(struct PropertyChain strPC)

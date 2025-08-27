@@ -126,5 +126,7 @@ string RegExpEscape(string sInput)
 int IsNumeric(string sValue)
 {
     if (sValue == "") return FALSE;
-    return JsonGetLength(RegExpMatch("^\\d+$", sValue));
+    if (sValue == "0") return TRUE;
+    int nParsed = StringToInt(sValue);
+    return (nParsed != 0 || GetStringLeft(sValue, 1) == "0" || sValue == "-0");
 }

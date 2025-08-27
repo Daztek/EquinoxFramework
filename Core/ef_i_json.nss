@@ -431,7 +431,7 @@ int JsonObjectContainsKey(json jObject, string sKey)
     return NWNX_Json_JsonObjectContainsKey(jObject, sKey);
 }
 
-json StructToJsonImpl(string sParentStructVarName, string sMemberStructVarName, json jStack, json jStackKeys)
+json StructToJsonImpl(string sMemberStructVarName, string sParentStructVarName, json jStack, json jStackKeys)
 {
     string sStructVarName;
     if (sParentStructVarName == "")
@@ -489,7 +489,7 @@ json StructToJsonImpl(string sParentStructVarName, string sMemberStructVarName, 
                         JsonObjectSetInplace(jStructMember, JSON_STRUCT_VALUE_KEY, NWNX_VM_GetStackJsonValue(nStackLocation));
                         break;
                     case NWNX_VM_AUXTYPE_VOID:
-                        JsonObjectSetInplace(jStructMember, JSON_STRUCT_VALUE_KEY, StructToJsonImpl(sStructVarName, sMemberName, jStack, jStackKeys));
+                        JsonObjectSetInplace(jStructMember, JSON_STRUCT_VALUE_KEY, StructToJsonImpl(sMemberName, sStructVarName, jStack, jStackKeys));
                         break;
                 }
                 JsonObjectSetInplace(jStruct, sMemberName, jStructMember);
@@ -503,10 +503,10 @@ json StructToJsonImpl(string sParentStructVarName, string sMemberStructVarName, 
 json StructToJson(string sStructVarName, int nDepthOverride = 0)
 {
     json jStack = NWNX_VM_GetCurrentStack(2 + nDepthOverride);
-    return StructToJsonImpl("", sStructVarName, jStack, JsonObjectKeys(jStack));
+    return StructToJsonImpl(sStructVarName, "", jStack, JsonObjectKeys(jStack));
 }
 
-int JsonToStructImpl(string sParentStructVarName, string sMemberStructVarName, json jStruct, json jStack)
+int JsonToStructImpl(string sMemberStructVarName, string sParentStructVarName, json jStruct, json jStack)
 {
     string sStructVarName;
     if (sParentStructVarName == "")
@@ -560,15 +560,19 @@ int JsonToStructImpl(string sParentStructVarName, string sMemberStructVarName, j
                         NWNX_VM_SetStackJsonValue(nTargetStackLocation, JsonObjectGet(jStructMember, JSON_STRUCT_VALUE_KEY));
                         break;
                     case NWNX_VM_AUXTYPE_VOID:
-                        nRetVal &= JsonToStructImpl(sStructVarName, sStructKey, JsonObjectGet(jStructMember, JSON_STRUCT_VALUE_KEY), jStack);
+                        nRetVal &= JsonToStructImpl(sStructKey, sStructVarName, JsonObjectGet(jStructMember, JSON_STRUCT_VALUE_KEY), jStack);
                         break;
                 }
             }
             else
+            {
                 nRetVal &= FALSE;
+            }
         }
         else
+        {
             nRetVal &= FALSE;
+        }
     }
     return nRetVal;
 }
@@ -576,5 +580,5 @@ int JsonToStructImpl(string sParentStructVarName, string sMemberStructVarName, j
 int JsonToStruct(string sStructVarName, json jStruct, int nDepthOverride = 0)
 {
     json jStack = NWNX_VM_GetCurrentStack(2 + nDepthOverride);
-    return JsonToStructImpl("", sStructVarName, jStruct, jStack);
+    return JsonToStructImpl(sStructVarName, "", jStruct, jStack);
 }

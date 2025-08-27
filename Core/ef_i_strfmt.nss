@@ -61,7 +61,6 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC);
 struct PropertyChain GetLocationProperty(struct PropertyChain strPC);
 struct PropertyChain GetJsonProperty(struct PropertyChain strPC);
 
-
 string FormatString(string sString, int nDepthOverride = 0)
 {
     if (sString == "" || FindSubString(sString, "{", 0) == -1)
@@ -177,7 +176,7 @@ string FormatAsString(struct Value strValue)
     {
         case NWNX_VM_AUXTYPE_STRING:    return strValue.sValue;
         case NWNX_VM_AUXTYPE_INT:       return IntToString(strValue.nValue);
-        case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 2);
+        case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 9);
         case NWNX_VM_AUXTYPE_OBJECT:
         {
             if (!GetIsObjectValid(strValue.oValue))
@@ -228,12 +227,12 @@ string FormatAsInteger(struct Value strValue)
 string FormatAsFloat(struct Value strValue)
 {
     int nPrecision = 2;
-    if (GetStringLength(strValue.sFormatSpecifier) > 2 &&
-        (GetStringLeft(strValue.sFormatSpecifier, 2) == "%." && GetStringRight(strValue.sFormatSpecifier, 1) == "f"))
+    int nPrecisionLength = GetStringLength(strValue.sFormatSpecifier);
+    if (nPrecisionLength > 2 && (GetStringLeft(strValue.sFormatSpecifier, 2) == "%." && GetStringRight(strValue.sFormatSpecifier, 1) == "f"))
     {
-        nPrecision = StringToInt(GetSubString(strValue.sFormatSpecifier, 2, GetStringLength(strValue.sFormatSpecifier) - 3));
-        if (nPrecision > 18)
-            nPrecision = 18;
+        nPrecision = StringToInt(GetSubString(strValue.sFormatSpecifier, 2, nPrecisionLength - 3));
+        if (nPrecision > 9)
+            nPrecision = 9;
     }
 
     switch (strValue.nAuxType)
@@ -477,14 +476,73 @@ struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC)
     return strPC;
 }
 
+int EvaluateIntComparison(int nValue, string sOperator, int nCompare)
+{
+    if (sOperator == "eq") return nValue == nCompare;
+    if (sOperator == "neq") return nValue != nCompare;
+    if (sOperator == "gt") return nValue > nCompare;
+    if (sOperator == "gte") return nValue >= nCompare;
+    if (sOperator == "lt") return nValue < nCompare;
+    if (sOperator == "lte") return nValue <= nCompare;
+    return FALSE;
+}
+
 struct PropertyChain GetIntProperty(struct PropertyChain strPC)
 {
     if (strPC.sCurrentProperty == "abs")
         strPC.strValue = GetValueFromInt(abs(strPC.strValue.nValue), strPC.strValue.sFormatSpecifier);
+    else if (strPC.sCurrentProperty == "eq" || strPC.sCurrentProperty == "neq" || strPC.sCurrentProperty == "gt" ||
+            strPC.sCurrentProperty == "gte" || strPC.sCurrentProperty == "lt" || strPC.sCurrentProperty == "lte")
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 1)
+        {
+            string sValue = trim(JsonArrayGetString(jParameters, 0));
+            if (IsNumeric(sValue))
+            {
+                int bResult = EvaluateIntComparison(strPC.strValue.nValue, strPC.sCurrentProperty, StringToInt(sValue));
+                strPC.strValue = GetValueFromInt(bResult, strPC.strValue.sFormatSpecifier);
+            }
+            else
+                strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+        }
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else if (strPC.sCurrentProperty == "then")
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 2)
+        {
+            string sValue = (strPC.strValue.nValue != 0) ? JsonArrayGetString(jParameters, 0) : JsonArrayGetString(jParameters, 1);
+            if (IsNumeric(sValue))
+            {
+                if (FindSubString(sValue, ".", 0) != -1)
+                    strPC.strValue = GetValueFromFloat(StringToFloat(sValue), strPC.strValue.sFormatSpecifier);
+                else
+                    strPC.strValue = GetValueFromInt(StringToInt(sValue), strPC.strValue.sFormatSpecifier);
+            }
+            else
+                strPC.strValue = GetValueFromString(sValue, strPC.strValue.sFormatSpecifier);
+        }
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
     else
         strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     return strPC;
+}
+
+int EvaluateFloatComparison(float fValue, string sOperator, float fCompare)
+{
+    if (sOperator == "eq") return fValue == fCompare;
+    if (sOperator == "neq") return fValue != fCompare;
+    if (sOperator == "gt") return fValue > fCompare;
+    if (sOperator == "gte") return fValue >= fCompare;
+    if (sOperator == "lt") return fValue < fCompare;
+    if (sOperator == "lte") return fValue <= fCompare;
+    return FALSE;
 }
 
 struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
@@ -497,6 +555,24 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
         strPC.strValue = GetValueFromInt(ceil(strPC.strValue.fValue), strPC.strValue.sFormatSpecifier);
     else if (strPC.sCurrentProperty == "round")
         strPC.strValue = GetValueFromInt(round(strPC.strValue.fValue), strPC.strValue.sFormatSpecifier);
+    else if (strPC.sCurrentProperty == "eq" || strPC.sCurrentProperty == "neq" || strPC.sCurrentProperty == "gt" ||
+            strPC.sCurrentProperty == "gte" || strPC.sCurrentProperty == "lt" || strPC.sCurrentProperty == "lte")
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 1)
+        {
+            string sValue = trim(JsonArrayGetString(jParameters, 0));
+            if (IsNumeric(sValue))
+            {
+                int bResult = EvaluateFloatComparison(strPC.strValue.fValue, strPC.sCurrentProperty, StringToFloat(sValue));
+                strPC.strValue = GetValueFromInt(bResult, strPC.strValue.sFormatSpecifier);
+            }
+            else
+                strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+        }
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
     else
         strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
@@ -558,6 +634,20 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
             string sReplace = JsonArrayGetString(jParameters, 1);
             string sResult = RegExpReplace(sSearch, strPC.strValue.sValue, sReplace);
             strPC.strValue = GetValueFromString(sResult, strPC.strValue.sFormatSpecifier);
+        }
+        else
+        {
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+        }
+    }
+    else if (strPC.sCurrentProperty == "eq" || strPC.sCurrentProperty == "neq")
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 1)
+        {
+            string sCompare = JsonArrayGetString(jParameters, 0);
+            int nResult = strPC.sCurrentProperty == "eq" ? strPC.strValue.sValue == sCompare : strPC.strValue.sValue != sCompare;
+            strPC.strValue = GetValueFromInt(nResult, strPC.strValue.sFormatSpecifier);
         }
         else
         {

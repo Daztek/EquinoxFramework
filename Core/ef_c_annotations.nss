@@ -129,7 +129,8 @@ void Annotations_ParseAnnotationData()
 struct AnnotationData GetAnnotationDataStruct(json jAnnotationData)
 {
     struct AnnotationData str;
-    JsonToStruct("str", jAnnotationData);
+    int nResult = JsonToStruct("str", jAnnotationData);
+    if (!nResult) PrintString("GetAnnotationDataStruct: JsonToStruct returned FALSE?");
     return str;
 }
 

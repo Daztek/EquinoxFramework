@@ -140,6 +140,12 @@ int TS_GetTilesetLoaded(string sTileset)
 void TS_CreateTOCIndexes(string sTableName)
 {
     string sQuery;
+    int bIsSingleGroupTable = FindSubString(sTableName, TS_TABLE_NAME_SINGLE_GROUP_TILES) != -1;
+    if (!bIsSingleGroupTable)
+    {
+        sQuery = "CREATE INDEX IF NOT EXISTS idx_tiles_group ON " + sTableName + " (is_group_tile);";
+        SqlStep(SqlPrepareQueryModule(sQuery));
+    }
 
     sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_all_tl ON " + sTableName + " (tl, t, tr, r, br, b, bl, l);";
     SqlStep(SqlPrepareQueryModule(sQuery));
@@ -148,24 +154,6 @@ void TS_CreateTOCIndexes(string sTableName)
     sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_all_br ON " + sTableName + " (br, b, bl, l, tl, t, tr, r);";
     SqlStep(SqlPrepareQueryModule(sQuery));
     sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_all_bl ON " + sTableName + " (bl, l, tl, t, tr, r, br, b);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
-
-    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_top ON " + sTableName + " (tl, t, tr);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
-    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_right ON " + sTableName + " (tr, r, br);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
-    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_bottom ON " + sTableName + " (bl, b, br);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
-    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_left ON " + sTableName + " (tl, l, bl);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
-
-    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_tl_tr ON " + sTableName + " (tl, tr);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
-    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_tr_br ON " + sTableName + " (tr, br);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
-    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_br_lr ON " + sTableName + " (br, bl);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
-    sQuery = "CREATE INDEX IF NOT EXISTS idx_toc_bl_tl ON " + sTableName + " (bl, tl);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 }
 

@@ -6,6 +6,7 @@
 #include "ef_i_convert"
 #include "ef_i_math"
 #include "ef_i_string"
+#include "nwnx_util"
 #include "nwnx_vm"
 
 struct Value
@@ -78,19 +79,12 @@ string FormatString(string sString, int nDepthOverride = 0)
     for (nIndex = 0; nIndex < nNumVariables; nIndex++)
     {
         json jVariable = JsonArrayGet(jVariables, nIndex);
-        string sFullMatch = JsonArrayGetString(jVariable, 0);
+        string sPattern = NWNX_Util_RegExpEscape(JsonArrayGetString(jVariable, 0));
         string sVarName = JsonArrayGetString(jVariable, 1);
         string sFormatSpecifier = GetStringLowerCase(JsonArrayGetString(jVariable, 2));
-
-        string sPattern = "\\{" + RegExpEscape(sVarName);
-        if (sFormatSpecifier != "")
-            sPattern += ":" + RegExpEscape(sFormatSpecifier);
-        sPattern += "\\}";
-
         string sValue = GetFormattedValue(jStack, sVarName, sFormatSpecifier);
-        sResult = RegExpReplace(sPattern, sResult, sValue);
+        sResult = RegExpReplace(sPattern, sResult, sValue, REGEXP_ECMASCRIPT, REGEXP_FORMAT_FIRST_ONLY);
     }
-
     return sResult;
 }
 
@@ -176,7 +170,7 @@ string FormatAsString(struct Value strValue)
     {
         case NWNX_VM_AUXTYPE_STRING:    return strValue.sValue;
         case NWNX_VM_AUXTYPE_INT:       return IntToString(strValue.nValue);
-        case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 9);
+        case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 2);
         case NWNX_VM_AUXTYPE_OBJECT:
         {
             if (!GetIsObjectValid(strValue.oValue))
@@ -229,11 +223,7 @@ string FormatAsFloat(struct Value strValue)
     int nPrecision = 2;
     int nPrecisionLength = GetStringLength(strValue.sFormatSpecifier);
     if (nPrecisionLength > 2 && (GetStringLeft(strValue.sFormatSpecifier, 2) == "%." && GetStringRight(strValue.sFormatSpecifier, 1) == "f"))
-    {
-        nPrecision = StringToInt(GetSubString(strValue.sFormatSpecifier, 2, nPrecisionLength - 3));
-        if (nPrecision > 9)
-            nPrecision = 9;
-    }
+        nPrecision = clamp(StringToInt(GetSubString(strValue.sFormatSpecifier, 2, nPrecisionLength - 3)), 0, 9);
 
     switch (strValue.nAuxType)
     {
@@ -817,10 +807,7 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
     }
     else if (strPC.sCurrentProperty == "length")
     {
-        if (nType == JSON_TYPE_ARRAY || nType == JSON_TYPE_OBJECT)
-            strPC.strValue = GetValueFromInt(JsonGetLength(strPC.strValue.jValue), strPC.strValue.sFormatSpecifier);
-        else
-            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+        strPC.strValue = GetValueFromInt(JsonGetLength(strPC.strValue.jValue), strPC.strValue.sFormatSpecifier);
     }
     else if (strPC.sCurrentProperty == "keys" && nType == JSON_TYPE_OBJECT)
         strPC.strValue = GetJsonValueByType(JsonObjectKeys(strPC.strValue.jValue), strPC.strValue.sFormatSpecifier);

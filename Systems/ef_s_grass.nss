@@ -15,7 +15,7 @@ void Grass_SetGrass(object oArea, string sTexture);
 // @CORE[CORE_SYSTEM_INIT]
 void Grass_Init()
 {
-    int nSeed = 100;
+    int nSeed = Random(2147483647);
     LogInfo("Seed: " + IntToString(nSeed));
     SqlMersenneTwisterSetSeed(GRASS_SCRIPT_NAME, nSeed);
 }
@@ -33,7 +33,7 @@ void Grass_SetGrass(object oArea, string sTexture)
     vector vColor = Vector(1.0f, 1.0f, 1.0f);
 
     string sTag = GetTag(oArea);
-    LogInfo("Setting Grass for Area: {sTag} - > Texture: {sTexture}, Density: {fDensity}, Height: {fHeight}");
+    LogInfo("Setting Grass for Area: {sTag} - > Texture: {sTexture}, Density: {fDensity:%.2f}, Height: {fHeight:%.2f}");
     SetAreaGrassOverride(oArea, 3, sTexture, fDensity, fHeight, vColor, vColor);
 }
 

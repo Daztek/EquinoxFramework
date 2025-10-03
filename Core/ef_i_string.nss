@@ -13,7 +13,6 @@ string EFIntToHexString(int nValue);
 string LeftPadString(string sString, int nLength, string sCharacter);
 string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2);
 string SecondsToStringTimestamp(int nSeconds);
-string RegExpEscape(string sInput);
 int IsNumeric(string sValue);
 
 string ltrim(string s)
@@ -102,25 +101,6 @@ string SecondsToStringTimestamp(int nSeconds)
     SqlStep(sql);
 
     return SqlGetString(sql, 0);
-}
-
-string RegExpEscape(string sInput)
-{
-    sInput = RegExpReplace("\\\\", sInput, "\\\\");
-    sInput = RegExpReplace("\\.", sInput, "\\.");
-    sInput = RegExpReplace("\\^", sInput, "\\^");
-    sInput = RegExpReplace("\\$", sInput, "\\$");
-    sInput = RegExpReplace("\\*", sInput, "\\*");
-    sInput = RegExpReplace("\\+", sInput, "\\+");
-    sInput = RegExpReplace("\\?", sInput, "\\?");
-    sInput = RegExpReplace("\\{", sInput, "\\{");
-    sInput = RegExpReplace("\\}", sInput, "\\}");
-    sInput = RegExpReplace("\\[", sInput, "\\[");
-    sInput = RegExpReplace("\\]", sInput, "\\]");
-    sInput = RegExpReplace("\\(", sInput, "\\(");
-    sInput = RegExpReplace("\\)", sInput, "\\)");
-    sInput = RegExpReplace("\\|", sInput, "\\|");
-    return sInput;
 }
 
 int IsNumeric(string sValue)

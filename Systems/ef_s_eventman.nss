@@ -53,9 +53,21 @@ void EM_Init()
              "PRIMARY KEY(system, eventtype, priority));";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_events_eventtype_dispatchlist " +
+             "ON " + EM_SCRIPT_NAME + "_events(eventtype, dispatchlist, priority);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_events_system_eventtype " +
+             "ON " + EM_SCRIPT_NAME + "_events(system, eventtype, priority);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+
     sQuery = "CREATE TABLE IF NOT EXISTS " + EM_SCRIPT_NAME + "_dispatchlist (" +
              "id INTEGER NOT NULL, " +
              "objectid INTEGER NOT NULL);";
+    SqlStep(SqlPrepareQueryModule(sQuery));
+
+    sQuery = "CREATE INDEX IF NOT EXISTS idx_dispatchlist_id_objectid " +
+             "ON " + EM_SCRIPT_NAME + "_dispatchlist(id, objectid);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 
     // :(
@@ -84,11 +96,13 @@ void EM_SignalObjectEvent(object oTarget = OBJECT_SELF)
     if (sScript != "")
         ExecuteScript(sScript, oTarget);
 
-    string sQuery = "SELECT events.scriptchunk FROM " + EM_SCRIPT_NAME + "_events AS events " +
-                    "WHERE events.eventtype = @eventtype AND (events.dispatchlist = 0 OR " +
-                    "EXISTS(SELECT dispatchlist.id FROM " + EM_SCRIPT_NAME + "_dispatchlist AS dispatchlist WHERE " +
-                    "dispatchlist.id = events.rowid AND dispatchlist.objectid = @objectid)) " +
-                    "ORDER BY events.priority;";
+    string sQuery = "SELECT e.scriptchunk, e.priority FROM " + EM_SCRIPT_NAME + "_events AS e " +
+                    "LEFT JOIN " + EM_SCRIPT_NAME + "_dispatchlist AS dl " +
+                    "ON e.dispatchlist = 1 AND dl.id = e.rowid AND dl.objectid = @objectid " +
+                    "WHERE e.eventtype = @eventtype " +
+                    "AND (e.dispatchlist = 0 OR dl.objectid IS NOT NULL) " +
+                    "ORDER BY e.priority;";
+
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@eventtype", nEventType);
     SqlBindObjectRef(sql, "@objectid", oTarget);
@@ -204,9 +218,10 @@ void EM_SetModuleEventScripts()
     SqlBindInt(sql, "@start", EVENT_SCRIPT_MODULE_ON_HEARTBEAT);
     SqlBindInt(sql, "@end", EVENT_SCRIPT_MODULE_ON_NUI_EVENT);
 
+    object oModule = GetModule();
     while (SqlStep(sql))
     {
-        EM_SetObjectEventScript(GetModule(), SqlGetInt(sql, 0));
+        EM_SetObjectEventScript(oModule, SqlGetInt(sql, 0));
     }
 }
 

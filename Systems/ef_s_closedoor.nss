@@ -16,17 +16,14 @@ const float CLOSEDOOR_CLOSE_DELAY       = 7.5f;
 // @CORE[CORE_SYSTEM_LOAD]
 void CloseDoor_Load()
 {
-    object oDoor;
-    int nNth = 0;
     int nObjectDispatchListId = EM_GetObjectDispatchListId(CLOSEDOOR_SCRIPT_NAME, EVENT_SCRIPT_DOOR_ON_OPEN, CLOSEDOOR_EVENT_PRIORITY);
-
-    while ((oDoor = NWNX_Util_GetLastCreatedObject(10, ++nNth)) != OBJECT_INVALID)
+    sqlquery sql = SqlPrepareQueryModule("SELECT oid FROM gameobjects WHERE type=@type AND ISAUTOCLOSEDOOR(oid);");
+    SqlBindInt(sql, "@type", OBJECT_TYPE_INTERNAL_DOOR);
+    while (SqlStep(sql))
     {
-        if (NWNX_Object_GetDoorHasVisibleModel(oDoor) && !GetLocalInt(oDoor, "NO_AUTO_CLOSE"))
-        {
-            EM_SetObjectEventScript(oDoor, EVENT_SCRIPT_DOOR_ON_OPEN);
-            EM_ObjectDispatchListInsert(oDoor, nObjectDispatchListId);
-        }
+        object oDoor = SqlGetObjectRef(sql, 0);
+        EM_SetObjectEventScript(oDoor, EVENT_SCRIPT_DOOR_ON_OPEN);
+        EM_ObjectDispatchListInsert(oDoor, nObjectDispatchListId);
     }
 }
 
@@ -36,4 +33,10 @@ void CloseDoor_OnOpen()
     ClearAllActions();
     ActionWait(CLOSEDOOR_CLOSE_DELAY);
     ActionCloseDoor(OBJECT_SELF);
+}
+
+// @SQLFUNCTION[ISAUTOCLOSEDOOR:1]
+int CloseDoor_IsAutoCloseDoor()
+{
+    return !GetLocalInt(OBJECT_SELF, "NO_AUTO_CLOSE") && NWNX_Object_GetDoorHasVisibleModel(OBJECT_SELF);
 }

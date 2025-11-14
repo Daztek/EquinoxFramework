@@ -14,7 +14,7 @@ const string MEDIATOR_SCRIPT_NAME                       = "ef_c_mediator";
 const int MEDIATOR_PARSE_SYSTEM_FUNCTION_DEFINITIONS    = TRUE;
 const int MEDIATOR_VALIDATE_CLOSURE_CAPTURE_LIST        = TRUE;
 
-const int MEDIATIOR_OVERRIDE_GLOBAL_CACHE_SETTING       = FALSE;
+const int MEDIATOR_OVERRIDE_GLOBAL_CACHE_SETTING        = FALSE;
 const int MEDIATOR_PRECACHE_SYSTEM_FUNCTIONS            = FALSE;
 const int MEDIATOR_CACHE_CLOSURE_ON_CREATION            = FALSE;
 
@@ -107,7 +107,7 @@ int Mediator_ParseFunctionDefinition(string sLine, string sSystem)
             string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sSystem) + sFunctionBody;
 
             if (MEDIATOR_PRECACHE_SYSTEM_FUNCTIONS)
-                CacheScriptChunk(sScriptChunk, FALSE, MEDIATIOR_OVERRIDE_GLOBAL_CACHE_SETTING);
+                CacheScriptChunk(sScriptChunk, FALSE, MEDIATOR_OVERRIDE_GLOBAL_CACHE_SETTING);
 
             string sQuery = "INSERT INTO " + MEDIATOR_SCRIPT_NAME + "(system, function, returntype, parameters, scriptchunk) " +
                             "VALUES(@system, @function, @returntype, @parameters, @scriptchunk);";
@@ -262,6 +262,7 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
         }
         sClosureFunctionParameters += ")";
 
+        string sGetStackVars, sSetStackVars;
         if (sCaptureList != "")
         {
             if (MEDIATOR_VALIDATE_CLOSURE_CAPTURE_LIST)
@@ -275,10 +276,9 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
             }
 
             json jCaptureList = GetJsonArrayFromTokenizedString(sCaptureList, ",");
-            json jStack = NWNX_VM_GetCurrentStack(nDepth);
+            json jStack = NWNX_VM_GetStackVariables(nDepth);
 
             int nIndex, nNumVariables = JsonGetLength(jCaptureList);
-            string sGetStackVars, sSetStackVars;
             for (nIndex = 0; nIndex < nNumVariables; nIndex++)
             {
                 string sCapturedVariable = JsonArrayGetString(jCaptureList, nIndex);
@@ -383,34 +383,25 @@ string Closure(string sFunctionBody, string sCaptureList = "", string sParameter
                 else
                     LogWarning("Unable to capture variable: {sName}");
             }
-
-            sFunctionBody = trim(sFunctionBody);
-            if (FindSubString(sFunctionBody, "return") == -1)
-            {
-                sFunctionBody = GetSubString(sFunctionBody, 1, GetStringLength(sFunctionBody) - 2);
-                sFunctionBody = "{ " + sGetStackVars + " " + sFunctionBody + " " + sSetStackVars + " }";
-            }
-            else
-            {
-                sFunctionBody = GetSubString(sFunctionBody, 1, GetStringLength(sFunctionBody) - 2);
-                sFunctionBody = "{ " + sGetStackVars + " " + sFunctionBody +  " }";
-                sFunctionBody = RegExpReplace("\\breturn\\b[^;]+;", sFunctionBody, "{ " + sSetStackVars + " $& }");
-            }
         }
 
-        string sClosureFunction = (sReturnType == "" ? "void " : nssConvertShortType(sReturnType, TRUE) + " ") + "ClosureFunction" + sClosureFunctionParameters + sFunctionBody;
+        string sClosureReturnType = nssConvertShortType(sReturnType, TRUE);
+        string sClosureFunction = (sReturnType == "" ? "void" : sClosureReturnType) + " ClosureFunction" + sClosureFunctionParameters + sFunctionBody;
         string sDataObject = nssObject("oFDO", nssFunction("GetDataObject", nssEscape(MEDIATOR_SCRIPT_NAME)));
 
-        string sClosureMainFunction;
+        string sClosureMain;
         if (sReturnType != "")
-            sClosureMainFunction += nssConvertShortType(sReturnType, TRUE) + " main() { " + sDataObject + " return " + nssFunction("ClosureFunction", sArguments) + "}";
+        {
+            sClosureMain += sClosureReturnType + " main(){" + sDataObject +  sClosureReturnType + " closureRetVal=" +
+                nssFunction("ClosureFunction", sArguments) + sSetStackVars + " return closureRetVal;}";
+        }
         else
-            sClosureMainFunction += nssVoidMain(sDataObject + nssFunction("ClosureFunction", sArguments));
+            sClosureMain += nssVoidMain(sDataObject + nssFunction("ClosureFunction", sArguments) + sSetStackVars);
 
-        string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sInclude) + sClosureFunction + sClosureMainFunction;
+        string sScriptChunk = nssInclude(MEDIATOR_SCRIPT_NAME) + nssInclude(sInclude) + sGetStackVars + sClosureFunction + sClosureMain;
 
         if (MEDIATOR_CACHE_CLOSURE_ON_CREATION)
-            CacheScriptChunk(sScriptChunk, FALSE, MEDIATIOR_OVERRIDE_GLOBAL_CACHE_SETTING);
+            CacheScriptChunk(sScriptChunk, FALSE, MEDIATOR_OVERRIDE_GLOBAL_CACHE_SETTING);
 
         SetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash, nClosureId);
         SetLocalString(oFDO, MEDIATOR_FUNCTION_RETURN_TYPE + sClosureSymbol, sReturnType);

@@ -34,6 +34,7 @@ string SqlGetLocalTimeAsString();
 void SqlBindVectorAsFloats(sqlquery sqlQuery, string sParamPrefix, vector vVector);
 vector SqlGetVectorFromFloats(sqlquery sqlQuery, int nIndexX, int nIndexY, int nIndexZ);
 location SqlGetLocation(sqlquery sqlQuery, int nIndexArea, int nIndexX, int nIndexY, int nIndexZ, int nIndexFacing);
+string SqlEscapeWildcard(string sInput, string sWildcard, string sEscape);
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -197,4 +198,19 @@ vector SqlGetVectorFromFloats(sqlquery sqlQuery, int nIndexX, int nIndexY, int n
 location SqlGetLocation(sqlquery sqlQuery, int nIndexArea, int nIndexX, int nIndexY, int nIndexZ, int nIndexFacing)
 {
     return Location(SqlGetObjectRef(sqlQuery, nIndexArea), SqlGetVectorFromFloats(sqlQuery, nIndexX, nIndexY, nIndexZ), SqlGetFloat(sqlQuery, nIndexFacing));
+}
+
+string SqlEscapeWildcard(string sInput, string sWildcard, string sEscape)
+{
+    int nCount, nLength = GetStringLength(sInput);
+    string sResult = "";
+    for (nCount = 0; nCount < nLength; nCount++)
+    {
+        string sCharacter = GetSubString(sInput, nCount, 1);
+        if (sCharacter == sWildcard)
+            sResult += sEscape + sWildcard;
+        else
+            sResult += sCharacter;
+    }
+    return sResult;
 }

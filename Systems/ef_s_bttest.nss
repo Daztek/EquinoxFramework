@@ -19,10 +19,10 @@ const string BTT_PATROL_CONNECTIONS     = "Connections";
 // @CORE[CORE_SYSTEM_LOAD]
 void BTT_Load()
 {
-    string sQuery = "SELECT oid FROM gameobjects WHERE type = @type AND tag LIKE @tag;";
+    string sQuery = "SELECT oid FROM gameobjects WHERE type = @type AND tag LIKE @tag ESCAPE '!';";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindInt(sql, "@type", OBJECT_TYPE_INTERNAL_WAYPOINT);
-    SqlBindString(sql, "@tag", BTT_PATROL_WAYPOINT_PREFIX + "%");
+    SqlBindString(sql, "@tag", SqlEscapeWildcard(BTT_PATROL_WAYPOINT_PREFIX, "_", "!") + "%");
 
     while (SqlStep(sql))
     {

@@ -65,7 +65,7 @@ void AL_ClickAreaButton()
     if (GetIsObjectValid(oArea))
     {
         ClearAllActions();
-        ActionJumpToLocation(Location(oArea, GetAreaCenterPosition(oArea), GetFacing(oPlayer)));
+        JumpToLocation(Location(oArea, GetAreaCenterPosition(oArea), GetFacing(oPlayer)));
     }
 }
 

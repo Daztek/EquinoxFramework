@@ -576,9 +576,9 @@ void QC_MouseDownSpellList()
         if (NWM_GetIsWindowOpen(oPlayer, QC_MAIN_WINDOW_ID, TRUE))
         {
             json jData = JsonObject();
-                 jData = JsonObjectSetInt(jData, "spellid", nSpellId);
-                 jData = JsonObjectSetInt(jData, "multiclass", nMultiClass);
-                 jData = JsonObjectSetInt(jData, "metamagic", nMetaMagic);
+            JsonObjectSetIntInplace(jData, "spellid", nSpellId);
+            JsonObjectSetIntInplace(jData, "multiclass", nMultiClass);
+            JsonObjectSetIntInplace(jData, "metamagic", nMetaMagic);
 
             QC_SetDragModeData(QC_DRAGMODE_SET_SLOT, jData);
             NWNX_Player_PlaySound(oPlayer, "it_pickup");
@@ -1060,20 +1060,20 @@ void QC_LoadQuickCastSlots(object oPlayer, int nPageId)
 void QC_InitializeMetaMagicCombo(object oPlayer)
 {
     json jMetaMagic = JsonArray();
-         jMetaMagic = JsonArrayInsert(jMetaMagic, NuiComboEntry("Metamagic", METAMAGIC_NONE));
+    JsonArrayInsertInplace(jMetaMagic, NuiComboEntry("Metamagic", METAMAGIC_NONE));
 
     if (GetHasFeat(FEAT_EMPOWER_SPELL, oPlayer))
-        jMetaMagic = JsonArrayInsert(jMetaMagic, NuiComboEntry("Empower", METAMAGIC_EMPOWER));
+        JsonArrayInsertInplace(jMetaMagic, NuiComboEntry("Empower", METAMAGIC_EMPOWER));
     if (GetHasFeat(FEAT_EXTEND_SPELL, oPlayer))
-        jMetaMagic = JsonArrayInsert(jMetaMagic, NuiComboEntry("Extend", METAMAGIC_EXTEND));
+        JsonArrayInsertInplace(jMetaMagic, NuiComboEntry("Extend", METAMAGIC_EXTEND));
     if (GetHasFeat(FEAT_MAXIMIZE_SPELL, oPlayer))
-        jMetaMagic = JsonArrayInsert(jMetaMagic, NuiComboEntry("Maximize", METAMAGIC_MAXIMIZE));
+        JsonArrayInsertInplace(jMetaMagic, NuiComboEntry("Maximize", METAMAGIC_MAXIMIZE));
     if (GetHasFeat(FEAT_QUICKEN_SPELL, oPlayer))
-        jMetaMagic = JsonArrayInsert(jMetaMagic, NuiComboEntry("Quicken", METAMAGIC_QUICKEN));
+        JsonArrayInsertInplace(jMetaMagic, NuiComboEntry("Quicken", METAMAGIC_QUICKEN));
     if (GetHasFeat(FEAT_SILENCE_SPELL, oPlayer))
-        jMetaMagic = JsonArrayInsert(jMetaMagic, NuiComboEntry("Silent", METAMAGIC_SILENT));
+        JsonArrayInsertInplace(jMetaMagic, NuiComboEntry("Silent", METAMAGIC_SILENT));
     if (GetHasFeat(FEAT_STILL_SPELL, oPlayer))
-        jMetaMagic = JsonArrayInsert(jMetaMagic, NuiComboEntry("Still", METAMAGIC_STILL));
+        JsonArrayInsertInplace(jMetaMagic, NuiComboEntry("Still", METAMAGIC_STILL));
 
     NWM_SetBind(QC_BIND_METAMAGIC_COMBO_ENTRIES, jMetaMagic);
 }
@@ -1088,7 +1088,7 @@ void QC_InitializeClassCombo(object oPlayer)
         int nClassType = GetClassByPosition(nMultiClass + 1, oPlayer);
 
         if (Get2DAString("classes", "SpellCaster", nClassType) == "1")
-            jClasses = JsonArrayInsert(jClasses, NuiComboEntry(Get2DAStrRefString("classes", "Name", nClassType), nMultiClass));
+            JsonArrayInsertInplace(jClasses, NuiComboEntry(Get2DAStrRefString("classes", "Name", nClassType), nMultiClass));
     }
 
     NWM_SetBind(QC_BIND_CLASS_COMBO_ENTRIES, jClasses);
@@ -1328,26 +1328,26 @@ void QC_UpdateSpellList()
                 string sChildIcon = SqlGetString(sqlGetChildSpells, 1);
                 string sChildName = SqlGetString(sqlGetChildSpells, 2);
 
-                jSpellIdArray = JsonArrayInsertInt(jSpellIdArray, nChildSpellId);
-                jIconArray = JsonArrayInsertString(jIconArray, sChildIcon);
-                jNameArray = JsonArrayInsertString(jNameArray, sChildName);
-                jColorArray = JsonArrayInsert(jColorArray, QC_GetHasMemorizedSpell(oPlayer, nMultiClass, QC_GetMasterSpell(nChildSpellId), nMetaMagic) ? jColorGreen : jColorWhite);
+                JsonArrayInsertIntInplace(jSpellIdArray, nChildSpellId);
+                JsonArrayInsertStringInplace(jIconArray, sChildIcon);
+                JsonArrayInsertStringInplace(jNameArray, sChildName);
+                JsonArrayInsertInplace(jColorArray, QC_GetHasMemorizedSpell(oPlayer, nMultiClass, QC_GetMasterSpell(nChildSpellId), nMetaMagic) ? jColorGreen : jColorWhite);
             }
 
             if (!bIsMasterSpell)
             {
-                jSpellIdArray = JsonArrayInsertInt(jSpellIdArray, nMasterSpellId);
-                jIconArray = JsonArrayInsertString(jIconArray, sMasterIcon);
-                jNameArray = JsonArrayInsertString(jNameArray, sMasterName);
-                jColorArray = JsonArrayInsert(jColorArray, QC_GetHasMemorizedSpell(oPlayer, nMultiClass, nMasterSpellId, nMetaMagic) ? jColorGreen : jColorWhite);
+                JsonArrayInsertIntInplace(jSpellIdArray, nMasterSpellId);
+                JsonArrayInsertStringInplace(jIconArray, sMasterIcon);
+                JsonArrayInsertStringInplace(jNameArray, sMasterName);
+                JsonArrayInsertInplace(jColorArray, QC_GetHasMemorizedSpell(oPlayer, nMultiClass, nMasterSpellId, nMetaMagic) ? jColorGreen : jColorWhite);
             }
         }
         else
         {
-            jSpellIdArray = JsonArrayInsertInt(jSpellIdArray, SqlGetInt(sql, 0));
-            jIconArray = JsonArrayInsertString(jIconArray, SqlGetString(sql, 1));
-            jNameArray = JsonArrayInsertString(jNameArray, SqlGetString(sql, 2));
-            jColorArray = JsonArrayInsert(jColorArray, jColorWhite);
+            JsonArrayInsertIntInplace(jSpellIdArray, SqlGetInt(sql, 0));
+            JsonArrayInsertStringInplace(jIconArray, SqlGetString(sql, 1));
+            JsonArrayInsertStringInplace(jNameArray, SqlGetString(sql, 2));
+            JsonArrayInsertInplace(jColorArray, jColorWhite);
         }
     }
 
@@ -1583,9 +1583,9 @@ int QC_IsValidCustomTarget(object oTarget, int nTargetType)
 void QC_InitializeTargetTypeCombo()
 {
     json jTargetTypes = JsonArray();
-         jTargetTypes = JsonArrayInsert(jTargetTypes, NuiComboEntry("Manual", QC_PLAYER_TARGET_TYPE_MANUAL));
-         jTargetTypes = JsonArrayInsert(jTargetTypes, NuiComboEntry("Custom", QC_PLAYER_TARGET_TYPE_CUSTOM));
-         jTargetTypes = JsonArrayInsert(jTargetTypes, NuiComboEntry("Nearest Hostile", QC_PLAYER_TARGET_TYPE_NEAREST_HOSTILE));
+         JsonArrayInsertInplace(jTargetTypes, NuiComboEntry("Manual", QC_PLAYER_TARGET_TYPE_MANUAL));
+         JsonArrayInsertInplace(jTargetTypes, NuiComboEntry("Custom", QC_PLAYER_TARGET_TYPE_CUSTOM));
+         JsonArrayInsertInplace(jTargetTypes, NuiComboEntry("Nearest Hostile", QC_PLAYER_TARGET_TYPE_NEAREST_HOSTILE));
 
     NWM_SetBind(QC_BIND_TARGETTYPE_COMBO_ENTRIES, jTargetTypes);
 }

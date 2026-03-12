@@ -59,7 +59,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0);
 // @CORE[CORE_SYSTEM_INIT]
 void EP_Init()
 {
-    string sQuery = "CREATE TABLE IF NOT EXISTS " + EP_GetTilesTable() + "(" +
+    string sQuery = "CREATE TABLE IF NOT EXISTS " + EP_GetTilesTable() + " (" +
              "area_id TEXT NOT NULL, " +
              "tile_index INTEGER NOT NULL, " +
              "tile_x INTEGER NOT NULL, " +
@@ -139,7 +139,7 @@ void EP_OnAreaEnter()
 
 string EP_GetTilesTable()
 {
-    return EP_SCRIPT_NAME + "_tiles ";
+    return EP_SCRIPT_NAME + "_tiles";
 }
 
 string EP_GetLastAreaID()
@@ -364,7 +364,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
     vector vEntrancePosition = GetTilePosition(strEntrancePosition.nX, strEntrancePosition.nY);
     int nExitTileIndex = AG_GetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX);
     struct Vector2 strExitPosition = AG_GetTilePosition(sAreaID, nExitTileIndex);
-    string sQuery = "INSERT INTO " + EP_GetTilesTable() + "(area_id, tile_index, tile_x, tile_y, tile_id, entrance_dist, exit_dist, path_dist, group_tile, num_doors) " +
+    string sQuery = "INSERT INTO " + EP_GetTilesTable() + " (area_id, tile_index, tile_x, tile_y, tile_id, entrance_dist, exit_dist, path_dist, group_tile, num_doors) " +
                     "VALUES(@area_id, @tile_index, @tile_x, @tile_y, @tile_id, @entrance_dist, @exit_dist, @path_dist, @group_tile, @num_doors);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     int nCurrentMaxTiles = min(nCurrentTile + EP_POSTPROCESS_TILE_BATCH, nNumTiles);

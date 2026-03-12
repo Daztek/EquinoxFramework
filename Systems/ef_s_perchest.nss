@@ -47,7 +47,7 @@ void PC_Init()
                     "item_baseitem INTEGER NOT NULL, " +
                     "item_stacksize INTEGER NOT NULL, " +
                     "item_iconresref TEXT NOT NULL, " +
-                    "item_data TEXT_NOT NULL, " +
+                    "item_data TEXT NOT NULL, " +
                     "PRIMARY KEY(player_uuid, item_uuid));";
     sqlquery sql = SqlPrepareQueryCampaign(PC_SCRIPT_NAME, sQuery);
     SqlStep(sql);

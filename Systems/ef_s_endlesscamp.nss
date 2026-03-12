@@ -16,7 +16,7 @@ void EC_OnAreaPostProcessed()
     string sAreaID = GetTag(oArea);
 
     string sQuery = "SELECT tile_id, tile_x, tile_y FROM " + EP_GetTilesTable() +
-                    "WHERE area_id=@area_id AND ((tile_id >= 1220 AND tile_id <= 1223) OR tile_id = 1215);";
+                    " WHERE area_id=@area_id AND ((tile_id >= 1220 AND tile_id <= 1223) OR tile_id = 1215);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@area_id", sAreaID);
 

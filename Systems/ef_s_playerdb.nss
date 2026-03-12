@@ -96,6 +96,8 @@ sqlquery PlayerDB_PrepareDelete(object oPlayer, string sSystem, int nType, strin
 
 int PlayerDB_ValidateArguments(object oPlayer, string sSystem, string sVarName)
 {
+    object oMaster = GetMaster(oPlayer);
+    if (oMaster != oPlayer && GetIsObjectValid(oMaster)) oPlayer = oMaster;
     return GetIsObjectValid(oPlayer) && !GetIsDMExtended(oPlayer) && sSystem != "" && sVarName != "";
 }
 

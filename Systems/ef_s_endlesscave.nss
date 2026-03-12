@@ -72,7 +72,7 @@ void EC_OnAreaPostProcessed()
     json jCaves = JsonArray();
 
     string sQuery = "SELECT tile_index, tile_id FROM " + EP_GetTilesTable() +
-                    "WHERE area_id = @area_id AND group_tile = 1 AND num_doors = 1;";
+                    " WHERE area_id = @area_id AND group_tile = 1 AND num_doors = 1;";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
     SqlBindString(sql, "@area_id", sParentAreaID);
 

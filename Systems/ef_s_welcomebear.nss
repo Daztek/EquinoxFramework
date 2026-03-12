@@ -19,7 +19,7 @@ void WB_OnAreaPostProcessed()
         string sAreaID = GetTag(oArea);
 
         string sQuery = "SELECT tile_x, tile_y FROM " + EP_GetTilesTable() +
-                        "WHERE area_id=@area_id AND entrance_dist > 0 AND entrance_dist < 3 AND path_dist > 0 " +
+                        " WHERE area_id=@area_id AND entrance_dist > 0 AND entrance_dist < 3 AND path_dist > 0 " +
                         "ORDER BY RANDOM() LIMIT 1;";
         sqlquery sql = SqlPrepareQueryObject(GetModule(), sQuery);
         SqlBindString(sql, "@area_id", sAreaID);

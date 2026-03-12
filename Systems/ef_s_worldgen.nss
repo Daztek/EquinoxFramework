@@ -229,9 +229,10 @@ void WG_OnAreaExit()
 void WG_OnAreaEdgeEnter()
 {
     object oPlayer = OBJECT_SELF;
+    if (!GetIsPC(oPlayer))
+        return;
     object oArea = EM_NWNXGetObject("AREA");
-
-    if (!GetIsPC(oPlayer) || !WG_GetIsWGArea(oArea))
+    if (!WG_GetIsWGArea(oArea))
         return;
 
     if (EM_NWNXGetInt("TOP"))

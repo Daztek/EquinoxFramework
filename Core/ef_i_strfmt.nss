@@ -6,8 +6,12 @@
 #include "ef_i_convert"
 #include "ef_i_math"
 #include "ef_i_string"
+#include "ef_i_dataobject"
 #include "nwnx_util"
 #include "nwnx_vm"
+
+const string STRFMT_SCRIPT_NAME     = "ef_i_strfmt";
+const string STRFMT_CACHE_PREFIX    = "StringFormatCache_";
 
 struct Value
 {
@@ -67,7 +71,16 @@ string FormatString(string sString, int nDepthOverride = 0)
     if (sString == "" || FindSubString(sString, "{", 0) == -1)
         return sString;
 
-    json jVariables = RegExpIterate("\\{([\\w\\.>\\(\\),0-9]+)(?::(%[a-z0-9\\.]{0,5}))?\\}", sString);
+    object oDataObject = GetDataObject(STRFMT_SCRIPT_NAME);
+    int nHash = HashString(sString);
+    json jVariables = GetLocalJson(oDataObject, STRFMT_CACHE_PREFIX + IntToString(nHash));
+
+    if (!JsonGetType(jVariables))
+    {
+        jVariables = RegExpIterate("\\{([\\w\\.>\\(\\),0-9]+)(?::(%[a-z0-9\\.]{0,5}))?\\}", sString);
+        SetLocalJson(oDataObject, STRFMT_CACHE_PREFIX + IntToString(nHash), jVariables);
+    }
+
     int nIndex, nNumVariables = JsonGetLength(jVariables);
 
     if (!nNumVariables)

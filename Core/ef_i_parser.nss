@@ -5,28 +5,33 @@
 
 #include "ef_i_string"
 
+const string PARSER_DEFAULT_DELIMITER   = "\n";
+const int PARSER_DELIMITER_NOT_FOUND    = -1;
+
 struct ParserData
 {
-    int nStartPos;
-    int nNewLinePos;
+    int nCurrentPos;
+    int nDelimiterPos;
     int bEndOfFile;
     string sData;
     string sDelimiter;
+    int nDelimiterLength;
     int nDataLength;
     string sLine;
     int nLineNumber;
     int bTrim;
 };
 
-struct ParserData ParserPrepare(string sData, int bTrim = FALSE, string sDelimiter = "\n");
+struct ParserData ParserPrepare(string sData, int bTrim = FALSE, string sDelimiter = PARSER_DEFAULT_DELIMITER);
 struct ParserData ParserParse(struct ParserData str);
 string ParserPeek(struct ParserData str);
 
-struct ParserData ParserPrepare(string sData, int bTrim = FALSE, string sDelimiter = "\n")
+struct ParserData ParserPrepare(string sData, int bTrim = FALSE, string sDelimiter = PARSER_DEFAULT_DELIMITER)
 {
     struct ParserData str;
     str.sData = sData;
     str.sDelimiter = sDelimiter;
+    str.nDelimiterLength = GetStringLength(sDelimiter);
     str.nDataLength = GetStringLength(sData);
     str.bEndOfFile = str.nDataLength == 0;
     str.bTrim = bTrim;
@@ -37,22 +42,22 @@ struct ParserData ParserParse(struct ParserData str)
 {
     if (str.bEndOfFile)
         return str;
-    if ((str.nNewLinePos = FindSubString(str.sData, str.sDelimiter, str.nStartPos)) != -1)
+    if ((str.nDelimiterPos = FindSubString(str.sData, str.sDelimiter, str.nCurrentPos)) != PARSER_DELIMITER_NOT_FOUND)
     {
-        str.sLine = GetSubString(str.sData, str.nStartPos, str.nNewLinePos - str.nStartPos);
+        str.sLine = GetSubString(str.sData, str.nCurrentPos, str.nDelimiterPos - str.nCurrentPos);
         if (str.bTrim)
             str.sLine = trim(str.sLine);
         str.nLineNumber++;
-        str.nStartPos = str.nNewLinePos + 1;
+        str.nCurrentPos = str.nDelimiterPos + str.nDelimiterLength;
         return str;
     }
-    if (str.nStartPos < str.nDataLength)
+    if (str.nCurrentPos < str.nDataLength)
     {
-        str.sLine = GetSubString(str.sData, str.nStartPos, str.nDataLength - str.nStartPos);
+        str.sLine = GetSubString(str.sData, str.nCurrentPos, str.nDataLength - str.nCurrentPos);
         if (str.bTrim)
             str.sLine = trim(str.sLine);
         str.nLineNumber++;
-        str.nStartPos = str.nDataLength;
+        str.nCurrentPos = str.nDataLength;
         return str;
     }
     str.bEndOfFile = TRUE;
@@ -63,10 +68,10 @@ string ParserPeek(struct ParserData str)
 {
     if (str.bEndOfFile)
         return "";
-    int nNewLinePos = FindSubString(str.sData, str.sDelimiter, str.nStartPos);
-    if (nNewLinePos != -1)
+    int nNewLinePos = FindSubString(str.sData, str.sDelimiter, str.nCurrentPos);
+    if (nNewLinePos != PARSER_DELIMITER_NOT_FOUND)
     {
-        string s = GetSubString(str.sData, str.nStartPos, nNewLinePos - str.nStartPos);
+        string s = GetSubString(str.sData, str.nCurrentPos, nNewLinePos - str.nCurrentPos);
         if (str.bTrim)
             s = trim(s);
         return s;

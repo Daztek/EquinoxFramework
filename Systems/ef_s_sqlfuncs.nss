@@ -2,7 +2,7 @@
     Script: ef_s_sqlfuncs
     Author: Daz
 
-    @SQLFUNCTION[NAME:DETERMINISTIC]
+    @SQLFUNCTION[NAME:DETERMINISTIC:DIRECTONLY]
 */
 
 #include "ef_i_include"
@@ -71,6 +71,7 @@ void SqlFunctions_RegisterFunction(struct AnnotationData str)
 
     string sName = GetAnnotationStringConstantValue(str, 0);
     int bDeterministic = GetAnnotationIntConstantValue(str, 1);
+    int bDirectOnly = GetAnnotationIntConstantValue(str, 2);
     int nArgumentCount = JsonArrayGetInt(jParsedParameters, 0);
     string sArguments = JsonArrayGetString(jParsedParameters, 1);
     string sContents = nssObject("oModule", "GetModule()") + " return " + nssFunction(str.sFunction, sArguments);
@@ -99,12 +100,12 @@ void SqlFunctions_RegisterFunction(struct AnnotationData str)
     }
 
     string sScriptChunk = nssInclude(str.sSystem) + sMain;
-    int nRetVal = NWNX_NWSQLiteExtensions_RegisterCustomFunction(GetStringUpperCase(sName), sScriptChunk, nArgumentCount, nReturnType, bDeterministic);
+    int nRetVal = NWNX_NWSQLiteExtensions_RegisterCustomFunction(GetStringUpperCase(sName), sScriptChunk, nArgumentCount, nReturnType, bDeterministic, bDirectOnly);
 
     if (nRetVal)
     {
         CacheScriptChunk(sScriptChunk, FALSE, TRUE);
-        LogInfo("System '{str.sSystem}' registered SQL function '{str.sFunction}' with name '{sName}' -> D:{bDeterministic:%b}");
+        LogInfo("System '{str.sSystem}' registered SQL function '{str.sFunction}' with name '{sName}' -> D:{bDeterministic:%b}, DO:{bDirectOnly:%b}");
     }
     else
     {

@@ -35,7 +35,7 @@ void CloseDoor_OnOpen()
     ActionCloseDoor(OBJECT_SELF);
 }
 
-// @SQLFUNCTION[ISAUTOCLOSEDOOR:TRUE]
+// @SQLFUNCTION[ISAUTOCLOSEDOOR:TRUE:TRUE]
 int CloseDoor_IsAutoCloseDoor()
 {
     return !GetLocalInt(OBJECT_SELF, "NO_AUTO_CLOSE") && NWNX_Object_GetDoorHasVisibleModel(OBJECT_SELF);

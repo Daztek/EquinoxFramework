@@ -55,6 +55,12 @@ json SQLFunctions_ParseParameters(struct AnnotationData str)
 // @PAD[SQLFUNCTION]
 void SqlFunctions_RegisterFunction(struct AnnotationData str)
 {
+    if (JsonGetLength(str.jArguments) != 3)
+    {
+        LogError("Annotation '{str.sRawAnnotation}' for function '{str.sSystem}:{str.sFunction}' has an invalid amount of arguments.");
+        return;
+    }
+
     if (str.sReturnType != NSS_TYPE_INT &&
         str.sReturnType != NSS_TYPE_STRING &&
         str.sReturnType != NSS_TYPE_FLOAT &&

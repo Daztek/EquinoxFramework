@@ -35,7 +35,7 @@ void LogAddToRingBuffer(int nType, string sMessage, struct VMFrame str)
 {
     json jLogMessage = JsonObject();
     JsonObjectSetStringInplace(jLogMessage, "file", str.sFile);
-    JsonObjectSetStringInplace(jLogMessage, "funtion", str.sFunction);
+    JsonObjectSetStringInplace(jLogMessage, "function", str.sFunction);
     JsonObjectSetIntInplace(jLogMessage, "line", str.nLine);
     JsonObjectSetIntInplace(jLogMessage, "type", nType);
     JsonObjectSetStringInplace(jLogMessage, "time", SqlGetLocalTimeAsString());

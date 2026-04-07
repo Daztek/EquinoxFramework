@@ -8,7 +8,7 @@
 #include "ef_i_vm"
 
 const string ANNOTATIONS_SCRIPT_NAME        = "ef_c_annotations";
-const string ANNOTATIONS_ANNOTATION_DATA    = "AnnotationsAnnotationData";
+const string ANNOTATIONS_STACK_LOCATION     = "AnnotationsStackLocation";
 
 struct AnnotationData
 {
@@ -17,9 +17,9 @@ struct AnnotationData
     string sParameters;
     string sReturnType;
     json jArguments;
+    string sRawAnnotation;
 };
 
-struct AnnotationData GetAnnotationDataStruct(json jAnnotationData);
 string GetAnnotationString(struct AnnotationData str, int nIndex);
 int GetAnnotationInt(struct AnnotationData str, int nIndex);
 float GetAnnotationFloat(struct AnnotationData str, int nIndex);
@@ -35,7 +35,8 @@ void Annotations_Init()
                     "function TEXT NOT NULL, " +
                     "parameters TEXT NOT NULL, " +
                     "return_type TEXT NOT NULL, " +
-                    "data TEXT NOT NULL);";
+                    "data TEXT NOT NULL, " +
+                    "raw TEXT NOT NULL);";
     SqlStep(SqlPrepareQueryModule(sQuery));
 }
 
@@ -46,10 +47,7 @@ int Annotations_ParseAnnotation(string sLine, json jOutAnnotationArray)
         json jMatch = RegExpMatch("(?://\\s@)(\\w+)\\[(.*)\\]", sLine);
         if (JsonGetLength(jMatch))
         {
-            json jAnnotation = JsonArray();
-            JsonArrayInsertInplace(jAnnotation, JsonArrayGet(jMatch, 1));
-            JsonArrayInsertInplace(jAnnotation, JsonArrayGet(jMatch, 2));
-            JsonArrayInsertInplace(jOutAnnotationArray, jAnnotation);
+            JsonArrayInsertInplace(jOutAnnotationArray, jMatch);
             return TRUE;
         }
     }
@@ -69,11 +67,12 @@ int Annotations_InsertAnnotation(string sSystem, string sLine, json jAnnotations
         for (nAnnotation = 0; nAnnotation < nNumAnnotations; nAnnotation++)
         {
             json jAnnotation = JsonArrayGet(jAnnotations, nAnnotation);
-            string sAnnotation = JsonArrayGetString(jAnnotation, 0);
-            json jData = GetJsonArrayFromTokenizedString(JsonArrayGetString(jAnnotation, 1));
+            string sRawAnnotation = JsonArrayGetString(jAnnotation, 0);
+            string sAnnotation = JsonArrayGetString(jAnnotation, 1);
+            json jData = GetJsonArrayFromTokenizedString(JsonArrayGetString(jAnnotation, 2));
 
-            string sQuery = "INSERT INTO " + ANNOTATIONS_SCRIPT_NAME + "(system, annotation, function, parameters, return_type, data) " +
-                            "VALUES(@system, @annotation, @function, @parameters, @return_type, @data);";
+            string sQuery = "INSERT INTO " + ANNOTATIONS_SCRIPT_NAME + "(system, annotation, function, parameters, return_type, data, raw) " +
+                            "VALUES(@system, @annotation, @function, @parameters, @return_type, @data, @raw);";
             sqlquery sql = SqlPrepareQueryModule(sQuery);
             SqlBindString(sql, "@system", sSystem);
             SqlBindString(sql, "@annotation", sAnnotation);
@@ -81,6 +80,7 @@ int Annotations_InsertAnnotation(string sSystem, string sLine, json jAnnotations
             SqlBindString(sql, "@parameters", sParameters);
             SqlBindString(sql, "@return_type", sReturnType);
             SqlBindJson(sql, "@data", jData);
+            SqlBindString(sql, "@raw", sRawAnnotation);
             SqlStep(sql);
         }
 
@@ -91,46 +91,69 @@ int Annotations_InsertAnnotation(string sSystem, string sLine, json jAnnotations
 
 void Annotations_ParseAnnotationData()
 {
+    struct AnnotationData str;
     object oModule = GetModule();
+    sqlquery sqlGetStackLocations = SqlPrepareQueryModule("SELECT name, stack_location FROM vmstack WHERE recursion_level = @recursion_level AND name LIKE @like;");
+    SqlBindInt(sqlGetStackLocations, "@recursion_level", GetScriptRecursionLevel());
+    SqlBindString(sqlGetStackLocations, "@like", "str.%");
+    while (SqlStep(sqlGetStackLocations))
+    {
+        SetLocalInt(oModule, ANNOTATIONS_STACK_LOCATION + SqlGetString(sqlGetStackLocations, 0), SqlGetInt(sqlGetStackLocations, 1));
+    }
+
     sqlquery sqlParseFunction = SqlPrepareQueryModule("SELECT system, function, data FROM " + ANNOTATIONS_SCRIPT_NAME + " WHERE annotation = @annotation;");
     SqlBindString(sqlParseFunction, "@annotation", "PAD");
+
     while (SqlStep(sqlParseFunction))
     {
         string sSystem = SqlGetString(sqlParseFunction, 0);
         string sFunction = SqlGetString(sqlParseFunction, 1);
         string sAnnotation = JsonArrayGetString(SqlGetJson(sqlParseFunction, 2), 0);
+        string sAnnotationFunction = nssFunction(sFunction, nssFunction("GetAnnotationDataStruct", "", FALSE));
 
-        string sAnnotationFunction = nssFunction(sFunction,
-            nssFunction("GetAnnotationDataStruct",
-            nssFunction("GetLocalJson", "GetModule(), " + nssEscape(ANNOTATIONS_ANNOTATION_DATA), FALSE), FALSE));
-
-        sqlquery sqlAnnotationData = SqlPrepareQueryModule("SELECT system, function, parameters, return_type, data FROM " + ANNOTATIONS_SCRIPT_NAME + " WHERE annotation = @annotation;");
+        sqlquery sqlAnnotationData = SqlPrepareQueryModule("SELECT system, function, parameters, return_type, data, raw FROM " + ANNOTATIONS_SCRIPT_NAME + " WHERE annotation = @annotation;");
         SqlBindString(sqlAnnotationData, "@annotation", sAnnotation);
 
         while (SqlStep(sqlAnnotationData))
         {
-            struct AnnotationData str;
             str.sSystem = SqlGetString(sqlAnnotationData, 0);
             str.sFunction = SqlGetString(sqlAnnotationData, 1);
             str.sParameters = SqlGetString(sqlAnnotationData, 2);
             str.sReturnType = SqlGetString(sqlAnnotationData, 3);
             str.jArguments = SqlGetJson(sqlAnnotationData, 4);
-            json jAnnotationData = StructToJson("str");
+            str.sRawAnnotation = SqlGetString(sqlAnnotationData, 5);
 
-            SetLocalJson(oModule, ANNOTATIONS_ANNOTATION_DATA, jAnnotationData);
             ExecuteScriptChunk(nssInclude(ANNOTATIONS_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sAnnotationFunction), oModule, FALSE);
             ResetScriptInstructions();
         }
     }
 
-    DeleteLocalJson(oModule, ANNOTATIONS_ANNOTATION_DATA);
+    SqlResetQuery(sqlGetStackLocations);
+    while (SqlStep(sqlGetStackLocations))
+    {
+        DeleteLocalInt(oModule, ANNOTATIONS_STACK_LOCATION + SqlGetString(sqlGetStackLocations, 0));
+    }
 }
 
-struct AnnotationData GetAnnotationDataStruct(json jAnnotationData)
+string GetAnnotationStructString(string sVarName)
+{
+    return NWNX_VM_GetStackStringValue(GetLocalInt(OBJECT_SELF, ANNOTATIONS_STACK_LOCATION + sVarName));
+}
+
+json GetAnnotationStructJson(string sVarName)
+{
+    return NWNX_VM_GetStackJsonValue(GetLocalInt(OBJECT_SELF, ANNOTATIONS_STACK_LOCATION + sVarName));
+}
+
+struct AnnotationData GetAnnotationDataStruct()
 {
     struct AnnotationData str;
-    int nResult = JsonToStruct("str", jAnnotationData);
-    if (!nResult) PrintString("GetAnnotationDataStruct: JsonToStruct returned FALSE?");
+    str.sSystem = GetAnnotationStructString("str.sSystem");
+    str.sFunction = GetAnnotationStructString("str.sFunction");
+    str.sParameters = GetAnnotationStructString("str.sParameters");
+    str.sReturnType = GetAnnotationStructString("str.sReturnType");
+    str.jArguments = GetAnnotationStructJson("str.jArguments");
+    str.sRawAnnotation = GetAnnotationStructString("str.sRawAnnotation");
     return str;
 }
 

@@ -221,7 +221,6 @@ void AreaMusic_InitializeToolsetTrackLists()
                     nTrackCount++;
                 }
 
-                int nNightMusicTrack = MusicBackgroundGetNightTrack(oArea);
                 if (nNightMusicTrack)
                 {
                     AreaMusic_AddTrackToTrackList(sTrackList, nNightMusicTrack, AREAMUSIC_MUSIC_TYPE_NIGHT);

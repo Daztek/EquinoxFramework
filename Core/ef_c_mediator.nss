@@ -54,7 +54,14 @@ void Mediator_Init()
                     "returntype TEXT NOT NULL, " +
                     "parameters TEXT NOT NULL, " +
                     "scriptchunk TEXT NOT NULL);";
-    SqlStep(SqlPrepareQueryModule(sQuery));
+    SqlStep(SqlPrepareQueryEF(sQuery));
+}
+
+void Mediator_ClearSystemFunctions(string sSystem)
+{
+    sqlquery sql = SqlPrepareQueryEF("DELETE FROM " + MEDIATOR_SCRIPT_NAME + " WHERE system = @system;");
+    SqlBindString(sql, "@system", sSystem);
+    SqlStep(sql);
 }
 
 int Mediator_ParseFunctionDefinition(string sLine, string sSystem)
@@ -111,7 +118,7 @@ int Mediator_ParseFunctionDefinition(string sLine, string sSystem)
 
             string sQuery = "INSERT INTO " + MEDIATOR_SCRIPT_NAME + "(system, function, returntype, parameters, scriptchunk) " +
                             "VALUES(@system, @function, @returntype, @parameters, @scriptchunk);";
-            sqlquery sql = SqlPrepareQueryModule(sQuery);
+            sqlquery sql = SqlPrepareQueryEF(sQuery);
             SqlBindString(sql, "@system", sSystem);
             SqlBindString(sql, "@function", sFunctionName);
             SqlBindString(sql, "@returntype", sReturnType);
@@ -157,7 +164,7 @@ int FunctionExists(string sSystem, string sFunction)
     int nExists = GetLocalInt(oDataObject, MEDIATOR_FUNCTION_EXISTS + sSystem + sFunction);
     if (!nExists)
     {
-        sqlquery sql = SqlPrepareQueryModule("SELECT function FROM " + MEDIATOR_SCRIPT_NAME + " WHERE " +
+        sqlquery sql = SqlPrepareQueryEF("SELECT function FROM " + MEDIATOR_SCRIPT_NAME + " WHERE " +
             "system = @system AND function = @function;");
         SqlBindString(sql, "@system", sSystem);
         SqlBindString(sql, "@function", sFunction);
@@ -216,7 +223,7 @@ string Function(string sSystem, string sFunction)
     {
         string sQuery = "SELECT returntype, parameters, scriptchunk FROM " + MEDIATOR_SCRIPT_NAME + " WHERE " +
                         "system = @system AND function = @function;";
-        sqlquery sql = SqlPrepareQueryModule(sQuery);
+        sqlquery sql = SqlPrepareQueryEF(sQuery);
         SqlBindString(sql, "@system", sSystem);
         SqlBindString(sql, "@function", sFunction);
 

@@ -315,6 +315,8 @@ string DumpStruct(json jStack, string sVarName, string sStructName, string sInst
                 else
                 {
                     string sValue = GetFormattedValue(jStack, sKey, "%s");
+                    if (nAuxType == NWNX_VM_AUXTYPE_STRING)
+                        sValue = "\"" + sValue + "\"";
                     string sVariableType = GetStringLowerCase(AuxTypeToString(nAuxType));
                     sResult += sVariableType + " " + sMemberPath + " = " + sValue + "; ";
                 }

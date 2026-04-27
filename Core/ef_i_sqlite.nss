@@ -25,7 +25,7 @@ void SqlCommitTransactionObject(object oObject);
 void SqlBeginTransactionModule();
 void SqlCommitTransactionModule();
 int SqlGetUnixEpoch();
-void SqlStepAndReset(sqlquery sql);
+void SqlStepAndReset(sqlquery sql, int bClearBinds = TRUE);
 void SqlMersenneTwisterSetSeed(string sName, int nSeed);
 int SqlMersenneTwisterGetValue(string sName, int nMaxInteger);
 void SqlMersenneTwisterDiscard(string sName, int nAmount);
@@ -125,10 +125,10 @@ int SqlGetUnixEpoch()
     return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
 }
 
-void SqlStepAndReset(sqlquery sql)
+void SqlStepAndReset(sqlquery sql, int bClearBinds = TRUE)
 {
     SqlStep(sql);
-    SqlResetQuery(sql, TRUE);
+    SqlResetQuery(sql, bClearBinds);
 }
 
 void SqlMersenneTwisterSetSeed(string sName, int nSeed)

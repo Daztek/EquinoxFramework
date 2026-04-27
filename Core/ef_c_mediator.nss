@@ -156,7 +156,7 @@ int FunctionExists(string sSystem, string sFunction)
         sqlquery sql = SqlPrepareQueryRegistry(sQuery);
         SqlBindString(sql, "@system", sSystem);
         SqlBindString(sql, "@function", sFunction);
-        SqlBindJson(sql, "@skipped_systems", RegistryGetSkippedSystems());
+        SqlBindJson(sql, "@skipped_systems", Registry_GetSkippedSystems());
         nExists = SqlStep(sql) + 1;
         SetLocalInt(oDataObject, MEDIATOR_FUNCTION_EXISTS + sSystem + sFunction, nExists);
     }
@@ -216,7 +216,7 @@ string Function(string sSystem, string sFunction)
         sqlquery sql = SqlPrepareQueryRegistry(sQuery);
         SqlBindString(sql, "@system", sSystem);
         SqlBindString(sql, "@function", sFunction);
-        SqlBindJson(sql, "@skipped_systems", RegistryGetSkippedSystems());
+        SqlBindJson(sql, "@skipped_systems", Registry_GetSkippedSystems());
 
         if (SqlStep(sql))
         {

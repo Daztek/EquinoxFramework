@@ -20,10 +20,11 @@ const string REGISTRY_FORCE_REVALIDATE      = "FORCE_REVALIDATE";
 sqlquery SqlPrepareQueryRegistry(string sQuery);
 void SqlBeginTransactionRegistry();
 void SqlCommitTransactionRegistry();
-int GetRegistryInt(string sVarName);
-void SetRegistryInt(string sVarName, int nValue);
-json RegistryGetSkippedSystems();
-void RegistryInsertSkippedSystem(string sSystem);
+
+int Registry_GetInt(string sVarName);
+void Registry_SetInt(string sVarName, int nValue);
+json Registry_GetSkippedSystems();
+void Registry_InsertSkippedSystem(string sSystem);
 
 void Registry_Init()
 {
@@ -79,22 +80,22 @@ void SqlCommitTransactionRegistry()
     SqlStep(SqlPrepareQueryCampaign(REGISTRY_DATABASE_NAME, "COMMIT;"));
 }
 
-int GetRegistryInt(string sVarName)
+int Registry_GetInt(string sVarName)
 {
     return GetCampaignInt(REGISTRY_DATABASE_NAME, sVarName);
 }
 
-void SetRegistryInt(string sVarName, int nValue)
+void Registry_SetInt(string sVarName, int nValue)
 {
     SetCampaignInt(REGISTRY_DATABASE_NAME, sVarName, nValue);
 }
 
-json RegistryGetSkippedSystems()
+json Registry_GetSkippedSystems()
 {
     return GetLocalJson(GetDataObject(REGISTRY_SCRIPT_NAME), REGISTRY_SKIPPED_SYSTEMS);
 }
 
-void RegistryInsertSkippedSystem(string sSystem)
+void Registry_InsertSkippedSystem(string sSystem)
 {
-    JsonArrayInsertStringInplace(RegistryGetSkippedSystems(), sSystem);
+    JsonArrayInsertStringInplace(Registry_GetSkippedSystems(), sSystem);
 }

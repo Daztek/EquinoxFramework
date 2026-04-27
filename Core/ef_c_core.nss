@@ -72,13 +72,13 @@ void Core_InitializeSystemData()
         nNewIncludeHash = nNewIncludeHash * 31 + HashString(ResManGetFileContents(JsonArrayGetString(jIncludes, nInclude), RESTYPE_NSS));
     }
 
-    int nOldIncludeHash = GetRegistryInt(REGISTRY_INCLUDE_HASH);
+    int nOldIncludeHash = Registry_GetInt(REGISTRY_INCLUDE_HASH);
     if (nOldIncludeHash != nNewIncludeHash)
     {
         LogInfo("Core Include Hash Changed; Forcing Revalidation -> {nOldIncludeHash} != {nNewIncludeHash}");
 
-        SetRegistryInt(REGISTRY_INCLUDE_HASH, nNewIncludeHash);
-        SetRegistryInt(REGISTRY_FORCE_REVALIDATE, TRUE);
+        Registry_SetInt(REGISTRY_INCLUDE_HASH, nNewIncludeHash);
+        Registry_SetInt(REGISTRY_FORCE_REVALIDATE, TRUE);
     }
 
     json jSystems = GetResRefArray(CORE_CORE_SCRIPT_PREFIX, RESTYPE_NSS);
@@ -130,7 +130,7 @@ void Core_ParseSystem(string sSystem)
         FindSubString(sScriptData, "@SKIPSYSTEM") != -1))
     {
         LogInfo("Skipping System: {sSystem}");
-        RegistryInsertSkippedSystem(sSystem);
+        Registry_InsertSkippedSystem(sSystem);
     }
 
     int nOldHash = Core_GetSystemHash(sSystem);
@@ -189,17 +189,18 @@ int Core_ValidateSystems()
 {
     object oModule = GetModule();
     int bValidated = TRUE;
-    int bForceRevalidate = GetRegistryInt(REGISTRY_FORCE_REVALIDATE);
+    int bForceRevalidate = Registry_GetInt(REGISTRY_FORCE_REVALIDATE);
 
     LogInfo("Validating System Data...");
 
-    sqlquery sql = SqlPrepareQueryRegistry("SELECT system, scriptdata FROM " + REGISTRY_SYSTEMS_TABLE + " WHERE hash != validated_hash OR @force_revalidate;");
-    SqlBindInt(sql, "@force_revalidate", bForceRevalidate);
+    sqlquery sqlUpdateHash = SqlPrepareQueryRegistry("UPDATE " + REGISTRY_SYSTEMS_TABLE + " SET validated_hash = hash WHERE system = @system;");
+    sqlquery sqlGetSystems = SqlPrepareQueryRegistry("SELECT system, scriptdata FROM " + REGISTRY_SYSTEMS_TABLE + " WHERE hash != validated_hash OR @force_revalidate;");
+    SqlBindInt(sqlGetSystems, "@force_revalidate", bForceRevalidate);
 
-    while (SqlStep(sql))
+    while (SqlStep(sqlGetSystems))
     {
-        string sSystem = SqlGetString(sql, 0);
-        string sScriptData = SqlGetString(sql, 1);
+        string sSystem = SqlGetString(sqlGetSystems, 0);
+        string sScriptData = SqlGetString(sqlGetSystems, 1);
         string sError = ExecuteScriptChunk(sScriptData + " " + nssVoidMain(""),  oModule, FALSE);
 
         LogInfo("Validating System: {sSystem}");
@@ -211,16 +212,15 @@ int Core_ValidateSystems()
         }
         else
         {
-            sqlquery sqlUpdateHash = SqlPrepareQueryRegistry("UPDATE " + REGISTRY_SYSTEMS_TABLE + " SET validated_hash = hash WHERE system = @system;");
             SqlBindString(sqlUpdateHash, "@system", sSystem);
-            SqlStep(sqlUpdateHash);
+            SqlStepAndReset(sqlUpdateHash);
         }
     }
 
     ResetScriptInstructions();
 
     if (bForceRevalidate && bValidated)
-        SetRegistryInt(REGISTRY_FORCE_REVALIDATE, FALSE);
+        Registry_SetInt(REGISTRY_FORCE_REVALIDATE, FALSE);
 
     return bValidated;
 }
@@ -231,7 +231,7 @@ void Core_ExecuteCoreFunction(int nCoreFunctionType)
     sqlquery sql = SqlPrepareQueryRegistry("SELECT system, function, data FROM " + REGISTRY_ANNOTATIONS_TABLE + " WHERE annotation = @annotation " +
                                            "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
     SqlBindString(sql, "@annotation", "CORE");
-    SqlBindJson(sql, "@skipped_systems", RegistryGetSkippedSystems());
+    SqlBindJson(sql, "@skipped_systems", Registry_GetSkippedSystems());
     while (SqlStep(sql))
     {
         string sSystem = SqlGetString(sql, 0);

@@ -86,7 +86,7 @@ void Annotations_ParseAnnotationData()
 {
     struct AnnotationData strAnnotationData;
     object oModule = GetModule();
-    json jSkippedSystems = RegistryGetSkippedSystems();
+    json jSkippedSystems = Registry_GetSkippedSystems();
     sqlquery sqlParseFunction = SqlPrepareQueryRegistry("SELECT system, function, data FROM " + REGISTRY_ANNOTATIONS_TABLE + " WHERE annotation = @annotation " +
                                                         "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
     SqlBindString(sqlParseFunction, "@annotation", "PAD");

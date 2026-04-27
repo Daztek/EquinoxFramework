@@ -5,9 +5,11 @@
 
 #include "ef_i_sqlite"
 #include "ef_c_registry"
+#include "ef_c_profiler"
 
 const string ANNOTATIONS_SCRIPT_NAME        = "ef_c_annotations";
 const string ANNOTATIONS_STACK_LOCATION     = "AnnotationsStackLocation";
+const int ANNOTATIONS_ENABLE_CODING_CRIMES  = FALSE;
 
 struct AnnotationData
 {
@@ -87,6 +89,19 @@ void Annotations_ParseAnnotationData()
     struct AnnotationData strAnnotationData;
     object oModule = GetModule();
     json jSkippedSystems = Registry_GetSkippedSystems();
+
+    sqlquery sqlGetStackLocations;
+    if (!ANNOTATIONS_ENABLE_CODING_CRIMES)
+    {
+        sqlGetStackLocations = SqlPrepareQueryModule("SELECT name, stack_location FROM vmstack WHERE recursion_level = @recursion_level AND name LIKE @like;");
+        SqlBindInt(sqlGetStackLocations, "@recursion_level", GetScriptRecursionLevel());
+        SqlBindString(sqlGetStackLocations, "@like", "strAnnotationData.%");
+        while (SqlStep(sqlGetStackLocations))
+        {
+            SetLocalInt(oModule, ANNOTATIONS_STACK_LOCATION + SqlGetString(sqlGetStackLocations, 0), SqlGetInt(sqlGetStackLocations, 1));
+        }
+    }
+
     sqlquery sqlParseFunction = SqlPrepareQueryRegistry("SELECT system, function, data FROM " + REGISTRY_ANNOTATIONS_TABLE + " WHERE annotation = @annotation " +
                                                         "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
     SqlBindString(sqlParseFunction, "@annotation", "PAD");
@@ -117,18 +132,49 @@ void Annotations_ParseAnnotationData()
             ResetScriptInstructions();
         }
     }
+
+    if (!ANNOTATIONS_ENABLE_CODING_CRIMES)
+    {
+        SqlResetQuery(sqlGetStackLocations);
+        while (SqlStep(sqlGetStackLocations))
+        {
+            DeleteLocalInt(oModule, ANNOTATIONS_STACK_LOCATION + SqlGetString(sqlGetStackLocations, 0));
+        }
+    }
+}
+
+string GetAnnotationStructString(string sVarName)
+{
+    return NWNX_VM_GetStackStringValue(GetLocalInt(OBJECT_SELF, ANNOTATIONS_STACK_LOCATION + sVarName));
+}
+
+json GetAnnotationStructJson(string sVarName)
+{
+    return NWNX_VM_GetStackJsonValue(GetLocalInt(OBJECT_SELF, ANNOTATIONS_STACK_LOCATION + sVarName));
 }
 
 struct AnnotationData GetAnnotationDataStruct()
 {
     struct AnnotationData strAnnotationData;
-    string sQuery = "UPDATE vmstack AS target SET value = (" +
+    if (ANNOTATIONS_ENABLE_CODING_CRIMES)
+    { // ~600 microseconds
+        string sQuery = "UPDATE vmstack AS target SET value = (" +
                         "SELECT source.value FROM vmstack AS source " +
                         "WHERE source.name = target.name AND source.recursion_level = @current_level - 1) " +
-                    "WHERE target.recursion_level = @current_level AND target.name LIKE 'strAnnotationData.%';";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
-    SqlBindInt(sql, "@current_level", GetScriptRecursionLevel());
-    SqlStep(sql);
+                        "WHERE target.recursion_level = @current_level AND target.name LIKE 'strAnnotationData.%';";
+        sqlquery sql = SqlPrepareQueryModule(sQuery);
+        SqlBindInt(sql, "@current_level", GetScriptRecursionLevel());
+        SqlStep(sql);
+    }
+    else
+    { // ~10 microseconds
+        strAnnotationData.sSystem = GetAnnotationStructString("strAnnotationData.sSystem");
+        strAnnotationData.sFunction = GetAnnotationStructString("strAnnotationData.sFunction");
+        strAnnotationData.sParameters = GetAnnotationStructString("strAnnotationData");
+        strAnnotationData.sReturnType = GetAnnotationStructString("strAnnotationData.sReturnType");
+        strAnnotationData.jArguments = GetAnnotationStructJson("strAnnotationData.jArguments");
+        strAnnotationData.sRawAnnotation = GetAnnotationStructString("strAnnotationData.sRawAnnotation");
+    }
     return strAnnotationData;
 }
 

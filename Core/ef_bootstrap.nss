@@ -1,16 +1,14 @@
-#include "ef_c_annotations"
 #include "ef_c_core"
 #include "ef_c_log"
-#include "ef_c_mediator"
 #include "ef_c_messagebus"
 #include "ef_c_profiler"
+#include "ef_c_registry"
 
 void Init()
 {
     MessageBus_Init();
     Log_Init();
     Profiler_Init();
-    Mediator_Init();
-    Annotations_Init();
+    Registry_Init();
     Core_Init();
 }

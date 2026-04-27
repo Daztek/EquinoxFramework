@@ -3,11 +3,8 @@
     Author: Daz
 */
 
-#include "ef_i_dataobject"
-#include "ef_i_sqlite"
-#include "ef_i_util"
-#include "ef_i_vm"
 #include "ef_c_log"
+#include "ef_c_registry"
 
 const string MEDIATOR_SCRIPT_NAME                       = "ef_c_mediator";
 
@@ -46,20 +43,9 @@ string RetString(int bSuccess);
 json RetJson(int bSuccess);
 void RetVoid(int bSuccess);
 
-void Mediator_Init()
-{
-    string sQuery = "CREATE TABLE IF NOT EXISTS " + MEDIATOR_SCRIPT_NAME + " (" +
-                    "system TEXT NOT NULL, " +
-                    "function TEXT NOT NULL, " +
-                    "returntype TEXT NOT NULL, " +
-                    "parameters TEXT NOT NULL, " +
-                    "scriptchunk TEXT NOT NULL);";
-    SqlStep(SqlPrepareQueryEF(sQuery));
-}
-
 void Mediator_ClearSystemFunctions(string sSystem)
 {
-    sqlquery sql = SqlPrepareQueryEF("DELETE FROM " + MEDIATOR_SCRIPT_NAME + " WHERE system = @system;");
+    sqlquery sql = SqlPrepareQueryRegistry("DELETE FROM " + REGISTRY_MEDIATOR_TABLE + " WHERE system = @system;");
     SqlBindString(sql, "@system", sSystem);
     SqlStep(sql);
 }
@@ -116,9 +102,9 @@ int Mediator_ParseFunctionDefinition(string sLine, string sSystem)
             if (MEDIATOR_PRECACHE_SYSTEM_FUNCTIONS)
                 CacheScriptChunk(sScriptChunk, FALSE, MEDIATOR_OVERRIDE_GLOBAL_CACHE_SETTING);
 
-            string sQuery = "INSERT INTO " + MEDIATOR_SCRIPT_NAME + "(system, function, returntype, parameters, scriptchunk) " +
+            string sQuery = "INSERT INTO " + REGISTRY_MEDIATOR_TABLE + "(system, function, returntype, parameters, scriptchunk) " +
                             "VALUES(@system, @function, @returntype, @parameters, @scriptchunk);";
-            sqlquery sql = SqlPrepareQueryEF(sQuery);
+            sqlquery sql = SqlPrepareQueryRegistry(sQuery);
             SqlBindString(sql, "@system", sSystem);
             SqlBindString(sql, "@function", sFunctionName);
             SqlBindString(sql, "@returntype", sReturnType);
@@ -164,10 +150,13 @@ int FunctionExists(string sSystem, string sFunction)
     int nExists = GetLocalInt(oDataObject, MEDIATOR_FUNCTION_EXISTS + sSystem + sFunction);
     if (!nExists)
     {
-        sqlquery sql = SqlPrepareQueryEF("SELECT function FROM " + MEDIATOR_SCRIPT_NAME + " WHERE " +
-            "system = @system AND function = @function;");
+        string sQuery = "SELECT function FROM " + REGISTRY_MEDIATOR_TABLE + " WHERE " +
+                        "system = @system AND function = @function " +
+                        "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));";
+        sqlquery sql = SqlPrepareQueryRegistry(sQuery);
         SqlBindString(sql, "@system", sSystem);
         SqlBindString(sql, "@function", sFunction);
+        SqlBindJson(sql, "@skipped_systems", RegistryGetSkippedSystems());
         nExists = SqlStep(sql) + 1;
         SetLocalInt(oDataObject, MEDIATOR_FUNCTION_EXISTS + sSystem + sFunction, nExists);
     }
@@ -221,11 +210,13 @@ string Function(string sSystem, string sFunction)
 
     if (sScriptChunk == "")
     {
-        string sQuery = "SELECT returntype, parameters, scriptchunk FROM " + MEDIATOR_SCRIPT_NAME + " WHERE " +
-                        "system = @system AND function = @function;";
-        sqlquery sql = SqlPrepareQueryEF(sQuery);
+        string sQuery = "SELECT returntype, parameters, scriptchunk FROM " + REGISTRY_MEDIATOR_TABLE + " WHERE " +
+                        "system = @system AND function = @function " +
+                        "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));";
+        sqlquery sql = SqlPrepareQueryRegistry(sQuery);
         SqlBindString(sql, "@system", sSystem);
         SqlBindString(sql, "@function", sFunction);
+        SqlBindJson(sql, "@skipped_systems", RegistryGetSkippedSystems());
 
         if (SqlStep(sql))
         {

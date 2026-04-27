@@ -7,14 +7,13 @@
 #include "ef_c_annotations"
 #include "ef_c_log"
 #include "ef_c_mediator"
+#include "ef_c_registry"
 #include "nwnx_admin"
 
 const string CORE_SCRIPT_NAME                       = "ef_c_core";
 const int CORE_VALIDATE_SYSTEMS                     = TRUE;
 const int CORE_SHUTDOWN_ON_VALIDATION_FAILURE       = FALSE;
 const int CORE_DEBUG_MINIMAL_LOAD                   = FALSE;
-
-const string CORE_FORCE_REVALIDATE                  = "CORE_FORCE_REVALIDATE";
 
 const int CORE_SYSTEM_INIT                          = 1;
 const int CORE_SYSTEM_LOAD                          = 2;
@@ -25,7 +24,6 @@ const string CORE_SYSTEM_SCRIPT_PREFIX              = "ef_s_";
 const string CORE_INCLUDE_SCRIPT_PREFIX             = "ef_i_";
 
 void Core_InitializeSystemData();
-json Core_GetSkippedSystems();
 void Core_ParseSystem(string sSystem);
 int Core_ValidateSystems();
 void Core_ExecuteCoreFunction(int nCoreFunctionType);
@@ -52,7 +50,7 @@ void Core_Init()
     LogInfo("Executing System 'Init' Functions...");
     Core_ExecuteCoreFunction(CORE_SYSTEM_INIT);
     LogInfo("Parsing Annotation Data...");
-    Annotations_ParseAnnotationData(Core_GetSkippedSystems());
+    Annotations_ParseAnnotationData();
     LogInfo("Executing System 'Load' Functions...");
     Core_ExecuteCoreFunction(CORE_SYSTEM_LOAD);
     LogInfo("Executing System 'Post' Functions...");
@@ -66,15 +64,6 @@ void Core_InitializeSystemData()
 {
     LogInfo("Initializing System Data...");
 
-    SetLocalJson(GetDataObject(CORE_SCRIPT_NAME), "SKIPPED_SYSTEMS", JsonArray());
-
-    string sQuery = "CREATE TABLE IF NOT EXISTS " + CORE_SCRIPT_NAME + "_systems (" +
-                    "system TEXT NOT NULL PRIMARY KEY, " +
-                    "hash INTEGER NOT NULL, " +
-                    "validated_hash INTEGER NOT NULL DEFAULT 0, " +
-                    "scriptdata TEXT NOT NULL);";
-    SqlStep(SqlPrepareQueryEF(sQuery));
-
     json jIncludes = GetResRefArray(CORE_INCLUDE_SCRIPT_PREFIX, RESTYPE_NSS);
     jIncludes = JsonArrayTransform(jIncludes, JSON_ARRAY_SORT_ASCENDING);
     int nNewIncludeHash, nInclude, nNumIncludes = JsonGetLength(jIncludes);
@@ -83,13 +72,13 @@ void Core_InitializeSystemData()
         nNewIncludeHash = nNewIncludeHash * 31 + HashString(ResManGetFileContents(JsonArrayGetString(jIncludes, nInclude), RESTYPE_NSS));
     }
 
-    int nOldIncludeHash = GetCampaignInt(EF_DATABASE_NAME, "INCLUDE_HASH");
+    int nOldIncludeHash = GetRegistryInt(REGISTRY_INCLUDE_HASH);
     if (nOldIncludeHash != nNewIncludeHash)
     {
-        LogInfo("Include Hash Changed; Forcing Revalidation -> {nOldIncludeHash} != {nNewIncludeHash}");
+        LogInfo("Core Include Hash Changed; Forcing Revalidation -> {nOldIncludeHash} != {nNewIncludeHash}");
 
-        SetCampaignInt(EF_DATABASE_NAME, "INCLUDE_HASH", nNewIncludeHash);
-        SetCampaignInt(EF_DATABASE_NAME, CORE_FORCE_REVALIDATE, TRUE);
+        SetRegistryInt(REGISTRY_INCLUDE_HASH, nNewIncludeHash);
+        SetRegistryInt(REGISTRY_FORCE_REVALIDATE, TRUE);
     }
 
     json jSystems = GetResRefArray(CORE_CORE_SCRIPT_PREFIX, RESTYPE_NSS);
@@ -102,14 +91,14 @@ void Core_InitializeSystemData()
         Core_ParseSystem(JsonArrayGetString(jSystems, nSystem));
     }
 
-    sQuery = "DELETE FROM " + CORE_SCRIPT_NAME + "_systems WHERE system NOT IN (SELECT value FROM JSON_EACH(@systems)) RETURNING system;";
-    sqlquery sql = SqlPrepareQueryEF(sQuery);
+    string sQuery = "DELETE FROM " + REGISTRY_SYSTEMS_TABLE + " WHERE system NOT IN (SELECT value FROM JSON_EACH(@systems)) RETURNING system;";
+    sqlquery sql = SqlPrepareQueryRegistry(sQuery);
     SqlBindJson(sql, "@systems", jSystems);
     while (SqlStep(sql))
     {
         string sSystem = SqlGetString(sql, 0);
 
-        LogInfo("Deleting Stale System Data '{sSystem}'");
+        LogInfo("Deleting Stale System Data: {sSystem}");
         Mediator_ClearSystemFunctions(sSystem);
         Annotations_ClearSystemAnnotations(sSystem);
     }
@@ -117,8 +106,8 @@ void Core_InitializeSystemData()
 
 void Core_InsertSystem(string sSystem, int nHash, string sScriptData)
 {
-    string sQuery = "INSERT OR REPLACE INTO " + CORE_SCRIPT_NAME + "_systems(system, hash, scriptdata) VALUES(@system, @hash, @scriptdata);";
-    sqlquery sql = SqlPrepareQueryEF(sQuery);
+    string sQuery = "INSERT OR REPLACE INTO " + REGISTRY_SYSTEMS_TABLE + "(system, hash, scriptdata) VALUES(@system, @hash, @scriptdata);";
+    sqlquery sql = SqlPrepareQueryRegistry(sQuery);
     SqlBindString(sql, "@system", sSystem);
     SqlBindInt(sql, "@hash", nHash);
     SqlBindString(sql, "@scriptdata", sScriptData);
@@ -127,19 +116,9 @@ void Core_InsertSystem(string sSystem, int nHash, string sScriptData)
 
 int Core_GetSystemHash(string sSystem)
 {
-    sqlquery sql = SqlPrepareQueryEF("SELECT hash FROM " + CORE_SCRIPT_NAME + "_systems WHERE system = @system");
+    sqlquery sql = SqlPrepareQueryRegistry("SELECT hash FROM " + REGISTRY_SYSTEMS_TABLE + " WHERE system = @system");
     SqlBindString(sql, "@system", sSystem);
     return SqlStep(sql) ? SqlGetInt(sql, 0) : 0;
-}
-
-json Core_GetSkippedSystems()
-{
-    return GetLocalJson(GetDataObject(CORE_SCRIPT_NAME), "SKIPPED_SYSTEMS");
-}
-
-void Core_InsertSkippedSystem(string sSystem)
-{
-    JsonArrayInsertStringInplace(Core_GetSkippedSystems(), sSystem);
 }
 
 void Core_ParseSystem(string sSystem)
@@ -150,8 +129,8 @@ void Core_ParseSystem(string sSystem)
         ((CORE_DEBUG_MINIMAL_LOAD && sSystem != "ef_s_debug" && sSystem != "ef_s_eventman") ||
         FindSubString(sScriptData, "@SKIPSYSTEM") != -1))
     {
-        LogInfo("Skipping System '{sSystem}'");
-        Core_InsertSkippedSystem(sSystem);
+        LogInfo("Skipping System: {sSystem}");
+        RegistryInsertSkippedSystem(sSystem);
     }
 
     int nOldHash = Core_GetSystemHash(sSystem);
@@ -159,9 +138,9 @@ void Core_ParseSystem(string sSystem)
 
     if (nOldHash != nNewHash)
     {
-        LogInfo("Parsing System '{sSystem}' -> {nOldHash} != {nNewHash}");
+        LogInfo("Parsing System: {sSystem} -> {nOldHash} != {nNewHash}");
 
-        SqlBeginTransactionEF();
+        SqlBeginTransactionRegistry();
 
         Mediator_ClearSystemFunctions(sSystem);
         Annotations_ClearSystemAnnotations(sSystem);
@@ -200,19 +179,21 @@ void Core_ParseSystem(string sSystem)
             }
         }
 
-        SqlCommitTransactionEF();
+        SqlCommitTransactionRegistry();
     }
+
+    ResetScriptInstructions();
 }
 
 int Core_ValidateSystems()
 {
     object oModule = GetModule();
     int bValidated = TRUE;
-    int bForceRevalidate = GetCampaignInt(EF_DATABASE_NAME, CORE_FORCE_REVALIDATE);
+    int bForceRevalidate = GetRegistryInt(REGISTRY_FORCE_REVALIDATE);
 
     LogInfo("Validating System Data...");
 
-    sqlquery sql = SqlPrepareQueryEF("SELECT system, scriptdata FROM " + CORE_SCRIPT_NAME + "_systems WHERE hash != validated_hash OR @force_revalidate;");
+    sqlquery sql = SqlPrepareQueryRegistry("SELECT system, scriptdata FROM " + REGISTRY_SYSTEMS_TABLE + " WHERE hash != validated_hash OR @force_revalidate;");
     SqlBindInt(sql, "@force_revalidate", bForceRevalidate);
 
     while (SqlStep(sql))
@@ -221,7 +202,7 @@ int Core_ValidateSystems()
         string sScriptData = SqlGetString(sql, 1);
         string sError = ExecuteScriptChunk(sScriptData + " " + nssVoidMain(""),  oModule, FALSE);
 
-        LogInfo("Validating System '{sSystem}'");
+        LogInfo("Validating System: {sSystem}");
 
         if (sError != "")
         {
@@ -230,7 +211,7 @@ int Core_ValidateSystems()
         }
         else
         {
-            sqlquery sqlUpdateHash = SqlPrepareQueryEF("UPDATE " + CORE_SCRIPT_NAME + "_systems SET validated_hash = hash WHERE system = @system;");
+            sqlquery sqlUpdateHash = SqlPrepareQueryRegistry("UPDATE " + REGISTRY_SYSTEMS_TABLE + " SET validated_hash = hash WHERE system = @system;");
             SqlBindString(sqlUpdateHash, "@system", sSystem);
             SqlStep(sqlUpdateHash);
         }
@@ -239,7 +220,7 @@ int Core_ValidateSystems()
     ResetScriptInstructions();
 
     if (bForceRevalidate && bValidated)
-        SetCampaignInt(EF_DATABASE_NAME, CORE_FORCE_REVALIDATE, FALSE);
+        SetRegistryInt(REGISTRY_FORCE_REVALIDATE, FALSE);
 
     return bValidated;
 }
@@ -247,10 +228,10 @@ int Core_ValidateSystems()
 void Core_ExecuteCoreFunction(int nCoreFunctionType)
 {
     object oModule = GetModule();
-    sqlquery sql = SqlPrepareQueryEF("SELECT system, function, data FROM " + ANNOTATIONS_SCRIPT_NAME + " WHERE annotation = @annotation " +
-                                     "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
+    sqlquery sql = SqlPrepareQueryRegistry("SELECT system, function, data FROM " + REGISTRY_ANNOTATIONS_TABLE + " WHERE annotation = @annotation " +
+                                           "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
     SqlBindString(sql, "@annotation", "CORE");
-    SqlBindJson(sql, "@skipped_systems", Core_GetSkippedSystems());
+    SqlBindJson(sql, "@skipped_systems", RegistryGetSkippedSystems());
     while (SqlStep(sql))
     {
         string sSystem = SqlGetString(sql, 0);

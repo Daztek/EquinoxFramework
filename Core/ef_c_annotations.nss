@@ -3,9 +3,8 @@
     Author: Daz
 */
 
-#include "ef_i_json"
 #include "ef_i_sqlite"
-#include "ef_i_vm"
+#include "ef_c_registry"
 
 const string ANNOTATIONS_SCRIPT_NAME        = "ef_c_annotations";
 const string ANNOTATIONS_STACK_LOCATION     = "AnnotationsStackLocation";
@@ -27,22 +26,9 @@ string GetAnnotationStringConstantValue(struct AnnotationData str, int nIndex);
 int GetAnnotationIntConstantValue(struct AnnotationData str, int nIndex);
 float GetAnnotationFloatConstantValue(struct AnnotationData str, int nIndex);
 
-void Annotations_Init()
-{
-    string sQuery = "CREATE TABLE IF NOT EXISTS " + ANNOTATIONS_SCRIPT_NAME + " (" +
-                    "system TEXT NOT NULL, " +
-                    "annotation TEXT NOT NULL, " +
-                    "function TEXT NOT NULL, " +
-                    "parameters TEXT NOT NULL, " +
-                    "return_type TEXT NOT NULL, " +
-                    "data TEXT NOT NULL, " +
-                    "raw TEXT NOT NULL);";
-    SqlStep(SqlPrepareQueryEF(sQuery));
-}
-
 void Annotations_ClearSystemAnnotations(string sSystem)
 {
-    sqlquery sql = SqlPrepareQueryEF("DELETE FROM " + ANNOTATIONS_SCRIPT_NAME + " WHERE system = @system;");
+    sqlquery sql = SqlPrepareQueryRegistry("DELETE FROM " + REGISTRY_ANNOTATIONS_TABLE + " WHERE system = @system;");
     SqlBindString(sql, "@system", sSystem);
     SqlStep(sql);
 }
@@ -78,9 +64,9 @@ int Annotations_InsertAnnotation(string sSystem, string sLine, json jAnnotations
             string sAnnotation = JsonArrayGetString(jAnnotation, 1);
             json jData = GetJsonArrayFromTokenizedString(JsonArrayGetString(jAnnotation, 2));
 
-            string sQuery = "INSERT INTO " + ANNOTATIONS_SCRIPT_NAME + "(system, annotation, function, parameters, return_type, data, raw) " +
+            string sQuery = "INSERT INTO " + REGISTRY_ANNOTATIONS_TABLE + "(system, annotation, function, parameters, return_type, data, raw) " +
                             "VALUES(@system, @annotation, @function, @parameters, @return_type, @data, @raw);";
-            sqlquery sql = SqlPrepareQueryEF(sQuery);
+            sqlquery sql = SqlPrepareQueryRegistry(sQuery);
             SqlBindString(sql, "@system", sSystem);
             SqlBindString(sql, "@annotation", sAnnotation);
             SqlBindString(sql, "@function", sFunction);
@@ -96,12 +82,13 @@ int Annotations_InsertAnnotation(string sSystem, string sLine, json jAnnotations
     return FALSE;
 }
 
-void Annotations_ParseAnnotationData(json jSkippedSystems)
+void Annotations_ParseAnnotationData()
 {
     struct AnnotationData strAnnotationData;
     object oModule = GetModule();
-    sqlquery sqlParseFunction = SqlPrepareQueryEF("SELECT system, function, data FROM " + ANNOTATIONS_SCRIPT_NAME + " WHERE annotation = @annotation " +
-                                                  "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
+    json jSkippedSystems = RegistryGetSkippedSystems();
+    sqlquery sqlParseFunction = SqlPrepareQueryRegistry("SELECT system, function, data FROM " + REGISTRY_ANNOTATIONS_TABLE + " WHERE annotation = @annotation " +
+                                                        "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
     SqlBindString(sqlParseFunction, "@annotation", "PAD");
     SqlBindJson(sqlParseFunction, "@skipped_systems", jSkippedSystems);
 
@@ -112,8 +99,8 @@ void Annotations_ParseAnnotationData(json jSkippedSystems)
         string sAnnotation = JsonArrayGetString(SqlGetJson(sqlParseFunction, 2), 0);
         string sAnnotationFunction = nssFunction(sFunction, nssFunction("GetAnnotationDataStruct", "", FALSE));
 
-        sqlquery sqlAnnotationData = SqlPrepareQueryEF("SELECT system, function, parameters, return_type, data, raw FROM " + ANNOTATIONS_SCRIPT_NAME + " " +
-                                                       "WHERE annotation = @annotation AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
+        sqlquery sqlAnnotationData = SqlPrepareQueryRegistry("SELECT system, function, parameters, return_type, data, raw FROM " + REGISTRY_ANNOTATIONS_TABLE + " " +
+                                                             "WHERE annotation = @annotation AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
         SqlBindString(sqlAnnotationData, "@annotation", sAnnotation);
         SqlBindJson(sqlAnnotationData, "@skipped_systems", jSkippedSystems);
 

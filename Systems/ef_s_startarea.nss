@@ -8,7 +8,6 @@
 #include "ef_c_mediator"
 #include "ef_c_profiler"
 #include "ef_s_areagen"
-#include "ef_s_grass"
 
 const string SA_SCRIPT_NAME                         = "ef_s_startarea";
 const int SA_DEBUG_LOG                              = FALSE;
@@ -141,7 +140,6 @@ void SA_OnAreaGenerated(string sAreaID)
 
         object oArea = GetObjectByTag(SA_STARTING_AREA_TAG);
         SetTileJson(oArea, jTileData, SETTILE_FLAG_RELOAD_BORDER | SETTILE_FLAG_RECOMPUTE_LIGHTING);
-        Grass_SetGrass(oArea, GRASS_DEFAULT_TEXTURE);
         DelayCommand(1.0f, RetVoid(Call(Function("ef_s_endlesspath", "EP_BeginPath"), ObjectArg(oArea))));
     }
 }

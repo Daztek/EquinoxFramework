@@ -36,9 +36,6 @@ void SqlBindVectorAsFloats(sqlquery sqlQuery, string sParamPrefix, vector vVecto
 vector SqlGetVectorFromFloats(sqlquery sqlQuery, int nIndexX, int nIndexY, int nIndexZ);
 location SqlGetLocation(sqlquery sqlQuery, int nIndexArea, int nIndexX, int nIndexY, int nIndexZ, int nIndexFacing);
 string SqlEscapeWildcard(string sInput, string sWildcard, string sEscape);
-sqlquery SqlPrepareQueryEF(string sQuery);
-void SqlBeginTransactionEF();
-void SqlCommitTransactionEF();
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -217,19 +214,4 @@ string SqlEscapeWildcard(string sInput, string sWildcard, string sEscape)
             sResult += sCharacter;
     }
     return sResult;
-}
-
-sqlquery SqlPrepareQueryEF(string sQuery)
-{
-    return SqlPrepareQueryCampaign(EF_DATABASE_NAME, sQuery);
-}
-
-void SqlBeginTransactionEF()
-{
-    SqlStep(SqlPrepareQueryCampaign(EF_DATABASE_NAME, "BEGIN TRANSACTION;"));
-}
-
-void SqlCommitTransactionEF()
-{
-    SqlStep(SqlPrepareQueryCampaign(EF_DATABASE_NAME, "COMMIT;"));
 }

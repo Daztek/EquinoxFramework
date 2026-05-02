@@ -101,7 +101,7 @@ void AIMan_SetBehavior(object oCreature, string sBehavior)
         EM_ObjectDispatchListInsert(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, EVENT_SCRIPT_CREATURE_ON_DEATH));
     }
 
-    //LogInfo(Profiler_Stop());
+    //Profiler_Stop();
 }
 
 void AIMan_UnsetBehavior(object oCreature)
@@ -140,7 +140,7 @@ void AIMan_UnsetBehavior(object oCreature)
         EM_ObjectDispatchListRemove(oCreature, EM_GetObjectDispatchListId(AIMAN_SCRIPT_NAME, EVENT_SCRIPT_CREATURE_ON_DEATH));
     }
 
-    //LogInfo(Profiler_Stop());
+    //Profiler_Stop();
 }
 
 int AIMan_GetTimeOut(string sTimeoutFlag, object oCreature = OBJECT_SELF)
@@ -211,5 +211,5 @@ void AIMan_HandleAIEvent(int nEventType)
         }
     }
 
-    //LogInfo(Profiler_Stop());
+    //Profiler_Stop();
 }

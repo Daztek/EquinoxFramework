@@ -236,7 +236,7 @@ string Function(string sSystem, string sFunction)
 string Closure(string sFunctionBody, string sCaptureList = "", string sParameters = "", string sReturnType = "", string sInclude = "", int nDepthOffset = 0)
 {
     object oFDO = GetDataObject(MEDIATOR_SCRIPT_NAME);
-    int nDepth = 2 + nDepthOffset;
+    int nDepth = 1 + nDepthOffset;
     struct VMFrame strFrame = GetVMFrame(nDepth);
     string sHash = IntToString(HashString(sReturnType + sFunctionBody + sParameters + sCaptureList + strFrame.sFunction + IntToString(strFrame.nLine)));
     int nClosureId = GetLocalInt(oFDO, MEDIATOR_CLOSURE_ID + sHash);

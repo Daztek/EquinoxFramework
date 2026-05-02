@@ -374,7 +374,7 @@ void VMan_ShowMainWindow()
     {
         Profiler_Start("VMan_LoadCharacterList");
         VMan_LoadCharacterList();
-        LogInfo(Profiler_Stop());
+        Profiler_Stop();
 
         VMan_UpdateSelectedCharacterData(StringToInt(NWNX_Player_GetBicFileName(oPlayer)));
     }
@@ -588,7 +588,7 @@ void VMan_UpdateSelectedCharacterData(int nNewId)
             VMan_UpdateItems(nNewId, sName);
     }
 
-    LogInfo(Profiler_Stop());
+    Profiler_Stop();
 }
 
 string VMan_EventToString(int nEvent)

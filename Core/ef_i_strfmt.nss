@@ -86,7 +86,7 @@ string FormatString(string sString, int nDepthOverride = 0)
     if (!nNumVariables)
         return sString;
 
-    json jStack = NWNX_VM_GetStackVariables(2 + nDepthOverride);
+    json jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
     string sResult = sString;
 
     for (nIndex = 0; nIndex < nNumVariables; nIndex++)

@@ -40,7 +40,7 @@ string ObjectTag_TestNearest(string sTag = "SEAT")
 {
     Profiler_Start("ObjectTag_GetNearestObjectWithTag");
     object oObject = ObjectTag_GetNearestObjectWithTag(OBJECT_SELF, sTag);
-    string s = Profiler_Stop();
+    string s = Profiler_Stop(FALSE);
     ApplyEffectToObject(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_IMP_KNOCK), oObject);
     return s;
 }
@@ -50,7 +50,7 @@ string ObjectTag_TestObjects(string sTag = "SEAT")
 {
     Profiler_Start("ObjectTag_GetObjectsWithTag");
     json jObjects = ObjectTag_GetObjectsWithTag(OBJECT_SELF, sTag);
-    string s = Profiler_Stop();
+    string s = Profiler_Stop(FALSE);
 
     return s + "\n\n" + JsonDump(jObjects, 0);
 }
@@ -120,6 +120,7 @@ void ObjectTag_UpdateAreaAndPosition(object oObject, object oArea, vector vPosit
     SqlBindObjectRef(sql, "@object", oObject);
     SqlBindObjectRef(sql, "@area", oArea);
     SqlBindVectorAsFloats(sql, "pos_", vPosition);
+    SqlStep(sql);
 }
 
 object ObjectTag_GetNearestObjectWithTag(object oOrigin, string sTag)

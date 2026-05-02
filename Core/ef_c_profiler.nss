@@ -20,7 +20,7 @@ const int PROFILER_INSTRUCTION_OVERHEAD                 = 17;
 const int PROFILER_MICROSECOND_OVERHEAD                 = 1;
 
 void Profiler_Start(string sIdentifier = "");
-string Profiler_Stop();
+string Profiler_Stop(int bPrint = TRUE);
 
 void Profiler_Init()
 {
@@ -67,7 +67,7 @@ void Profiler_Start(string sIdentifier = "")
     SetLocalInt(oDataObject, PROFILER_START_MICROSECONDS, GetMicrosecondCounter());
 }
 
-string Profiler_Stop()
+string Profiler_Stop(int bPrint = TRUE)
 {
     int nEndMicroseconds = GetMicrosecondCounter();
     int nEndInstructions = GetScriptInstructionsRemaining();
@@ -80,6 +80,10 @@ string Profiler_Stop()
 
     Profiler_Insert(nHash, nElapsedMicroseconds, nUsedInstructions);
 
-    return "[" + sHashString + "] Time: " + Profiler_FormatTime(nElapsedMicroseconds) +
-            " | Instructions: " + IntToString(nUsedInstructions) + " | " + Profiler_GetTimeStats(nHash);
+    string sRetVal = "[" + sHashString + "] Time: " + Profiler_FormatTime(nElapsedMicroseconds) +
+                     " | Instructions: " + IntToString(nUsedInstructions) + " | " + Profiler_GetTimeStats(nHash);
+    if (bPrint)
+        PrintString(sRetVal);
+
+    return sRetVal;
 }

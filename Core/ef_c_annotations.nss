@@ -87,22 +87,35 @@ void Annotations_ParseAnnotationData()
     struct AnnotationData strAnnotationData;
     object oModule = GetModule();
     json jSkippedSystems = Registry_GetSkippedSystems();
-    sqlquery sqlParseFunction = SqlPrepareQueryRegistry("SELECT system, function, data FROM " + REGISTRY_ANNOTATIONS_TABLE + " WHERE annotation = @annotation " +
-                                                        "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
+
+    sqlquery sqlTeleportStruct = SqlPrepareQueryModule(
+        "UPDATE vmstack AS target SET value = (" +
+        "SELECT source.value FROM vmstack AS source " +
+        "WHERE source.name = target.name AND source.recursion_level = @current_level AND source.name LIKE 'strAnnotationData.%') " +
+        "WHERE target.recursion_level = @current_level + 1 AND target.name LIKE 'strAnnotationData.%';");
+    SqlBindInt(sqlTeleportStruct, "@current_level", GetScriptRecursionLevel());
+    struct NWNX_VM_StackVariable strStackVariable = NWNX_VM_GetStackVariable("sqlTeleportStruct");
+    string sStructFunction = nssFunction("GetAnnotationDataStruct", IntToString(strStackVariable.nStackLocation), FALSE);
+
+    sqlquery sqlParseFunction = SqlPrepareQueryRegistry(
+        "SELECT system, function, data FROM " + REGISTRY_ANNOTATIONS_TABLE + " WHERE annotation = @annotation " +
+        "AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
     SqlBindString(sqlParseFunction, "@annotation", "PAD");
     SqlBindJson(sqlParseFunction, "@skipped_systems", jSkippedSystems);
+
+    sqlquery sqlAnnotationData = SqlPrepareQueryRegistry(
+        "SELECT system, function, parameters, return_type, data, raw FROM " + REGISTRY_ANNOTATIONS_TABLE + " " +
+        "WHERE annotation = @annotation AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
+    SqlBindJson(sqlAnnotationData, "@skipped_systems", jSkippedSystems);
 
     while (SqlStep(sqlParseFunction))
     {
         string sSystem = SqlGetString(sqlParseFunction, 0);
         string sFunction = SqlGetString(sqlParseFunction, 1);
         string sAnnotation = JsonArrayGetString(SqlGetJson(sqlParseFunction, 2), 0);
-        string sAnnotationFunction = nssFunction(sFunction, nssFunction("GetAnnotationDataStruct", "", FALSE));
+        string sAnnotationFunction = nssFunction(sFunction, sStructFunction);
 
-        sqlquery sqlAnnotationData = SqlPrepareQueryRegistry("SELECT system, function, parameters, return_type, data, raw FROM " + REGISTRY_ANNOTATIONS_TABLE + " " +
-                                                             "WHERE annotation = @annotation AND system NOT IN (SELECT value FROM JSON_EACH(@skipped_systems));");
         SqlBindString(sqlAnnotationData, "@annotation", sAnnotation);
-        SqlBindJson(sqlAnnotationData, "@skipped_systems", jSkippedSystems);
 
         while (SqlStep(sqlAnnotationData))
         {
@@ -116,19 +129,15 @@ void Annotations_ParseAnnotationData()
             ExecuteScriptChunk(nssInclude(ANNOTATIONS_SCRIPT_NAME) + nssInclude(sSystem) + nssVoidMain(sAnnotationFunction), oModule, FALSE);
             ResetScriptInstructions();
         }
+
+        SqlResetQuery(sqlAnnotationData);
     }
 }
 
-struct AnnotationData GetAnnotationDataStruct()
+struct AnnotationData GetAnnotationDataStruct(int nStackLocation)
 {
     struct AnnotationData strAnnotationData;
-    string sQuery = "UPDATE vmstack AS target SET value = (" +
-                    "SELECT source.value FROM vmstack AS source " +
-                    "WHERE source.name = target.name AND source.recursion_level = @current_level - 1 AND source.name LIKE 'strAnnotationData.%') " +
-                    "WHERE target.recursion_level = @current_level AND target.name LIKE 'strAnnotationData.%';";
-    sqlquery sql = SqlPrepareQueryModule(sQuery);
-    SqlBindInt(sql, "@current_level", GetScriptRecursionLevel());
-    SqlStep(sql);
+    SqlStepAndReset(NWNX_VM_GetStackSqlQueryValue(nStackLocation), FALSE);
     return strAnnotationData;
 }
 

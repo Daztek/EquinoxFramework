@@ -261,7 +261,7 @@ void BTT_RecursiveTick(object oBehaviorTree, object oBlackboard, object oSelf)
 {
     //Profiler_Start("BTT_RecursiveTick");
     BT_BehaviorTree_Tick(oBehaviorTree, oBlackboard, oSelf);
-    //PrintString(Profiler_Stop());
+    //Profiler_Stop();
     DelayCommand(3.0f, BTT_RecursiveTick(oBehaviorTree, oBlackboard, oSelf));
 }
 

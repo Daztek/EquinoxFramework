@@ -502,7 +502,7 @@ json StructToJsonImpl(string sMemberStructVarName, string sParentStructVarName, 
 
 json StructToJson(string sStructVarName, int nDepthOverride = 0)
 {
-    json jStack = NWNX_VM_GetStackVariables(2 + nDepthOverride);
+    json jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
     return StructToJsonImpl(sStructVarName, "", jStack, JsonObjectKeys(jStack));
 }
 
@@ -579,6 +579,6 @@ int JsonToStructImpl(string sMemberStructVarName, string sParentStructVarName, j
 
 int JsonToStruct(string sStructVarName, json jStruct, int nDepthOverride = 0)
 {
-    json jStack = NWNX_VM_GetStackVariables(2 + nDepthOverride);
+    json jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
     return JsonToStructImpl(sStructVarName, "", jStruct, jStack);
 }

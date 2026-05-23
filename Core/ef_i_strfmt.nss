@@ -12,6 +12,9 @@
 
 const string STRFMT_SCRIPT_NAME     = "ef_i_strfmt";
 const string STRFMT_CACHE_PREFIX    = "StringFormatCache_";
+const string STRFMT_INVALID_STRING  = "[STRFMT_INVALID_STRING]";
+const string STRFMT_LB_SENTINEL     = "~LB~";
+const string STRFMT_RB_SENTINEL     = "~RB~";
 
 struct Value
 {
@@ -59,6 +62,8 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
 json ParseParameters(string sParameters);
 string GetPropertyValue(struct PropertyChain strPC);
 struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC);
+string HandleColorProperty(struct Value strValue, json jParameters);
+string HandlePaddingProperty(struct Value strValue, json jParameters, string sProperty);
 struct PropertyChain GetIntProperty(struct PropertyChain strPC);
 struct PropertyChain GetFloatProperty(struct PropertyChain strPC);
 struct PropertyChain GetStringProperty(struct PropertyChain strPC);
@@ -71,20 +76,34 @@ string FormatString(string sString, int nDepthOverride = 0)
     if (sString == "" || FindSubString(sString, "{", 0) == -1)
         return sString;
 
+    int bHasEscapes = FindSubString(sString, "{{", 0) != -1 || FindSubString(sString, "}}", 0) != -1;
+    if (bHasEscapes)
+    {
+        sString = RegExpReplace("\\{\\{", sString, STRFMT_LB_SENTINEL);
+        sString = RegExpReplace("\\}\\}", sString, STRFMT_RB_SENTINEL);
+    }
+
     object oDataObject = GetDataObject(STRFMT_SCRIPT_NAME);
-    int nHash = HashString(sString);
-    json jVariables = GetLocalJson(oDataObject, STRFMT_CACHE_PREFIX + IntToString(nHash));
+    string sHash = IntToString(HashString(sString)) + "_" + IntToString(GetStringLength(sString));
+    json jVariables = GetLocalJson(oDataObject, STRFMT_CACHE_PREFIX + sHash);
 
     if (!JsonGetType(jVariables))
     {
-        jVariables = RegExpIterate("\\{([\\w\\.>\\(\\),0-9]+)(?::(%[a-z0-9\\.]{0,5}))?\\}", sString);
-        SetLocalJson(oDataObject, STRFMT_CACHE_PREFIX + IntToString(nHash), jVariables);
+        jVariables = RegExpIterate("\\{([^}:]+)(?::(%[a-z0-9.]{0,7}))?\\}", sString);
+        SetLocalJson(oDataObject, STRFMT_CACHE_PREFIX + sHash, jVariables);
     }
 
     int nIndex, nNumVariables = JsonGetLength(jVariables);
 
     if (!nNumVariables)
+    {
+        if (bHasEscapes)
+        {
+            sString = RegExpReplace(STRFMT_LB_SENTINEL, sString, "{");
+            sString = RegExpReplace(STRFMT_RB_SENTINEL, sString, "}");
+        }
         return sString;
+    }
 
     json jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
     string sResult = sString;
@@ -97,7 +116,15 @@ string FormatString(string sString, int nDepthOverride = 0)
         string sFormatSpecifier = GetStringLowerCase(JsonArrayGetString(jVariable, 2));
         string sValue = GetFormattedValue(jStack, sVarName, sFormatSpecifier);
         sResult = RegExpReplace(sPattern, sResult, sValue, REGEXP_ECMASCRIPT, REGEXP_FORMAT_FIRST_ONLY);
+
     }
+
+    if (bHasEscapes)
+    {
+        sResult = RegExpReplace(STRFMT_LB_SENTINEL, sResult, "{");
+        sResult = RegExpReplace(STRFMT_RB_SENTINEL, sResult, "}");
+    }
+
     return sResult;
 }
 
@@ -149,14 +176,10 @@ string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier)
 string FormatValueByType(struct Value strValue)
 {
     if (strValue.sFormatSpecifier == "%s")
-    {
         return FormatAsString(strValue);
-    }
 
     if (strValue.sFormatSpecifier == "%i")
-    {
         return FormatAsInteger(strValue);
-    }
 
     if (strValue.sFormatSpecifier == "%f" ||
         (GetStringLeft(strValue.sFormatSpecifier, 2) == "%." && GetStringRight(strValue.sFormatSpecifier, 1) == "f"))
@@ -165,14 +188,10 @@ string FormatValueByType(struct Value strValue)
     }
 
     if (strValue.sFormatSpecifier == "%x")
-    {
         return FormatAsHex(strValue);
-    }
 
     if (strValue.sFormatSpecifier == "%b")
-    {
         return FormatAsBoolean(strValue);
-    }
 
     return "[INVALID_FORMAT:" + strValue.sFormatSpecifier + "->" + AuxTypeToString(strValue.nAuxType) + "]";
 }
@@ -202,13 +221,7 @@ string FormatAsString(struct Value strValue)
             return GetTag(oArea) + "[" + FloatToString(vPosition.x, 0, 2) + "," + FloatToString(vPosition.y, 0, 2) + "," +
                 FloatToString(vPosition.z, 0, 2) + "]@" + FloatToString(fFacing, 0, 1);
         }
-        case NWNX_VM_AUXTYPE_JSON:
-        {
-            string sJson = JsonDump(strValue.jValue);
-            if (GetStringLength(sJson) > 200)
-                sJson = GetStringLeft(sJson, 197) + "...";
-            return sJson;
-        }
+        case NWNX_VM_AUXTYPE_JSON: return JsonDump(strValue.jValue);
     }
     return "[TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->%s]";
 }
@@ -426,14 +439,39 @@ json ParseParameters(string sParameters)
         return JsonArray();
 
     json jParams = JsonArray();
-    json jMatches = RegExpIterate("([^,]+)", sParameters);
+    string sCurrent, sQuoteChar;
+    int bInQuotes = FALSE;
+    int nIndex, nLength = GetStringLength(sParameters);
 
-    int nIndex, nCount = JsonGetLength(jMatches);
-    for (nIndex = 0; nIndex < nCount; nIndex++)
+    for (nIndex = 0; nIndex < nLength; nIndex++)
     {
-        string sParam = trim(JsonArrayGetString(JsonArrayGet(jMatches, nIndex), 1));
-        JsonArrayInsertInplace(jParams, JsonString(sParam));
+        string sChar = GetSubString(sParameters, nIndex, 1);
+
+        if (sChar == "\"" || sChar == "'")
+        {
+            if (!bInQuotes)
+            {
+                bInQuotes = TRUE;
+                sQuoteChar = sChar;
+            }
+            else if (sChar == sQuoteChar)
+                bInQuotes = FALSE;
+            else
+                sCurrent += sChar;
+        }
+        else if (sChar == "," && !bInQuotes)
+        {
+            JsonArrayInsertInplace(jParams, JsonString(sCurrent));
+            sCurrent = "";
+        }
+        else
+            sCurrent += sChar;
     }
+
+    JsonArrayInsertInplace(jParams, JsonString(sCurrent));
+
+    if (bInQuotes)
+        return JsonArray();
 
     return jParams;
 }
@@ -479,6 +517,74 @@ struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC)
         default: strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID; break;
     }
     return strPC;
+}
+
+string HandleColorProperty(struct Value strValue, json jParameters)
+{
+    int nNumParameters = JsonGetLength(jParameters);
+
+    if (nNumParameters == 1)
+    {
+        string sColor = trim(GetStringLowerCase(JsonArrayGetString(jParameters, 0)));
+
+        if (GetStringLeft(sColor, 1) == "#" && GetStringLength(sColor) ==7)
+        {
+            int nRed = HexStringToInt(GetSubString(sColor, 1, 2));
+            int nGreen = HexStringToInt(GetSubString(sColor, 3, 2));
+            int nBlue = HexStringToInt(GetSubString(sColor, 5, 2));
+            return ColorString(FormatAsString(strValue), nRed, nGreen, nBlue);
+        }
+
+        if (sColor == "black")      return ColorString(FormatAsString(strValue), 0,   0,   0);
+        if (sColor == "white")      return ColorString(FormatAsString(strValue), 255, 255, 255);
+        if (sColor == "red")        return ColorString(FormatAsString(strValue), 255, 0,   0);
+        if (sColor == "lime")       return ColorString(FormatAsString(strValue), 0,   255, 0);
+        if (sColor == "blue")       return ColorString(FormatAsString(strValue), 0,   0,   255);
+        if (sColor == "yellow")     return ColorString(FormatAsString(strValue), 255, 255, 0);
+        if (sColor == "cyan")       return ColorString(FormatAsString(strValue), 0,   255, 255);
+        if (sColor == "magenta")    return ColorString(FormatAsString(strValue), 255, 0,   255);
+        if (sColor == "silver")     return ColorString(FormatAsString(strValue), 192, 192, 192);
+        if (sColor == "grey")       return ColorString(FormatAsString(strValue), 128, 128, 128);
+        if (sColor == "maroon")     return ColorString(FormatAsString(strValue), 128, 0,   0);
+        if (sColor == "olive")      return ColorString(FormatAsString(strValue), 128, 128, 0);
+        if (sColor == "green")      return ColorString(FormatAsString(strValue), 0,   128, 0);
+        if (sColor == "purple")     return ColorString(FormatAsString(strValue), 128, 0,   128);
+        if (sColor == "teal")       return ColorString(FormatAsString(strValue), 0,   128, 128);
+        if (sColor == "navy")       return ColorString(FormatAsString(strValue), 0,   0,   128);
+
+        return "[UNKNOWN_COLOR:" + sColor + "](" + FormatAsString(strValue) + ")";
+    }
+
+    if (nNumParameters == 3)
+    {
+        return ColorString(FormatAsString(strValue),
+            StringToInt(JsonArrayGetString(jParameters, 0)),
+            StringToInt(JsonArrayGetString(jParameters, 1)),
+            StringToInt(JsonArrayGetString(jParameters, 2)));
+    }
+
+    return STRFMT_INVALID_STRING;
+}
+
+string HandlePaddingProperty(struct Value strValue, json jParameters, string sProperty)
+{
+    int nNumParameters = JsonGetLength(jParameters);
+    if (nNumParameters >= 1)
+    {
+        string sLength = trim(JsonArrayGetString(jParameters, 0));
+        if (IsNumeric(sLength))
+        {
+            string sPadding = " ";
+            if (nNumParameters >= 2)
+                sPadding = JsonArrayGetString(jParameters, 1);
+
+            if (sProperty == "padleft")
+                return LeftPadString(FormatAsString(strValue), StringToInt(sLength), sPadding);
+            else
+                return RightPadString(FormatAsString(strValue), StringToInt(sLength), sPadding);
+        }
+    }
+    return STRFMT_INVALID_STRING;
 }
 
 int EvaluateIntComparison(int nValue, string sOperator, int nCompare)
@@ -533,6 +639,30 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC)
         else
             strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
     }
+    else if (strPC.sCurrentProperty == "plural")
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 2)
+            strPC.strValue = GetValueFromString(JsonArrayGetString(jParameters, strPC.strValue.nValue != 1), "%s");
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else if (strPC.sCurrentProperty == "color")
+    {
+        string sColored = HandleColorProperty(strPC.strValue, ParseParameters(strPC.sCurrentParameters));
+        if (sColored != STRFMT_INVALID_STRING)
+            strPC.strValue = GetValueFromString(sColored, "%s");
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else if (strPC.sCurrentProperty == "padleft" || strPC.sCurrentProperty == "padright")
+    {
+        string sPadded = HandlePaddingProperty(strPC.strValue, ParseParameters(strPC.sCurrentParameters), strPC.sCurrentProperty);
+        if (sPadded != STRFMT_INVALID_STRING)
+            strPC.strValue = GetValueFromString(sPadded, "%s");
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
     else
         strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
@@ -578,6 +708,14 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
         else
             strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
     }
+    else if (strPC.sCurrentProperty == "color")
+    {
+        string sColored = HandleColorProperty(strPC.strValue, ParseParameters(strPC.sCurrentParameters));
+        if (sColored != STRFMT_INVALID_STRING)
+            strPC.strValue = GetValueFromString(sColored, "%s");
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
     else
         strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
@@ -600,9 +738,11 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         int nParameterCount = JsonGetLength(jParameters);
         if (nParameterCount >= 1)
         {
-            int nStart = StringToInt(JsonArrayGetString(jParameters, 0)), nCount = -1;
+            int nStart = StringToInt(JsonArrayGetString(jParameters, 0)), nCount;
             if (nParameterCount >= 2)
                 nCount = StringToInt(JsonArrayGetString(jParameters, 1));
+            else
+                nCount = GetStringLength(strPC.strValue.sValue) - nStart;
             strPC.strValue = GetValueFromString(GetSubString(strPC.strValue.sValue, nStart, nCount), strPC.strValue.sFormatSpecifier);
         }
         else
@@ -635,15 +775,13 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         json jParameters = ParseParameters(strPC.sCurrentParameters);
         if (JsonGetLength(jParameters) >= 2)
         {
-            string sSearch = JsonArrayGetString(jParameters, 0);
+            string sSearch = NWNX_Util_RegExpEscape(JsonArrayGetString(jParameters, 0));
             string sReplace = JsonArrayGetString(jParameters, 1);
             string sResult = RegExpReplace(sSearch, strPC.strValue.sValue, sReplace);
             strPC.strValue = GetValueFromString(sResult, strPC.strValue.sFormatSpecifier);
         }
         else
-        {
             strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
-        }
     }
     else if (strPC.sCurrentProperty == "eq" || strPC.sCurrentProperty == "neq")
     {
@@ -655,9 +793,34 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
             strPC.strValue = GetValueFromInt(nResult, strPC.strValue.sFormatSpecifier);
         }
         else
-        {
             strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else if (strPC.sCurrentProperty == "color")
+    {
+        string sColored = HandleColorProperty(strPC.strValue, ParseParameters(strPC.sCurrentParameters));
+        if (sColored != STRFMT_INVALID_STRING)
+            strPC.strValue = GetValueFromString(sColored, "%s");
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else if (strPC.sCurrentProperty == "default")
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 1)
+        {
+            if (strPC.strValue.sValue == "")
+                strPC.strValue = GetValueFromString(JsonArrayGetString(jParameters, 0), strPC.strValue.sFormatSpecifier);
         }
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else if (strPC.sCurrentProperty == "padleft" || strPC.sCurrentProperty == "padright")
+    {
+        string sPadded = HandlePaddingProperty(strPC.strValue, ParseParameters(strPC.sCurrentParameters), strPC.sCurrentProperty);
+        if (sPadded != STRFMT_INVALID_STRING)
+            strPC.strValue = GetValueFromString(sPadded, "%s");
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
     }
     else
         strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
@@ -831,6 +994,17 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
         json jParameters = ParseParameters(strPC.sCurrentParameters);
         if (JsonGetLength(jParameters) >= 1)
             strPC.strValue = GetValueFromInt(JsonObjectContainsKey(strPC.strValue.jValue, JsonArrayGetString(jParameters, 0)), strPC.strValue.sFormatSpecifier);
+        else
+            strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    }
+    else if (strPC.sCurrentProperty == "default")
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 1)
+        {
+            if (JsonGetType(strPC.strValue.jValue) == JSON_TYPE_NULL)
+                strPC.strValue = GetValueFromString(JsonArrayGetString(jParameters, 0), strPC.strValue.sFormatSpecifier);
+        }
         else
             strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
     }

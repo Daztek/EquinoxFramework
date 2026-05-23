@@ -3,7 +3,9 @@
     Author: Daz
 */
 
+#include "ef_i_math"
 #include "ef_i_vm"
+#include "nwnx_util"
 
 string ltrim(string s);
 string rtrim(string s);
@@ -11,9 +13,12 @@ string trim(string s);
 int HexStringToInt(string sString);
 string EFIntToHexString(int nValue);
 string LeftPadString(string sString, int nLength, string sCharacter);
+string RightPadString(string sString, int nLength, string sCharacter);
 string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2);
 string SecondsToStringTimestamp(int nSeconds);
 int IsNumeric(string sValue);
+string GetAsciiTable();
+string ColorString(string sValue, int nRed, int nGreen, int nBlue);
 
 string ltrim(string s)
 {
@@ -72,14 +77,20 @@ string EFIntToHexString(int nValue)
 
 string LeftPadString(string sString, int nLength, string sCharacter)
 {
-    int nStringLength = GetStringLength(sString);
     string sPadding;
-    while (nStringLength < nLength)
-    {
+    int nPadding = nLength - GetStringLength(sString);
+    while (nPadding-- > 0)
         sPadding += sCharacter;
-        nStringLength++;
-    }
     return sPadding + sString;
+}
+
+string RightPadString(string sString, int nLength, string sCharacter)
+{
+    string sPadding;
+    int nPadding = nLength - GetStringLength(sString);
+    while (nPadding-- > 0)
+        sPadding += sCharacter;
+    return sString + sPadding;
 }
 
 string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2)
@@ -109,4 +120,23 @@ int IsNumeric(string sValue)
     if (sValue == "0") return TRUE;
     int nParsed = StringToInt(sValue);
     return (nParsed != 0 || GetStringLeft(sValue, 1) == "0" || sValue == "-0");
+}
+
+string GetAsciiTable()
+{
+    string sAscii = GetLocalString(GetModule(), "ASCII_TABLE");
+    if (sAscii == "")
+    {
+        sAscii = NWNX_Util_GetAsciiTableString();
+        SetLocalString(GetModule(), "ASCII_TABLE", sAscii);
+    }
+    return sAscii;
+}
+
+string ColorString(string sValue, int nRed, int nGreen, int nBlue)
+{
+    string sAscii = GetAsciiTable();
+    return "<c" + GetSubString(sAscii, clamp(nRed, 0, 255), 1) +
+                  GetSubString(sAscii, clamp(nGreen, 0, 255), 1) +
+                  GetSubString(sAscii, clamp(nBlue, 0, 255), 1) + ">" + sValue + "</c>";
 }

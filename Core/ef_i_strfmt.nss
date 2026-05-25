@@ -39,15 +39,8 @@ struct PropertyChain
     struct Value strValue;
 };
 
-struct VarNameAndFormatSpecifier
-{
-    string sVarName;
-    string sFormatSpecifier;
-};
-
 string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_NULL);
-string MakeCacheKey(string sPrefix, string sString);
-struct VarNameAndFormatSpecifier ExtractVarNameAndFormatSpecifier(string sString);
+string GetCacheKey(string sPrefix, string sString);
 json ExtractVariableTokens(string sString);
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier);
 string FormatValueByType(struct Value strValue);
@@ -87,7 +80,7 @@ string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_N
         return sString;
 
     int bHasEscapes = FindSubString(sString, "{{", 0) != -1 || FindSubString(sString, "}}", 0) != -1;
-    string sCacheKey = MakeCacheKey(STRFMT_VARIABLE_CACHE_PREFIX, sString);
+    string sCacheKey = GetCacheKey(STRFMT_VARIABLE_CACHE_PREFIX, sString);
     json jVariables = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
 
     if (!JsonGetType(jVariables))
@@ -131,31 +124,9 @@ string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_N
     return sResult;
 }
 
-string MakeCacheKey(string sPrefix, string sString)
+string GetCacheKey(string sPrefix, string sString)
 {
     return sPrefix + IntToString(HashString(sString)) + "_" + IntToString(GetStringLength(sString)) + "_" + GetStringLeft(sString, 16);
-}
-
-struct VarNameAndFormatSpecifier ExtractVarNameAndFormatSpecifier(string sString)
-{
-    struct VarNameAndFormatSpecifier str;
-    str.sVarName = sString;
-    int nLength = GetStringLength(sString), nDepth = 0, nIndex;
-    for (nIndex = 0; nIndex < nLength; nIndex++)
-    {
-        string sCharacter = GetSubString(sString, nIndex, 1);
-        if (sCharacter == "{")
-            nDepth++;
-        else if (sCharacter == "}")
-            nDepth--;
-        else if (sCharacter == ":" && nDepth == 0)
-        {
-            str.sVarName = GetStringLeft(sString, nIndex);
-            str.sFormatSpecifier = GetSubString(sString, nIndex + 1, nLength - nIndex - 1);
-            break;
-        }
-    }
-    return str;
 }
 
 json ExtractVariableTokens(string sString)
@@ -195,11 +166,28 @@ json ExtractVariableTokens(string sString)
         if (nDepth != 0)
             break;
 
-        struct VarNameAndFormatSpecifier str = ExtractVarNameAndFormatSpecifier(GetSubString(sString, nStart + 1, nIndex - nStart - 2));
+        string sToken = GetSubString(sString, nStart + 1, nIndex - nStart - 2);
+        string sVarName = sToken, sFormatSpecifier;
+        int nTokenLength = GetStringLength(sToken), nTokenDepth = 0, nTokenIndex;
+        for (nTokenIndex = 0; nTokenIndex < nTokenLength; nTokenIndex++)
+        {
+            string sTokenCharacter = GetSubString(sToken, nTokenIndex, 1);
+            if (sTokenCharacter == "{")
+                nTokenDepth++;
+            else if (sTokenCharacter == "}")
+                nTokenDepth--;
+            else if (sTokenCharacter == ":" && nTokenDepth == 0)
+            {
+                sVarName = GetStringLeft(sToken, nTokenIndex);
+                sFormatSpecifier = GetSubString(sToken, nTokenIndex + 1, nTokenLength - nTokenIndex - 1);
+                break;
+            }
+        }
+
         json jToken = JsonArray();
         JsonArrayInsertStringInplace(jToken, GetSubString(sString, nStart, nIndex - nStart));
-        JsonArrayInsertStringInplace(jToken, str.sVarName);
-        JsonArrayInsertStringInplace(jToken, str.sFormatSpecifier);
+        JsonArrayInsertStringInplace(jToken, sVarName);
+        JsonArrayInsertStringInplace(jToken, sFormatSpecifier);
         JsonArrayInsertInplace(jTokens, jToken);
     }
     return jTokens;
@@ -538,19 +526,15 @@ json ParseParameters(string sParameters)
     if (sParameters == "")
         return JsonArray();
 
-    string sCacheKey = MakeCacheKey(STRFMT_PARAMETER_CACHE_PREFIX, sParameters);
-    json jParams = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
-    if (JsonGetType(jParams))
-        return jParams;
+    string sCacheKey = GetCacheKey(STRFMT_PARAMETER_CACHE_PREFIX, sParameters);
+    json jParameters = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
+    if (JsonGetType(jParameters))
+        return jParameters;
 
-    jParams = JsonArray();
-    string sCurrent = "";
-    string sQuoteChar = "";
-    int bInQuotes = FALSE;
-    int bWasQuoted = FALSE;
-    int bLastWasComma = FALSE;
-    int nBraceDepth = 0;
-    int nParenDepth = 0;
+    jParameters = JsonArray();
+    string sCurrent = "", sQuoteChar = "";
+    int bInQuotes = FALSE, bWasQuoted = FALSE, bLastWasComma = FALSE;
+    int nBraceDepth = 0, nParenDepth = 0;
     int nIndex, nLength = GetStringLength(sParameters);
 
     for (nIndex = 0; nIndex < nLength; nIndex++)
@@ -562,6 +546,9 @@ json ParseParameters(string sParameters)
             string sNext = GetSubString(sParameters, nIndex + 1, 1);
             if (sNext == "\"" || sNext == "'" || sNext == "\\")
             {
+                if (nBraceDepth > 0 || nParenDepth > 0)
+                    sCurrent += sCharacter;
+
                 sCurrent += sNext;
                 nIndex++;
                 bLastWasComma = FALSE;
@@ -578,11 +565,17 @@ json ParseParameters(string sParameters)
             {
                 bInQuotes = TRUE;
                 sQuoteChar = sCharacter;
+
+                if (nBraceDepth > 0 || nParenDepth > 0)
+                    sCurrent += sCharacter;
             }
             else if (sCharacter == sQuoteChar)
             {
                 bInQuotes = FALSE;
-                bWasQuoted = TRUE;
+                if (nBraceDepth == 0 && nParenDepth == 0)
+                    bWasQuoted = TRUE;
+                if (nBraceDepth > 0 || nParenDepth > 0)
+                    sCurrent += sCharacter;
             }
             else
                 sCurrent += sCharacter;
@@ -620,7 +613,7 @@ json ParseParameters(string sParameters)
         }
         else if (sCharacter == "," && nBraceDepth == 0 && nParenDepth == 0)
         {
-            JsonArrayInsertStringInplace(jParams, bWasQuoted ? sCurrent : trim(sCurrent));
+            JsonArrayInsertStringInplace(jParameters, bWasQuoted ? sCurrent : trim(sCurrent));
             sCurrent = "";
             bWasQuoted = FALSE;
             bLastWasComma = TRUE;
@@ -636,54 +629,20 @@ json ParseParameters(string sParameters)
         return JsonArray();
 
     if (!bLastWasComma)
-        JsonArrayInsertStringInplace(jParams, bWasQuoted ? sCurrent : trim(sCurrent));
+        JsonArrayInsertStringInplace(jParameters, bWasQuoted ? sCurrent : trim(sCurrent));
 
-    SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, jParams);
-    return jParams;
-}
-
-int IsSingleVarRef(string sParameter)
-{
-    int nLength = GetStringLength(sParameter);
-    if (nLength < 3 || GetStringLeft(sParameter, 1) != "{" || GetSubString(sParameter, 1, 1) == "{")
-        return FALSE;
-
-    int nDepth = 1, nIndex;
-    for (nIndex = 1; nIndex < nLength; nIndex++)
-    {
-        string sCharacter = GetSubString(sParameter, nIndex, 1);
-        if (sCharacter == "{")
-            nDepth++;
-        else if (sCharacter == "}")
-        {
-            nDepth--;
-            if (nDepth == 0)
-                return nIndex == nLength - 1;
-        }
-    }
-    return FALSE;
+    SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, jParameters);
+    return jParameters;
 }
 
 json ResolveParameters(string sParameters, json jStack)
 {
-    json jRawParameters = ParseParameters(sParameters);
+    json jParameters = ParseParameters(sParameters);
     json jResolved = JsonArray();
-    int nIndex, nNumParameters = JsonGetLength(jRawParameters);
-
+    int nIndex, nNumParameters = JsonGetLength(jParameters);
     for (nIndex = 0; nIndex < nNumParameters; nIndex++)
     {
-        string sParameter = JsonArrayGetString(jRawParameters, nIndex);
-        int bIsSingleVarRef = IsSingleVarRef(sParameter);
-
-        if (bIsSingleVarRef)
-        {
-            struct VarNameAndFormatSpecifier str = ExtractVarNameAndFormatSpecifier(GetSubString(sParameter, 1, GetStringLength(sParameter) - 2));
-            sParameter = GetFormattedValue(jStack, str.sVarName, str.sFormatSpecifier);
-        }
-        else
-            sParameter = FormatString(sParameter, 0, jStack);
-
-        JsonArrayInsertInplace(jResolved, JsonString(sParameter));
+        JsonArrayInsertStringInplace(jResolved, FormatString(JsonArrayGetString(jParameters, nIndex), 0, jStack));
     }
     return jResolved;
 }
@@ -692,7 +651,7 @@ string GetPropertyValue(struct PropertyChain strPC)
 {
     json jSegments = JsonArray();
     int nLength = GetStringLength(strPC.sFullPropertyPath);
-    int nSegmentStart, nIndex, nBraceDepth, nParenDepth;
+    int nIndex, nSegmentStart = 0, nBraceDepth = 0, nParenDepth = 0;
 
     for (nIndex = 0; nIndex <= nLength; nIndex++)
     {

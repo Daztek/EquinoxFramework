@@ -19,6 +19,7 @@ string SecondsToStringTimestamp(int nSeconds);
 int IsNumeric(string sValue);
 string GetAsciiTable();
 string ColorString(string sValue, int nRed, int nGreen, int nBlue);
+string CapitalizeWord(string sWord);
 
 string ltrim(string s)
 {
@@ -139,4 +140,18 @@ string ColorString(string sValue, int nRed, int nGreen, int nBlue)
     return "<c" + GetSubString(sAscii, clamp(nRed, 0, 255), 1) +
                   GetSubString(sAscii, clamp(nGreen, 0, 255), 1) +
                   GetSubString(sAscii, clamp(nBlue, 0, 255), 1) + ">" + sValue + "</c>";
+}
+
+string CapitalizeWord(string sWord)
+{
+    if (sWord == "")
+        return "";
+
+    int nLength = GetStringLength(sWord);
+    if (nLength <= 0)
+        return "";
+
+    string sFirst = GetSubString(sWord, 0, 1);
+    string sRest = GetSubString(sWord, 1, nLength - 1);
+    return GetStringUpperCase(sFirst) + GetStringLowerCase(sRest);
 }

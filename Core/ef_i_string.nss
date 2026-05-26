@@ -16,6 +16,8 @@ string LeftPadString(string sString, int nLength, string sCharacter);
 string RightPadString(string sString, int nLength, string sCharacter);
 string VectorAsString(vector v, int nWidth = 0, int nDecimals = 2);
 string SecondsToStringTimestamp(int nSeconds);
+int IsInteger(string sValue);
+int IsFloat(string sValue);
 int IsNumeric(string sValue);
 string GetAsciiTable();
 string ColorString(string sValue, int nRed, int nGreen, int nBlue);
@@ -115,12 +117,19 @@ string SecondsToStringTimestamp(int nSeconds)
     return SqlGetString(sql, 0);
 }
 
+int IsInteger(string sValue)
+{
+    return JsonGetLength(RegExpMatch("^-?[0-9]+$", sValue));
+}
+
+int IsFloat(string sValue)
+{
+    return JsonGetLength(RegExpMatch("^-?(?:\\d+\\.\\d*|\\.\\d+)[fF]?$", sValue));
+}
+
 int IsNumeric(string sValue)
 {
-    if (sValue == "") return FALSE;
-    if (sValue == "0") return TRUE;
-    int nParsed = StringToInt(sValue);
-    return (nParsed != 0 || GetStringLeft(sValue, 1) == "0" || sValue == "-0");
+    return IsInteger(sValue) || IsFloat(sValue);
 }
 
 string GetAsciiTable()

@@ -10,11 +10,13 @@
 #include "nwnx_util"
 #include "nwnx_vm"
 
-const string STRFMT_SCRIPT_NAME             = "ef_i_strfmt";
-const string STRFMT_VARIABLE_CACHE_PREFIX   = "StringFormatVariableCache_";
-const string STRFMT_PARAMETER_CACHE_PREFIX  = "StringFormatParameterCache_";
-const string STRFMT_INVALID_STRING          = "[STRFMT_INVALID_STRING]";
-const float STRFMT_FLOAT_EPSILON            = 0.0001f;
+const string STRFMT_SCRIPT_NAME                     = "ef_i_strfmt";
+const string STRFMT_VARIABLE_CACHE_PREFIX           = "StringFormatVariableCache_";
+const string STRFMT_PARAMETER_CACHE_PREFIX          = "StringFormatParameterCache_";
+const string STRFMT_PROPERTY_SEGMENT_CACHE_PREFIX   = "StringFormatPropertySegementCache_";
+const string STRFMT_PROPERTY_CACHE_PREFIX           = "StringFormatPropertyCache_";
+const string STRFMT_INVALID_STRING                  = "[STRFMT_INVALID_STRING]";
+const float STRFMT_FLOAT_EPSILON                    = 0.0001f;
 
 struct Value
 {
@@ -65,8 +67,9 @@ json ParseParameters(string sParameters);
 json ResolveParameters(struct PropertyChain str);
 string GetPropertyValue(struct PropertyChain strPC);
 struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC);
-string HandleColorProperty(struct Value strValue, json jParameters);
-string HandlePaddingProperty(struct Value strValue, json jParameters, string sProperty);
+string HandleColorProperty(struct PropertyChain strPC, json jParameters);
+string HandlePaddingProperty(struct PropertyChain strPC, json jParameters);
+struct Value HandleSharedProperty(struct PropertyChain strPC, string sProperty, string sFormatSpecifier);
 struct PropertyChain GetIntProperty(struct PropertyChain strPC);
 struct PropertyChain GetFloatProperty(struct PropertyChain strPC);
 struct PropertyChain GetStringProperty(struct PropertyChain strPC);
@@ -126,7 +129,7 @@ string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_N
 
 string GetCacheKey(string sPrefix, string sString)
 {
-    return sPrefix + IntToString(HashString(sString)) + "_" + IntToString(GetStringLength(sString)) + "_" + GetStringLeft(sString, 16);
+    return sPrefix + IntToString(HashString(sString)) + "_" + IntToString(GetStringLength(sString)) + "_" + GetStringLeft(sString, 32);
 }
 
 json ExtractVariableTokens(string sString)
@@ -479,6 +482,16 @@ struct Value GetValueFromJson(json jValue, string sFormatSpecifier)
 
 struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, string sPropertySegment)
 {
+    string sCacheKey = GetCacheKey(STRFMT_PROPERTY_CACHE_PREFIX, sPropertySegment);
+    json jProperty = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
+
+    if (JsonGetType(jProperty) == JSON_TYPE_ARRAY)
+    {
+        strPC.sCurrentProperty = JsonArrayGetString(jProperty, 0);
+        strPC.sCurrentParameters = JsonArrayGetString(jProperty, 1);
+        return strPC;
+    }
+
     int nParameterStart = FindSubString(sPropertySegment, "(", 0);
     if (nParameterStart == -1)
     {
@@ -518,6 +531,12 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
             strPC.sCurrentParameters = "";
     }
     strPC.sCurrentProperty = GetStringLowerCase(strPC.sCurrentProperty);
+
+    jProperty = JsonArray();
+    JsonArrayInsertStringInplace(jProperty, strPC.sCurrentProperty);
+    JsonArrayInsertStringInplace(jProperty, strPC.sCurrentParameters);
+    SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, jProperty);
+
     return strPC;
 }
 
@@ -528,7 +547,7 @@ json ParseParameters(string sParameters)
 
     string sCacheKey = GetCacheKey(STRFMT_PARAMETER_CACHE_PREFIX, sParameters);
     json jParameters = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
-    if (JsonGetType(jParameters))
+    if (JsonGetType(jParameters) == JSON_TYPE_ARRAY)
         return jParameters;
 
     jParameters = JsonArray();
@@ -649,27 +668,36 @@ json ResolveParameters(struct PropertyChain str)
 
 string GetPropertyValue(struct PropertyChain strPC)
 {
-    json jSegments = JsonArray();
-    int nLength = GetStringLength(strPC.sFullPropertyPath);
-    int nIndex, nSegmentStart = 0, nBraceDepth = 0, nParenDepth = 0;
+    string sCacheKey = GetCacheKey(STRFMT_PROPERTY_SEGMENT_CACHE_PREFIX, strPC.sFullPropertyPath);
+    json jSegments = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
 
-    for (nIndex = 0; nIndex <= nLength; nIndex++)
+    if (!JsonGetType(jSegments))
     {
-        string sCharacter = nIndex < nLength ? GetSubString(strPC.sFullPropertyPath, nIndex, 1) : ">";
+        jSegments = JsonArray();
 
-        if (sCharacter == "{")
-            nBraceDepth++;
-        else if (sCharacter == "}")
-            nBraceDepth--;
-        else if (nBraceDepth == 0 && sCharacter == "(")
-            nParenDepth++;
-        else if (nBraceDepth == 0 && sCharacter == ")")
-            nParenDepth--;
-        else if (sCharacter == ">" && nBraceDepth == 0 && nParenDepth == 0)
+        int nLength = GetStringLength(strPC.sFullPropertyPath);
+        int nIndex, nSegmentStart = 0, nBraceDepth = 0, nParenDepth = 0;
+
+        for (nIndex = 0; nIndex <= nLength; nIndex++)
         {
-            JsonArrayInsertStringInplace(jSegments, GetSubString(strPC.sFullPropertyPath, nSegmentStart, nIndex - nSegmentStart));
-            nSegmentStart = nIndex + 1;
+            string sCharacter = nIndex < nLength ? GetSubString(strPC.sFullPropertyPath, nIndex, 1) : ">";
+
+            if (sCharacter == "{")
+                nBraceDepth++;
+            else if (sCharacter == "}")
+                nBraceDepth--;
+            else if (nBraceDepth == 0 && sCharacter == "(")
+                nParenDepth++;
+            else if (nBraceDepth == 0 && sCharacter == ")")
+                nParenDepth--;
+            else if (sCharacter == ">" && nBraceDepth == 0 && nParenDepth == 0)
+            {
+                JsonArrayInsertStringInplace(jSegments, GetSubString(strPC.sFullPropertyPath, nSegmentStart, nIndex - nSegmentStart));
+                nSegmentStart = nIndex + 1;
+            }
         }
+
+        SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, jSegments);
     }
 
     int nSegment, nNumSegments = JsonGetLength(jSegments);
@@ -703,12 +731,13 @@ struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC)
     return strPC;
 }
 
-string HandleColorProperty(struct Value strValue, json jParameters)
+string HandleColorProperty(struct PropertyChain strPC, json jParameters)
 {
     int nNumParameters = JsonGetLength(jParameters);
 
     if (nNumParameters == 1)
     {
+        struct Value strValue = strPC.strValue;
         string sColor = trim(GetStringLowerCase(JsonArrayGetString(jParameters, 0)));
 
         if (GetStringLeft(sColor, 1) == "#")
@@ -757,7 +786,7 @@ string HandleColorProperty(struct Value strValue, json jParameters)
 
     if (nNumParameters == 3)
     {
-        return ColorString(FormatAsString(strValue),
+        return ColorString(FormatAsString(strPC.strValue),
             StringToInt(JsonArrayGetString(jParameters, 0)),
             StringToInt(JsonArrayGetString(jParameters, 1)),
             StringToInt(JsonArrayGetString(jParameters, 2)));
@@ -766,7 +795,7 @@ string HandleColorProperty(struct Value strValue, json jParameters)
     return STRFMT_INVALID_STRING;
 }
 
-string HandlePaddingProperty(struct Value strValue, json jParameters, string sProperty)
+string HandlePaddingProperty(struct PropertyChain strPC, json jParameters)
 {
     int nNumParameters = JsonGetLength(jParameters);
     if (nNumParameters >= 1)
@@ -778,13 +807,34 @@ string HandlePaddingProperty(struct Value strValue, json jParameters, string sPr
             if (nNumParameters >= 2)
                 sPadding = JsonArrayGetString(jParameters, 1);
 
-            if (sProperty == "padleft")
-                return LeftPadString(FormatAsString(strValue), StringToInt(sLength), sPadding);
+            if (strPC.sCurrentProperty == "padleft")
+                return LeftPadString(FormatAsString(strPC.strValue), StringToInt(sLength), sPadding);
             else
-                return RightPadString(FormatAsString(strValue), StringToInt(sLength), sPadding);
+                return RightPadString(FormatAsString(strPC.strValue), StringToInt(sLength), sPadding);
         }
     }
     return STRFMT_INVALID_STRING;
+}
+
+struct Value HandleSharedProperty(struct PropertyChain strPC, string sProperty, string sFormatSpecifier)
+{
+    struct Value strReturnValue;
+    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+
+    if (sProperty == "color")
+    {
+        string sColored = HandleColorProperty(strPC, ResolveParameters(strPC));
+        if (sColored != STRFMT_INVALID_STRING)
+            strReturnValue = GetValueFromString(sColored, sFormatSpecifier);
+    }
+    else if (sProperty == "padleft" || sProperty == "padright")
+    {
+        string sPadded = HandlePaddingProperty(strPC, ResolveParameters(strPC));
+        if (sPadded != STRFMT_INVALID_STRING)
+            strReturnValue = GetValueFromString(sPadded, sFormatSpecifier);
+    }
+
+    return strReturnValue;
 }
 
 int EvaluateIntComparison(int nValue, string sOperator, int nCompare)
@@ -802,12 +852,14 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     string sFormatSpecifier = strPC.strValue.sFormatSpecifier;
-    struct Value strValue = strPC.strValue;
+    int nValue = strPC.strValue.nValue;
+
     struct Value strReturnValue;
+    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (sProperty == "abs")
     {
-        strReturnValue = GetValueFromInt(abs(strValue.nValue), sFormatSpecifier);
+        strReturnValue = GetValueFromInt(abs(nValue), sFormatSpecifier);
     }
     else if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
@@ -817,7 +869,7 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC)
             string sValue = trim(JsonArrayGetString(jParameters, 0));
             if (IsInteger(sValue))
             {
-                int bResult = EvaluateIntComparison(strValue.nValue, sProperty, StringToInt(sValue));
+                int bResult = EvaluateIntComparison(nValue, sProperty, StringToInt(sValue));
                 strReturnValue = GetValueFromInt(bResult, sFormatSpecifier);
             }
         }
@@ -827,32 +879,18 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC)
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 2)
         {
-            string sValue = (strValue.nValue != 0) ? JsonArrayGetString(jParameters, 0) : JsonArrayGetString(jParameters, 1);
-            if (IsFloat(trim(sValue)))
-                strReturnValue = GetValueFromFloat(StringToFloat(sValue), sFormatSpecifier);
-            else if (IsInteger(trim(sValue)))
-                strReturnValue = GetValueFromInt(StringToInt(sValue), sFormatSpecifier);
-            else
-                strReturnValue = GetValueFromString(sValue, sFormatSpecifier);
+            strReturnValue = GetValueFromString(nValue != 0 ? JsonArrayGetString(jParameters, 0) : JsonArrayGetString(jParameters, 1), sFormatSpecifier);
         }
     }
     else if (sProperty == "plural")
     {
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 2)
-            strReturnValue = GetValueFromString(JsonArrayGetString(jParameters, strValue.nValue != 1), sFormatSpecifier);
+            strReturnValue = GetValueFromString(JsonArrayGetString(jParameters, nValue != 1), sFormatSpecifier);
     }
-    else if (sProperty == "color")
+    else
     {
-        string sColored = HandleColorProperty(strValue, ResolveParameters(strPC));
-        if (sColored != STRFMT_INVALID_STRING)
-            strReturnValue = GetValueFromString(sColored, sFormatSpecifier);
-    }
-    else if (sProperty == "padleft" || sProperty == "padright")
-    {
-        string sPadded = HandlePaddingProperty(strValue, ResolveParameters(strPC), sProperty);
-        if (sPadded != STRFMT_INVALID_STRING)
-            strReturnValue = GetValueFromString(sPadded, sFormatSpecifier);
+        strReturnValue = HandleSharedProperty(strPC, sProperty, sFormatSpecifier);
     }
 
     strPC.strValue = strReturnValue;
@@ -874,24 +912,26 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     string sFormatSpecifier = strPC.strValue.sFormatSpecifier;
-    struct Value strValue = strPC.strValue;
+    float fValue = strPC.strValue.fValue;
+
     struct Value strReturnValue;
+    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (sProperty == "fabs")
     {
-        strReturnValue = GetValueFromFloat(fabs(strValue.fValue), sFormatSpecifier);
+        strReturnValue = GetValueFromFloat(fabs(fValue), sFormatSpecifier);
     }
     else if (sProperty == "floor")
     {
-        strReturnValue = GetValueFromInt(floor(strValue.fValue), sFormatSpecifier);
+        strReturnValue = GetValueFromInt(floor(fValue), sFormatSpecifier);
     }
     else if (sProperty == "ceil")
     {
-        strReturnValue = GetValueFromInt(ceil(strValue.fValue), sFormatSpecifier);
+        strReturnValue = GetValueFromInt(ceil(fValue), sFormatSpecifier);
     }
     else if (sProperty == "round")
     {
-        strReturnValue = GetValueFromInt(round(strValue.fValue), sFormatSpecifier);
+        strReturnValue = GetValueFromInt(round(fValue), sFormatSpecifier);
     }
     else if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
@@ -901,22 +941,14 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
             string sValue = trim(JsonArrayGetString(jParameters, 0));
             if (IsNumeric(sValue))
             {
-                int bResult = EvaluateFloatComparison(strValue.fValue, sProperty, StringToFloat(sValue));
+                int bResult = EvaluateFloatComparison(fValue, sProperty, StringToFloat(sValue));
                 strReturnValue = GetValueFromInt(bResult, sFormatSpecifier);
             }
         }
     }
-    else if (sProperty == "color")
+    else
     {
-        string sColored = HandleColorProperty(strValue, ResolveParameters(strPC));
-        if (sColored != STRFMT_INVALID_STRING)
-            strReturnValue = GetValueFromString(sColored, sFormatSpecifier);
-    }
-    else if (sProperty == "padleft" || sProperty == "padright")
-    {
-        string sPadded = HandlePaddingProperty(strValue, ResolveParameters(strPC), sProperty);
-        if (sPadded != STRFMT_INVALID_STRING)
-            strReturnValue = GetValueFromString(sPadded, sFormatSpecifier);
+        strReturnValue = HandleSharedProperty(strPC, sProperty, sFormatSpecifier);
     }
 
     strPC.strValue = strReturnValue;
@@ -927,24 +959,26 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     string sFormatSpecifier = strPC.strValue.sFormatSpecifier;
-    struct Value strValue = strPC.strValue;
+    string sValue = strPC.strValue.sValue;
+
     struct Value strReturnValue;
+    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (sProperty == "length")
     {
-        strReturnValue = GetValueFromInt(GetStringLength(strValue.sValue), sFormatSpecifier);
+        strReturnValue = GetValueFromInt(GetStringLength(sValue), sFormatSpecifier);
     }
     else if (sProperty == "upper")
     {
-        strReturnValue = GetValueFromString(GetStringUpperCase(strValue.sValue), sFormatSpecifier);
+        strReturnValue = GetValueFromString(GetStringUpperCase(sValue), sFormatSpecifier);
     }
     else if (sProperty == "lower")
     {
-        strReturnValue = GetValueFromString(GetStringLowerCase(strValue.sValue), sFormatSpecifier);
+        strReturnValue = GetValueFromString(GetStringLowerCase(sValue), sFormatSpecifier);
     }
     else if (sProperty == "trim")
     {
-        strReturnValue = GetValueFromString(trim(strValue.sValue), sFormatSpecifier);
+        strReturnValue = GetValueFromString(trim(sValue), sFormatSpecifier);
     }
     else if (sProperty == "sub" || sProperty == "substring")
     {
@@ -956,8 +990,8 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
             if (nParameterCount >= 2)
                 nCount = StringToInt(JsonArrayGetString(jParameters, 1));
             else
-                nCount = GetStringLength(strValue.sValue) - nStart;
-            strReturnValue = GetValueFromString(GetSubString(strValue.sValue, nStart, nCount), sFormatSpecifier);
+                nCount = GetStringLength(sValue) - nStart;
+            strReturnValue = GetValueFromString(GetSubString(sValue, nStart, nCount), sFormatSpecifier);
         }
     }
     else if (sProperty == "left")
@@ -965,7 +999,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 1)
         {
-            string sResult = GetStringLeft(strValue.sValue, StringToInt(JsonArrayGetString(jParameters, 0)));
+            string sResult = GetStringLeft(sValue, StringToInt(JsonArrayGetString(jParameters, 0)));
             strReturnValue = GetValueFromString(sResult, sFormatSpecifier);
         }
     }
@@ -974,7 +1008,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 1)
         {
-            string sResult = GetStringRight(strValue.sValue, StringToInt(JsonArrayGetString(jParameters, 0)));
+            string sResult = GetStringRight(sValue, StringToInt(JsonArrayGetString(jParameters, 0)));
             strReturnValue = GetValueFromString(sResult, sFormatSpecifier);
         }
     }
@@ -985,7 +1019,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         {
             string sSearch = NWNX_Util_RegExpEscape(JsonArrayGetString(jParameters, 0));
             string sReplace = JsonArrayGetString(jParameters, 1);
-            string sResult = RegExpReplace(sSearch, strValue.sValue, sReplace);
+            string sResult = RegExpReplace(sSearch, sValue, sReplace);
             strReturnValue = GetValueFromString(sResult, sFormatSpecifier);
         }
     }
@@ -995,34 +1029,28 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         if (JsonGetLength(jParameters) >= 1)
         {
             string sCompare = JsonArrayGetString(jParameters, 0);
-            int nResult = sProperty == "eq" ? strValue.sValue == sCompare : strValue.sValue != sCompare;
+            int nResult = sProperty == "eq" ? sValue == sCompare : sValue != sCompare;
             strReturnValue = GetValueFromInt(nResult, sFormatSpecifier);
         }
-    }
-    else if (sProperty == "color")
-    {
-        string sColored = HandleColorProperty(strValue, ResolveParameters(strPC));
-        if (sColored != STRFMT_INVALID_STRING)
-            strReturnValue = GetValueFromString(sColored, sFormatSpecifier);
     }
     else if (sProperty == "default")
     {
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 1)
         {
-            if (strValue.sValue == "")
+            if (sValue == "")
                 strReturnValue = GetValueFromString(JsonArrayGetString(jParameters, 0), sFormatSpecifier);
+            else
+                strReturnValue = strPC.strValue;
         }
-    }
-    else if (sProperty == "padleft" || sProperty == "padright")
-    {
-        string sPadded = HandlePaddingProperty(strValue, ResolveParameters(strPC), sProperty);
-        if (sPadded != STRFMT_INVALID_STRING)
-            strReturnValue = GetValueFromString(sPadded, sFormatSpecifier);
     }
     else if (sProperty == "capitalize")
     {
-        strReturnValue = GetValueFromString(CapitalizeWord(strValue.sValue), sFormatSpecifier);
+        strReturnValue = GetValueFromString(CapitalizeWord(sValue), sFormatSpecifier);
+    }
+    else
+    {
+        strReturnValue = HandleSharedProperty(strPC, sProperty, sFormatSpecifier);
     }
 
     strPC.strValue = strReturnValue;
@@ -1033,40 +1061,42 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     string sFormatSpecifier = strPC.strValue.sFormatSpecifier;
-    struct Value strValue = strPC.strValue;
+    object oValue = strPC.strValue.oValue;
+
     struct Value strReturnValue;
+    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (sProperty == "name")
     {
-        strReturnValue = GetValueFromString(GetName(strValue.oValue), sFormatSpecifier);
+        strReturnValue = GetValueFromString(GetName(oValue), sFormatSpecifier);
     }
     else if (sProperty == "tag")
     {
-        strReturnValue = GetValueFromString(GetTag(strValue.oValue), sFormatSpecifier);
+        strReturnValue = GetValueFromString(GetTag(oValue), sFormatSpecifier);
     }
     else if (sProperty == "resref")
     {
-        strReturnValue = GetValueFromString(GetResRef(strValue.oValue), sFormatSpecifier);
+        strReturnValue = GetValueFromString(GetResRef(oValue), sFormatSpecifier);
     }
     else if (sProperty == "type")
     {
-        strReturnValue = GetValueFromString(GetObjectTypeName(strValue.oValue), sFormatSpecifier);
+        strReturnValue = GetValueFromString(GetObjectTypeName(oValue), sFormatSpecifier);
     }
     else if (sProperty == "area")
     {
-        strReturnValue = GetValueFromObject(GetArea(strValue.oValue), sFormatSpecifier);
+        strReturnValue = GetValueFromObject(GetArea(oValue), sFormatSpecifier);
     }
     else if (sProperty == "valid")
     {
-        strReturnValue = GetValueFromInt(GetIsObjectValid(strValue.oValue), sFormatSpecifier);
+        strReturnValue = GetValueFromInt(GetIsObjectValid(oValue), sFormatSpecifier);
     }
     else if (sProperty == "location")
     {
-        strReturnValue = GetValueFromLocation(GetLocation(strValue.oValue), sFormatSpecifier);
+        strReturnValue = GetValueFromLocation(GetLocation(oValue), sFormatSpecifier);
     }
     else if (sProperty == "x" || sProperty == "y" || sProperty == "z")
     {
-        vector vPosition = GetPosition(strValue.oValue);
+        vector vPosition = GetPosition(oValue);
         if (sProperty == "x")
             strReturnValue = GetValueFromFloat(vPosition.x, sFormatSpecifier);
         else if (sProperty == "y")
@@ -1076,7 +1106,7 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
     }
     else if (sProperty == "position")
     {
-        vector vPosition = GetPosition(strValue.oValue);
+        vector vPosition = GetPosition(oValue);
         string sX = FormatValueByType(GetValueFromFloat(vPosition.x, sFormatSpecifier));
         string sY = FormatValueByType(GetValueFromFloat(vPosition.y, sFormatSpecifier));
         string sZ = FormatValueByType(GetValueFromFloat(vPosition.z, sFormatSpecifier));
@@ -1091,15 +1121,15 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
             string sVarName = JsonArrayGetString(jParameters, 1);
 
             if (sType == "i")
-                strReturnValue = GetValueFromInt(GetLocalInt(strValue.oValue, sVarName), sFormatSpecifier);
+                strReturnValue = GetValueFromInt(GetLocalInt(oValue, sVarName), sFormatSpecifier);
             else if (sType == "f")
-                strReturnValue = GetValueFromFloat(GetLocalFloat(strValue.oValue, sVarName), sFormatSpecifier);
+                strReturnValue = GetValueFromFloat(GetLocalFloat(oValue, sVarName), sFormatSpecifier);
             else if (sType == "s")
-                strReturnValue = GetValueFromString(GetLocalString(strValue.oValue, sVarName), sFormatSpecifier);
+                strReturnValue = GetValueFromString(GetLocalString(oValue, sVarName), sFormatSpecifier);
             else if (sType == "o")
-                strReturnValue = GetValueFromObject(GetLocalObject(strValue.oValue, sVarName), sFormatSpecifier);
+                strReturnValue = GetValueFromObject(GetLocalObject(oValue, sVarName), sFormatSpecifier);
             else if (sType == "j")
-                strReturnValue = GetValueFromJson(GetLocalJson(strValue.oValue, sVarName), sFormatSpecifier);
+                strReturnValue = GetValueFromJson(GetLocalJson(oValue, sVarName), sFormatSpecifier);
         }
     }
 
@@ -1111,16 +1141,18 @@ struct PropertyChain GetLocationProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     string sFormatSpecifier = strPC.strValue.sFormatSpecifier;
-    struct Value strValue = strPC.strValue;
+    location locValue = strPC.strValue.locValue;
+
     struct Value strReturnValue;
+    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (sProperty == "area")
     {
-        strReturnValue = GetValueFromObject(GetAreaFromLocation(strValue.locValue), sFormatSpecifier);
+        strReturnValue = GetValueFromObject(GetAreaFromLocation(locValue), sFormatSpecifier);
     }
     else if (sProperty == "x" || sProperty == "y" || sProperty == "z")
     {
-        vector vPosition = GetPositionFromLocation(strValue.locValue);
+        vector vPosition = GetPositionFromLocation(locValue);
         if (sProperty == "x")
             strReturnValue = GetValueFromFloat(vPosition.x, sFormatSpecifier);
         else if (sProperty == "y")
@@ -1128,13 +1160,13 @@ struct PropertyChain GetLocationProperty(struct PropertyChain strPC)
         else if (sProperty == "z")
             strReturnValue = GetValueFromFloat(vPosition.z, sFormatSpecifier);
     }
-    else if (sProperty== "facing")
+    else if (sProperty == "facing")
     {
-        strReturnValue = GetValueFromFloat(GetFacingFromLocation(strValue.locValue), sFormatSpecifier);
+        strReturnValue = GetValueFromFloat(GetFacingFromLocation(locValue), sFormatSpecifier);
     }
     else if (sProperty == "position")
     {
-        vector vPosition = GetPositionFromLocation(strValue.locValue);
+        vector vPosition = GetPositionFromLocation(locValue);
         string sX = FormatValueByType(GetValueFromFloat(vPosition.x, sFormatSpecifier));
         string sY = FormatValueByType(GetValueFromFloat(vPosition.y, sFormatSpecifier));
         string sZ = FormatValueByType(GetValueFromFloat(vPosition.z, sFormatSpecifier));
@@ -1142,7 +1174,7 @@ struct PropertyChain GetLocationProperty(struct PropertyChain strPC)
     }
     else if (sProperty == "valid")
     {
-        strReturnValue = GetValueFromInt(GetIsObjectValid(GetAreaFromLocation(strValue.locValue)), sFormatSpecifier);
+        strReturnValue = GetValueFromInt(GetIsObjectValid(GetAreaFromLocation(locValue)), sFormatSpecifier);
     }
 
     strPC.strValue = strReturnValue;
@@ -1179,18 +1211,20 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     string sFormatSpecifier = strPC.strValue.sFormatSpecifier;
-    struct Value strValue = strPC.strValue;
-    struct Value strReturnValue;
+    json jValue = strPC.strValue.jValue;
 
-    int nType = JsonGetType(strValue.jValue);
+    struct Value strReturnValue;
+    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+
+    int nType = JsonGetType(jValue);
     if (sProperty == "idx" && nType == JSON_TYPE_ARRAY)
     {
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 1)
         {
             int nIndex = StringToInt(JsonArrayGetString(jParameters, 0));
-            if (nIndex >= 0 && nIndex < JsonGetLength(strValue.jValue))
-                strReturnValue = GetJsonValueByType(JsonArrayGet(strValue.jValue, nIndex), sFormatSpecifier);
+            if (nIndex >= 0 && nIndex < JsonGetLength(jValue))
+                strReturnValue = GetJsonValueByType(JsonArrayGet(jValue, nIndex), sFormatSpecifier);
         }
     }
     else if (sProperty == "key" && nType == JSON_TYPE_OBJECT)
@@ -1199,31 +1233,33 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
         if (JsonGetLength(jParameters) >= 1)
         {
             string sKey = JsonArrayGetString(jParameters, 0);
-            if (JsonObjectContainsKey(strValue.jValue, sKey))
-                strReturnValue = GetJsonValueByType(JsonObjectGet(strValue.jValue, sKey), sFormatSpecifier);
+            if (JsonObjectContainsKey(jValue, sKey))
+                strReturnValue = GetJsonValueByType(JsonObjectGet(jValue, sKey), sFormatSpecifier);
         }
     }
     else if (sProperty == "length")
     {
-        strReturnValue = GetValueFromInt(JsonGetLength(strValue.jValue), sFormatSpecifier);
+        strReturnValue = GetValueFromInt(JsonGetLength(jValue), sFormatSpecifier);
     }
     else if (sProperty == "keys" && nType == JSON_TYPE_OBJECT)
     {
-        strReturnValue = GetJsonValueByType(JsonObjectKeys(strValue.jValue), sFormatSpecifier);
+        strReturnValue = GetJsonValueByType(JsonObjectKeys(jValue), sFormatSpecifier);
     }
     else if (sProperty == "contains" && nType == JSON_TYPE_OBJECT)
     {
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 1)
-            strReturnValue = GetValueFromInt(JsonObjectContainsKey(strValue.jValue, JsonArrayGetString(jParameters, 0)), sFormatSpecifier);
+            strReturnValue = GetValueFromInt(JsonObjectContainsKey(jValue, JsonArrayGetString(jParameters, 0)), sFormatSpecifier);
     }
     else if (sProperty == "default")
     {
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 1)
         {
-            if (JsonGetType(strValue.jValue) == JSON_TYPE_NULL)
+            if (JsonGetType(jValue) == JSON_TYPE_NULL)
                 strReturnValue = GetValueFromString(JsonArrayGetString(jParameters, 0), sFormatSpecifier);
+            else
+                strReturnValue = strPC.strValue;
         }
     }
 

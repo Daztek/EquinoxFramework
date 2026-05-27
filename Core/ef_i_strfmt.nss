@@ -13,7 +13,7 @@
 const string STRFMT_SCRIPT_NAME                     = "ef_i_strfmt";
 const string STRFMT_VARIABLE_CACHE_PREFIX           = "StringFormatVariableCache_";
 const string STRFMT_PARAMETER_CACHE_PREFIX          = "StringFormatParameterCache_";
-const string STRFMT_PROPERTY_SEGMENT_CACHE_PREFIX   = "StringFormatPropertySegementCache_";
+const string STRFMT_PROPERTY_SEGMENT_CACHE_PREFIX   = "StringFormatPropertySegmentCache_";
 const string STRFMT_PROPERTY_CACHE_PREFIX           = "StringFormatPropertyCache_";
 const string STRFMT_INVALID_STRING                  = "[STRFMT_INVALID_STRING]";
 const float STRFMT_FLOAT_EPSILON                    = 0.0001f;
@@ -111,11 +111,11 @@ string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_N
     for (nIndex = 0; nIndex < nNumVariables; nIndex++)
     {
         json jVariable = JsonArrayGet(jVariables, nIndex);
-        string sPattern = NWNX_Util_RegExpEscape(JsonArrayGetString(jVariable, 0));
+        string sRegExp = NWNX_Util_RegExpEscape(JsonArrayGetString(jVariable, 0));
         string sVarName = JsonArrayGetString(jVariable, 1);
         string sFormatSpecifier = GetStringLowerCase(JsonArrayGetString(jVariable, 2));
         string sValue = GetFormattedValue(jStack, sVarName, sFormatSpecifier);
-        sResult = RegExpReplace(sPattern, sResult, sValue, REGEXP_ECMASCRIPT, REGEXP_FORMAT_FIRST_ONLY);
+        sResult = RegExpReplace(sRegExp, sResult, sValue, REGEXP_ECMASCRIPT);
     }
 
     if (bHasEscapes)
@@ -138,6 +138,8 @@ json ExtractVariableTokens(string sString)
     int nIndex = FindSubString(sString, "{"), nLength = GetStringLength(sString);
     if (nIndex == -1)
         return jTokens;
+
+    json jSeenTokens = JsonObject();
 
     while (nIndex < nLength)
     {
@@ -187,11 +189,17 @@ json ExtractVariableTokens(string sString)
             }
         }
 
-        json jToken = JsonArray();
-        JsonArrayInsertStringInplace(jToken, GetSubString(sString, nStart, nIndex - nStart));
-        JsonArrayInsertStringInplace(jToken, sVarName);
-        JsonArrayInsertStringInplace(jToken, sFormatSpecifier);
-        JsonArrayInsertInplace(jTokens, jToken);
+        string sRegExp = GetSubString(sString, nStart, nIndex - nStart);
+        if (!JsonObjectContainsKey(jSeenTokens, sRegExp))
+        {
+            json jToken = JsonArray();
+            JsonArrayInsertStringInplace(jToken, sRegExp);
+            JsonArrayInsertStringInplace(jToken, sVarName);
+            JsonArrayInsertStringInplace(jToken, sFormatSpecifier);
+            JsonArrayInsertInplace(jTokens, jToken);
+
+            JsonObjectSetInplace(jSeenTokens, sRegExp, JsonNull());
+        }
     }
     return jTokens;
 }
@@ -868,19 +876,14 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC)
         {
             string sValue = trim(JsonArrayGetString(jParameters, 0));
             if (IsInteger(sValue))
-            {
-                int bResult = EvaluateIntComparison(nValue, sProperty, StringToInt(sValue));
-                strReturnValue = GetValueFromInt(bResult, sFormatSpecifier);
-            }
+                strReturnValue = GetValueFromInt(EvaluateIntComparison(nValue, sProperty, StringToInt(sValue)), sFormatSpecifier);
         }
     }
     else if (sProperty == "then")
     {
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 2)
-        {
             strReturnValue = GetValueFromString(nValue != 0 ? JsonArrayGetString(jParameters, 0) : JsonArrayGetString(jParameters, 1), sFormatSpecifier);
-        }
     }
     else if (sProperty == "plural")
     {
@@ -940,10 +943,7 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
         {
             string sValue = trim(JsonArrayGetString(jParameters, 0));
             if (IsNumeric(sValue))
-            {
-                int bResult = EvaluateFloatComparison(fValue, sProperty, StringToFloat(sValue));
-                strReturnValue = GetValueFromInt(bResult, sFormatSpecifier);
-            }
+                strReturnValue = GetValueFromInt(EvaluateFloatComparison(fValue, sProperty, StringToFloat(sValue)), sFormatSpecifier);
         }
     }
     else
@@ -998,19 +998,13 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
     {
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 1)
-        {
-            string sResult = GetStringLeft(sValue, StringToInt(JsonArrayGetString(jParameters, 0)));
-            strReturnValue = GetValueFromString(sResult, sFormatSpecifier);
-        }
+            strReturnValue = GetValueFromString(GetStringLeft(sValue, StringToInt(JsonArrayGetString(jParameters, 0))), sFormatSpecifier);
     }
     else if (sProperty == "right")
     {
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 1)
-        {
-            string sResult = GetStringRight(sValue, StringToInt(JsonArrayGetString(jParameters, 0)));
-            strReturnValue = GetValueFromString(sResult, sFormatSpecifier);
-        }
+            strReturnValue = GetValueFromString(GetStringRight(sValue, StringToInt(JsonArrayGetString(jParameters, 0))), sFormatSpecifier);
     }
     else if (sProperty == "replace")
     {
@@ -1019,8 +1013,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         {
             string sSearch = NWNX_Util_RegExpEscape(JsonArrayGetString(jParameters, 0));
             string sReplace = JsonArrayGetString(jParameters, 1);
-            string sResult = RegExpReplace(sSearch, sValue, sReplace);
-            strReturnValue = GetValueFromString(sResult, sFormatSpecifier);
+            strReturnValue = GetValueFromString(RegExpReplace(sSearch, sValue, sReplace), sFormatSpecifier);
         }
     }
     else if (sProperty == "eq" || sProperty == "neq")

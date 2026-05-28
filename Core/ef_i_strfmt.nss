@@ -48,8 +48,9 @@ struct PropertyChain
 };
 
 string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_NULL);
+string Interpret(string sString, int nDepthOverride = 0);
 string MakeCacheKey(string sPrefix, string sString);
-json ExtractVariableTokens(string sString);
+json ExtractTokens(string sString);
 int FindPropertyPosition(string sVarName);
 
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier);
@@ -105,7 +106,7 @@ string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_N
 
     if (!JsonGetType(jVariables))
     {
-        jVariables = ExtractVariableTokens(sString);
+        jVariables = ExtractTokens(sString);
         SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, jVariables);
     }
 
@@ -144,12 +145,17 @@ string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_N
     return sResult;
 }
 
+string Interpret(string sString, int nDepthOverride = 0)
+{
+    return FormatString(sString, 1 + nDepthOverride, JsonNull());
+}
+
 string MakeCacheKey(string sPrefix, string sString)
 {
     return sPrefix + IntToString(HashString(sString)) + "_" + IntToString(GetStringLength(sString)) + "_" + GetStringLeft(sString, 32);
 }
 
-json ExtractVariableTokens(string sString)
+json ExtractTokens(string sString)
 {
     int nIndex = FindSubString(sString, "{");
     if (nIndex == -1)
@@ -1177,6 +1183,17 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
     {
         strReturnValue = GetValueFromString(CapitalizeWord(sValue), sFormatSpecifier);
     }
+    else if (sProperty == "append" || sProperty == "prepend")
+    {
+        json jParameters = ResolveParameters(strPC);
+        if (JsonGetLength(jParameters) >= 1)
+        {
+            if (sProperty == "append")
+                strReturnValue = GetValueFromString(sValue + JsonArrayGetString(jParameters, 0), sFormatSpecifier);
+            else
+                strReturnValue = GetValueFromString(JsonArrayGetString(jParameters, 0) + sValue, sFormatSpecifier);
+        }
+    }
     else
     {
         strReturnValue = HandleSharedProperty(strPC, sProperty, sFormatSpecifier);
@@ -1532,6 +1549,29 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName, st
                 else if (IsFloat(sValue))
                     nAuxType = NWNX_VM_AUXTYPE_FLOAT;
                 JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntry(sValue, nAuxType));
+                strReturnValue = GetValueFromString("", sFormatSpecifier);
+            }
+        }
+    }
+    else if (sMetaName == "out")
+    {
+        json jParameters = ResolveParameters(strPC);
+        if (JsonGetLength(jParameters) >= 2)
+        {
+            string sVarName = trim(JsonArrayGetString(jParameters, 0));
+            if (JsonObjectContainsKey(strPC.jStack, sVarName))
+            {
+                string sValue = JsonArrayGetString(jParameters, 1);
+                json jStackVar = JsonObjectGet(strPC.jStack, sVarName);
+                int nOutAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
+
+                if (nOutAuxType == NWNX_VM_AUXTYPE_INT && IsInteger(sValue))
+                    NWNX_VM_SetStackIntegerValue(JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), StringToInt(sValue));
+                else if (nOutAuxType == NWNX_VM_AUXTYPE_FLOAT && IsNumeric(sValue))
+                    NWNX_VM_SetStackFloatValue(JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), StringToFloat(sValue));
+                else if (nOutAuxType == NWNX_VM_AUXTYPE_STRING)
+                    NWNX_VM_SetStackStringValue(JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), sValue);
+
                 strReturnValue = GetValueFromString("", sFormatSpecifier);
             }
         }

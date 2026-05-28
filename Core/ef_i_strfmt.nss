@@ -15,6 +15,7 @@ const string STRFMT_VARIABLE_CACHE_PREFIX           = "StringFormatVariableCache
 const string STRFMT_PARAMETER_CACHE_PREFIX          = "StringFormatParameterCache_";
 const string STRFMT_PROPERTY_SEGMENT_CACHE_PREFIX   = "StringFormatPropertySegmentCache_";
 const string STRFMT_PROPERTY_CACHE_PREFIX           = "StringFormatPropertyCache_";
+const string STRFMT_PROPERTY_POSITION_CACHE_PREFIX  = "StringFormatPropertyPositionCache_";
 const string STRFMT_INVALID_STRING                  = "[STRFMT_INVALID_STRING]";
 const float STRFMT_FLOAT_EPSILON                    = 0.0001f;
 
@@ -44,6 +45,8 @@ struct PropertyChain
 string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_NULL);
 string GetCacheKey(string sPrefix, string sString);
 json ExtractVariableTokens(string sString);
+int FindPropertyPosition(string sVarName);
+string GetMetaValue(json jStack, string sVarName, string sFormatSpecifier);
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier);
 string FormatValueByType(struct Value strValue);
 string FormatAsString(struct Value strValue);
@@ -174,9 +177,23 @@ json ExtractVariableTokens(string sString)
         string sToken = GetSubString(sString, nStart + 1, nIndex - nStart - 2);
         string sVarName = sToken, sFormatSpecifier;
         int nTokenLength = GetStringLength(sToken), nTokenDepth = 0, nTokenIndex;
+        int bInQuotes = FALSE;
+        string sQuoteChar = "";
         for (nTokenIndex = 0; nTokenIndex < nTokenLength; nTokenIndex++)
         {
             string sTokenCharacter = GetSubString(sToken, nTokenIndex, 1);
+            if (bInQuotes)
+            {
+                if (sTokenCharacter == sQuoteChar)
+                    bInQuotes = FALSE;
+                continue;
+            }
+            if (sTokenCharacter == "\"" || sTokenCharacter == "'")
+            {
+                bInQuotes = TRUE;
+                sQuoteChar = sTokenCharacter;
+                continue;
+            }
             if (sTokenCharacter == "{")
                 nTokenDepth++;
             else if (sTokenCharacter == "}")
@@ -204,12 +221,150 @@ json ExtractVariableTokens(string sString)
     return jTokens;
 }
 
+int FindPropertyPosition(string sVarName)
+{
+    if (FindSubString(sVarName, ">") == -1)
+        return -1;
+
+    string sCacheKey = GetCacheKey(STRFMT_PROPERTY_POSITION_CACHE_PREFIX, sVarName);
+    json jCached = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
+    if (JsonGetType(jCached) == JSON_TYPE_INTEGER)
+        return JsonGetInt(jCached);
+
+    int nBraceDepth = 0, nParenDepth = 0;
+    int nIndex, nLength = GetStringLength(sVarName);
+    for (nIndex = 0; nIndex < nLength; nIndex++)
+    {
+        string sChar = GetSubString(sVarName, nIndex, 1);
+        if (sChar == "{")
+            nBraceDepth++;
+        else if (sChar == "}")
+            nBraceDepth--;
+        else if (sChar == "(" && nBraceDepth == 0)
+            nParenDepth++;
+        else if (sChar == ")" && nBraceDepth == 0)
+            nParenDepth--;
+        else if (sChar == ">" && nBraceDepth == 0 && nParenDepth == 0)
+        {
+            SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, JsonInt(nIndex));
+            return nIndex;
+        }
+    }
+
+    SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, JsonInt(-1));
+    return -1;
+}
+
+string GetMetaValue(json jStack, string sVarName, string sFormatSpecifier)
+{
+    int nVarNameLength = GetStringLength(sVarName);
+    int nPropertyPosition = FindPropertyPosition(sVarName);
+    string sMetaToken = nPropertyPosition == -1 ?
+        GetSubString(sVarName, 1, nVarNameLength - 1) : GetSubString(sVarName, 1, nPropertyPosition - 1);
+
+    struct PropertyChain strMeta;
+    strMeta.jStack = jStack;
+    strMeta = ParsePropertyAndParameters(strMeta, sMetaToken);
+
+    string sMetaName = strMeta.sCurrentProperty;
+    struct Value strReturnValue;
+
+    if (sMetaName == "int")
+    {
+        json jParameters = ResolveParameters(strMeta);
+        if (JsonGetLength(jParameters) >= 1)
+        {
+            string sValue = trim(JsonArrayGetString(jParameters, 0));
+            if (IsInteger(sValue))
+                strReturnValue = GetValueFromInt(StringToInt(sValue), sFormatSpecifier);
+        }
+    }
+    else if (sMetaName == "string")
+    {
+        json jParameters = ResolveParameters(strMeta);
+        if (JsonGetLength(jParameters) >= 1)
+            strReturnValue = GetValueFromString(JsonArrayGetString(jParameters, 0), sFormatSpecifier);
+    }
+    else if (sMetaName == "pick")
+    {
+        json jParameters = ResolveParameters(strMeta);
+        int nNumParameters = JsonGetLength(jParameters);
+        if (nNumParameters >= 1)
+            strReturnValue = GetValueFromString(JsonArrayGetString(jParameters, Random(nNumParameters)), sFormatSpecifier);
+    }
+    else if (sMetaName == "if")
+    {
+        json jParameters = ParseParameters(strMeta.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 3)
+        {
+            string sCondition = FormatString(JsonArrayGetString(jParameters, 0), 0, jStack);
+            int nCondition = StringToInt(sCondition);
+            string sResult = FormatString(nCondition ? JsonArrayGetString(jParameters, 1) : JsonArrayGetString(jParameters, 2), 0, jStack);
+            strReturnValue = GetValueFromString(sResult, sFormatSpecifier);
+        }
+    }
+    else if (sMetaName == "hour")
+    {
+        strReturnValue = GetValueFromInt(GetTimeHour(), sFormatSpecifier);
+    }
+    else if (sMetaName == "minute")
+    {
+        strReturnValue = GetValueFromInt(GetTimeMinute(), sFormatSpecifier);
+    }
+    else if (sMetaName == "random")
+    {
+        json jParameters = ResolveParameters(strMeta);
+        int nNumParameters = JsonGetLength(jParameters);
+        if (nNumParameters >= 1)
+        {
+            string sParameter0 = trim(JsonArrayGetString(jParameters, 0));
+            if (IsInteger(sParameter0))
+            {
+                int nMax = StringToInt(sParameter0);
+                int nMin = 0;
+
+                if (nNumParameters >= 2)
+                {
+                    string sParameter1 = trim(JsonArrayGetString(jParameters, 1));
+                    if (IsInteger(sParameter1))
+                    {
+                        nMin = nMax;
+                        nMax = StringToInt(sParameter1);
+                    }
+                }
+
+                if (nMax > nMin)
+                    strReturnValue = GetValueFromInt(nMin + Random(nMax - nMin), sFormatSpecifier);
+                else if (nMax == nMin)
+                    strReturnValue = GetValueFromInt(nMin, sFormatSpecifier);
+            }
+        }
+    }
+
+    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+        return "[UNKNOWN_META:" + sMetaName + "]";
+
+    if (nPropertyPosition == -1)
+        return FormatValueByType(strReturnValue);
+
+    struct PropertyChain strPC;
+    strPC.jStack = jStack;
+    strPC.sBaseVarName = sVarName;
+    strPC.sFullPropertyPath = GetSubString(sVarName, nPropertyPosition + 1, nVarNameLength - nPropertyPosition - 1);
+    strPC.strValue = strReturnValue;
+
+    return GetPropertyValue(strPC);
+}
+
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier)
 {
     if (sFormatSpecifier == "")
         sFormatSpecifier = "%s";
 
-    int nPropertyPosition = FindSubString(sVarName, ">", 0);
+    if (GetStringLeft(sVarName, 1) == "@")
+        return GetMetaValue(jStack, sVarName, sFormatSpecifier);
+
+    int nPropertyPosition = FindPropertyPosition(sVarName);
     if (nPropertyPosition != -1)
     {
         string sBaseVarName = GetStringLeft(sVarName, nPropertyPosition);
@@ -881,9 +1036,12 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC)
     }
     else if (sProperty == "then")
     {
-        json jParameters = ResolveParameters(strPC);
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
         if (JsonGetLength(jParameters) >= 2)
-            strReturnValue = GetValueFromString(nValue != 0 ? JsonArrayGetString(jParameters, 0) : JsonArrayGetString(jParameters, 1), sFormatSpecifier);
+        {
+            string sResult = FormatString(nValue != 0 ? JsonArrayGetString(jParameters, 0) : JsonArrayGetString(jParameters, 1), 0, strPC.jStack);
+            strReturnValue = GetValueFromString(sResult, sFormatSpecifier);
+        }
     }
     else if (sProperty == "plural")
     {

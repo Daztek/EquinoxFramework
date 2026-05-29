@@ -168,34 +168,6 @@ json ExtractTokens(string sString)
     while (nIndex < nLength)
     {
         string sCurrent = GetSubString(sString, nIndex, 1);
-        if (sCurrent == STRFMT_ALIAS_SYMBOL)
-        {
-            int nDollarSignStart = nIndex;
-            nIndex++;
-            while (nIndex < nLength)
-            {
-                string sCharacter = GetSubString(sString, nIndex, 1);
-                if (sCharacter == " " || sCharacter == "{" || sCharacter == "}" ||  sCharacter == "," ||
-                    sCharacter == ")" || sCharacter == ">" || sCharacter == ":")
-                    break;
-                nIndex++;
-            }
-
-            if (nIndex > nDollarSignStart + 1)
-            {
-                string sRegExp = GetSubString(sString, nDollarSignStart, nIndex - nDollarSignStart);
-                if (!JsonObjectContainsKey(jSeenTokens, sRegExp))
-                {
-                    json jToken = JsonArray();
-                    JsonArrayInsertStringInplace(jToken, sRegExp);
-                    JsonArrayInsertStringInplace(jToken, sRegExp);
-                    JsonArrayInsertStringInplace(jToken, "");
-                    JsonArrayInsertInplace(jTokens, jToken);
-                    JsonObjectSetInplace(jSeenTokens, sRegExp, JsonNull());
-                }
-            }
-            continue;
-        }
 
         if (sCurrent != "{")
         {
@@ -253,7 +225,7 @@ json ExtractTokens(string sString)
         }
 
         if (nDepth != 0)
-            break;
+            continue;
 
         string sRegExp = GetSubString(sString, nStart, nIndex - nStart);
         if (JsonObjectContainsKey(jSeenTokens, sRegExp))
@@ -477,7 +449,7 @@ string FormatAsBoolean(struct Value strValue)
         case NWNX_VM_AUXTYPE_STRING:    nValue = strValue.sValue != ""; break;
         case NWNX_VM_AUXTYPE_OBJECT:    nValue = GetIsObjectValid(strValue.oValue); break;
         case NWNX_VM_AUXTYPE_JSON:      nValue = JsonGetType(strValue.jValue) != JSON_TYPE_NULL; break;
-        default:                return "[TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->%b]";
+        default: return "[TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->%b]";
     }
     return nValue ? "TRUE" : "FALSE";
 }
@@ -1122,7 +1094,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
     {
         strReturnValue = GetValueFromString(trim(sValue), sFormatSpecifier);
     }
-    else if (sProperty == "sub" || sProperty == "substring")
+    else if (sProperty == "substr" || sProperty == "substring")
     {
         json jParameters = ResolveParameters(strPC);
         int nParameterCount = JsonGetLength(jParameters);
@@ -1263,8 +1235,8 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 2)
         {
-            string sType = GetStringLowerCase(JsonArrayGetString(jParameters, 0));
-            string sVarName = JsonArrayGetString(jParameters, 1);
+            string sType = GetStringLowerCase(trim(JsonArrayGetString(jParameters, 0)));
+            string sVarName = trim(JsonArrayGetString(jParameters, 1));
 
             if (sType == "i")
                 strReturnValue = GetValueFromInt(GetLocalInt(oValue, sVarName), sFormatSpecifier);
@@ -1582,7 +1554,67 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName, st
 struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier)
 {
     struct Value strReturnValue;
-    if (sMetaName == "random")
+    if (sMetaName == "add")
+    {
+        json jParameters = ResolveParameters(strPC);
+        if (JsonGetLength(jParameters) >= 2)
+        {
+            string sValue1 = trim(JsonArrayGetString(jParameters, 0));
+            string sValue2 = trim(JsonArrayGetString(jParameters, 1));
+            if (IsInteger(sValue1) && IsNumeric(sValue2))
+                strReturnValue = GetValueFromInt(StringToInt(sValue1) + round(StringToFloat(sValue2)), sFormatSpecifier);
+            else if (IsFloat(sValue1) && IsNumeric(sValue2))
+                strReturnValue = GetValueFromFloat(StringToFloat(sValue1) + StringToFloat(sValue2), sFormatSpecifier);
+        }
+    }
+    else if (sMetaName == "sub")
+    {
+        json jParameters = ResolveParameters(strPC);
+        if (JsonGetLength(jParameters) >= 2)
+        {
+            string sValue1 = trim(JsonArrayGetString(jParameters, 0));
+            string sValue2 = trim(JsonArrayGetString(jParameters, 1));
+            if (IsInteger(sValue1) && IsNumeric(sValue2))
+                strReturnValue = GetValueFromInt(StringToInt(sValue1) - round(StringToFloat(sValue2)), sFormatSpecifier);
+            else if (IsFloat(sValue1) && IsNumeric(sValue2))
+                strReturnValue = GetValueFromFloat(StringToFloat(sValue1) - StringToFloat(sValue2), sFormatSpecifier);
+        }
+    }
+    else if (sMetaName == "mul")
+    {
+        json jParameters = ResolveParameters(strPC);
+        if (JsonGetLength(jParameters) >= 2)
+        {
+            string sValue1 = trim(JsonArrayGetString(jParameters, 0));
+            string sValue2 = trim(JsonArrayGetString(jParameters, 1));
+            if (IsInteger(sValue1) && IsNumeric(sValue2))
+                strReturnValue = GetValueFromInt(StringToInt(sValue1) * round(StringToFloat(sValue2)), sFormatSpecifier);
+            else if (IsFloat(sValue1) && IsNumeric(sValue2))
+                strReturnValue = GetValueFromFloat(StringToFloat(sValue1) * StringToFloat(sValue2), sFormatSpecifier);
+        }
+    }
+    else if (sMetaName == "div")
+    {
+        json jParameters = ResolveParameters(strPC);
+        if (JsonGetLength(jParameters) >= 2)
+        {
+            string sValue1 = trim(JsonArrayGetString(jParameters, 0));
+            string sValue2 = trim(JsonArrayGetString(jParameters, 1));
+            if (IsInteger(sValue1) && IsNumeric(sValue2))
+            {
+                int nDiv = round(StringToFloat(sValue2));
+                if (nDiv != 0)
+                    strReturnValue = GetValueFromInt(StringToInt(sValue1) / nDiv, sFormatSpecifier);
+            }
+            else if (IsFloat(sValue1) && IsNumeric(sValue2))
+            {
+                float fDiv = StringToFloat(sValue2);
+                if (fDiv != 0.0f)
+                    strReturnValue = GetValueFromFloat(StringToFloat(sValue1) / fDiv, sFormatSpecifier);
+            }
+        }
+    }
+    else if (sMetaName == "random")
     {
         json jParameters = ResolveParameters(strPC);
         int nNumParameters = JsonGetLength(jParameters);

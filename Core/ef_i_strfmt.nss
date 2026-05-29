@@ -17,12 +17,17 @@ const string STRFMT_PROPERTY_SEGMENT_CACHE_PREFIX   = "StringFormatPropertySegme
 const string STRFMT_PROPERTY_CACHE_PREFIX           = "StringFormatPropertyCache_";
 const string STRFMT_PROPERTY_POSITION_CACHE_PREFIX  = "StringFormatPropertyPositionCache_";
 const string STRFMT_INVALID_STRING                  = "[STRFMT_INVALID_STRING]";
-const float STRFMT_FLOAT_EPSILON                    = 0.0001f;
 const string STRFMT_META_SYMBOL                     = "@";
+
+const int STRFMT_WHILE_SAFETY_LIMIT                 = 100;
+
 const string STRFMT_ALIAS_SYMBOL                    = "$";
-const int STRFMT_WHILE_SAFETY_LIMIT                 = 50;
 const string STRFMT_ALIAS_TYPE                      = "type";
 const string STRFMT_ALIAS_VALUE                     = "value";
+
+const string STRFMT_FUNCTION_SYMBOL                 = "&";
+const string STRFMT_FUNCTION_ARGS                   = "args";
+const string STRFMT_FUNCTION_BODY                   = "body";
 
 struct Value
 {
@@ -88,12 +93,15 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC);
 
 string GetMetaValue(json jStack, string sVarName, string sFormatSpecifier);
 struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
+struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 
 string GetAliasValue(json jStack, string sVarName, string sFormatSpecifier);
 json MakeStackAliasEntry(string sValue, int nAuxType);
+
+string GetFunctionValue(json jStack, string sVarName, string sFormatSpecifier);
 
 string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_NULL)
 {
@@ -264,20 +272,50 @@ int FindPropertyPosition(string sVarName)
     if (JsonGetType(jCached) == JSON_TYPE_INTEGER)
         return JsonGetInt(jCached);
 
-    int nBraceDepth = 0, nParenDepth = 0;
+    int nBraceDepth = 0;
+    int nParenDepth = 0;
+    int bInQuotes = FALSE;
+    string sQuoteChar = "";
+
     int nIndex, nLength = GetStringLength(sVarName);
     for (nIndex = 0; nIndex < nLength; nIndex++)
     {
-        string sChar = GetSubString(sVarName, nIndex, 1);
-        if (sChar == "{")
+        string sCharacter = GetSubString(sVarName, nIndex, 1);
+
+        if (bInQuotes)
+        {
+            if (sCharacter == "\\" && nIndex + 1 < nLength)
+            {
+                string sNext = GetSubString(sVarName, nIndex + 1, 1);
+                if (sNext == "\"" || sNext == "'" || sNext == "\\")
+                {
+                    nIndex++;
+                    continue;
+                }
+            }
+
+            if (sCharacter == sQuoteChar)
+                bInQuotes = FALSE;
+
+            continue;
+        }
+
+        if (sCharacter == "\"" || sCharacter == "'")
+        {
+            bInQuotes = TRUE;
+            sQuoteChar = sCharacter;
+            continue;
+        }
+
+        if (sCharacter == "{")
             nBraceDepth++;
-        else if (sChar == "}")
+        else if (sCharacter == "}")
             nBraceDepth--;
-        else if (sChar == "(" && nBraceDepth == 0)
+        else if (sCharacter == "(" && nBraceDepth == 0)
             nParenDepth++;
-        else if (sChar == ")" && nBraceDepth == 0)
+        else if (sCharacter == ")" && nBraceDepth == 0)
             nParenDepth--;
-        else if (sChar == ">" && nBraceDepth == 0 && nParenDepth == 0)
+        else if (sCharacter == ">" && nBraceDepth == 0 && nParenDepth == 0)
         {
             SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, JsonInt(nIndex));
             return nIndex;
@@ -298,6 +336,8 @@ string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier)
         return GetMetaValue(jStack, sVarName, sFormatSpecifier);
     if (sPrefix == STRFMT_ALIAS_SYMBOL)
         return GetAliasValue(jStack, sVarName, sFormatSpecifier);
+    if (sPrefix == STRFMT_FUNCTION_SYMBOL)
+        return GetFunctionValue(jStack, sVarName, sFormatSpecifier);
 
     int nPropertyPosition = FindPropertyPosition(sVarName);
     if (nPropertyPosition != -1)
@@ -445,7 +485,7 @@ string FormatAsBoolean(struct Value strValue)
     switch (strValue.nAuxType)
     {
         case NWNX_VM_AUXTYPE_INT:       nValue = strValue.nValue; break;
-        case NWNX_VM_AUXTYPE_FLOAT:     nValue = fabs(strValue.fValue) >= STRFMT_FLOAT_EPSILON; break;
+        case NWNX_VM_AUXTYPE_FLOAT:     nValue = fabs(strValue.fValue) >= FLOAT_EPSILON; break;
         case NWNX_VM_AUXTYPE_STRING:    nValue = strValue.sValue != ""; break;
         case NWNX_VM_AUXTYPE_OBJECT:    nValue = GetIsObjectValid(strValue.oValue); break;
         case NWNX_VM_AUXTYPE_JSON:      nValue = JsonGetType(strValue.jValue) != JSON_TYPE_NULL; break;
@@ -590,7 +630,47 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
         return strPC;
     }
 
-    int nParameterStart = FindSubString(sPropertySegment, "(", 0);
+    int nParameterStart = -1;
+    int bInQuotes = FALSE;
+    string sQuoteChar = "";
+
+    int nIndex, nLength = GetStringLength(sPropertySegment);
+    for (nIndex = 0; nIndex < nLength; nIndex++)
+    {
+        string sCharacter = GetSubString(sPropertySegment, nIndex, 1);
+
+        if (bInQuotes)
+        {
+            if (sCharacter == "\\" && nIndex + 1 < nLength)
+            {
+                string sNext = GetSubString(sPropertySegment, nIndex + 1, 1);
+                if (sNext == "\"" || sNext == "'" || sNext == "\\")
+                {
+                    nIndex++;
+                    continue;
+                }
+            }
+
+            if (sCharacter == sQuoteChar)
+                bInQuotes = FALSE;
+
+            continue;
+        }
+
+        if (sCharacter == "\"" || sCharacter == "'")
+        {
+            bInQuotes = TRUE;
+            sQuoteChar = sCharacter;
+            continue;
+        }
+
+        if (sCharacter == "(")
+        {
+            nParameterStart = nIndex;
+            break;
+        }
+    }
+
     if (nParameterStart == -1)
     {
         strPC.sCurrentProperty = sPropertySegment;
@@ -600,12 +680,39 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
     {
         strPC.sCurrentProperty = GetStringLeft(sPropertySegment, nParameterStart);
 
-        int nParameterEnd = -1;
-        int nParenDepth = 1, nBraceDepth = 0;
-        int nIndex, nLength = GetStringLength(sPropertySegment);
+        int nParameterEnd = -1, nParenDepth = 1, nBraceDepth = 0;
+        bInQuotes = FALSE;
+        sQuoteChar = "";
+
         for (nIndex = nParameterStart + 1; nIndex < nLength; nIndex++)
         {
             string sCharacter = GetSubString(sPropertySegment, nIndex, 1);
+
+            if (bInQuotes)
+            {
+                if (sCharacter == "\\" && nIndex + 1 < nLength)
+                {
+                    string sNext = GetSubString(sPropertySegment, nIndex + 1, 1);
+                    if (sNext == "\"" || sNext == "'" || sNext == "\\")
+                    {
+                        nIndex++;
+                        continue;
+                    }
+                }
+
+                if (sCharacter == sQuoteChar)
+                    bInQuotes = FALSE;
+
+                continue;
+            }
+
+            if (sCharacter == "\"" || sCharacter == "'")
+            {
+                bInQuotes = TRUE;
+                sQuoteChar = sCharacter;
+                continue;
+            }
+
             if (sCharacter == "{")
                 nBraceDepth++;
             else if (sCharacter == "}")
@@ -615,6 +722,7 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
             else if (nBraceDepth == 0 && sCharacter == ")")
             {
                 nParenDepth--;
+
                 if (nParenDepth == 0)
                 {
                     nParameterEnd = nIndex;
@@ -772,13 +880,39 @@ string GetPropertyValue(struct PropertyChain strPC)
     if (!JsonGetType(jSegments))
     {
         jSegments = JsonArray();
-
         int nLength = GetStringLength(strPC.sFullPropertyPath);
         int nIndex, nSegmentStart = 0, nBraceDepth = 0, nParenDepth = 0;
+        int bInQuotes = FALSE;
+        string sQuoteChar = "";
 
         for (nIndex = 0; nIndex <= nLength; nIndex++)
         {
             string sCharacter = nIndex < nLength ? GetSubString(strPC.sFullPropertyPath, nIndex, 1) : ">";
+
+            if (bInQuotes)
+            {
+                if (sCharacter == "\\" && nIndex + 1 < nLength)
+                {
+                    string sNext = GetSubString(strPC.sFullPropertyPath, nIndex + 1, 1);
+                    if (sNext == "\"" || sNext == "'" || sNext == "\\")
+                    {
+                        nIndex++;
+                        continue;
+                    }
+                }
+
+                if (sCharacter == sQuoteChar)
+                    bInQuotes = FALSE;
+
+                continue;
+            }
+
+            if (sCharacter == "\"" || sCharacter == "'")
+            {
+                bInQuotes = TRUE;
+                sQuoteChar = sCharacter;
+                continue;
+            }
 
             if (sCharacter == "{")
                 nBraceDepth++;
@@ -803,7 +937,6 @@ string GetPropertyValue(struct PropertyChain strPC)
     {
         strPC = ParsePropertyAndParameters(strPC, JsonArrayGetString(jSegments, nSegment));
         strPC = GetPropertyValueByType(strPC);
-
         if (strPC.strValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
             break;
     }
@@ -1046,9 +1179,9 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
             {
                 float fCompare = StringToFloat(sValue);
                 if (sProperty == "eq")
-                    strReturnValue = GetValueFromInt(fabs(fValue - fCompare) < STRFMT_FLOAT_EPSILON, sFormatSpecifier);
+                    strReturnValue = GetValueFromInt(fabs(fValue - fCompare) < FLOAT_EPSILON, sFormatSpecifier);
                 else if (sProperty == "neq")
-                    strReturnValue = GetValueFromInt(fabs(fValue - fCompare) >= STRFMT_FLOAT_EPSILON, sFormatSpecifier);
+                    strReturnValue = GetValueFromInt(fabs(fValue - fCompare) >= FLOAT_EPSILON, sFormatSpecifier);
                 else if (sProperty == "gt")
                     strReturnValue = GetValueFromInt(fValue > fCompare, sFormatSpecifier);
                 else if (sProperty == "gte")
@@ -1404,6 +1537,9 @@ string GetMetaValue(json jStack, string sVarName, string sFormatSpecifier)
         strReturnValue = HandleMetaPrimitive(strMeta, sMetaName, sFormatSpecifier);
 
     if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+        strReturnValue = HandleMetaFunction(strMeta, sMetaName, sFormatSpecifier);
+
+    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
         strReturnValue = HandleMetaControlFlow(strMeta, sMetaName, sFormatSpecifier);
 
     if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
@@ -1455,6 +1591,36 @@ struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName, s
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 1)
             strReturnValue = GetValueFromString(JsonArrayGetString(jParameters, 0), sFormatSpecifier);
+    }
+    return strReturnValue;
+}
+
+struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier)
+{
+    struct Value strReturnValue;
+    if (sMetaName == "fn")
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+
+        if (JsonGetLength(jParameters) >= 2)
+        {
+            string sFunctionName = trim(JsonArrayGetString(jParameters, 0));
+            if (GetStringLeft(sFunctionName, 1) == "&")
+            {
+                json jArgs = JsonArray();
+                int nIndex, nLast = JsonGetLength(jParameters) - 1;
+                for (nIndex = 1; nIndex < nLast; nIndex++)
+                {
+                    JsonArrayInsertStringInplace(jArgs, trim(JsonArrayGetString(jParameters, nIndex)));
+                }
+
+                json jFunction = JsonObject();
+                JsonObjectSetInplace(jFunction, STRFMT_FUNCTION_ARGS, jArgs);
+                JsonObjectSetStringInplace(jFunction, STRFMT_FUNCTION_BODY, JsonArrayGetString(jParameters, nLast));
+                JsonObjectSetInplace(strPC.jStack, sFunctionName, jFunction);
+                strReturnValue = GetValueFromString("", sFormatSpecifier);
+            }
+        }
     }
     return strReturnValue;
 }
@@ -1683,4 +1849,35 @@ json MakeStackAliasEntry(string sValue, int nAuxType)
     JsonObjectSetStringInplace(jEntry, STRFMT_ALIAS_VALUE, sValue);
     JsonObjectSetIntInplace(jEntry, STRFMT_ALIAS_TYPE, nAuxType);
     return jEntry;
+}
+
+string GetFunctionValue(json jStack, string sVarName, string sFormatSpecifier)
+{
+    struct PropertyChain strFn;
+    strFn.jStack = jStack;
+    strFn = ParsePropertyAndParameters(strFn, sVarName);
+
+    string sFunctionName = strFn.sCurrentProperty;
+    json jFunction = JsonObjectGet(jStack, sFunctionName);
+
+    if (JsonGetType(jFunction) != JSON_TYPE_OBJECT)
+        return "[UNKNOWN_FUNCTION:" + sFunctionName + "]";
+
+    json jArgNames = JsonObjectGet(jFunction, STRFMT_FUNCTION_ARGS);
+    string sBody = JsonObjectGetString(jFunction, STRFMT_FUNCTION_BODY);
+    json jValues = ResolveParameters(strFn);
+
+    if (JsonGetLength(jValues) != JsonGetLength(jArgNames))
+        return "[FUNCTION_ARITY:" + sFunctionName + "]";
+
+    json jFrame = JsonCopyObject(jStack);
+    int nIndex, nNumArgs = JsonGetLength(jArgNames);
+    for (nIndex = 0; nIndex < nNumArgs; nIndex++)
+    {
+        string sArgName = JsonArrayGetString(jArgNames, nIndex);
+        string sArgValue = JsonArrayGetString(jValues, nIndex);
+        JsonObjectSetInplace(jFrame, sArgName, MakeStackAliasEntry(sArgValue, NWNX_VM_AUXTYPE_STRING));
+    }
+
+    return FormatString(sBody, 0, jFrame);
 }

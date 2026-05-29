@@ -69,6 +69,7 @@ object JsonGetObjectRef(json jValue);
 int JsonObjectContainsKey(json jObject, string sKey);
 json StructToJson(string sStructVarName, int nDepthOverride = 0);
 int JsonToStruct(string sStructVarName, json jStruct, int nDepthOverride = 0);
+json JsonCopyObject(json jObject);
 
 json VectorToJson(vector vVector)
 {
@@ -581,4 +582,9 @@ int JsonToStruct(string sStructVarName, json jStruct, int nDepthOverride = 0)
 {
     json jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
     return JsonToStructImpl(sStructVarName, "", jStruct, jStack);
+}
+
+json JsonCopyObject(json jObject)
+{
+    return JsonObjectDel(jObject, "");
 }

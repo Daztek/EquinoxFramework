@@ -3,6 +3,8 @@
     Author: Daz
 */
 
+const float FLOAT_EPSILON = 0.0001f;
+
 struct Vector2
 {
     int nX;

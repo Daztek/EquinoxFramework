@@ -3,7 +3,7 @@
     Author: Daz
 */
 
-const float FLOAT_EPSILON = 0.0001f;
+const float FLOAT_EPSILON = 0.000001f;
 
 struct Vector2
 {

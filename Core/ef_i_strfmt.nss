@@ -55,8 +55,14 @@ struct PropertyChain
 string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_NULL);
 string Interpret(string sString, int nDepthOverride = 0);
 string MakeCacheKey(string sPrefix, string sString);
+json GetCachedJson(string sPrefix, string sInput);
+void SetCachedJson(string sPrefix, string sInput, json jValue);
+int IsParserQuote(string sCharacter);
+int IsParserEscapedCharacter(string sString, int nIndex, int nLength);
 json ExtractTokens(string sString);
 int FindPropertyPosition(string sVarName);
+int FindTopLevelDelimiter(string sString, string sDelimiter);
+json SplitTopLevel(string sString, string sDelimiter, int bIncludeEmpty = TRUE);
 
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier);
 string FormatValueByType(struct Value strValue);
@@ -109,13 +115,12 @@ string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_N
         return sString;
 
     int bHasEscapes = FindSubString(sString, "{{", 0) != -1 || FindSubString(sString, "}}", 0) != -1;
-    string sCacheKey = MakeCacheKey(STRFMT_VARIABLE_CACHE_PREFIX, sString);
-    json jVariables = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
+    json jVariables = GetCachedJson(STRFMT_VARIABLE_CACHE_PREFIX, sString);
 
     if (!JsonGetType(jVariables))
     {
         jVariables = ExtractTokens(sString);
-        SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, jVariables);
+        SetCachedJson(STRFMT_VARIABLE_CACHE_PREFIX, sString, jVariables);
     }
 
     int nIndex, nNumVariables = JsonGetLength(jVariables);
@@ -169,6 +174,30 @@ string MakeCacheKey(string sPrefix, string sString)
     return sPrefix + IntToString(HashString(sString)) + "_" + IntToString(GetStringLength(sString)) + "_" + GetStringLeft(sString, 32);
 }
 
+json GetCachedJson(string sPrefix, string sInput)
+{
+    return GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), MakeCacheKey(sPrefix, sInput));
+}
+
+void SetCachedJson(string sPrefix, string sInput, json jValue)
+{
+    SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), MakeCacheKey(sPrefix, sInput), jValue);
+}
+
+int IsParserQuote(string sCharacter)
+{
+    return sCharacter == "\"" || sCharacter == "'";
+}
+
+int IsParserEscapedCharacter(string sString, int nIndex, int nLength)
+{
+    if (GetSubString(sString, nIndex, 1) != "\\" || nIndex + 1 >= nLength)
+        return FALSE;
+
+    string sNext = GetSubString(sString, nIndex + 1, 1);
+    return sNext == "\"" || sNext == "'" || sNext == "\\";
+}
+
 json ExtractTokens(string sString)
 {
     int nIndex = FindSubString(sString, "{");
@@ -203,35 +232,31 @@ json ExtractTokens(string sString)
 
         while (nIndex < nLength && nDepth > 0)
         {
-            string sChar = GetSubString(sString, nIndex, 1);
+            string sCharacter = GetSubString(sString, nIndex, 1);
 
             if (bInQuotes)
             {
-                if (sChar == "\\" && nIndex + 1 < nLength)
+                if (IsParserEscapedCharacter(sString, nIndex, nLength))
                 {
-                    string sNext = GetSubString(sString, nIndex + 1, 1);
-                    if (sNext == "\"" || sNext == "'" || sNext == "\\")
-                    {
-                        nIndex += 2;
-                        continue;
-                    }
+                    nIndex += 2;
+                    continue;
                 }
-                if (sChar == sQuoteChar)
+                if (sCharacter == sQuoteChar)
                     bInQuotes = FALSE;
                 nIndex++;
                 continue;
             }
 
-            if (sChar == "\"" || sChar == "'")
+            if (IsParserQuote(sCharacter))
             {
                 bInQuotes = TRUE;
-                sQuoteChar = sChar;
+                sQuoteChar = sCharacter;
             }
-            else if (sChar == "{")
+            else if (sCharacter == "{")
                 nDepth++;
-            else if (sChar == "}")
+            else if (sCharacter == "}")
                 nDepth--;
-            else if (sChar == ":" && nDepth == 1 && nColonPos == -1)
+            else if (sCharacter == ":" && nDepth == 1 && nColonPos == -1)
                 nColonPos = nIndex;
 
             nIndex++;
@@ -268,31 +293,34 @@ int FindPropertyPosition(string sVarName)
     if (FindSubString(sVarName, ">") == -1)
         return -1;
 
-    string sCacheKey = MakeCacheKey(STRFMT_PROPERTY_POSITION_CACHE_PREFIX, sVarName);
-    json jCached = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
+    json jCached = GetCachedJson(STRFMT_PROPERTY_POSITION_CACHE_PREFIX, sVarName);
     if (JsonGetType(jCached) == JSON_TYPE_INTEGER)
         return JsonGetInt(jCached);
 
-    int nBraceDepth = 0;
-    int nParenDepth = 0;
+    int nPosition = FindTopLevelDelimiter(sVarName, ">");
+    SetCachedJson(STRFMT_PROPERTY_POSITION_CACHE_PREFIX, sVarName, JsonInt(nPosition));
+    return nPosition;
+}
+
+json SplitTopLevel(string sString, string sDelimiter, int bIncludeEmpty = TRUE)
+{
+    json jParts = JsonArray();
+    int nLength = GetStringLength(sString);
+    int nStart = 0, nBraceDepth = 0, nParenDepth = 0;
     int bInQuotes = FALSE;
     string sQuoteChar = "";
 
-    int nIndex, nLength = GetStringLength(sVarName);
-    for (nIndex = 0; nIndex < nLength; nIndex++)
+    int nIndex;
+    for (nIndex = 0; nIndex <= nLength; nIndex++)
     {
-        string sCharacter = GetSubString(sVarName, nIndex, 1);
+        string sCharacter = nIndex < nLength ? GetSubString(sString, nIndex, 1) : sDelimiter;
 
         if (bInQuotes)
         {
-            if (sCharacter == "\\" && nIndex + 1 < nLength)
+            if (IsParserEscapedCharacter(sString, nIndex, nLength))
             {
-                string sNext = GetSubString(sVarName, nIndex + 1, 1);
-                if (sNext == "\"" || sNext == "'" || sNext == "\\")
-                {
-                    nIndex++;
-                    continue;
-                }
+                nIndex++;
+                continue;
             }
 
             if (sCharacter == sQuoteChar)
@@ -301,7 +329,7 @@ int FindPropertyPosition(string sVarName)
             continue;
         }
 
-        if (sCharacter == "\"" || sCharacter == "'")
+        if (IsParserQuote(sCharacter))
         {
             bInQuotes = TRUE;
             sQuoteChar = sCharacter;
@@ -316,15 +344,25 @@ int FindPropertyPosition(string sVarName)
             nParenDepth++;
         else if (sCharacter == ")" && nBraceDepth == 0)
             nParenDepth--;
-        else if (sCharacter == ">" && nBraceDepth == 0 && nParenDepth == 0)
+        else if (sCharacter == sDelimiter && nBraceDepth == 0 && nParenDepth == 0)
         {
-            SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, JsonInt(nIndex));
-            return nIndex;
+            string sPart = GetSubString(sString, nStart, nIndex - nStart);
+            if (bIncludeEmpty || sPart != "")
+                JsonArrayInsertStringInplace(jParts, sPart);
+
+            nStart = nIndex + 1;
         }
     }
 
-    SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, JsonInt(-1));
-    return -1;
+    return jParts;
+}
+
+int FindTopLevelDelimiter(string sString, string sDelimiter)
+{
+    json jParts = SplitTopLevel(sString, sDelimiter, TRUE);
+    if (JsonGetLength(jParts) <= 1)
+        return -1;
+    return GetStringLength(JsonArrayGetString(jParts, 0));
 }
 
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier)
@@ -621,9 +659,7 @@ struct Value GetValueFromJson(json jValue, string sFormatSpecifier)
 
 struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, string sPropertySegment)
 {
-    string sCacheKey = MakeCacheKey(STRFMT_PROPERTY_CACHE_PREFIX, sPropertySegment);
-    json jProperty = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
-
+    json jProperty = GetCachedJson(STRFMT_PROPERTY_CACHE_PREFIX, sPropertySegment);
     if (JsonGetType(jProperty) == JSON_TYPE_ARRAY)
     {
         strPC.sCurrentProperty = JsonArrayGetString(jProperty, 0);
@@ -642,14 +678,10 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
 
         if (bInQuotes)
         {
-            if (sCharacter == "\\" && nIndex + 1 < nLength)
+            if (IsParserEscapedCharacter(sPropertySegment, nIndex, nLength))
             {
-                string sNext = GetSubString(sPropertySegment, nIndex + 1, 1);
-                if (sNext == "\"" || sNext == "'" || sNext == "\\")
-                {
-                    nIndex++;
-                    continue;
-                }
+                nIndex++;
+                continue;
             }
 
             if (sCharacter == sQuoteChar)
@@ -658,7 +690,7 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
             continue;
         }
 
-        if (sCharacter == "\"" || sCharacter == "'")
+        if (IsParserQuote(sCharacter))
         {
             bInQuotes = TRUE;
             sQuoteChar = sCharacter;
@@ -691,14 +723,10 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
 
             if (bInQuotes)
             {
-                if (sCharacter == "\\" && nIndex + 1 < nLength)
+                if (IsParserEscapedCharacter(sPropertySegment, nIndex, nLength))
                 {
-                    string sNext = GetSubString(sPropertySegment, nIndex + 1, 1);
-                    if (sNext == "\"" || sNext == "'" || sNext == "\\")
-                    {
-                        nIndex++;
-                        continue;
-                    }
+                    nIndex++;
+                    continue;
                 }
 
                 if (sCharacter == sQuoteChar)
@@ -707,7 +735,7 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
                 continue;
             }
 
-            if (sCharacter == "\"" || sCharacter == "'")
+            if (IsParserQuote(sCharacter))
             {
                 bInQuotes = TRUE;
                 sQuoteChar = sCharacter;
@@ -742,7 +770,8 @@ struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, stri
     jProperty = JsonArray();
     JsonArrayInsertStringInplace(jProperty, strPC.sCurrentProperty);
     JsonArrayInsertStringInplace(jProperty, strPC.sCurrentParameters);
-    SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, jProperty);
+
+    SetCachedJson(STRFMT_PROPERTY_CACHE_PREFIX, sPropertySegment, jProperty);
 
     return strPC;
 }
@@ -752,8 +781,7 @@ json ParseParameters(string sParameters)
     if (sParameters == "")
         return JsonArray();
 
-    string sCacheKey = MakeCacheKey(STRFMT_PARAMETER_CACHE_PREFIX, sParameters);
-    json jParameters = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
+    json jParameters = GetCachedJson(STRFMT_PARAMETER_CACHE_PREFIX, sParameters);
     if (JsonGetType(jParameters) == JSON_TYPE_ARRAY)
         return jParameters;
 
@@ -857,7 +885,8 @@ json ParseParameters(string sParameters)
     if (!bLastWasComma)
         JsonArrayInsertStringInplace(jParameters, bWasQuoted ? sCurrent : trim(sCurrent));
 
-    SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, jParameters);
+    SetCachedJson(STRFMT_PARAMETER_CACHE_PREFIX, sParameters, jParameters);
+
     return jParameters;
 }
 
@@ -875,62 +904,11 @@ json ResolveParameters(struct PropertyChain str)
 
 string GetPropertyValue(struct PropertyChain strPC)
 {
-    string sCacheKey = MakeCacheKey(STRFMT_PROPERTY_SEGMENT_CACHE_PREFIX, strPC.sFullPropertyPath);
-    json jSegments = GetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey);
-
-    if (!JsonGetType(jSegments))
+    json jSegments = GetCachedJson(STRFMT_PROPERTY_SEGMENT_CACHE_PREFIX, strPC.sFullPropertyPath);
+    if (JsonGetType(jSegments) != JSON_TYPE_ARRAY)
     {
-        jSegments = JsonArray();
-        int nLength = GetStringLength(strPC.sFullPropertyPath);
-        int nIndex, nSegmentStart = 0, nBraceDepth = 0, nParenDepth = 0;
-        int bInQuotes = FALSE;
-        string sQuoteChar = "";
-
-        for (nIndex = 0; nIndex <= nLength; nIndex++)
-        {
-            string sCharacter = nIndex < nLength ? GetSubString(strPC.sFullPropertyPath, nIndex, 1) : ">";
-
-            if (bInQuotes)
-            {
-                if (sCharacter == "\\" && nIndex + 1 < nLength)
-                {
-                    string sNext = GetSubString(strPC.sFullPropertyPath, nIndex + 1, 1);
-                    if (sNext == "\"" || sNext == "'" || sNext == "\\")
-                    {
-                        nIndex++;
-                        continue;
-                    }
-                }
-
-                if (sCharacter == sQuoteChar)
-                    bInQuotes = FALSE;
-
-                continue;
-            }
-
-            if (sCharacter == "\"" || sCharacter == "'")
-            {
-                bInQuotes = TRUE;
-                sQuoteChar = sCharacter;
-                continue;
-            }
-
-            if (sCharacter == "{")
-                nBraceDepth++;
-            else if (sCharacter == "}")
-                nBraceDepth--;
-            else if (nBraceDepth == 0 && sCharacter == "(")
-                nParenDepth++;
-            else if (nBraceDepth == 0 && sCharacter == ")")
-                nParenDepth--;
-            else if (sCharacter == ">" && nBraceDepth == 0 && nParenDepth == 0)
-            {
-                JsonArrayInsertStringInplace(jSegments, GetSubString(strPC.sFullPropertyPath, nSegmentStart, nIndex - nSegmentStart));
-                nSegmentStart = nIndex + 1;
-            }
-        }
-
-        SetLocalJson(GetDataObject(STRFMT_SCRIPT_NAME), sCacheKey, jSegments);
+        jSegments = SplitTopLevel(strPC.sFullPropertyPath, ">", TRUE);
+        SetCachedJson(STRFMT_PROPERTY_SEGMENT_CACHE_PREFIX, strPC.sFullPropertyPath, jSegments);
     }
 
     int nSegment, nNumSegments = JsonGetLength(jSegments);
@@ -1209,18 +1187,19 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
             if (IsNumeric(sValue))
             {
                 float fCompare = StringToFloat(sValue);
+                float fDiff = fValue - fCompare;
                 if (sProperty == "eq")
-                    strReturnValue = GetValueFromInt(fabs(fValue - fCompare) < FLOAT_EPSILON, sFormatSpecifier);
+                    strReturnValue = GetValueFromInt(fabs(fDiff) < FLOAT_EPSILON, sFormatSpecifier);
                 else if (sProperty == "neq")
-                    strReturnValue = GetValueFromInt(fabs(fValue - fCompare) >= FLOAT_EPSILON, sFormatSpecifier);
+                    strReturnValue = GetValueFromInt(fabs(fDiff) >= FLOAT_EPSILON, sFormatSpecifier);
                 else if (sProperty == "gt")
-                    strReturnValue = GetValueFromInt(fValue > fCompare, sFormatSpecifier);
+                    strReturnValue = GetValueFromInt(fDiff > FLOAT_EPSILON, sFormatSpecifier);
                 else if (sProperty == "gte")
-                    strReturnValue = GetValueFromInt(fValue >= fCompare, sFormatSpecifier);
+                    strReturnValue = GetValueFromInt(fDiff >= -FLOAT_EPSILON, sFormatSpecifier);
                 else if (sProperty == "lt")
-                    strReturnValue = GetValueFromInt(fValue < fCompare, sFormatSpecifier);
+                    strReturnValue = GetValueFromInt(fDiff < -FLOAT_EPSILON, sFormatSpecifier);
                 else if (sProperty == "lte")
-                    strReturnValue = GetValueFromInt(fValue <= fCompare, sFormatSpecifier);
+                    strReturnValue = GetValueFromInt(fDiff <= FLOAT_EPSILON, sFormatSpecifier);
             }
         }
     }
@@ -1782,9 +1761,9 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName, string
         {
             string sValue1 = trim(JsonArrayGetString(jParameters, 0));
             string sValue2 = trim(JsonArrayGetString(jParameters, 1));
-            if (IsInteger(sValue1) && IsNumeric(sValue2))
-                strReturnValue = GetValueFromInt(StringToInt(sValue1) + round(StringToFloat(sValue2)), sFormatSpecifier);
-            else if (IsFloat(sValue1) && IsNumeric(sValue2))
+            if (IsInteger(sValue1) && IsInteger(sValue2))
+                strReturnValue = GetValueFromInt(StringToInt(sValue1) + StringToInt(sValue2), sFormatSpecifier);
+            else if (IsNumeric(sValue1) && IsNumeric(sValue2))
                 strReturnValue = GetValueFromFloat(StringToFloat(sValue1) + StringToFloat(sValue2), sFormatSpecifier);
         }
     }
@@ -1795,9 +1774,9 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName, string
         {
             string sValue1 = trim(JsonArrayGetString(jParameters, 0));
             string sValue2 = trim(JsonArrayGetString(jParameters, 1));
-            if (IsInteger(sValue1) && IsNumeric(sValue2))
-                strReturnValue = GetValueFromInt(StringToInt(sValue1) - round(StringToFloat(sValue2)), sFormatSpecifier);
-            else if (IsFloat(sValue1) && IsNumeric(sValue2))
+            if (IsInteger(sValue1) && IsInteger(sValue2))
+                strReturnValue = GetValueFromInt(StringToInt(sValue1) - StringToInt(sValue2), sFormatSpecifier);
+            else if (IsNumeric(sValue1) && IsNumeric(sValue2))
                 strReturnValue = GetValueFromFloat(StringToFloat(sValue1) - StringToFloat(sValue2), sFormatSpecifier);
         }
     }
@@ -1808,29 +1787,32 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName, string
         {
             string sValue1 = trim(JsonArrayGetString(jParameters, 0));
             string sValue2 = trim(JsonArrayGetString(jParameters, 1));
-            if (IsInteger(sValue1) && IsNumeric(sValue2))
-                strReturnValue = GetValueFromInt(StringToInt(sValue1) * round(StringToFloat(sValue2)), sFormatSpecifier);
-            else if (IsFloat(sValue1) && IsNumeric(sValue2))
+            if (IsInteger(sValue1) && IsInteger(sValue2))
+                strReturnValue = GetValueFromInt(StringToInt(sValue1) * StringToInt(sValue2), sFormatSpecifier);
+            else if (IsNumeric(sValue1) && IsNumeric(sValue2))
                 strReturnValue = GetValueFromFloat(StringToFloat(sValue1) * StringToFloat(sValue2), sFormatSpecifier);
         }
     }
-    else if (sMetaName == "div")
+    else if (sMetaName == "div" || sMetaName == "idiv")
     {
         json jParameters = ResolveParameters(strPC);
         if (JsonGetLength(jParameters) >= 2)
         {
             string sValue1 = trim(JsonArrayGetString(jParameters, 0));
             string sValue2 = trim(JsonArrayGetString(jParameters, 1));
-            if (IsInteger(sValue1) && IsNumeric(sValue2))
+            if (sMetaName == "idiv")
             {
-                int nDiv = round(StringToFloat(sValue2));
-                if (nDiv != 0)
-                    strReturnValue = GetValueFromInt(StringToInt(sValue1) / nDiv, sFormatSpecifier);
+                if (IsInteger(sValue1) && IsInteger(sValue2))
+                {
+                    int nDiv = StringToInt(sValue2);
+                    if (nDiv != 0)
+                        strReturnValue = GetValueFromInt(StringToInt(sValue1) / nDiv, sFormatSpecifier);
+                }
             }
-            else if (IsFloat(sValue1) && IsNumeric(sValue2))
+            else if (IsNumeric(sValue1) && IsNumeric(sValue2))
             {
                 float fDiv = StringToFloat(sValue2);
-                if (fDiv != 0.0f)
+                if (fabs(fDiv) > FLOAT_EPSILON)
                     strReturnValue = GetValueFromFloat(StringToFloat(sValue1) / fDiv, sFormatSpecifier);
             }
         }

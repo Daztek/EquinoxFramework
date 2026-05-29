@@ -133,16 +133,22 @@ string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_N
     if (!JsonGetType(jStack))
         jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
 
-    string sResult = sString;
+    string sResult = "";
+    int nLast = 0;
     for (nIndex = 0; nIndex < nNumVariables; nIndex++)
     {
         json jVariable = JsonArrayGet(jVariables, nIndex);
-        string sRegExp = NWNX_Util_RegExpEscape(JsonArrayGetString(jVariable, 0));
-        string sVarName = JsonArrayGetString(jVariable, 1);
-        string sFormatSpecifier = GetStringLowerCase(JsonArrayGetString(jVariable, 2));
+        string sVarName = JsonArrayGetString(jVariable, 0);
+        string sFormatSpecifier = GetStringLowerCase(JsonArrayGetString(jVariable, 1));
         string sValue = GetFormattedValue(jStack, sVarName, sFormatSpecifier);
-        sResult = RegExpReplace(sRegExp, sResult, sValue);
+        int nStart = JsonArrayGetInt(jVariable, 2);
+        int nEnd = JsonArrayGetInt(jVariable, 3);
+
+        sResult += GetSubString(sString, nLast, nStart - nLast);
+        sResult += sValue;
+        nLast = nEnd;
     }
+    sResult += GetSubString(sString, nLast, GetStringLength(sString) - nLast);
 
     if (bHasEscapes)
     {
@@ -171,7 +177,6 @@ json ExtractTokens(string sString)
 
     json jTokens = JsonArray();
     int nLength = GetStringLength(sString);
-    json jSeenTokens = JsonObject();
 
     while (nIndex < nLength)
     {
@@ -235,10 +240,6 @@ json ExtractTokens(string sString)
         if (nDepth != 0)
             continue;
 
-        string sRegExp = GetSubString(sString, nStart, nIndex - nStart);
-        if (JsonObjectContainsKey(jSeenTokens, sRegExp))
-            continue;
-
         string sVarName, sFormatSpecifier;
         if (nColonPos != -1)
         {
@@ -252,11 +253,11 @@ json ExtractTokens(string sString)
         }
 
         json jToken = JsonArray();
-        JsonArrayInsertStringInplace(jToken, sRegExp);
         JsonArrayInsertStringInplace(jToken, sVarName);
         JsonArrayInsertStringInplace(jToken, sFormatSpecifier);
+        JsonArrayInsertIntInplace(jToken, nStart);
+        JsonArrayInsertIntInplace(jToken, nIndex);
         JsonArrayInsertInplace(jTokens, jToken);
-        JsonObjectSetInplace(jSeenTokens, sRegExp, JsonNull());
     }
 
     return jTokens;
@@ -1064,6 +1065,36 @@ struct Value HandleSharedProperty(struct PropertyChain strPC, string sProperty, 
         if (sPadded != STRFMT_INVALID_STRING)
             strReturnValue = GetValueFromString(sPadded, sFormatSpecifier);
     }
+    else if (sProperty == "int")
+    {
+        struct Value strValue = strPC.strValue;
+        if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
+            strReturnValue = strValue;
+        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
+            strReturnValue = GetValueFromInt(FloatToInt(strValue.fValue), sFormatSpecifier);
+        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
+            strReturnValue = GetValueFromInt(StringToInt(strValue.sValue), sFormatSpecifier);
+    }
+    else if (sProperty == "float")
+    {
+        struct Value strValue = strPC.strValue;
+        if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
+            strReturnValue = GetValueFromFloat(IntToFloat(strValue.nValue), sFormatSpecifier);
+        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
+            strReturnValue = strValue;
+        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
+            strReturnValue = GetValueFromFloat(StringToFloat(strValue.sValue), sFormatSpecifier);
+    }
+    else if (sProperty == "string")
+    {
+        struct Value strValue = strPC.strValue;
+        if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
+            strReturnValue = GetValueFromString(IntToString(strValue.nValue), sFormatSpecifier);
+        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
+            strReturnValue = GetValueFromString(FloatToString(strValue.fValue), sFormatSpecifier);
+        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
+            strReturnValue = strValue;
+    }
 
     return strReturnValue;
 }
@@ -1714,6 +1745,30 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName, st
             }
         }
     }
+    else if (sMetaName == "cast")
+    {
+        json jParameters = ParseParameters(strPC.sCurrentParameters);
+        if (JsonGetLength(jParameters) >= 2)
+        {
+            string sAlias = trim(JsonArrayGetString(jParameters, 0));
+            if (GetStringLeft(sAlias, 1) == STRFMT_ALIAS_SYMBOL)
+            {
+                if (JsonObjectContainsKey(strPC.jStack, sAlias))
+                {
+                    json jStackVar = JsonObjectGet(strPC.jStack, sAlias);
+                    string sCast = trim(JsonArrayGetString(jParameters, 1));
+                    if (sCast == "int")
+                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, STRFMT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INT));
+                    else if (sCast == "float")
+                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, STRFMT_ALIAS_TYPE, NWNX_VM_AUXTYPE_FLOAT));
+                    else if (sCast == "string")
+                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, STRFMT_ALIAS_TYPE, NWNX_VM_AUXTYPE_STRING));
+
+                    strReturnValue = GetValueFromString("", sFormatSpecifier);
+                }
+            }
+        }
+    }
     return strReturnValue;
 }
 
@@ -1853,9 +1908,12 @@ json MakeStackAliasEntry(string sValue, int nAuxType)
 
 string GetFunctionValue(json jStack, string sVarName, string sFormatSpecifier)
 {
+    int nPropertyPosition = FindPropertyPosition(sVarName);
+    string sBaseFunctionName = nPropertyPosition == -1 ? sVarName : GetStringLeft(sVarName, nPropertyPosition);
+
     struct PropertyChain strFn;
     strFn.jStack = jStack;
-    strFn = ParsePropertyAndParameters(strFn, sVarName);
+    strFn = ParsePropertyAndParameters(strFn, sBaseFunctionName);
 
     string sFunctionName = strFn.sCurrentProperty;
     json jFunction = JsonObjectGet(jStack, sFunctionName);
@@ -1872,6 +1930,7 @@ string GetFunctionValue(json jStack, string sVarName, string sFormatSpecifier)
 
     json jFrame = JsonCopyObject(jStack);
     int nIndex, nNumArgs = JsonGetLength(jArgNames);
+
     for (nIndex = 0; nIndex < nNumArgs; nIndex++)
     {
         string sArgName = JsonArrayGetString(jArgNames, nIndex);
@@ -1879,5 +1938,15 @@ string GetFunctionValue(json jStack, string sVarName, string sFormatSpecifier)
         JsonObjectSetInplace(jFrame, sArgName, MakeStackAliasEntry(sArgValue, NWNX_VM_AUXTYPE_STRING));
     }
 
-    return FormatString(sBody, 0, jFrame);
+    string sResult = FormatString(sBody, 0, jFrame);
+    if (nPropertyPosition == -1)
+        return sResult;
+
+    struct PropertyChain strPC;
+    strPC.jStack = jStack;
+    strPC.sBaseVarName = sBaseFunctionName;
+    strPC.sFullPropertyPath = GetSubString(sVarName, nPropertyPosition + 1, GetStringLength(sVarName) - nPropertyPosition - 1);
+    strPC.strValue = GetValueFromString(sResult, sFormatSpecifier);
+
+    return GetPropertyValue(strPC);
 }

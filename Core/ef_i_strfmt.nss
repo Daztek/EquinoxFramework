@@ -39,7 +39,6 @@ struct Value
     string sValue;
     object oValue;
     json jValue;
-    location locValue;
 };
 
 struct PropertyChain
@@ -70,7 +69,6 @@ string FormatAsInteger(struct Value strValue);
 string FormatAsFloat(struct Value strValue);
 string FormatAsHex(struct Value strValue);
 string FormatAsBoolean(struct Value strValue);
-string FormatAsVector(json jStack, string sVarName, string sFormatSpecifier);
 string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "");
 
 struct Value GetValueFromStackLocation(int nAuxType, int nStackLocation, string sFormatSpecifier);
@@ -78,7 +76,6 @@ struct Value GetValueFromInt(int nValue, string sFormatSpecifier);
 struct Value GetValueFromFloat(float fValue, string sFormatSpecifier);
 struct Value GetValueFromString(string sValue, string sFormatSpecifier);
 struct Value GetValueFromObject(object oValue, string sFormatSpecifier);
-struct Value GetValueFromLocation(location locValue, string sFormatSpecifier);
 struct Value GetValueFromJson(json jValue, string sFormatSpecifier);
 
 struct PropertyChain ParsePropertyAndParameters(struct PropertyChain strPC, string sPropertySegment);
@@ -93,7 +90,6 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC);
 struct PropertyChain GetFloatProperty(struct PropertyChain strPC);
 struct PropertyChain GetStringProperty(struct PropertyChain strPC);
 struct PropertyChain GetObjectProperty(struct PropertyChain strPC);
-struct PropertyChain GetLocationProperty(struct PropertyChain strPC);
 struct PropertyChain GetJsonProperty(struct PropertyChain strPC);
 
 string GetMetaValue(json jStack, string sVarName, string sFormatSpecifier);
@@ -401,13 +397,7 @@ string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier)
 
     int nAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
     if (nAuxType == NWNX_VM_AUXTYPE_VOID)
-    {
-        string sStructName = JsonObjectGetString(jStackVar, NWNX_VM_STRUCT_NAME_KEY);
-        if (sStructName == "vector")
-            return FormatAsVector(jStack, sVarName, sFormatSpecifier);
-        else
-            return DumpStruct(jStack, sVarName, sStructName);
-    }
+        return DumpStruct(jStack, sVarName, JsonObjectGetString(jStackVar, NWNX_VM_STRUCT_NAME_KEY));
 
     return FormatValueByType(GetValueFromStackLocation(nAuxType, JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), sFormatSpecifier));
 }
@@ -443,19 +433,7 @@ string FormatAsString(struct Value strValue)
         case NWNX_VM_AUXTYPE_INT:       return IntToString(strValue.nValue);
         case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 2);
         case NWNX_VM_AUXTYPE_OBJECT:    return "0x" + ObjectToString(strValue.oValue);
-        case NWNX_VM_AUXTYPE_LOCATION:
-        {
-            object oArea = GetAreaFromLocation(strValue.locValue);
-            if (!GetIsObjectValid(oArea))
-                return "[INVALID_LOCATION]";
-
-            vector vPosition = GetPositionFromLocation(strValue.locValue);
-            float fFacing = GetFacingFromLocation(strValue.locValue);
-
-            return GetTag(oArea) + "[" + FloatToString(vPosition.x, 0, 2) + "," + FloatToString(vPosition.y, 0, 2) + "," +
-                FloatToString(vPosition.z, 0, 2) + "]@" + FloatToString(fFacing, 0, 1);
-        }
-        case NWNX_VM_AUXTYPE_JSON: return JsonDump(strValue.jValue);
+        case NWNX_VM_AUXTYPE_JSON:      return JsonDump(strValue.jValue);
     }
     return "[TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->%s]";
 }
@@ -464,13 +442,7 @@ string FormatAsInteger(struct Value strValue)
 {
     switch (strValue.nAuxType)
     {
-        case NWNX_VM_AUXTYPE_STRING:
-        {
-            int nParsed = StringToInt(strValue.sValue);
-            if (nParsed == 0 && strValue.sValue != "0" && GetStringLeft(strValue.sValue, 1) != "0")
-                return "[PARSE_ERROR:" + strValue.sValue + "]";
-            return IntToString(nParsed);
-        }
+        case NWNX_VM_AUXTYPE_STRING:    return IntToString(StringToInt(strValue.sValue));
         case NWNX_VM_AUXTYPE_INT:       return IntToString(strValue.nValue);
         case NWNX_VM_AUXTYPE_FLOAT:     return IntToString(FloatToInt(strValue.fValue));
         case NWNX_VM_AUXTYPE_OBJECT:    return IntToString(HexStringToInt(ObjectToString(strValue.oValue)));
@@ -522,17 +494,6 @@ string FormatAsBoolean(struct Value strValue)
     return nValue ? "TRUE" : "FALSE";
 }
 
-string FormatAsVector(json jStack, string sVarName, string sFormatSpecifier)
-{
-    string sX = FormatValueByType(GetValueFromStackLocation(NWNX_VM_AUXTYPE_FLOAT,
-        JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".x"), NWNX_VM_STACK_LOCATION_KEY), sFormatSpecifier));
-    string sY = FormatValueByType(GetValueFromStackLocation(NWNX_VM_AUXTYPE_FLOAT,
-        JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".y"), NWNX_VM_STACK_LOCATION_KEY), sFormatSpecifier));
-    string sZ = FormatValueByType(GetValueFromStackLocation(NWNX_VM_AUXTYPE_FLOAT,
-        JsonObjectGetInt(JsonObjectGet(jStack, sVarName + ".z"), NWNX_VM_STACK_LOCATION_KEY), sFormatSpecifier));
-    return "[" + sX + "," + sY + "," + sZ + "]";
-}
-
 string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "")
 {
     json jStackKeys = JsonObjectKeys(jStack);
@@ -552,20 +513,13 @@ string DumpStruct(json jStack, string sVarName, string sStructName, string sInst
                 int nAuxType = JsonObjectGetInt(jStructVar, NWNX_VM_TYPE_KEY);
 
                 if (nAuxType == NWNX_VM_AUXTYPE_VOID)
-                {
-                    string sChildStructName = JsonObjectGetString(jStructVar, NWNX_VM_STRUCT_NAME_KEY);
-                    if (sChildStructName == "vector")
-                        sResult += "vector " + sMemberPath + " = " + FormatAsVector(jStack, sKey, "%s") + "; ";
-                    else
-                        sResult += DumpStruct(jStack, sKey, sChildStructName, sMemberPath);
-                }
+                    sResult += DumpStruct(jStack, sKey, JsonObjectGetString(jStructVar, NWNX_VM_STRUCT_NAME_KEY), sMemberPath);
                 else
                 {
                     string sValue = GetFormattedValue(jStack, sKey, "%s");
                     if (nAuxType == NWNX_VM_AUXTYPE_STRING)
                         sValue = "\"" + sValue + "\"";
-                    string sVariableType = GetStringLowerCase(AuxTypeToString(nAuxType));
-                    sResult += sVariableType + " " + sMemberPath + " = " + sValue + "; ";
+                    sResult += GetStringLowerCase(AuxTypeToString(nAuxType)) + " " + sMemberPath + " = " + sValue + "; ";
                 }
             }
         }
@@ -586,7 +540,6 @@ struct Value GetValueFromStackLocation(int nAuxType, int nStackLocation, string 
         case NWNX_VM_AUXTYPE_FLOAT: str.fValue = NWNX_VM_GetStackFloatValue(nStackLocation); break;
         case NWNX_VM_AUXTYPE_STRING: str.sValue = NWNX_VM_GetStackStringValue(nStackLocation); break;
         case NWNX_VM_AUXTYPE_OBJECT: str.oValue = NWNX_VM_GetStackObjectValue(nStackLocation); break;
-        case NWNX_VM_AUXTYPE_LOCATION: str.locValue = NWNX_VM_GetStackLocationValue(nStackLocation); break;
         case NWNX_VM_AUXTYPE_JSON: str.jValue = NWNX_VM_GetStackJsonValue(nStackLocation); break;
     }
     return str;
@@ -625,15 +578,6 @@ struct Value GetValueFromObject(object oValue, string sFormatSpecifier)
     str.nAuxType = NWNX_VM_AUXTYPE_OBJECT;
     str.sFormatSpecifier = sFormatSpecifier;
     str.oValue = oValue;
-    return str;
-}
-
-struct Value GetValueFromLocation(location locValue, string sFormatSpecifier)
-{
-    struct Value str;
-    str.nAuxType = NWNX_VM_AUXTYPE_LOCATION;
-    str.sFormatSpecifier = sFormatSpecifier;
-    str.locValue = locValue;
     return str;
 }
 
@@ -923,7 +867,6 @@ struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC)
         case NWNX_VM_AUXTYPE_FLOAT:     strPC = GetFloatProperty(strPC); break;
         case NWNX_VM_AUXTYPE_STRING:    strPC = GetStringProperty(strPC); break;
         case NWNX_VM_AUXTYPE_OBJECT:    strPC = GetObjectProperty(strPC); break;
-        case NWNX_VM_AUXTYPE_LOCATION:  strPC = GetLocationProperty(strPC); break;
         case NWNX_VM_AUXTYPE_JSON:      strPC = GetJsonProperty(strPC); break;
         default: strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID; break;
     }
@@ -1018,7 +961,6 @@ string HandlePaddingProperty(struct PropertyChain strPC, json jParameters)
 struct Value HandleSharedProperty(struct PropertyChain strPC, string sProperty, string sFormatSpecifier)
 {
     struct Value strReturnValue;
-    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (sProperty == "color")
     {
@@ -1073,7 +1015,6 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC)
     int nValue = strPC.strValue.nValue;
 
     struct Value strReturnValue;
-    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (sProperty == "abs")
     {
@@ -1149,7 +1090,6 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
     float fValue = strPC.strValue.fValue;
 
     struct Value strReturnValue;
-    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (sProperty == "fabs")
     {
@@ -1208,7 +1148,6 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
     string sValue = strPC.strValue.sValue;
 
     struct Value strReturnValue;
-    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (sProperty == "length")
     {
@@ -1314,7 +1253,6 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
     object oValue = strPC.strValue.oValue;
 
     struct Value strReturnValue;
-    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (sProperty == "name")
     {
@@ -1340,10 +1278,6 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
     {
         strReturnValue = GetValueFromInt(GetIsObjectValid(oValue), sFormatSpecifier);
     }
-    else if (sProperty == "location")
-    {
-        strReturnValue = GetValueFromLocation(GetLocation(oValue), sFormatSpecifier);
-    }
     else if (sProperty == "x" || sProperty == "y" || sProperty == "z")
     {
         vector vPosition = GetPosition(oValue);
@@ -1361,6 +1295,10 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
         string sY = FormatValueByType(GetValueFromFloat(vPosition.y, sFormatSpecifier));
         string sZ = FormatValueByType(GetValueFromFloat(vPosition.z, sFormatSpecifier));
         strReturnValue = GetValueFromString("[" + sX + "," + sY + ","  + sZ + "]", sFormatSpecifier);
+    }
+    else if (sProperty == "facing")
+    {
+        strReturnValue = GetValueFromFloat(GetFacing(oValue), sFormatSpecifier);
     }
     else if (sProperty == "localvar")
     {
@@ -1381,50 +1319,6 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
             else if (sType == "j")
                 strReturnValue = GetValueFromJson(GetLocalJson(oValue, sVarName), sFormatSpecifier);
         }
-    }
-
-    strPC.strValue = strReturnValue;
-    return strPC;
-}
-
-struct PropertyChain GetLocationProperty(struct PropertyChain strPC)
-{
-    string sProperty = strPC.sCurrentProperty;
-    string sFormatSpecifier = strPC.strValue.sFormatSpecifier;
-    location locValue = strPC.strValue.locValue;
-
-    struct Value strReturnValue;
-    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
-
-    if (sProperty == "area")
-    {
-        strReturnValue = GetValueFromObject(GetAreaFromLocation(locValue), sFormatSpecifier);
-    }
-    else if (sProperty == "x" || sProperty == "y" || sProperty == "z")
-    {
-        vector vPosition = GetPositionFromLocation(locValue);
-        if (sProperty == "x")
-            strReturnValue = GetValueFromFloat(vPosition.x, sFormatSpecifier);
-        else if (sProperty == "y")
-            strReturnValue = GetValueFromFloat(vPosition.y, sFormatSpecifier);
-        else if (sProperty == "z")
-            strReturnValue = GetValueFromFloat(vPosition.z, sFormatSpecifier);
-    }
-    else if (sProperty == "facing")
-    {
-        strReturnValue = GetValueFromFloat(GetFacingFromLocation(locValue), sFormatSpecifier);
-    }
-    else if (sProperty == "position")
-    {
-        vector vPosition = GetPositionFromLocation(locValue);
-        string sX = FormatValueByType(GetValueFromFloat(vPosition.x, sFormatSpecifier));
-        string sY = FormatValueByType(GetValueFromFloat(vPosition.y, sFormatSpecifier));
-        string sZ = FormatValueByType(GetValueFromFloat(vPosition.z, sFormatSpecifier));
-        strReturnValue = GetValueFromString("[" + sX + "," + sY + ","  + sZ + "]", "%s");
-    }
-    else if (sProperty == "valid")
-    {
-        strReturnValue = GetValueFromInt(GetIsObjectValid(GetAreaFromLocation(locValue)), sFormatSpecifier);
     }
 
     strPC.strValue = strReturnValue;
@@ -1464,7 +1358,6 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
     json jValue = strPC.strValue.jValue;
 
     struct Value strReturnValue;
-    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     int nType = JsonGetType(jValue);
     if (sProperty == "idx" && nType == JSON_TYPE_ARRAY)
@@ -1530,7 +1423,6 @@ string GetMetaValue(json jStack, string sVarName, string sFormatSpecifier)
 
     string sMetaName = strMeta.sCurrentProperty;
     struct Value strReturnValue;
-    strReturnValue.nAuxType = NWNX_VM_AUXTYPE_INVALID;
 
     if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
         strReturnValue = HandleMetaPrimitive(strMeta, sMetaName, sFormatSpecifier);
@@ -1885,11 +1777,11 @@ string GetFunctionValue(json jStack, string sVarName, string sFormatSpecifier)
     int nPropertyPosition = FindPropertyPosition(sVarName);
     string sBaseFunctionName = nPropertyPosition == -1 ? sVarName : GetStringLeft(sVarName, nPropertyPosition);
 
-    struct PropertyChain strFn;
-    strFn.jStack = jStack;
-    strFn = ParsePropertyAndParameters(strFn, sBaseFunctionName);
+    struct PropertyChain strFunction;
+    strFunction.jStack = jStack;
+    strFunction = ParsePropertyAndParameters(strFunction, sBaseFunctionName);
 
-    string sFunctionName = strFn.sCurrentProperty;
+    string sFunctionName = strFunction.sCurrentProperty;
     json jFunction = JsonObjectGet(jStack, sFunctionName);
 
     if (JsonGetType(jFunction) != JSON_TYPE_OBJECT)
@@ -1897,7 +1789,7 @@ string GetFunctionValue(json jStack, string sVarName, string sFormatSpecifier)
 
     json jArgNames = JsonObjectGet(jFunction, STRFMT_FUNCTION_ARGS);
     string sBody = JsonObjectGetString(jFunction, STRFMT_FUNCTION_BODY);
-    json jValues = ResolveParameters(strFn);
+    json jValues = ResolveParameters(strFunction);
 
     if (JsonGetLength(jValues) != JsonGetLength(jArgNames))
         return "[FUNCTION_ARITY:" + sFunctionName + "]";

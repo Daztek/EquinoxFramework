@@ -53,16 +53,15 @@ struct PropertyChain
 };
 
 string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_NULL);
-string Interpret(string sString, int nDepthOverride = 0);
 string MakeCacheKey(string sPrefix, string sString);
 json GetCachedJson(string sPrefix, string sInput);
 void SetCachedJson(string sPrefix, string sInput, json jValue);
 int IsParserQuote(string sCharacter);
 int IsParserEscapedCharacter(string sString, int nIndex, int nLength);
 json ExtractTokens(string sString);
-int FindPropertyPosition(string sVarName);
 int FindTopLevelDelimiter(string sString, string sDelimiter);
 json SplitTopLevel(string sString, string sDelimiter, int bIncludeEmpty = TRUE);
+int FindPropertyPosition(string sVarName);
 
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier);
 string FormatValueByType(struct Value strValue);
@@ -162,11 +161,6 @@ string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_N
     }
 
     return sResult;
-}
-
-string Interpret(string sString, int nDepthOverride = 0)
-{
-    return FormatString(sString, 1 + nDepthOverride, JsonNull());
 }
 
 string MakeCacheKey(string sPrefix, string sString)
@@ -288,20 +282,6 @@ json ExtractTokens(string sString)
     return jTokens;
 }
 
-int FindPropertyPosition(string sVarName)
-{
-    if (FindSubString(sVarName, ">") == -1)
-        return -1;
-
-    json jCached = GetCachedJson(STRFMT_PROPERTY_POSITION_CACHE_PREFIX, sVarName);
-    if (JsonGetType(jCached) == JSON_TYPE_INTEGER)
-        return JsonGetInt(jCached);
-
-    int nPosition = FindTopLevelDelimiter(sVarName, ">");
-    SetCachedJson(STRFMT_PROPERTY_POSITION_CACHE_PREFIX, sVarName, JsonInt(nPosition));
-    return nPosition;
-}
-
 json SplitTopLevel(string sString, string sDelimiter, int bIncludeEmpty = TRUE)
 {
     json jParts = JsonArray();
@@ -363,6 +343,20 @@ int FindTopLevelDelimiter(string sString, string sDelimiter)
     if (JsonGetLength(jParts) <= 1)
         return -1;
     return GetStringLength(JsonArrayGetString(jParts, 0));
+}
+
+int FindPropertyPosition(string sVarName)
+{
+    if (FindSubString(sVarName, ">") == -1)
+        return -1;
+
+    json jCached = GetCachedJson(STRFMT_PROPERTY_POSITION_CACHE_PREFIX, sVarName);
+    if (JsonGetType(jCached) == JSON_TYPE_INTEGER)
+        return JsonGetInt(jCached);
+
+    int nPosition = FindTopLevelDelimiter(sVarName, ">");
+    SetCachedJson(STRFMT_PROPERTY_POSITION_CACHE_PREFIX, sVarName, JsonInt(nPosition));
+    return nPosition;
 }
 
 string GetFormattedValue(json jStack, string sVarName, string sFormatSpecifier)
@@ -448,12 +442,7 @@ string FormatAsString(struct Value strValue)
         case NWNX_VM_AUXTYPE_STRING:    return strValue.sValue;
         case NWNX_VM_AUXTYPE_INT:       return IntToString(strValue.nValue);
         case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 2);
-        case NWNX_VM_AUXTYPE_OBJECT:
-        {
-            if (!GetIsObjectValid(strValue.oValue))
-                return "[INVALID_OBJECT|OID:0x" + ObjectToString(strValue.oValue) + "]";
-            return GetName(strValue.oValue) + "(TAG:" + GetTag(strValue.oValue)+ "|OID:0x" + ObjectToString(strValue.oValue) + ")";
-        }
+        case NWNX_VM_AUXTYPE_OBJECT:    return "0x" + ObjectToString(strValue.oValue);
         case NWNX_VM_AUXTYPE_LOCATION:
         {
             object oArea = GetAreaFromLocation(strValue.locValue);
@@ -1742,6 +1731,8 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName, st
                         JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, STRFMT_ALIAS_TYPE, NWNX_VM_AUXTYPE_FLOAT));
                     else if (sCast == "string")
                         JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, STRFMT_ALIAS_TYPE, NWNX_VM_AUXTYPE_STRING));
+                    else if (sCast == "object")
+                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, STRFMT_ALIAS_TYPE, NWNX_VM_AUXTYPE_OBJECT));
 
                     strReturnValue = GetValueFromString("", sFormatSpecifier);
                 }
@@ -1866,6 +1857,7 @@ string GetAliasValue(json jStack, string sVarName, string sFormatSpecifier)
     {
         case NWNX_VM_AUXTYPE_INT: strAliasValue = GetValueFromInt(StringToInt(sValue), sFormatSpecifier); break;
         case NWNX_VM_AUXTYPE_FLOAT: strAliasValue = GetValueFromFloat(StringToFloat(sValue), sFormatSpecifier); break;
+        case NWNX_VM_AUXTYPE_OBJECT: strAliasValue = GetValueFromObject(StringToObject(sValue), sFormatSpecifier); break;
         default: strAliasValue = GetValueFromString(sValue, sFormatSpecifier);
     }
 

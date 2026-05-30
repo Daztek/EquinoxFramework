@@ -1603,7 +1603,7 @@ struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName, st
 
         if (JsonGetLength(jParameters) >= 2)
         {
-            string sFunctionName = trim(JsonArrayGetString(jParameters, 0));
+            string sFunctionName = GetStringLowerCase(trim(JsonArrayGetString(jParameters, 0)));
             if (GetStringLeft(sFunctionName, 1) == "&")
             {
                 json jArgs = JsonArray();

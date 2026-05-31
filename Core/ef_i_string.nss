@@ -7,6 +7,10 @@
 #include "ef_i_vm"
 #include "nwnx_util"
 
+const int STRING_BAR_DEFAULT_WIDTH = 20;
+const int STRING_BAR_MAX_WIDTH = 80;
+
+
 string ltrim(string s);
 string rtrim(string s);
 string trim(string s);
@@ -22,6 +26,12 @@ int IsNumeric(string sValue);
 string GetAsciiTable();
 string ColorString(string sValue, int nRed, int nGreen, int nBlue);
 string CapitalizeWord(string sWord);
+int StringToBoolish(string sValue);
+int IsStringPrefix(string sValue, string sPrefix);
+int IsStringSuffix(string sValue, string sSuffix);
+int IsObjectString(string sValue);
+string RepeatText(string sText, int nCount);
+string MakeBarString(float fValue, float fMax, int nWidth, string sFilled = "#", string sEmpty = "-");
 
 string ltrim(string s)
 {
@@ -163,4 +173,93 @@ string CapitalizeWord(string sWord)
     string sFirst = GetSubString(sWord, 0, 1);
     string sRest = GetSubString(sWord, 1, nLength - 1);
     return GetStringUpperCase(sFirst) + GetStringLowerCase(sRest);
+}
+
+int StringToBoolish(string sValue)
+{
+    sValue = GetStringLowerCase(trim(sValue));
+
+    if (sValue == "")
+        return FALSE;
+
+    if (sValue == "0" || sValue == "0.0" || sValue == "false" || sValue == "f" ||
+        sValue == "no" || sValue == "n" || sValue == "off" || sValue == "null" ||
+        sValue == "nil" || sValue == "none")
+    {
+        return FALSE;
+    }
+
+    if (IsNumeric(sValue) && StringToFloat(sValue) == 0.0)
+        return FALSE;
+
+    return TRUE;
+}
+
+int IsStringPrefix(string sValue, string sPrefix)
+{
+    return GetStringLeft(sValue, GetStringLength(sPrefix)) == sPrefix;
+}
+
+int IsStringSuffix(string sValue, string sSuffix)
+{
+    return GetStringRight(sValue, GetStringLength(sSuffix)) == sSuffix;
+}
+
+int IsObjectString(string sValue)
+{
+    sValue = GetStringLowerCase(trim(sValue));
+
+    if (sValue == "0x7f000000")
+        return TRUE;
+
+    return StringToObject(sValue) != OBJECT_INVALID;
+}
+
+string RepeatText(string sText, int nCount)
+{
+    string sResult = "";
+    int nIndex;
+
+    if (nCount < 0)
+        nCount = 0;
+
+    for (nIndex = 0; nIndex < nCount; nIndex++)
+    {
+        sResult += sText;
+    }
+
+    return sResult;
+}
+
+string MakeBarString(float fValue, float fMax, int nWidth, string sFilled = "#", string sEmpty = "-")
+{
+    if (nWidth <= 0)
+        nWidth = STRING_BAR_DEFAULT_WIDTH;
+
+    if (nWidth > STRING_BAR_MAX_WIDTH)
+        nWidth = STRING_BAR_MAX_WIDTH;
+
+    if (sFilled == "")
+        sFilled = "#";
+
+    if (sEmpty == "")
+        sEmpty = "-";
+
+    float fRatio = 0.0;
+
+    if (fabs(fMax) > FLOAT_EPSILON)
+        fRatio = fValue / fMax;
+
+    if (fRatio < 0.0)
+        fRatio = 0.0;
+
+    if (fRatio > 1.0)
+        fRatio = 1.0;
+
+    int nFilled = FloatToInt((fRatio * IntToFloat(nWidth)) + 0.5);
+    int nEmpty = nWidth - nFilled;
+
+    string sPercent = FloatToString(fRatio * 100.0, 0, 0);
+
+    return "[" + RepeatText(sFilled, nFilled) + RepeatText(sEmpty, nEmpty) + "] " + sPercent + "%";
 }

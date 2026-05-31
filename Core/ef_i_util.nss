@@ -6,6 +6,7 @@
 */
 
 #include "ef_i_gff"
+#include "ef_i_string"
 
 const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
 
@@ -22,6 +23,8 @@ const int OBJECT_TYPE_INTERNAL_ENCOUNTER    = 13;
 const int OBJECT_TYPE_INTERNAL_STORE        = 14;
 const int OBJECT_TYPE_INTERNAL_PORTAL       = 15;
 const int OBJECT_TYPE_INTERNAL_SOUND        = 16;
+
+const int UTIL_ROLL_MAX_DICE                = 100;
 
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "", json jArray = JSON_NULL);
 void RemoveEffectsWithTag(object oObject, string sTag);
@@ -278,4 +281,132 @@ int GetCurrentTimeSeconds()
             GetTimeHour()  * 60 * 60 +
             GetTimeMinute() * 60 +
             GetTimeSecond();
+}
+
+json ParseDiceSpec(string sSpec)
+{
+    sSpec = GetStringLowerCase(trim(sSpec));
+
+    json jResult = JsonArray();
+
+    int nDPos = FindSubString(sSpec, "d", 0);
+    if (nDPos == -1)
+        return jResult;
+
+    string sCount = GetStringLeft(sSpec, nDPos);
+    string sRest = GetSubString(sSpec, nDPos + 1, GetStringLength(sSpec) - nDPos - 1);
+
+    int nSignPos = -1, nSign = 1;
+    int nIndex, nLength = GetStringLength(sRest);
+
+    for (nIndex = 0; nIndex < nLength; nIndex++)
+    {
+        string sCharacter = GetSubString(sRest, nIndex, 1);
+
+        if (sCharacter == "+" || sCharacter == "-")
+        {
+            nSignPos = nIndex;
+            if (sCharacter == "-")
+                nSign = -1;
+            break;
+        }
+    }
+
+    string sSides, sBonus = "";
+
+    if (nSignPos == -1)
+    {
+        sSides = sRest;
+    }
+    else
+    {
+        sSides = GetStringLeft(sRest, nSignPos);
+        sBonus = GetSubString(sRest, nSignPos + 1, GetStringLength(sRest) - nSignPos - 1);
+    }
+
+    int nCount = 1, nSides, nBonus = 0;
+
+    if (sCount != "")
+    {
+        if (!IsInteger(sCount))
+            return JsonArray();
+
+        nCount = StringToInt(sCount);
+    }
+
+    if (!IsInteger(sSides))
+        return JsonArray();
+
+    nSides = StringToInt(sSides);
+
+    if (sBonus != "")
+    {
+        if (!IsInteger(sBonus))
+            return JsonArray();
+
+        nBonus = nSign * StringToInt(sBonus);
+    }
+
+    JsonArrayInsertIntInplace(jResult, nCount);
+    JsonArrayInsertIntInplace(jResult, nSides);
+    JsonArrayInsertIntInplace(jResult, nBonus);
+
+    return jResult;
+}
+
+int RollDiceTotal(int nCount, int nSides, int nBonus)
+{
+    if (nCount < 1)
+        nCount = 1;
+
+    if (nCount > UTIL_ROLL_MAX_DICE)
+        nCount = UTIL_ROLL_MAX_DICE;
+
+    if (nSides < 1)
+        return nBonus;
+
+    int nTotal = nBonus;
+    int nIndex;
+
+    for (nIndex = 0; nIndex < nCount; nIndex++)
+    {
+        nTotal += Random(nSides) + 1;
+    }
+
+    return nTotal;
+}
+
+string RollDiceVerbose(int nCount, int nSides, int nBonus, string sSpec)
+{
+    if (nCount < 1)
+        nCount = 1;
+
+    if (nCount > UTIL_ROLL_MAX_DICE)
+        nCount = UTIL_ROLL_MAX_DICE;
+
+    if (nSides < 1)
+        return sSpec + " = " + IntToString(nBonus);
+
+    string sRolls = "";
+    int nTotal = nBonus, nIndex;
+
+    for (nIndex = 0; nIndex < nCount; nIndex++)
+    {
+        int nRoll = Random(nSides) + 1;
+        nTotal += nRoll;
+
+        if (nIndex > 0)
+            sRolls += ", ";
+
+        sRolls += IntToString(nRoll);
+    }
+
+    string sBonus = "";
+
+    if (nBonus > 0)
+        sBonus = " + " + IntToString(nBonus);
+    else if (nBonus < 0)
+        sBonus = " - " + IntToString(abs(nBonus));
+
+    return sSpec + " = [" + sRolls + "]" + sBonus + " = " + IntToString(nTotal);
 }

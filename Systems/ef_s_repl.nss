@@ -63,7 +63,7 @@ json Repl_CreateWindow()
             NB_End();
             NB_StartRow();
                 NB_StartList(NuiBind(REPL_NUI_BIND_CONSOLE), 16.0f, TRUE);
-                    NB_StartListTemplateCell(340.0f, FALSE);
+                    NB_StartListTemplateCell(700.0f, TRUE);
                         NB_StartElement(NuiLabel(NuiBind(REPL_NUI_BIND_CONSOLE), JsonInt(NUI_HALIGN_LEFT), JsonInt(NUI_VALIGN_MIDDLE)));
                             NB_SetDimensions(700.0f, 16.0f);
                         NB_End();

@@ -32,12 +32,38 @@ int min(int a, int b)
 
 int clamp(int nValue, int nMin, int nMax)
 {
-    return nValue < nMin ? nMin : nValue > nMax ? nMax : nValue;
+    if (nMin > nMax)
+    {
+        int nTmp = nMin;
+        nMin = nMax;
+        nMax = nTmp;
+    }
+
+    if (nValue < nMin)
+        return nMin;
+
+    if (nValue > nMax)
+        return nMax;
+
+    return nValue;
 }
 
 float clampf(float fValue, float fMin, float fMax)
 {
-    return fValue < fMin ? fMin : fValue > fMax ? fMax : fValue;
+    if (fMin > fMax)
+    {
+        float fTmp = fMin;
+        fMin = fMax;
+        fMax = fTmp;
+    }
+
+    if (fValue < fMin)
+        return fMin;
+
+    if (fValue > fMax)
+        return fMax;
+
+    return fValue;
 }
 
 int floor(float f)

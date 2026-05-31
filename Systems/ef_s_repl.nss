@@ -197,7 +197,7 @@ string Repl_Interpret(string sInput)
     Repl_InjectStackEntry(jStack, "oTarget", "TARGET");
 
     Profiler_Start("REPL");
-    string sOutput = FormatString(sInput, 0, jStack);
+    string sOutput = Interpret(sInput, 0, jStack, TRUE);
     string sProfiler = Profiler_Stop(FALSE, FALSE);
     NWM_SetBindString(REPL_NUI_BIND_PROFILER, sProfiler);
 

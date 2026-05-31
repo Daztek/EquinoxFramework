@@ -30,6 +30,7 @@ const int STRFMT_DEBUG_VALUE_MAX_LENGTH                 = 256;
 
 const string STRFMT_INTERNAL_EVAL_DEPTH                 = "__ef_strfmt_eval_depth";
 const string STRFMT_INTERNAL_FUNCTION_CALL_DEPTH        = "__ef_strfmt_function_call_depth";
+const string STRFMT_INTERNAL_DANGER_DRAGONS             = "__ef_strfmt_danger_dragons";
 
 const string STRFMT_INVALID_STRING                      = "[STRFMT_INVALID_STRING]";
 const string STRFMT_EVAL_DEPTH_LIMIT_MESSAGE            = "[EVAL_DEPTH_LIMIT]";
@@ -50,8 +51,8 @@ const int STRFMT_PROPERTY_SEGMENT_PARAMETERS            = 1;
 const int STRFMT_PROPERTY_SEGMENT_COMPILED_PARAMETERS   = 2;
 
 const int STRFMT_EXPR_VAR                               = 0;
-const int STRFMT_EXPR_META                              = 1;
-const int STRFMT_EXPR_ALIAS                             = 2;
+const int STRFMT_EXPR_ALIAS                             = 1;
+const int STRFMT_EXPR_META                              = 2;
 const int STRFMT_EXPR_FUNCTION                          = 3;
 
 const int STRFMT_EXPR_KIND                              = 1;
@@ -85,7 +86,10 @@ struct PropertyChain
     struct Value strValue;
 };
 
-string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_NULL);
+string Interpret(string sString, int nDepthOverride = 0, json jStack = JSON_NULL, int bDangerDragons = TRUE);
+string FormatString(string sString, int nDepthOverride = 0);
+
+int GetDragonsAreEnabled(json jStack);
 
 string MakeCacheKey(string sPrefix, string sString);
 json GetCachedJson(string sPrefix, string sInput);
@@ -177,7 +181,7 @@ string TruncateDebugValue(string sValue);
 string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "");
 string InspectObject(object oValue);
 
-string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_NULL)
+string Interpret(string sString, int nDepthOverride = 0, json jStack = JSON_NULL, int bDangerDragons = TRUE)
 {
     if (sString == "")
         return "";
@@ -195,7 +199,19 @@ string FormatString(string sString, int nDepthOverride = 0, json jStack = JSON_N
     if (!JsonGetType(jStack))
         jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
 
+    JsonObjectSetIntInplace(jStack, STRFMT_INTERNAL_DANGER_DRAGONS, bDangerDragons);
+
     return EvalTemplate(jTemplate, jStack);
+}
+
+string FormatString(string sString, int nDepthOverride = 0)
+{
+    return Interpret(sString, 1 + nDepthOverride, JsonNull(), FALSE);
+}
+
+int GetDragonsAreEnabled(json jStack)
+{
+    return JsonObjectGetInt(jStack, STRFMT_INTERNAL_DANGER_DRAGONS);
 }
 
 string MakeCacheKey(string sPrefix, string sString)
@@ -559,17 +575,21 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
     string sBaseParameters = JsonArrayGetString(jExpr, STRFMT_EXPR_BASE_PARAMETERS);
     string sPropertyPath = JsonArrayGetString(jExpr, STRFMT_EXPR_PROPERTY_PATH);
     json jBaseCompiledParameters = JsonArrayGet(jExpr, STRFMT_EXPR_BASE_COMPILED_PARAMETERS);
+    int bDangerDragons = GetDragonsAreEnabled(jStack);
 
     struct Value strValue;
 
     if (nKind == STRFMT_EXPR_VAR)
         strValue = GetStackValue(jStack, sBaseName, sFormatSpecifier);
-    else if (nKind == STRFMT_EXPR_ALIAS)
-        strValue = ResolveAliasValue(jStack, sBaseName, sFormatSpecifier);
-    else if (nKind == STRFMT_EXPR_META)
-        strValue = ResolveMetaValue(jStack, sBaseName, sBaseParameters, jBaseCompiledParameters, sFormatSpecifier);
-    else if (nKind == STRFMT_EXPR_FUNCTION)
-        strValue = ResolveFunctionValue(jStack, sBaseName, sBaseParameters, jBaseCompiledParameters, sFormatSpecifier);
+    else if (bDangerDragons)
+    {
+        if (nKind == STRFMT_EXPR_ALIAS)
+            strValue = ResolveAliasValue(jStack, sBaseName, sFormatSpecifier);
+        else if (nKind == STRFMT_EXPR_META)
+            strValue = ResolveMetaValue(jStack, sBaseName, sBaseParameters, jBaseCompiledParameters, sFormatSpecifier);
+        else if (nKind == STRFMT_EXPR_FUNCTION)
+            strValue = ResolveFunctionValue(jStack, sBaseName, sBaseParameters, jBaseCompiledParameters, sFormatSpecifier);
+    }
 
     if (strValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
         return GetValueFromString("[INVALID_EXPR:" + sBaseName + "]", "%s");

@@ -195,7 +195,6 @@ string Repl_Interpret(string sInput)
 
     Repl_InjectStackEntry(jStack, "oPlayer", "PLAYER");
     Repl_InjectStackEntry(jStack, "oTarget", "TARGET");
-    Repl_InjectStackEntry(jStack, "oModule", "MODULE");
 
     Profiler_Start("REPL");
     string sOutput = FormatString(sInput, 0, jStack);

@@ -135,6 +135,7 @@ string GetResolvedStringParameter(json jParameters, int nIndex, string sDefault 
 string GetResolvedTrimmedParameter(json jParameters, int nIndex, string sDefault = "");
 int IsResolvedIntParameter(json jParameters, int nIndex);
 int IsResolvedNumericParameter(json jParameters, int nIndex);
+int IsResolvedObjectParameter(json jParameters, int nIndex);
 int GetResolvedIntParameter(json jParameters, int nIndex, int nDefault = 0);
 float GetResolvedFloatParameter(json jParameters, int nIndex, float fDefault = 0.0);
 object GetResolvedObjectParameter(json jParameters, int nIndex, object oDefault = OBJECT_INVALID);
@@ -173,6 +174,7 @@ struct Value HandleMetaUtility(struct PropertyChain strPC, string sMetaName, str
 struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 
+int IsStackVar(string sVarName);
 string GetAuxTypeDisplayName(int nAuxType);
 string GetSymbolType(json jStack, string sName);
 int SymbolExists(json jStack, string sName);
@@ -216,7 +218,7 @@ int GetDragonsAreEnabled(json jStack)
 
 string MakeCacheKey(string sPrefix, string sString)
 {
-    return sPrefix + IntToString(HashString(sString)) + "_" + IntToString(GetStringLength(sString)) + "_" + GetStringLeft(sString, 32);
+    return sPrefix + sString;
 }
 
 json GetCachedJson(string sPrefix, string sInput)
@@ -1104,6 +1106,13 @@ int IsResolvedNumericParameter(json jParameters, int nIndex)
     return IsNumeric(GetResolvedTrimmedParameter(jParameters, nIndex));
 }
 
+int IsResolvedObjectParameter(json jParameters, int nIndex)
+{
+    if (JsonGetLength(jParameters) <= nIndex)
+        return FALSE;
+    return IsObjectString(GetResolvedTrimmedParameter(jParameters, nIndex));
+}
+
 int GetResolvedIntParameter(json jParameters, int nIndex, int nDefault = 0)
 {
     if (!IsResolvedIntParameter(jParameters, nIndex))
@@ -1120,7 +1129,7 @@ float GetResolvedFloatParameter(json jParameters, int nIndex, float fDefault = 0
 
 object GetResolvedObjectParameter(json jParameters, int nIndex, object oDefault = OBJECT_INVALID)
 {
-    if (JsonGetLength(jParameters) <= nIndex)
+    if (!IsResolvedObjectParameter(jParameters, nIndex))
         return oDefault;
     object oValue = StringToObject(GetResolvedTrimmedParameter(jParameters, nIndex));
     if (oValue == OBJECT_INVALID)
@@ -1899,6 +1908,12 @@ struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName, s
         if (IsResolvedNumericParameter(jParameters, 0))
             strReturnValue = GetValueFromFloat(GetResolvedFloatParameter(jParameters, 0), sFormatSpecifier);
     }
+    else if (sMetaName == "object")
+    {
+        json jParameters = ResolveParameters(strPC);
+        if (IsResolvedObjectParameter(jParameters, 0))
+            strReturnValue = GetValueFromObject(GetResolvedObjectParameter(jParameters, 0), sFormatSpecifier);
+    }
     else if (sMetaName == "string")
     {
         json jParameters = ResolveParameters(strPC);
@@ -2039,7 +2054,7 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName,
 struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier)
 {
     struct Value strReturnValue;
-    if (sMetaName == "let")
+    if (sMetaName == "set")
     {
         json jParameters = GetRawParameters(strPC);
 
@@ -2063,26 +2078,15 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName, st
             }
         }
     }
-    else if (sMetaName == "out")
+    else if (sMetaName == "unset")
     {
-        json jRawParameters = GetRawParameters(strPC);
-        if (JsonGetLength(jRawParameters) >= 2)
+        json jParameters = GetRawParameters(strPC);
+        if (JsonGetLength(jParameters) >= 1)
         {
-            string sVarName = trim(JsonArrayGetString(jRawParameters, 0));
-
-            if (JsonObjectContainsKey(strPC.jStack, sVarName))
+            string sAlias = trim(JsonArrayGetString(jParameters, 0));
+            if (GetStringLeft(sAlias, 1) == STRFMT_ALIAS_SYMBOL)
             {
-                string sValue = EvalCompiledParameter(strPC, 1);
-                json jStackVar = JsonObjectGet(strPC.jStack, sVarName);
-                int nOutAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
-
-                if (nOutAuxType == NWNX_VM_AUXTYPE_INT && IsInteger(sValue))
-                    NWNX_VM_SetStackIntegerValue(JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), StringToInt(sValue));
-                else if (nOutAuxType == NWNX_VM_AUXTYPE_FLOAT && IsNumeric(sValue))
-                    NWNX_VM_SetStackFloatValue(JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), StringToFloat(sValue));
-                else if (nOutAuxType == NWNX_VM_AUXTYPE_STRING)
-                    NWNX_VM_SetStackStringValue(JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), sValue);
-
+                JsonObjectDelInplace(strPC.jStack, sAlias);
                 strReturnValue = GetValueFromString("", sFormatSpecifier);
             }
         }
@@ -2099,17 +2103,42 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName, st
                 {
                     json jStackVar = JsonObjectGet(strPC.jStack, sAlias);
                     string sCast = trim(JsonArrayGetString(jParameters, 1));
-                    if (sCast == "int")
+                    if (sCast == "i" || sCast == "int")
                         JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, STRFMT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INT));
-                    else if (sCast == "float")
+                    else if (sCast == "f" || sCast == "float")
                         JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, STRFMT_ALIAS_TYPE, NWNX_VM_AUXTYPE_FLOAT));
-                    else if (sCast == "string")
+                    else if (sCast == "s" || sCast == "string")
                         JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, STRFMT_ALIAS_TYPE, NWNX_VM_AUXTYPE_STRING));
-                    else if (sCast == "object")
+                    else if (sCast == "o" || sCast == "object")
                         JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, STRFMT_ALIAS_TYPE, NWNX_VM_AUXTYPE_OBJECT));
 
                     strReturnValue = GetValueFromString("", sFormatSpecifier);
                 }
+            }
+        }
+    }
+    else if (sMetaName == "out")
+    {
+        json jRawParameters = GetRawParameters(strPC);
+        if (JsonGetLength(jRawParameters) >= 2)
+        {
+            string sVarName = trim(JsonArrayGetString(jRawParameters, 0));
+            if (IsStackVar(sVarName) && JsonObjectContainsKey(strPC.jStack, sVarName))
+            {
+                string sValue = EvalCompiledParameter(strPC, 1);
+                json jStackVar = JsonObjectGet(strPC.jStack, sVarName);
+                int nOutAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
+
+                if (nOutAuxType == NWNX_VM_AUXTYPE_INT && IsInteger(sValue))
+                    NWNX_VM_SetStackIntegerValue(JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), StringToInt(sValue));
+                else if (nOutAuxType == NWNX_VM_AUXTYPE_FLOAT && IsNumeric(sValue))
+                    NWNX_VM_SetStackFloatValue(JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), StringToFloat(sValue));
+                else if (nOutAuxType == NWNX_VM_AUXTYPE_OBJECT && IsObjectString(sValue))
+                    NWNX_VM_SetStackObjectValue(JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), StringToObject(sValue));
+                else if (nOutAuxType == NWNX_VM_AUXTYPE_STRING)
+                    NWNX_VM_SetStackStringValue(JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY), sValue);
+
+                strReturnValue = GetValueFromString("", sFormatSpecifier);
             }
         }
     }
@@ -2375,6 +2404,12 @@ struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName, stri
     return strReturnValue;
 }
 
+int IsStackVar(string sVarName)
+{
+    string sPrefix = GetStringLeft(sVarName, 1);
+    return sPrefix != STRFMT_ALIAS_SYMBOL && sPrefix != STRFMT_META_SYMBOL && sPrefix != STRFMT_FUNCTION_SYMBOL;
+}
+
 string GetAuxTypeDisplayName(int nAuxType)
 {
     switch (nAuxType)
@@ -2473,7 +2508,7 @@ string InferDebugValueType(string sValue)
     if (IsFloat(sValue))
         return "float";
 
-    if (sLower == "0x7f000000")
+    if (sLower == STRING_OBJECT_INVALID)
         return "object-invalid";
 
     if (StringToObject(sValue) != OBJECT_INVALID)

@@ -9,6 +9,7 @@
 
 const int STRING_BAR_DEFAULT_WIDTH = 20;
 const int STRING_BAR_MAX_WIDTH = 80;
+const string STRING_OBJECT_INVALID = "0x7f000000";
 
 
 string ltrim(string s);
@@ -170,9 +171,7 @@ string CapitalizeWord(string sWord)
     if (nLength <= 0)
         return "";
 
-    string sFirst = GetSubString(sWord, 0, 1);
-    string sRest = GetSubString(sWord, 1, nLength - 1);
-    return GetStringUpperCase(sFirst) + GetStringLowerCase(sRest);
+    return GetStringUpperCase(GetSubString(sWord, 0, 1)) + GetStringLowerCase(GetSubString(sWord, 1, nLength - 1));
 }
 
 int StringToBoolish(string sValue)
@@ -209,7 +208,10 @@ int IsObjectString(string sValue)
 {
     sValue = GetStringLowerCase(trim(sValue));
 
-    if (sValue == "0x7f000000")
+    if (GetStringLeft(sValue, 2) != "0x")
+        return FALSE;
+
+    if (sValue == STRING_OBJECT_INVALID)
         return TRUE;
 
     return StringToObject(sValue) != OBJECT_INVALID;

@@ -96,6 +96,7 @@ json GetCachedJson(string sPrefix, string sInput);
 void SetCachedJson(string sPrefix, string sInput, json jValue);
 
 json MakeStackAliasEntry(string sValue, int nAuxType);
+json MakeObjectAliasEntry(object oValue);
 
 int IsParserQuote(string sCharacter);
 int IsParserEscapedCharacter(string sString, int nIndex, int nLength);
@@ -171,6 +172,7 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName,
 struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 struct Value HandleMetaUtility(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
+struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier);
 
@@ -237,6 +239,11 @@ json MakeStackAliasEntry(string sValue, int nAuxType)
     JsonObjectSetStringInplace(jEntry, STRFMT_ALIAS_VALUE, sValue);
     JsonObjectSetIntInplace(jEntry, STRFMT_ALIAS_TYPE, nAuxType);
     return jEntry;
+}
+
+json MakeObjectAliasEntry(object oValue)
+{
+    return MakeStackAliasEntry("0x" + ObjectToString(oValue), NWNX_VM_AUXTYPE_OBJECT);
 }
 
 int IsParserQuote(string sCharacter)
@@ -679,6 +686,9 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
 
     if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
         strReturnValue = HandleMetaUtility(strMeta, sMetaName, sFormatSpecifier);
+
+    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+        strReturnValue = HandleMetaOutput(strMeta, sMetaName, sFormatSpecifier);
 
     if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
         strReturnValue = HandleMetaMath(strMeta, sMetaName, sFormatSpecifier);
@@ -2048,6 +2058,38 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName,
             strReturnValue = GetValueFromInt(bResult, sFormatSpecifier);
         }
     }
+    else if (sMetaName == "foreachpc")
+    {
+        json jRawParameters = GetRawParameters(strPC);
+        if (JsonGetLength(jRawParameters) >= 2)
+        {
+            string sAlias = trim(JsonArrayGetString(jRawParameters, 0));
+
+            if (GetStringLeft(sAlias, 1) == STRFMT_ALIAS_SYMBOL)
+            {
+                json jCompiledParameters = GetCompiledParameters(strPC);
+                json jBody = JsonArrayGet(jCompiledParameters, 1);
+                json jFrame = JsonCopyObject(strPC.jStack);
+                string sAccumulator;
+
+                object oPC = GetFirstPC();
+                while (GetIsObjectValid(oPC))
+                {
+                    JsonObjectSetInplace(jFrame, sAlias, MakeObjectAliasEntry(oPC));
+
+                    sAccumulator += EvalTemplate(jBody, jFrame);
+                    if (GetStringLength(sAccumulator) > STRFMT_MAX_OUTPUT_LENGTH)
+                    {
+                        sAccumulator = ClampOutputString(sAccumulator);
+                        break;
+                    }
+                    oPC = GetNextPC();
+                }
+
+                strReturnValue = GetValueFromString(sAccumulator, sFormatSpecifier);
+            }
+        }
+    }
     return strReturnValue;
 }
 
@@ -2254,6 +2296,35 @@ struct Value HandleMetaUtility(struct PropertyChain strPC, string sMetaName, str
         }
     }
 
+    return strReturnValue;
+}
+
+struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName, string sFormatSpecifier)
+{
+    struct Value strReturnValue;
+    if (sMetaName == "sendmessagetopc" || sMetaName == "tell")
+    {
+        json jParameters = ResolveParameters(strPC);
+        if (JsonGetLength(jParameters) >= 2 && IsResolvedObjectParameter(jParameters, 0))
+        {
+            object oPC = GetResolvedObjectParameter(jParameters, 0);
+            string sMessage = GetResolvedStringParameter(jParameters, 1);
+
+            if (GetIsObjectValid(oPC))
+                SendMessageToPC(oPC, sMessage);
+
+            strReturnValue = GetValueFromString("", sFormatSpecifier);
+        }
+    }
+    else if (sMetaName == "print" || sMetaName == "log")
+    {
+        json jParameters = ResolveParameters(strPC);
+        if (JsonGetLength(jParameters) >= 1)
+        {
+            PrintString(GetResolvedStringParameter(jParameters, 0));
+            strReturnValue = GetValueFromString("", sFormatSpecifier);
+        }
+    }
     return strReturnValue;
 }
 

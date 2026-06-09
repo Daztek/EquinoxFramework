@@ -190,7 +190,6 @@ string Repl_Interpret(string sInput)
 {
     object oPlayer = OBJECT_SELF;
     object oTarget = NWM_GetUserDataObject(REPL_USERDATA_TARGET_KEY);
-    object oModule = GetModule();
     json jStack = Session_GetJson(OBJECT_SELF, REPL_SCRIPT_NAME, REPL_SESSION_STACK_KEY);
 
     Repl_InjectStackEntry(jStack, "oPlayer", "PLAYER");

@@ -12,9 +12,9 @@ const int STRING_BAR_MAX_WIDTH = 80;
 const string STRING_OBJECT_INVALID = "0x7f000000";
 
 
-string ltrim(string s);
-string rtrim(string s);
-string trim(string s);
+string ltrim(string sString);
+string rtrim(string sString);
+string trim(string sString);
 int HexStringToInt(string sString);
 string EFIntToHexString(int nValue);
 string LeftPadString(string sString, int nLength, string sCharacter);
@@ -34,25 +34,54 @@ int IsObjectString(string sValue);
 string RepeatText(string sText, int nCount);
 string MakeBarString(float fValue, float fMax, int nWidth, string sFilled = "#", string sEmpty = "-");
 
-string ltrim(string s)
+string ltrim(string sString)
 {
-    while (GetStringLeft(s, 1) == " ")
-        s = GetStringRight(s, GetStringLength(s) - 1);
+    int nLength = GetStringLength(sString), nStart;
 
-    return s;
+    while (nStart < nLength && GetSubString(sString, nStart, 1) == " ")
+    {
+        nStart++;
+    }
+
+    if (nStart == 0)
+        return sString;
+
+    return GetSubString(sString, nStart, nLength - nStart);
 }
 
-string rtrim(string s)
+string rtrim(string sString)
 {
-    while (GetStringRight(s, 1) == " ")
-        s = GetStringLeft(s, GetStringLength(s) - 1);
+    int nLength = GetStringLength(sString), nEnd = nLength - 1;
 
-    return s;
+    while (nEnd >= 0 && GetSubString(sString, nEnd, 1) == " ")
+    {
+        nEnd--;
+    }
+
+    if (nEnd == nLength - 1)
+        return sString;
+
+    return GetSubString(sString, 0, nEnd + 1);
 }
 
-string trim(string s)
+string trim(string sString)
 {
-    return ltrim(rtrim(s));
+    int nLength = GetStringLength(sString), nStart, nEnd = nLength - 1;
+
+    while (nStart < nLength && GetSubString(sString, nStart, 1) == " ")
+    {
+        nStart++;
+    }
+
+    while (nEnd >= nStart && GetSubString(sString, nEnd, 1) == " ")
+    {
+        nEnd--;
+    }
+
+    if (nStart == 0 && nEnd == nLength - 1)
+        return sString;
+
+    return GetSubString(sString, nStart, nEnd - nStart + 1);
 }
 
 int HexStringToInt(string sString)

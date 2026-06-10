@@ -7,7 +7,7 @@
 #include "ef_i_vm"
 #include "ef_i_ringbuffer"
 #include "ef_i_sqlite"
-#include "ef_i_strfmt"
+#include "ef_c_dazscript"
 #include "ef_c_messagebus"
 
 const string LOG_SCRIPT_NAME        = "ef_c_log";

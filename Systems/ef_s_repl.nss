@@ -4,6 +4,7 @@
 */
 
 #include "ef_i_include"
+#include "ef_c_dazscript"
 #include "ef_c_profiler"
 #include "ef_s_nuibuilder"
 #include "ef_s_nuiwinman"
@@ -196,7 +197,7 @@ string Repl_Interpret(string sInput)
     Repl_InjectStackEntry(jStack, "oTarget", "TARGET");
 
     Profiler_Start("REPL");
-    string sOutput = Interpret(sInput, 0, jStack, TRUE);
+    string sOutput = Interpret(sInput, 0, jStack);
     string sProfiler = Profiler_Stop(FALSE, FALSE);
     NWM_SetBindString(REPL_NUI_BIND_PROFILER, sProfiler);
 

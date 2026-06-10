@@ -32,7 +32,7 @@ void GuiEvent_OnPlayerGuiEvent()
     {
         int nInt = GetLastGuiEventInteger();
         object oObject = GetLastGuiEventObject();
-        LogDebug("Event={nGuiEventType}, Int={nInt}, Object={oObject:%i}");
+        LogDebug("Event={nGuiEventType}, Int={nInt}, Object={oObject>hex}");
     }
 
     sqlquery sql = SqlPrepareQueryModule("SELECT system, scriptchunk FROM " + GUIEVENT_SCRIPT_NAME + " WHERE guieventtype = @guieventtype;");

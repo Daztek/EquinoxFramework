@@ -33,7 +33,7 @@ void Grass_SetGrass(object oArea, string sTexture)
     vector vColor = Vector(1.0f, 1.0f, 1.0f);
 
     string sTag = GetTag(oArea);
-    LogInfo("Setting Grass for Area: {sTag} - > Texture: {sTexture}, Density: {fDensity:%.2f}, Height: {fHeight:%.2f}");
+    LogInfo("Setting Grass for Area: {sTag} - > Texture: {sTexture}, Density: {fDensity>fixed(2)}, Height: {fHeight>fixed(2)}");
     SetAreaGrassOverride(oArea, 3, sTexture, fDensity, fHeight, vColor, vColor);
 }
 

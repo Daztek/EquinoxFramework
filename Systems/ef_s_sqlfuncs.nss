@@ -111,7 +111,7 @@ void SqlFunctions_RegisterFunction(struct AnnotationData str)
     if (nRetVal)
     {
         CacheScriptChunk(sScriptChunk, FALSE, TRUE);
-        LogInfo("System '{str.sSystem}' registered SQL function '{str.sFunction}' with name '{sName}' -> D:{bDeterministic:%b}, DO:{bDirectOnly:%b}");
+        LogInfo("System '{str.sSystem}' registered SQL function '{str.sFunction}' with name '{sName}' -> D:{bDeterministic>bool}, DO:{bDirectOnly>bool}");
     }
     else
     {

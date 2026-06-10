@@ -533,7 +533,7 @@ void BT_Blackboard_SetObject(object oBlackboard, string sKey, object oValue, int
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     SetLocalObject(oBlackboard, sValueKey, oValue);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("SET OBJECT '{sKey}' -> '{oValue:%i}' ({sValueKey})");
+        LogDebug("SET OBJECT '{sKey}' -> '{oValue>hex}' ({sValueKey})");
 }
 
 object BT_Blackboard_GetObject(object oBlackboard, string sKey, int nBehaviorTreeID = 0, int nNodeID = 0)
@@ -541,7 +541,7 @@ object BT_Blackboard_GetObject(object oBlackboard, string sKey, int nBehaviorTre
     string sValueKey = BT_Blackboard_GetKey(nBehaviorTreeID, nNodeID, sKey);
     object oValue = GetLocalObject(oBlackboard, sValueKey);
     if (BT_DEBUG_LOG_MEMORY_INFO)
-        LogDebug("GET OBJECT '{sKey}' -> '{oValue:%i}' ({sValueKey})");
+        LogDebug("GET OBJECT '{sKey}' -> '{oValue>hex}' ({sValueKey})");
     return oValue;
 }
 

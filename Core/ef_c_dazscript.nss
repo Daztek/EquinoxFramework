@@ -53,6 +53,13 @@ const int DAZSCRIPT_EXPR_BASE_PARAMETERS                    = 4;
 const int DAZSCRIPT_EXPR_PROPERTY_PATH                      = 5;
 const int DAZSCRIPT_EXPR_BASE_COMPILED_PARAMETERS           = 6;
 
+const int DAZSCRIPT_ARG_ANY                                 = 0;
+const int DAZSCRIPT_ARG_INT                                 = 1;
+const int DAZSCRIPT_ARG_NUMERIC                             = 2;
+const int DAZSCRIPT_ARG_OBJECT                              = 3;
+const int DAZSCRIPT_ARG_STRING                              = 4;
+const int DAZSCRIPT_ARG_JSON                                = 5;
+
 struct Value
 {
     int nAuxType;
@@ -77,6 +84,17 @@ struct PropertyChain
     json jCurrentParameters;
     json jCurrentParameterEntries;
     struct Value strValue;
+};
+
+struct Arguments
+{
+    int nCount;
+    struct Value strArg0;
+    struct Value strArg1;
+    struct Value strArg2;
+    struct Value strArg3;
+    struct Value strArg4;
+    struct Value strError;
 };
 
 string FormatString(string sString, int nDepthOverride = 0);
@@ -128,6 +146,15 @@ int GetRawParameterWasQuoted(struct PropertyChain strPC, int nIndex);
 int GetParameterCount(struct PropertyChain strPC);
 struct Value EvalCompiledParameter(struct PropertyChain strPC, int nIndex);
 
+string GetArgTypeName(int nArgType);
+int IsValueArgType(struct Value strValue, int nArgType);
+struct Value CheckArity(struct PropertyChain strPC, int nMin, int nMax);
+struct Value EvalTypedParameter(struct PropertyChain strPC, int nIndex, int nArgType);
+struct Arguments EvalArgs(struct PropertyChain strPC, int nMin, int nMax, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY, int nType3 = DAZSCRIPT_ARG_ANY, int nType4 = DAZSCRIPT_ARG_ANY);
+struct Arguments EvalOneArg(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY);
+struct Arguments EvalTwoArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY);
+struct Arguments EvalThreeArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY);
+
 string GetValueAsString(struct Value strValue, string sDefault = "");
 string GetValueAsTrimmedString(struct Value strValue, string sDefault = "");
 int IsValueIntParameter(struct Value strValue);
@@ -149,11 +176,11 @@ struct Value GetValueFromString(string sValue = "");
 struct Value GetValueFromObject(object oValue = OBJECT_INVALID);
 struct Value GetValueFromJson(json jValue = JSON_NULL);
 
-string RenderAsString(struct Value strValue);
+string ValueToDisplayString(struct Value strValue);
 int ValueToBoolish(struct Value strValue);
-string FormatAsFixed(struct Value strValue, int nPrecision);
-string FormatAsHex(struct Value strValue);
-string FormatAsBoolean(struct Value strValue);
+struct Value FormatValueAsFixed(struct Value strValue, int nPrecision);
+struct Value FormatValueAsHex(struct Value strValue);
+struct Value FormatValueAsBoolean(struct Value strValue);
 
 struct PropertyChain GetIntProperty(struct PropertyChain strPC);
 struct PropertyChain GetFloatProperty(struct PropertyChain strPC);
@@ -204,7 +231,7 @@ string Interpret(string sString, int nDepthOverride = 0, json jStack = JSON_NULL
     if (!JsonGetType(jStack))
         jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
 
-    return RenderAsString(EvalTemplate(jTemplate, jStack));
+    return ValueToDisplayString(EvalTemplate(jTemplate, jStack));
 }
 
 string MakeCacheKey(string sPrefix, string sString)
@@ -241,7 +268,7 @@ string GetStackAliasStorageString(struct Value strValue)
         case NWNX_VM_AUXTYPE_JSON:      return JsonDump(strValue.jValue);
     }
 
-    return RenderAsString(strValue);
+    return ValueToDisplayString(strValue);
 }
 
 json MakeStackAliasEntryFromValue(struct Value strValue)
@@ -471,7 +498,7 @@ struct Value EvalTemplate(json jTemplate, json jStack)
             struct Value strInnerValue = EvalTemplate(JsonArrayGet(jSingleNode, 1), jStack);
             if (IsErrorValue(strInnerValue))
                 return strInnerValue;
-            return GetValueFromString(RenderAsString(strInnerValue));
+            return GetValueFromString(ValueToDisplayString(strInnerValue));
         }
 
         if (nSingleNodeType == DAZSCRIPT_NODE_LITERAL)
@@ -491,14 +518,14 @@ struct Value EvalTemplate(json jTemplate, json jStack)
             struct Value strExpressionValue = EvalCompiledExpressionToValue(jNode, jStack);
             if (IsErrorValue(strExpressionValue))
                 return strExpressionValue;
-            sResult += RenderAsString(strExpressionValue);
+            sResult += ValueToDisplayString(strExpressionValue);
         }
         else if (nNodeType == DAZSCRIPT_NODE_FORCE_STRING)
         {
             struct Value strInnerValue = EvalTemplate(JsonArrayGet(jNode, 1), jStack);
             if (IsErrorValue(strInnerValue))
                 return strInnerValue;
-            sResult += RenderAsString(strInnerValue);
+            sResult += ValueToDisplayString(strInnerValue);
         }
     }
 
@@ -589,7 +616,7 @@ json CompileExpression(string sExpr)
 
 string EvalCompiledExpression(json jExpr, json jStack)
 {
-    return RenderAsString(EvalCompiledExpressionToValue(jExpr, jStack));
+    return ValueToDisplayString(EvalCompiledExpressionToValue(jExpr, jStack));
 }
 
 struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
@@ -616,7 +643,7 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
         return strValue;
 
     if (IsInvalidValue(strValue))
-        return GetErrorValue("[INVALID_EXPR:" + sBaseName + "]");
+        return GetErrorValue("INVALID_EXPR:" + sBaseName);
 
     if (JsonGetLength(jChain) > 0)
     {
@@ -629,10 +656,10 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
         strPC = EvalCompiledPropertyChain(strPC, jChain);
 
         if (IsErrorValue(strPC.strValue))
-            return GetErrorValue("[INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty + "]" + strPC.strValue.sErrorMessage);
+            return GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty + " -> " + strPC.strValue.sErrorMessage);
 
         if (IsInvalidValue(strPC.strValue))
-            return GetErrorValue("[INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty + "]");
+            return GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty);
 
         strValue = strPC.strValue;
     }
@@ -643,12 +670,12 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
 struct Value GetStackValue(json jStack, string sVarName)
 {
     if (!JsonObjectContainsKey(jStack, sVarName))
-        return GetErrorValue("[MISSING_VAR:" + sVarName + "]");
+        return GetErrorValue("MISSING_VAR:" + sVarName);
 
     json jStackVar = JsonObjectGet(jStack, sVarName);
 
     if (JsonGetType(jStackVar) != JSON_TYPE_OBJECT)
-        return GetErrorValue("[INVALID_STACK_VAR:" + sVarName + "]");
+        return GetErrorValue("INVALID_STACK_VAR:" + sVarName);
 
     int nAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
     if (nAuxType == NWNX_VM_AUXTYPE_VOID)
@@ -660,7 +687,7 @@ struct Value GetStackValue(json jStack, string sVarName)
 struct Value ResolveAliasValue(json jStack, string sAliasName)
 {
     if (!JsonObjectContainsKey(jStack, sAliasName))
-        return GetErrorValue("[MISSING_ALIAS:" + sAliasName + "]");
+        return GetErrorValue("MISSING_ALIAS:" + sAliasName);
 
     json jEntry = JsonObjectGet(jStack, sAliasName);
     int nAuxType = JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE);
@@ -687,35 +714,35 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
 
     struct Value strReturnValue;
 
-    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+    if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaPrimitive(strMeta, sMetaName);
 
-    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+    if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaFunction(strMeta, sMetaName);
 
-    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+    if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaControlFlow(strMeta, sMetaName);
 
-    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+    if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaVariable(strMeta, sMetaName);
 
-    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+    if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaIntrospection(strMeta, sMetaName);
 
-    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+    if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaUtility(strMeta, sMetaName);
 
-    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+    if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaOutput(strMeta, sMetaName);
 
-    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+    if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaMath(strMeta, sMetaName);
 
-    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+    if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaObject(strMeta, sMetaName);
 
-    if (strReturnValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
-        return GetErrorValue("[UNKNOWN_META:" + sMetaName + "]");
+    if (IsInvalidValue(strReturnValue))
+        return GetErrorValue("UNKNOWN_META:" + sMetaName);
 
     return strReturnValue;
 }
@@ -725,13 +752,13 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
     json jFunction = JsonObjectGet(jStack, sFunctionName);
 
     if (JsonGetType(jFunction) != JSON_TYPE_OBJECT)
-        return GetErrorValue("[UNKNOWN_FUNCTION:" + sFunctionName + "]");
+        return GetErrorValue("UNKNOWN_FUNCTION:" + sFunctionName);
 
     json jArgNames = JsonObjectGet(jFunction, DAZSCRIPT_FUNCTION_ARGS);
     json jBody = JsonObjectGet(jFunction, DAZSCRIPT_FUNCTION_BODY_COMPILED);
 
     if (JsonGetType(jBody) != JSON_TYPE_ARRAY)
-        return GetErrorValue("[INVALID_FUNCTION_BODY:" + sFunctionName + "]");
+        return GetErrorValue("INVALID_FUNCTION_BODY:" + sFunctionName);
 
     struct PropertyChain strFunction;
     strFunction.jStack = jStack;
@@ -741,7 +768,7 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
 
     json jCompiledParameters = GetCompiledParameters(strFunction);
     if (JsonGetLength(jCompiledParameters) != JsonGetLength(jArgNames))
-        return GetErrorValue("[FUNCTION_ARITY:" + sFunctionName + "]");
+        return GetErrorValue("FUNCTION_ARITY:" + sFunctionName);
 
     json jFrame = JsonCopyObject(jStack);
     int nIndex, nNumArgs = JsonGetLength(jArgNames);
@@ -898,19 +925,18 @@ struct PropertyChain ApplyCompiledPropertySegment(struct PropertyChain strPC, js
 
 struct PropertyChain EvalCompiledPropertyChain(struct PropertyChain strPC, json jSegments)
 {
-    int nSegment;
-    int nNumSegments = JsonGetLength(jSegments);
-
+    int nSegment, nNumSegments = JsonGetLength(jSegments);
     for (nSegment = 0; nSegment < nNumSegments; nSegment++)
     {
         strPC = GetPropertyValueByType(ApplyCompiledPropertySegment(strPC, JsonArrayGet(jSegments, nSegment)));
-        if (strPC.strValue.nAuxType == NWNX_VM_AUXTYPE_INVALID)
+        if (IsErrorValue(strPC.strValue))
+            break;
+        if (IsInvalidValue(strPC.strValue))
         {
-            strPC.strValue = GetErrorValue("[UNKNOWN_PROPERTY:" + strPC.sCurrentProperty + "]");
+            strPC.strValue = GetErrorValue("UNKNOWN_PROPERTY:" + strPC.sCurrentProperty);
             break;
         }
     }
-
     return strPC;
 }
 
@@ -1149,8 +1175,146 @@ struct Value EvalCompiledParameter(struct PropertyChain strPC, int nIndex)
 {
     json jCompiledParameters = GetCompiledParameters(strPC);
     if (nIndex < 0 || nIndex >= JsonGetLength(jCompiledParameters))
-        return GetErrorValue("[PARAM_INDEX_OUT_OF_RANGE]");
+        return GetErrorValue("PARAM_INDEX_OUT_OF_RANGE");
     return EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), strPC.jStack);
+}
+
+string GetArgTypeName(int nArgType)
+{
+    switch (nArgType)
+    {
+        case DAZSCRIPT_ARG_ANY:       return "any";
+        case DAZSCRIPT_ARG_INT:       return "int";
+        case DAZSCRIPT_ARG_NUMERIC:   return "numeric";
+        case DAZSCRIPT_ARG_OBJECT:    return "object";
+        case DAZSCRIPT_ARG_STRING:    return "string";
+        case DAZSCRIPT_ARG_JSON:      return "json";
+    }
+
+    return "unknown";
+}
+
+int IsValueArgType(struct Value strValue, int nArgType)
+{
+    if (IsErrorValue(strValue))
+        return FALSE;
+    switch (nArgType)
+    {
+        case DAZSCRIPT_ARG_ANY:     return TRUE;
+        case DAZSCRIPT_ARG_INT:     return IsValueIntParameter(strValue);
+        case DAZSCRIPT_ARG_NUMERIC: return IsValueNumericParameter(strValue);
+        case DAZSCRIPT_ARG_OBJECT:  return IsValueObjectParameter(strValue);
+        case DAZSCRIPT_ARG_STRING:  return strValue.nAuxType == NWNX_VM_AUXTYPE_STRING;
+        case DAZSCRIPT_ARG_JSON:    return strValue.nAuxType == NWNX_VM_AUXTYPE_JSON;
+    }
+    return FALSE;
+}
+
+struct Value CheckArity(struct PropertyChain strPC, int nMin, int nMax)
+{
+    int nCount = GetParameterCount(strPC);
+    if (nCount < nMin)
+    {
+        if (nMin == nMax)
+            return GetErrorValue("ARITY:EXPECTED_" + IntToString(nMin) + "_ARGUMENTS");
+        return GetErrorValue("ARITY:EXPECTED_AT_LEAST_" + IntToString(nMin) + "_ARGUMENTS");
+    }
+    if (nMax >= 0 && nCount > nMax)
+    {
+        if (nMin == nMax)
+            return GetErrorValue("ARITY:EXPECTED_" + IntToString(nMax) + "_ARGUMENTS");
+        return GetErrorValue("ARITY:EXPECTED_" + IntToString(nMin) + "_TO_" + IntToString(nMax) + "_ARGUMENTS");
+    }
+
+    struct Value strValue;
+    return strValue;
+}
+
+struct Value EvalTypedParameter(struct PropertyChain strPC, int nIndex, int nArgType)
+{
+    struct Value strArg = EvalCompiledParameter(strPC, nIndex);
+    if (IsErrorValue(strArg))
+        return strArg;
+    if (!IsValueArgType(strArg, nArgType))
+        return GetErrorValue("TYPE_MISMATCH:ARG" + IntToString(nIndex + 1) + "_NOT_" + GetStringUpperCase(GetArgTypeName(nArgType)));
+    return strArg;
+}
+
+struct Arguments EvalArgs(struct PropertyChain strPC, int nMin, int nMax, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY, int nType3 = DAZSCRIPT_ARG_ANY, int nType4 = DAZSCRIPT_ARG_ANY)
+{
+    struct Arguments strArgs;
+    strArgs.nCount = GetParameterCount(strPC);
+    strArgs.strError = CheckArity(strPC, nMin, nMax);
+
+    if (IsErrorValue(strArgs.strError))
+        return strArgs;
+
+    if (strArgs.nCount > 0)
+    {
+        strArgs.strArg0 = EvalTypedParameter(strPC, 0, nType0);
+        if (IsErrorValue(strArgs.strArg0))
+        {
+            strArgs.strError = strArgs.strArg0;
+            return strArgs;
+        }
+    }
+
+    if (strArgs.nCount > 1)
+    {
+        strArgs.strArg1 = EvalTypedParameter(strPC, 1, nType1);
+        if (IsErrorValue(strArgs.strArg1))
+        {
+            strArgs.strError = strArgs.strArg1;
+            return strArgs;
+        }
+    }
+
+    if (strArgs.nCount > 2)
+    {
+        strArgs.strArg2 = EvalTypedParameter(strPC, 2, nType2);
+        if (IsErrorValue(strArgs.strArg2))
+        {
+            strArgs.strError = strArgs.strArg2;
+            return strArgs;
+        }
+    }
+
+    if (strArgs.nCount > 3)
+    {
+        strArgs.strArg3 = EvalTypedParameter(strPC, 3, nType3);
+        if (IsErrorValue(strArgs.strArg3))
+        {
+            strArgs.strError = strArgs.strArg3;
+            return strArgs;
+        }
+    }
+
+    if (strArgs.nCount > 4)
+    {
+        strArgs.strArg4 = EvalTypedParameter(strPC, 4, nType4);
+        if (IsErrorValue(strArgs.strArg4))
+        {
+            strArgs.strError = strArgs.strArg4;
+            return strArgs;
+        }
+    }
+
+    return strArgs;
+}
+
+struct Arguments EvalOneArg(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY)
+{
+    return EvalArgs(strPC, 1, 1, nType0);
+}
+
+struct Arguments EvalTwoArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY)
+{
+    return EvalArgs(strPC, 2, 2, nType0, nType1);
+}
+
+struct Arguments EvalThreeArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY)
+{
+    return EvalArgs(strPC, 3, 3, nType0, nType1, nType2);
 }
 
 int IsInvalidValue(struct Value strValue)
@@ -1253,10 +1417,10 @@ struct Value GetValueFromJson(json jValue = JSON_NULL)
     return str;
 }
 
-string RenderAsString(struct Value strValue)
+string ValueToDisplayString(struct Value strValue)
 {
-    if (strValue.bError)
-        return strValue.sErrorMessage;
+    if (IsErrorValue(strValue))
+        return "[" + strValue.sErrorMessage + "]";
 
     switch (strValue.nAuxType)
     {
@@ -1279,55 +1443,34 @@ int ValueToBoolish(struct Value strValue)
         case NWNX_VM_AUXTYPE_OBJECT:    return GetIsObjectValid(strValue.oValue);
         case NWNX_VM_AUXTYPE_JSON:      return JsonGetType(strValue.jValue) != JSON_TYPE_NULL;
     }
-
     return FALSE;
 }
 
-string FormatAsFixed(struct Value strValue, int nPrecision)
+struct Value FormatValueAsFixed(struct Value strValue, int nPrecision)
 {
-    float fValue;
-    switch (strValue.nAuxType)
-    {
-        case NWNX_VM_AUXTYPE_STRING:    fValue = StringToFloat(strValue.sValue); break;
-        case NWNX_VM_AUXTYPE_INT:       fValue = IntToFloat(strValue.nValue); break;
-        case NWNX_VM_AUXTYPE_FLOAT:     fValue = strValue.fValue; break;
-        default: return "[TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->fixed]";
-    }
-    return FloatToString(fValue, 0, nPrecision);
+    nPrecision = clamp(nPrecision, 0, 9);
+    if (IsValueNumericParameter(strValue))
+        return GetValueFromString(FloatToString(GetValueAsFloat(strValue), 0, nPrecision));
+    return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->fixed");
 }
 
-string FormatAsHex(struct Value strValue)
+struct Value FormatValueAsHex(struct Value strValue)
 {
-    int nValue;
-    switch (strValue.nAuxType)
-    {
-        case NWNX_VM_AUXTYPE_INT:       nValue = strValue.nValue; break;
-        case NWNX_VM_AUXTYPE_FLOAT:     nValue = FloatToInt(strValue.fValue); break;
-        case NWNX_VM_AUXTYPE_OBJECT:    return "0x" + ObjectToString(strValue.oValue);
-        default: return "[TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->hex]";
-    }
-    return EFIntToHexString(nValue);
+    if (IsValueIntParameter(strValue))
+        return GetValueFromString(IntToHexString(GetValueAsInt(strValue)));
+    return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->hex");
 }
 
-string FormatAsBoolean(struct Value strValue)
+struct Value FormatValueAsBoolean(struct Value strValue)
 {
-    int nValue;
-    switch (strValue.nAuxType)
-    {
-        case NWNX_VM_AUXTYPE_INT:       nValue = strValue.nValue; break;
-        case NWNX_VM_AUXTYPE_FLOAT:     nValue = fabs(strValue.fValue) >= FLOAT_EPSILON; break;
-        case NWNX_VM_AUXTYPE_STRING:    nValue = StringToBoolish(strValue.sValue); break;
-        case NWNX_VM_AUXTYPE_OBJECT:    nValue = GetIsObjectValid(strValue.oValue); break;
-        default: return "[TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->boolean]";
-    }
-    return nValue ? "TRUE" : "FALSE";
+    return GetValueFromString(ValueToBoolish(strValue) ? "TRUE" : "FALSE");
 }
 
 string GetValueAsString(struct Value strValue, string sDefault = "")
 {
     if (IsErrorValue(strValue))
         return sDefault;
-    return RenderAsString(strValue);
+    return ValueToDisplayString(strValue);
 }
 
 string GetValueAsTrimmedString(struct Value strValue, string sDefault = "")
@@ -1407,109 +1550,78 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC)
     }
     else if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueIntParameter(strArg0))
-            {
-                int nCompare = GetValueAsInt(strArg0);
-
-                if (sProperty == "eq")
-                    strReturnValue = GetValueFromInt(nValue == nCompare);
-                else if (sProperty == "neq")
-                    strReturnValue = GetValueFromInt(nValue != nCompare);
-                else if (sProperty == "gt")
-                    strReturnValue = GetValueFromInt(nValue > nCompare);
-                else if (sProperty == "gte")
-                    strReturnValue = GetValueFromInt(nValue >= nCompare);
-                else if (sProperty == "lt")
-                    strReturnValue = GetValueFromInt(nValue < nCompare);
-                else if (sProperty == "lte")
-                    strReturnValue = GetValueFromInt(nValue <= nCompare);
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_INT]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            int nCompare = GetValueAsInt(strArgs.strArg0);
+            if (sProperty == "eq")          strReturnValue = GetValueFromInt(nValue == nCompare);
+            else if (sProperty == "neq")    strReturnValue = GetValueFromInt(nValue != nCompare);
+            else if (sProperty == "gt")     strReturnValue = GetValueFromInt(nValue > nCompare);
+            else if (sProperty == "gte")    strReturnValue = GetValueFromInt(nValue >= nCompare);
+            else if (sProperty == "lt")     strReturnValue = GetValueFromInt(nValue < nCompare);
+            else if (sProperty == "lte")    strReturnValue = GetValueFromInt(nValue <= nCompare);
+        }
     }
     else if (sProperty == "min" || sProperty == "max")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueIntParameter(strArg0))
-            {
-                int nOther = GetValueAsInt(strArg0);
-                if (sProperty == "min")
-                    strReturnValue = GetValueFromInt(nValue < nOther ? nValue : nOther);
-                else
-                    strReturnValue = GetValueFromInt(nValue > nOther ? nValue : nOther);
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_INT]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            int nOther = GetValueAsInt(strArgs.strArg0);
+            if (sProperty == "min")
+                strReturnValue = GetValueFromInt(nValue < nOther ? nValue : nOther);
+            else
+                strReturnValue = GetValueFromInt(nValue > nOther ? nValue : nOther);
+        }
     }
     else if (sProperty == "clamp")
     {
-        if (GetParameterCount(strPC) == 2)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else if (IsValueIntParameter(strArg0) && IsValueIntParameter(strArg1))
-                strReturnValue = GetValueFromInt(clamp(nValue, GetValueAsInt(strArg0), GetValueAsInt(strArg1)));
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NOT_INT]");
-        }
+        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
+            strReturnValue = GetValueFromInt(clamp(nValue, GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1)));
     }
     else if (sProperty == "mod")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueIntParameter(strArg0))
-            {
-                int nDivisor = GetValueAsInt(strArg0);
-                if (nDivisor != 0)
-                    strReturnValue = GetValueFromInt(nValue % nDivisor);
-                else
-                    strReturnValue = GetErrorValue("[DIVISION_BY_ZERO]");
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_INT]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            int nDivisor = GetValueAsInt(strArgs.strArg0);
+            if (nDivisor != 0)
+                strReturnValue = GetValueFromInt(nValue % nDivisor);
+            else
+                strReturnValue = GetErrorValue("DIVISION_BY_ZERO");
+        }
     }
     else if (sProperty == "then")
     {
-        if (GetParameterCount(strPC) == 2)
-            strReturnValue = EvalCompiledParameter(strPC, nValue != 0 ? 0 : 1);
+        struct Value strError = CheckArity(strPC, 2, 2);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
+            strReturnValue = EvalCompiledParameter(strPC, nValue != 0 ? 0 : 1);
     }
     else if (sProperty == "plural")
     {
-        if (GetParameterCount(strPC) == 1)
-            strReturnValue = nValue == 1 ? GetValueFromString() : EvalCompiledParameter(strPC, 0);
-        else if (GetParameterCount(strPC) == 2)
-            strReturnValue = EvalCompiledParameter(strPC, nValue != 1);
+        struct Value strError = CheckArity(strPC, 1, 2);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else if (GetParameterCount(strPC) == 1)
+        {
+            if (nValue == 1)
+                strReturnValue = GetValueFromString();
+            else
+                strReturnValue = EvalCompiledParameter(strPC, 0);
+        }
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_OR_2_ARGUMENTS]");
+            strReturnValue = EvalCompiledParameter(strPC, nValue != 1);
     }
     else if (sProperty == "increment" || sProperty == "incr")
     {
@@ -1556,72 +1668,42 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
     }
     else if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueNumericParameter(strArg0))
-            {
-                float fCompare = GetValueAsFloat(strArg0);
-                float fDiff = fValue - fCompare;
-                if (sProperty == "eq")
-                    strReturnValue = GetValueFromInt(fabs(fDiff) < FLOAT_EPSILON);
-                else if (sProperty == "neq")
-                    strReturnValue = GetValueFromInt(fabs(fDiff) >= FLOAT_EPSILON);
-                else if (sProperty == "gt")
-                    strReturnValue = GetValueFromInt(fDiff > FLOAT_EPSILON);
-                else if (sProperty == "gte")
-                    strReturnValue = GetValueFromInt(fDiff >= -FLOAT_EPSILON);
-                else if (sProperty == "lt")
-                    strReturnValue = GetValueFromInt(fDiff < -FLOAT_EPSILON);
-                else if (sProperty == "lte")
-                    strReturnValue = GetValueFromInt(fDiff <= FLOAT_EPSILON);
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_NUMERIC]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_NUMERIC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            float fCompare = GetValueAsFloat(strArgs.strArg0);
+            float fDiff = fValue - fCompare;
+            if (sProperty == "eq")          strReturnValue = GetValueFromInt(fabs(fDiff) < FLOAT_EPSILON);
+            else if (sProperty == "neq")    strReturnValue = GetValueFromInt(fabs(fDiff) >= FLOAT_EPSILON);
+            else if (sProperty == "gt")     strReturnValue = GetValueFromInt(fDiff > FLOAT_EPSILON);
+            else if (sProperty == "gte")    strReturnValue = GetValueFromInt(fDiff >= -FLOAT_EPSILON);
+            else if (sProperty == "lt")     strReturnValue = GetValueFromInt(fDiff < -FLOAT_EPSILON);
+            else if (sProperty == "lte")    strReturnValue = GetValueFromInt(fDiff <= FLOAT_EPSILON);
+        }
     }
     else if (sProperty == "min" || sProperty == "max")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueNumericParameter(strArg0))
-            {
-                float fOther = GetValueAsFloat(strArg0);
-                if (sProperty == "min")
-                    strReturnValue = GetValueFromFloat(fValue < fOther ? fValue : fOther);
-                else
-                    strReturnValue = GetValueFromFloat(fValue > fOther ? fValue : fOther);
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_NUMERIC]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_NUMERIC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            float fOther = GetValueAsFloat(strArgs.strArg0);
+            if (sProperty == "min")
+                strReturnValue = GetValueFromFloat(fValue < fOther ? fValue : fOther);
+            else
+                strReturnValue = GetValueFromFloat(fValue > fOther ? fValue : fOther);
+        }
     }
     else if (sProperty == "clamp")
     {
-        if (GetParameterCount(strPC) == 2)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else if (IsValueNumericParameter(strArg0) && IsValueNumericParameter(strArg1))
-                strReturnValue = GetValueFromFloat(clampf(fValue, GetValueAsFloat(strArg0), GetValueAsFloat(strArg1)));
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NOT_NUMERIC]");
-        }
+        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
+            strReturnValue = GetValueFromFloat(clampf(fValue, GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1)));
     }
 
     strPC.strValue = strReturnValue;
@@ -1662,132 +1744,79 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
     }
     else if (sProperty == "contains")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else
-                strReturnValue = GetValueFromInt(FindSubString(sValue, GetValueAsString(strArg0), 0) != -1);
-        }
+        struct Arguments strArgs = EvalOneArg(strPC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+            strReturnValue = GetValueFromInt(FindSubString(sValue, GetValueAsString(strArgs.strArg0), 0) != -1);
     }
     else if (sProperty == "startswith" || sProperty == "prefix")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else
-                strReturnValue = GetValueFromInt(IsStringPrefix(sValue, GetValueAsString(strArg0)));
-        }
+        struct Arguments strArgs = EvalOneArg(strPC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+            strReturnValue = GetValueFromInt(IsStringPrefix(sValue, GetValueAsString(strArgs.strArg0)));
     }
     else if (sProperty == "endswith" || sProperty == "suffix")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else
-                strReturnValue = GetValueFromInt(IsStringSuffix(sValue, GetValueAsString(strArg0)));
-        }
+        struct Arguments strArgs = EvalOneArg(strPC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+            strReturnValue = GetValueFromInt(IsStringSuffix(sValue, GetValueAsString(strArgs.strArg0)));
     }
     else if (sProperty == "substr" || sProperty == "substring")
     {
-        if (GetParameterCount(strPC) >= 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueIntParameter(strArg0))
-            {
-                int nStart = GetValueAsInt(strArg0);
-                int nCount = GetStringLength(sValue) - nStart;
-
-                if (GetParameterCount(strPC) == 2)
-                {
-                    struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-                    if (IsErrorValue(strArg1))
-                        strReturnValue = strArg1;
-                    else if (IsValueIntParameter(strArg1))
-                        nCount = GetValueAsInt(strArg1);
-                    else
-                        strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_INT]");
-                }
-
-                if (IsInvalidValue(strReturnValue))
-                    strReturnValue = GetValueFromString(GetSubString(sValue, nStart, nCount));
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_INT]");
-        }
+        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_AT_LEAST_1_ARGUMENT]");
+        {
+            int nStart = GetValueAsInt(strArgs.strArg0);
+            int nCount = GetStringLength(sValue) - nStart;
+            if (strArgs.nCount == 2)
+                nCount = GetValueAsInt(strArgs.strArg1);
+            strReturnValue = GetValueFromString(GetSubString(sValue, nStart, nCount));
+        }
     }
     else if (sProperty == "left" || sProperty == "right")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueIntParameter(strArg0))
-            {
-                int nLength = GetValueAsInt(strArg0);
-                if (sProperty == "left")
-                    strReturnValue = GetValueFromString(GetStringLeft(sValue, nLength));
-                else
-                    strReturnValue = GetValueFromString(GetStringRight(sValue, nLength));
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_INT]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            int nLength = GetValueAsInt(strArgs.strArg0);
+            if (sProperty == "left")
+                strReturnValue = GetValueFromString(GetStringLeft(sValue, nLength));
+            else
+                strReturnValue = GetValueFromString(GetStringRight(sValue, nLength));
+        }
     }
     else if (sProperty == "replace")
     {
-        if (GetParameterCount(strPC) == 2)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else
-            {
-                string sSearch = NWNX_Util_RegExpEscape(GetValueAsString(strArg0));
-                string sReplace = GetValueAsString(strArg1);
-                strReturnValue = GetValueFromString(RegExpReplace(sSearch, sValue, sReplace));
-            }
-        }
+        struct Arguments strArgs = EvalTwoArgs(strPC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
+        {
+            string sSearch = NWNX_Util_RegExpEscape(GetValueAsString(strArgs.strArg0));
+            string sReplace = GetValueAsString(strArgs.strArg1);
+            strReturnValue = GetValueFromString(RegExpReplace(sSearch, sValue, sReplace));
+        }
     }
     else if (sProperty == "eq" || sProperty == "neq")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else
-            {
-                string sCompare = GetValueAsString(strArg0);
-                int nResult = sProperty == "eq" ? sValue == sCompare : sValue != sCompare;
-                strReturnValue = GetValueFromInt(nResult);
-            }
-        }
+        struct Arguments strArgs = EvalOneArg(strPC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            string sCompare = GetValueAsString(strArgs.strArg0);
+            int nResult = sProperty == "eq" ? sValue == sCompare : sValue != sCompare;
+            strReturnValue = GetValueFromInt(nResult);
+        }
     }
     else if (sProperty == "capitalize")
     {
@@ -1795,22 +1824,17 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
     }
     else if (sProperty == "append" || sProperty == "prepend")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else
-            {
-                string sOther = GetValueAsString(strArg0);
-                if (sProperty == "append")
-                    strReturnValue = GetValueFromString(sValue + sOther);
-                else
-                    strReturnValue = GetValueFromString(sOther + sValue);
-            }
-        }
+        struct Arguments strArgs = EvalOneArg(strPC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            string sOther = GetValueAsString(strArgs.strArg0);
+            if (sProperty == "append")
+                strReturnValue = GetValueFromString(sValue + sOther);
+            else
+                strReturnValue = GetValueFromString(sOther + sValue);
+        }
     }
 
     strPC.strValue = strReturnValue;
@@ -1879,41 +1903,32 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
     }
     else if (sProperty == "distance")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueObjectParameter(strArg0))
-            {
-                object oOther = GetValueAsObject(strArg0);
-                if (GetIsObjectValid(oValue) && GetIsObjectValid(oOther))
-                    strReturnValue = GetValueFromFloat(GetDistanceBetween(oValue, oOther));
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_OBJECT]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_OBJECT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            object oOther = GetValueAsObject(strArgs.strArg0);
+
+            if (!GetIsObjectValid(oValue))
+                strReturnValue = GetErrorValue("INVALID_OBJECT:SELF");
+            else if (!GetIsObjectValid(oOther))
+                strReturnValue = GetErrorValue("INVALID_OBJECT:ARG1");
+            else
+                strReturnValue = GetValueFromFloat(GetDistanceBetween(oValue, oOther));
+        }
     }
     else if (sProperty == "samearea")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueObjectParameter(strArg0))
-            {
-                object oOther = GetValueAsObject(strArg0);
-                int bSameArea = GetIsObjectValid(oValue) && GetIsObjectValid(oOther) && GetArea(oValue) == GetArea(oOther);
-                strReturnValue = GetValueFromInt(bSameArea);
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_OBJECT]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_OBJECT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            object oOther = GetValueAsObject(strArgs.strArg0);
+            int bSameArea = GetIsObjectValid(oValue) && GetIsObjectValid(oOther) && GetArea(oValue) == GetArea(oOther);
+            strReturnValue = GetValueFromInt(bSameArea);
+        }
     }
     else if (sProperty == "x" || sProperty == "y" || sProperty == "z")
     {
@@ -1927,24 +1942,21 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
     }
     else if (sProperty == "position")
     {
-        int nPrecision = 2;
-        if (GetParameterCount(strPC) == 1)
+        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
+        else if (!GetIsObjectValid(oValue))
+            strReturnValue = GetErrorValue("INVALID_OBJECT:SELF");
+        else
         {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueIntParameter(strArg0))
-                nPrecision = GetValueAsInt(strArg0, 2);
-        }
-
-        if (IsInvalidValue(strReturnValue))
-        {
+            int nPrecision = 2;
+            if (strArgs.nCount == 1)
+                nPrecision = GetValueAsInt(strArgs.strArg0, 2);
             nPrecision = clamp(nPrecision, 0, 9);
             vector vPosition = GetPosition(oValue);
-            string sX = FormatAsFixed(GetValueFromFloat(vPosition.x), nPrecision);
-            string sY = FormatAsFixed(GetValueFromFloat(vPosition.y), nPrecision);
-            string sZ = FormatAsFixed(GetValueFromFloat(vPosition.z), nPrecision);
-
+            string sX = ValueToDisplayString(FormatValueAsFixed(GetValueFromFloat(vPosition.x), nPrecision));
+            string sY = ValueToDisplayString(FormatValueAsFixed(GetValueFromFloat(vPosition.y), nPrecision));
+            string sZ = ValueToDisplayString(FormatValueAsFixed(GetValueFromFloat(vPosition.z), nPrecision));
             strReturnValue = GetValueFromString("[" + sX + "," + sY + "," + sZ + "]");
         }
     }
@@ -1954,39 +1966,33 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
     }
     else if (sProperty == "localvar")
     {
-        if (GetParameterCount(strPC) == 2)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else
-            {
-                string sType = GetStringLowerCase(GetValueAsTrimmedString(strArg0));
-                string sVarName = GetValueAsTrimmedString(strArg1);
-
-                if (sType == "i")
-                    strReturnValue = GetValueFromInt(GetLocalInt(oValue, sVarName));
-                else if (sType == "f")
-                    strReturnValue = GetValueFromFloat(GetLocalFloat(oValue, sVarName));
-                else if (sType == "s")
-                    strReturnValue = GetValueFromString(GetLocalString(oValue, sVarName));
-                else if (sType == "o")
-                    strReturnValue = GetValueFromObject(GetLocalObject(oValue, sVarName));
-                else if (sType == "j")
-                    strReturnValue = GetValueFromJson(GetLocalJson(oValue, sVarName));
-            }
-        }
+        struct Arguments strArgs = EvalTwoArgs(strPC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
+        else if (!GetIsObjectValid(oValue))
+            strReturnValue = GetErrorValue("INVALID_OBJECT:SELF");
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
+        {
+            string sType = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
+            string sVarName = GetValueAsTrimmedString(strArgs.strArg1);
+            if (sType == "i")
+                strReturnValue = GetValueFromInt(GetLocalInt(oValue, sVarName));
+            else if (sType == "f")
+                strReturnValue = GetValueFromFloat(GetLocalFloat(oValue, sVarName));
+            else if (sType == "s")
+                strReturnValue = GetValueFromString(GetLocalString(oValue, sVarName));
+            else if (sType == "o")
+                strReturnValue = GetValueFromObject(GetLocalObject(oValue, sVarName));
+            else if (sType == "j")
+                strReturnValue = GetValueFromJson(GetLocalJson(oValue, sVarName));
+            else
+                strReturnValue = GetErrorValue("INVALID_LOCALVAR_TYPE:" + sType);
+        }
     }
 
     strPC.strValue = strReturnValue;
     return strPC;
 }
-
 
 struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
 {
@@ -1999,6 +2005,63 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
     return strPC;
 }
 
+struct Value GetValueFromNamedColor(string sValue, string sColor)
+{
+    if (sColor == "black")
+        return GetValueFromString(ColorString(sValue, 0,   0,   0));
+    else if (sColor == "white")
+        return GetValueFromString(ColorString(sValue, 255, 255, 255));
+    else if (sColor == "red")
+        return GetValueFromString(ColorString(sValue, 255, 0,   0));
+    else if (sColor == "lime")
+        return GetValueFromString(ColorString(sValue, 0,   255, 0));
+    else if (sColor == "blue")
+        return GetValueFromString(ColorString(sValue, 0,   0,   255));
+    else if (sColor == "yellow")
+        return GetValueFromString(ColorString(sValue, 255, 255, 0));
+    else if (sColor == "cyan")
+        return GetValueFromString(ColorString(sValue, 0,   255, 255));
+    else if (sColor == "magenta")
+        return GetValueFromString(ColorString(sValue, 255, 0,   255));
+    else if (sColor == "silver")
+        return GetValueFromString(ColorString(sValue, 192, 192, 192));
+    else if (sColor == "grey")
+        return GetValueFromString(ColorString(sValue, 128, 128, 128));
+    else if (sColor == "maroon")
+        return GetValueFromString(ColorString(sValue, 128, 0,   0));
+    else if (sColor == "olive")
+        return GetValueFromString(ColorString(sValue, 128, 128, 0));
+    else if (sColor == "green")
+        return GetValueFromString(ColorString(sValue, 0,   128, 0));
+    else if (sColor == "purple")
+        return GetValueFromString(ColorString(sValue, 128, 0,   128));
+    else if (sColor == "teal")
+        return GetValueFromString(ColorString(sValue, 0,   128, 128));
+    else if (sColor == "navy")
+        return GetValueFromString(ColorString(sValue, 0,   0,   128));
+    return GetErrorValue("UNKNOWN_COLOR:" + sColor);
+}
+
+struct Value GetValueFromHexColor(string sValue, string sColor)
+{
+    int nColorLen = GetStringLength(sColor);
+    if (nColorLen == 4)
+    {
+        string sRed = GetSubString(sColor, 1, 1);
+        string sGreen = GetSubString(sColor, 2, 1);
+        string sBlue = GetSubString(sColor, 3, 1);
+        return GetValueFromString(ColorString(sValue, HexStringToInt(sRed + sRed), HexStringToInt(sGreen + sGreen), HexStringToInt(sBlue + sBlue)));
+    }
+    else if (nColorLen == 7)
+    {
+        int nRed = HexStringToInt(GetSubString(sColor, 1, 2));
+        int nGreen = HexStringToInt(GetSubString(sColor, 3, 2));
+        int nBlue = HexStringToInt(GetSubString(sColor, 5, 2));
+        return GetValueFromString(ColorString(sValue, nRed, nGreen, nBlue));
+    }
+    return GetErrorValue("INVALID_HEX_COLOR:" + sColor);
+}
+
 struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
@@ -2009,133 +2072,48 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
         int nNumParameters = GetParameterCount(strPC);
         if (nNumParameters == 1)
         {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-            {
-                strReturnValue = strArg0;
-            }
+            struct Arguments strArgs = EvalOneArg(strPC);
+            if (IsErrorValue(strArgs.strError))
+                strReturnValue = strArgs.strError;
             else
             {
-                struct Value strValue = strPC.strValue;
-                string sColor = GetStringLowerCase(GetValueAsTrimmedString(strArg0));
-
+                string sValue = ValueToDisplayString(strPC.strValue);
+                string sColor = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
                 if (GetStringLeft(sColor, 1) == "#")
-                {
-                    int nColorLen = GetStringLength(sColor);
-
-                    if (nColorLen == 4)
-                    {
-                        string sRed = GetSubString(sColor, 1, 1);
-                        string sGreen = GetSubString(sColor, 2, 1);
-                        string sBlue = GetSubString(sColor, 3, 1);
-                        strReturnValue = GetValueFromString(ColorString(RenderAsString(strValue), HexStringToInt(sRed + sRed), HexStringToInt(sGreen + sGreen), HexStringToInt(sBlue + sBlue)));
-                    }
-                    else if (nColorLen == 7)
-                    {
-                        int nRed = HexStringToInt(GetSubString(sColor, 1, 2));
-                        int nGreen = HexStringToInt(GetSubString(sColor, 3, 2));
-                        int nBlue = HexStringToInt(GetSubString(sColor, 5, 2));
-                        strReturnValue = GetValueFromString(ColorString(RenderAsString(strValue), nRed, nGreen, nBlue));
-                    }
-                    else
-                        strReturnValue = GetErrorValue("[INVALID_HEX_COLOR:" + sColor + "]");
-                }
+                    strReturnValue = GetValueFromHexColor(sValue, sColor);
                 else
-                {
-                    string sValue = RenderAsString(strValue);
-                    if (sColor == "black")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 0,   0,   0));
-                    else if (sColor == "white")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 255, 255, 255));
-                    else if (sColor == "red")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 255, 0,   0));
-                    else if (sColor == "lime")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 0,   255, 0));
-                    else if (sColor == "blue")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 0,   0,   255));
-                    else if (sColor == "yellow")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 255, 255, 0));
-                    else if (sColor == "cyan")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 0,   255, 255));
-                    else if (sColor == "magenta")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 255, 0,   255));
-                    else if (sColor == "silver")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 192, 192, 192));
-                    else if (sColor == "grey")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 128, 128, 128));
-                    else if (sColor == "maroon")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 128, 0,   0));
-                    else if (sColor == "olive")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 128, 128, 0));
-                    else if (sColor == "green")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 0,   128, 0));
-                    else if (sColor == "purple")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 128, 0,   128));
-                    else if (sColor == "teal")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 0,   128, 128));
-                    else if (sColor == "navy")
-                        strReturnValue = GetValueFromString(ColorString(sValue, 0,   0,   128));
-                    else
-                        strReturnValue = GetErrorValue("[UNKNOWN_COLOR:" + sColor + "]");
-                }
+                    strReturnValue = GetValueFromNamedColor(sValue, sColor);
             }
         }
         else if (nNumParameters == 3)
         {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-            struct Value strArg2 = EvalCompiledParameter(strPC, 2);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else if (IsErrorValue(strArg2))
-                strReturnValue = strArg2;
-            else if (IsValueIntParameter(strArg0) && IsValueIntParameter(strArg1) && IsValueIntParameter(strArg2))
-            {
-                strReturnValue = GetValueFromString(ColorString(RenderAsString(strPC.strValue),
-                    GetValueAsInt(strArg0), GetValueAsInt(strArg1), GetValueAsInt(strArg2)));
-            }
+            struct Arguments strArgs = EvalThreeArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                strReturnValue = strArgs.strError;
             else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NOT_INT]");
+                strReturnValue = GetValueFromString(ColorString(ValueToDisplayString(strPC.strValue), GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
         }
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_OR_3_ARGUMENTS]");
+        {
+            strReturnValue = GetErrorValue("ARITY:EXPECTED_1_OR_3_ARGUMENTS");
+        }
     }
     else if (sProperty == "padleft" || sProperty == "padright")
     {
-        if (GetParameterCount(strPC) >= 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueIntParameter(strArg0))
-            {
-                int nLength = GetValueAsInt(strArg0);
-                string sPadding = " ";
-
-                if (GetParameterCount(strPC) >= 2)
-                {
-                    struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-                    if (IsErrorValue(strArg1))
-                        strReturnValue = strArg1;
-                    else
-                        sPadding = GetValueAsString(strArg1, " ");
-                }
-
-                if (IsInvalidValue(strReturnValue))
-                {
-                    if (strPC.sCurrentProperty == "padleft")
-                        strReturnValue = GetValueFromString(LeftPadString(RenderAsString(strPC.strValue), nLength, sPadding));
-                    else
-                        strReturnValue = GetValueFromString(RightPadString(RenderAsString(strPC.strValue), nLength, sPadding));
-                }
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_INT]");
-        }
+        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_AT_LEAST_1_ARGUMENT]");
+        {
+            int nLength = GetValueAsInt(strArgs.strArg0);
+            string sPadding = " ";
+            if (strArgs.nCount >= 2)
+                sPadding = GetValueAsString(strArgs.strArg1, " ");
+            if (sProperty == "padleft")
+                strReturnValue = GetValueFromString(LeftPadString(ValueToDisplayString(strPC.strValue), nLength, sPadding));
+            else
+                strReturnValue = GetValueFromString(RightPadString(ValueToDisplayString(strPC.strValue), nLength, sPadding));
+        }
     }
     else if (sProperty == "int")
     {
@@ -2149,7 +2127,7 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
         else if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
             strReturnValue = GetValueFromInt(HexStringToInt(ObjectToString(strValue.oValue)));
         else
-            strReturnValue = GetErrorValue("[TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->int]");
+            strReturnValue = GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->int");
     }
     else if (sProperty == "float")
     {
@@ -2161,108 +2139,75 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
         else if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
             strReturnValue = GetValueFromFloat(StringToFloat(strValue.sValue));
         else
-            strReturnValue = GetErrorValue("[TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->float]");
+            strReturnValue = GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->float");
     }
     else if (sProperty == "string")
     {
-        strReturnValue = GetValueFromString(RenderAsString(strPC.strValue));
+        strReturnValue = GetValueFromString(ValueToDisplayString(strPC.strValue));
     }
     else if (sProperty == "fixed")
     {
-        int nPrecision = 2;
-        if (GetParameterCount(strPC) >= 1)
+        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
+        else
         {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueIntParameter(strArg0))
-                nPrecision = GetValueAsInt(strArg0, 2);
-        }
-
-        if (IsInvalidValue(strReturnValue))
-        {
-            nPrecision = clamp(nPrecision, 0, 9);
-            strReturnValue = GetValueFromString(FormatAsFixed(strPC.strValue, nPrecision));
+            int nPrecision = 2;
+            if (strArgs.nCount == 1)
+                nPrecision = GetValueAsInt(strArgs.strArg0, 2);
+            strReturnValue = FormatValueAsFixed(strPC.strValue, nPrecision);
         }
     }
     else if (sProperty == "hex")
     {
-        strReturnValue = GetValueFromString(FormatAsHex(strPC.strValue));
+        strReturnValue = FormatValueAsHex(strPC.strValue);
     }
     else if (sProperty == "bool" || sProperty == "boolean")
     {
-        strReturnValue = GetValueFromString(FormatAsBoolean(strPC.strValue));
+        strReturnValue = FormatValueAsBoolean(strPC.strValue);
     }
 
     strPC.strValue = strReturnValue;
     return strPC;
 }
 
-
 struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName)
 {
     struct Value strReturnValue;
     if (sMetaName == "int")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueIntParameter(strArg0))
-                strReturnValue = GetValueFromInt(GetValueAsInt(strArg0));
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_INT]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+            strReturnValue = GetValueFromInt(GetValueAsInt(strArgs.strArg0));
     }
     else if (sMetaName == "float")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueNumericParameter(strArg0))
-                strReturnValue = GetValueFromFloat(GetValueAsFloat(strArg0));
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_NUMERIC]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_NUMERIC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+            strReturnValue = GetValueFromFloat(GetValueAsFloat(strArgs.strArg0));
     }
     else if (sMetaName == "object")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueObjectParameter(strArg0))
-                strReturnValue = GetValueFromObject(GetValueAsObject(strArg0));
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_OBJECT]");
-        }
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_OBJECT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+            strReturnValue = GetValueFromObject(GetValueAsObject(strArgs.strArg0));
     }
     else if (sMetaName == "string")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else
-                strReturnValue = GetValueFromString(GetValueAsString(strArg0));
-        }
+        struct Arguments strArgs = EvalOneArg(strPC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+            strReturnValue = GetValueFromString(GetValueAsString(strArgs.strArg0));
     }
     return strReturnValue;
 }
-
 
 struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName)
 {
@@ -2270,35 +2215,54 @@ struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName)
     if (sMetaName == "fn")
     {
         int nParameterCount = GetParameterCount(strPC);
-
         if (nParameterCount < 2)
-            return GetErrorValue("[FN_USAGE:@fn(#name, $arg..., body)]");
-
-        string sFunctionName = GetStringLowerCase(GetRawParameterText(strPC, 0));
-        if (GetStringLeft(sFunctionName, 1) == DAZSCRIPT_FUNCTION_SYMBOL)
+            strReturnValue = GetErrorValue("FN_USAGE:@fn(#name, $arg..., body)");
+        else
         {
-            json jArgs = JsonArray();
-            int nIndex, nLast = nParameterCount - 1;
-            for (nIndex = 1; nIndex < nLast; nIndex++)
+            string sFunctionName = GetStringLowerCase(GetRawParameterText(strPC, 0));
+            if (GetStringLeft(sFunctionName, 1) != DAZSCRIPT_FUNCTION_SYMBOL)
+                strReturnValue = GetErrorValue("FUNCTION_NAME_IS_NON_FUNCTION:" + sFunctionName);
+            else if (GetStringLength(sFunctionName) < 2)
+                strReturnValue = GetErrorValue("FUNCTION_NAME_IS_EMPTY");
+            else
             {
-                string sAlias = GetRawParameterText(strPC, nIndex);
-                if (GetStringLength(sAlias) < 2 || GetStringLeft(sAlias, 1) != DAZSCRIPT_ALIAS_SYMBOL)
-                    return GetErrorValue("[FUNCTION_PARAMETER_IS_NON_ALIAS:" + sAlias + "]");
-                JsonArrayInsertStringInplace(jArgs, sAlias);
+                json jArgs = JsonArray();
+                int nIndex, nLast = nParameterCount - 1;
+                for (nIndex = 1; nIndex < nLast; nIndex++)
+                {
+                    string sAlias = GetRawParameterText(strPC, nIndex);
+                    if (GetStringLength(sAlias) < 2 || GetStringLeft(sAlias, 1) != DAZSCRIPT_ALIAS_SYMBOL)
+                    {
+                        strReturnValue = GetErrorValue("FUNCTION_PARAMETER_IS_NON_ALIAS:" + sAlias);
+                        break;
+                    }
+                    else if (JsonArrayContainsString(jArgs, sAlias))
+                    {
+                        strReturnValue = GetErrorValue("DUPLICATE_FUNCTION_PARAMETER:" + sAlias);
+                        break;
+                    }
+                    else
+                        JsonArrayInsertStringInplace(jArgs, sAlias);
+                }
+
+                if (IsInvalidValue(strReturnValue))
+                {
+                    string sBody = GetRawParameterText(strPC, nLast);
+                    json jCompiledBody = CompileTemplate(sBody);
+
+                    if (JsonGetType(jCompiledBody) != JSON_TYPE_ARRAY)
+                        strReturnValue = GetErrorValue("INVALID_FUNCTION_BODY:" + sFunctionName);
+                    else
+                    {
+                        json jFunction = JsonObject();
+                        JsonObjectSetInplace(jFunction, DAZSCRIPT_FUNCTION_ARGS, jArgs);
+                        JsonObjectSetStringInplace(jFunction, DAZSCRIPT_FUNCTION_BODY, sBody);
+                        JsonObjectSetInplace(jFunction, DAZSCRIPT_FUNCTION_BODY_COMPILED, jCompiledBody);
+                        JsonObjectSetInplace(strPC.jStack, sFunctionName, jFunction);
+                        strReturnValue = GetValueFromString();
+                    }
+                }
             }
-
-            string sBody = GetRawParameterText(strPC, nLast);
-            json jCompiledBody = CompileTemplate(sBody);
-
-            if (JsonGetType(jCompiledBody) != JSON_TYPE_ARRAY)
-                return GetErrorValue("[INVALID_FUNCTION_BODY:" + sFunctionName + "]");
-
-            json jFunction = JsonObject();
-            JsonObjectSetInplace(jFunction, DAZSCRIPT_FUNCTION_ARGS, jArgs);
-            JsonObjectSetStringInplace(jFunction, DAZSCRIPT_FUNCTION_BODY, sBody);
-            JsonObjectSetInplace(jFunction, DAZSCRIPT_FUNCTION_BODY_COMPILED, jCompiledBody);
-            JsonObjectSetInplace(strPC.jStack, sFunctionName, jFunction);
-            strReturnValue = GetValueFromString();
         }
     }
     return strReturnValue;
@@ -2309,7 +2273,10 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
     struct Value strReturnValue;
     if (sMetaName == "if")
     {
-        if (GetParameterCount(strPC) == 3)
+        struct Value strError = CheckArity(strPC, 3, 3);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
             struct Value strCondition = EvalCompiledParameter(strPC, 0);
             if (IsErrorValue(strCondition))
@@ -2317,15 +2284,15 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             else
                 strReturnValue = EvalCompiledParameter(strPC, ValueToBoolish(strCondition) ? 1 : 2);
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_3_ARGUMENTS]");
     }
     else if (sMetaName == "while")
     {
-        if (GetParameterCount(strPC) == 2)
+        struct Value strError = CheckArity(strPC, 2, 2);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
-            string sAccumulator = "";
-
+            string sAccumulator;
             while (TRUE)
             {
                 struct Value strConditionResult = EvalCompiledParameter(strPC, 0);
@@ -2345,48 +2312,41 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
                     break;
                 }
 
-                sAccumulator += RenderAsString(strBodyResult);
+                sAccumulator += ValueToDisplayString(strBodyResult);
             }
 
             if (IsInvalidValue(strReturnValue))
                 strReturnValue = GetValueFromString(sAccumulator);
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
     }
     else if (sMetaName == "pick")
     {
-        int nNumParameters = GetParameterCount(strPC);
-        if (nNumParameters > 0)
+        struct Value strError = CheckArity(strPC, 1, -1);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
+            int nNumParameters = GetParameterCount(strPC);
             int nIndex = Random(nNumParameters);
             strReturnValue = EvalCompiledParameter(strPC, nIndex);
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_AT_LEAST_1_ARGUMENT]");
     }
     else if (sMetaName == "not")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strParameter = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strParameter))
-                strReturnValue = strParameter;
-            else
-                strReturnValue = GetValueFromInt(!ValueToBoolish(strParameter));
-        }
+        struct Arguments strArgs = EvalOneArg(strPC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+            strReturnValue = GetValueFromInt(!ValueToBoolish(strArgs.strArg0));
     }
     else if (sMetaName == "and" || sMetaName == "all")
     {
-        int nCount = GetParameterCount(strPC);
-
-        if (nCount >= 1)
+        struct Value strError = CheckArity(strPC, 1, -1);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
-            int bResult = TRUE;
-            int nIndex;
-
+            int nIndex, nCount = GetParameterCount(strPC), bResult = TRUE;
             for (nIndex = 0; nIndex < nCount; nIndex++)
             {
                 struct Value strParameter = EvalCompiledParameter(strPC, nIndex);
@@ -2406,21 +2366,19 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             if (IsInvalidValue(strReturnValue))
                 strReturnValue = GetValueFromInt(bResult);
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_AT_LEAST_1_ARGUMENT]");
     }
     else if (sMetaName == "or" || sMetaName == "any")
     {
-        int nCount = GetParameterCount(strPC);
-
-        if (nCount >= 1)
+        struct Value strError = CheckArity(strPC, 1, -1);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
-            int bResult = FALSE;
-            int nIndex;
-
+            int nIndex, nCount = GetParameterCount(strPC), bResult = FALSE;
             for (nIndex = 0; nIndex < nCount; nIndex++)
             {
                 struct Value strParameter = EvalCompiledParameter(strPC, nIndex);
+
                 if (IsErrorValue(strParameter))
                 {
                     strReturnValue = strParameter;
@@ -2437,78 +2395,94 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             if (IsInvalidValue(strReturnValue))
                 strReturnValue = GetValueFromInt(bResult);
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_AT_LEAST_1_ARGUMENT]");
     }
     else if (sMetaName == "switch" || sMetaName == "case")
     {
-        int nCount = GetParameterCount(strPC);
-
-        if (nCount >= 3)
+        struct Value strError = CheckArity(strPC, 3, -1);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
+            int nCount = GetParameterCount(strPC);
             struct Value strSelectorValue = EvalCompiledParameter(strPC, 0);
             if (IsErrorValue(strSelectorValue))
-                return strSelectorValue;
-
-            string sSelector = RenderAsString(strSelectorValue);
-            int nDefaultIndex = -1;
-
-            if (nCount % 2 == 0)
-                nDefaultIndex = nCount - 1;
-
-            int nIndex, nEnd = nDefaultIndex == -1 ? nCount : nDefaultIndex;
-            int bMatched = FALSE;
-
-            for (nIndex = 1; nIndex + 1 < nEnd; nIndex += 2)
+                strReturnValue = strSelectorValue;
+            else
             {
-                struct Value strCaseValue = EvalCompiledParameter(strPC, nIndex);
-                if (IsErrorValue(strCaseValue))
-                    return strCaseValue;
+                string sSelector = ValueToDisplayString(strSelectorValue);
+                int nDefaultIndex = -1;
 
-                string sCase = RenderAsString(strCaseValue);
+                if (nCount % 2 == 0)
+                    nDefaultIndex = nCount - 1;
 
-                if (sSelector == sCase)
+                int nIndex, nEnd = nDefaultIndex == -1 ? nCount : nDefaultIndex, bMatched;
+                for (nIndex = 1; nIndex + 1 < nEnd; nIndex += 2)
                 {
-                    strReturnValue = EvalCompiledParameter(strPC, nIndex + 1);
-                    bMatched = TRUE;
-                    break;
+                    struct Value strCaseValue = EvalCompiledParameter(strPC, nIndex);
+                    if (IsErrorValue(strCaseValue))
+                    {
+                        strReturnValue = strCaseValue;
+                        break;
+                    }
+
+                    string sCase = ValueToDisplayString(strCaseValue);
+                    if (sSelector == sCase)
+                    {
+                        strReturnValue = EvalCompiledParameter(strPC, nIndex + 1);
+                        bMatched = TRUE;
+                        break;
+                    }
                 }
+
+                if (IsInvalidValue(strReturnValue))
+                {
+                    if (!bMatched && nDefaultIndex != -1)
+                        strReturnValue = EvalCompiledParameter(strPC, nDefaultIndex);
+                }
+
+                if (IsInvalidValue(strReturnValue))
+                    strReturnValue = GetValueFromString();
             }
-
-            if (!bMatched && nDefaultIndex != -1)
-                strReturnValue = EvalCompiledParameter(strPC, nDefaultIndex);
-
-            if (IsInvalidValue(strReturnValue))
-                strReturnValue = GetValueFromString();
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_AT_LEAST_3_ARGUMENTS]");
     }
     else if (sMetaName == "foreachpc")
     {
-        if (GetParameterCount(strPC) == 2)
+        struct Value strError = CheckArity(strPC, 2, 2);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
             string sAlias = GetRawParameterText(strPC, 0);
-            if (GetStringLength(sAlias) >= 2 && GetStringLeft(sAlias, 1) == DAZSCRIPT_ALIAS_SYMBOL)
+            if (GetStringLength(sAlias) < 2 || GetStringLeft(sAlias, 1) != DAZSCRIPT_ALIAS_SYMBOL)
+                strReturnValue = GetErrorValue("FOREACHPC_ALIAS_IS_NON_ALIAS:" + sAlias);
+            else
             {
                 json jCompiledParameters = GetCompiledParameters(strPC);
                 json jBody = JsonArrayGet(jCompiledParameters, 1);
                 json jFrame = JsonCopyObject(strPC.jStack);
-                string sAccumulator;
+
+                string sAccumulator = "";
 
                 object oPC = GetFirstPC();
                 while (GetIsObjectValid(oPC))
                 {
                     JsonObjectSetInplace(jFrame, sAlias, MakeObjectAliasEntry(oPC));
-                    sAccumulator += RenderAsString(EvalTemplate(jBody, jFrame));
+                    struct Value strBodyResult = EvalTemplate(jBody, jFrame);
+
+                    if (IsErrorValue(strBodyResult))
+                    {
+                        strReturnValue = strBodyResult;
+                        break;
+                    }
+
+                    sAccumulator += ValueToDisplayString(strBodyResult);
                     oPC = GetNextPC();
                 }
 
-                strReturnValue = GetValueFromString(sAccumulator);
+                if (IsInvalidValue(strReturnValue))
+                    strReturnValue = GetValueFromString(sAccumulator);
             }
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
     }
     return strReturnValue;
 }
@@ -2518,26 +2492,33 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
     struct Value strReturnValue;
     if (sMetaName == "set")
     {
-        if (GetParameterCount(strPC) == 2)
+        struct Value strError = CheckArity(strPC, 2, 2);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
             string sAlias = GetRawParameterText(strPC, 0);
             if (GetStringLeft(sAlias, 1) == DAZSCRIPT_ALIAS_SYMBOL && GetStringLength(sAlias) >= 2)
             {
                 struct Value strValue = EvalCompiledParameter(strPC, 1);
                 if (IsErrorValue(strValue))
-                    return strValue;
-                JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(strValue));
-                strReturnValue = GetValueFromString();
+                    strReturnValue = strValue;
+                else
+                {
+                    JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(strValue));
+                    strReturnValue = GetValueFromString();
+                }
             }
             else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_IS_NON_ALIAS:" + sAlias + "]");
+                strReturnValue = GetErrorValue("SET_ALIAS_IS_NON_ALIAS:" + sAlias);
         }
-        else
-            strReturnValue = GetErrorValue("[TYPE_MISMATCH:EXPECTED_2_ARGUMENTS]");
     }
     else if (sMetaName == "unset")
     {
-        if (GetParameterCount(strPC) == 1)
+        struct Value strError = CheckArity(strPC, 1, 1);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
             string sAlias = GetRawParameterText(strPC, 0);
             if (GetStringLeft(sAlias, 1) == DAZSCRIPT_ALIAS_SYMBOL && GetStringLength(sAlias) >= 2)
@@ -2546,14 +2527,15 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
                 strReturnValue = GetValueFromString();
             }
             else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_IS_NON_ALIAS:" + sAlias + "]");
+                strReturnValue = GetErrorValue("UNSET_ALIAS_IS_NON_ALIAS:" + sAlias);
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
     }
     else if (sMetaName == "cast")
     {
-        if (GetParameterCount(strPC) == 2)
+        struct Value strError = CheckArity(strPC, 2, 2);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
             string sAlias = GetRawParameterText(strPC, 0);
             if (GetStringLeft(sAlias, 1) == DAZSCRIPT_ALIAS_SYMBOL && GetStringLength(sAlias) >= 2)
@@ -2561,87 +2543,106 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
                 if (JsonObjectContainsKey(strPC.jStack, sAlias))
                 {
                     json jStackVar = JsonObjectGet(strPC.jStack, sAlias);
-                    string sCast = GetRawParameterText(strPC, 1);
-                    if (sCast == "i" || sCast == "int")
-                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INT));
-                    else if (sCast == "f" || sCast == "float")
-                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_FLOAT));
-                    else if (sCast == "s" || sCast == "string")
-                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_STRING));
-                    else if (sCast == "o" || sCast == "object")
-                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_OBJECT));
+                    string sCast = GetStringLowerCase(GetRawParameterText(strPC, 1));
 
-                    strReturnValue = GetValueFromString();
+                    if (sCast == "i" || sCast == "int")
+                    {
+                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INT));
+                        strReturnValue = GetValueFromString();
+                    }
+                    else if (sCast == "f" || sCast == "float")
+                    {
+                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_FLOAT));
+                        strReturnValue = GetValueFromString();
+                    }
+                    else if (sCast == "s" || sCast == "string")
+                    {
+                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_STRING));
+                        strReturnValue = GetValueFromString();
+                    }
+                    else if (sCast == "o" || sCast == "object")
+                    {
+                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_OBJECT));
+                        strReturnValue = GetValueFromString();
+                    }
+                    else if (sCast == "j" || sCast == "json")
+                    {
+                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_JSON));
+                        strReturnValue = GetValueFromString();
+                    }
+                    else
+                        strReturnValue = GetErrorValue("INVALID_CAST_TYPE:" + sCast);
                 }
                 else
-                    strReturnValue = GetErrorValue("[UNKNOWN_ALIAS:" + sAlias + "]");
+                    strReturnValue = GetErrorValue("UNKNOWN_ALIAS:" + sAlias);
             }
             else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_IS_NON_ALIAS:" + sAlias + "]");
+                strReturnValue = GetErrorValue("CAST_ALIAS_IS_NON_ALIAS:" + sAlias);
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
     }
     else if (sMetaName == "out")
     {
-        if (GetParameterCount(strPC) == 2)
+        struct Value strError = CheckArity(strPC, 2, 2);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
             string sVarName = GetRawParameterText(strPC, 0);
-            if (IsStackVar(sVarName) && JsonObjectContainsKey(strPC.jStack, sVarName))
+            if (!IsStackVar(sVarName))
+                strReturnValue = GetErrorValue("OUT_ARGUMENT_IS_NON_STACKVAR:" + sVarName);
+            else if (!JsonObjectContainsKey(strPC.jStack, sVarName))
+                strReturnValue = GetErrorValue("UNKNOWN_STACK_VAR:" + sVarName);
+            else
             {
                 struct Value strValue = EvalCompiledParameter(strPC, 1);
                 if (IsErrorValue(strValue))
-                    return strValue;
-
-                json jStackVar = JsonObjectGet(strPC.jStack, sVarName);
-                int nOutAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
-                int nStackLocation = JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY);
-                string sValue = RenderAsString(strValue);
-
-                if (nOutAuxType == NWNX_VM_AUXTYPE_INT)
-                {
-                    if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
-                        NWNX_VM_SetStackIntegerValue(nStackLocation, strValue.nValue);
-                    else if (IsInteger(sValue))
-                        NWNX_VM_SetStackIntegerValue(nStackLocation, StringToInt(sValue));
-                    else
-                        strReturnValue = GetErrorValue("[TYPE_MISMATCH:OUT_NOT_INT]");
-                }
-                else if (nOutAuxType == NWNX_VM_AUXTYPE_FLOAT)
-                {
-                    if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
-                        NWNX_VM_SetStackFloatValue(nStackLocation, strValue.fValue);
-                    else if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
-                        NWNX_VM_SetStackFloatValue(nStackLocation, IntToFloat(strValue.nValue));
-                    else if (IsNumeric(sValue))
-                        NWNX_VM_SetStackFloatValue(nStackLocation, StringToFloat(sValue));
-                    else
-                        strReturnValue = GetErrorValue("[TYPE_MISMATCH:OUT_NOT_FLOAT]");
-                }
-                else if (nOutAuxType == NWNX_VM_AUXTYPE_OBJECT)
-                {
-                    if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
-                        NWNX_VM_SetStackObjectValue(nStackLocation, strValue.oValue);
-                    else if (IsObjectString(sValue))
-                        NWNX_VM_SetStackObjectValue(nStackLocation, StringToObject(sValue));
-                    else
-                        strReturnValue = GetErrorValue("[TYPE_MISMATCH:OUT_NOT_OBJECT]");
-                }
-                else if (nOutAuxType == NWNX_VM_AUXTYPE_STRING)
-                {
-                    NWNX_VM_SetStackStringValue(nStackLocation, sValue);
-                }
+                    strReturnValue = strValue;
                 else
                 {
-                    strReturnValue = GetErrorValue("[TYPE_MISMATCH:OUT_UNSUPPORTED_TYPE]");
-                }
+                    json jStackVar = JsonObjectGet(strPC.jStack, sVarName);
+                    int nOutAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
+                    int nStackLocation = JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY);
+                    string sValue = ValueToDisplayString(strValue);
 
-                if (IsInvalidValue(strReturnValue))
-                    strReturnValue = GetValueFromString();
+                    if (nOutAuxType == NWNX_VM_AUXTYPE_INT)
+                    {
+                        if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
+                            NWNX_VM_SetStackIntegerValue(nStackLocation, strValue.nValue);
+                        else if (IsInteger(sValue))
+                            NWNX_VM_SetStackIntegerValue(nStackLocation, StringToInt(sValue));
+                        else
+                            strReturnValue = GetErrorValue("TYPE_MISMATCH:OUT_NOT_INT");
+                    }
+                    else if (nOutAuxType == NWNX_VM_AUXTYPE_FLOAT)
+                    {
+                        if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
+                            NWNX_VM_SetStackFloatValue(nStackLocation, strValue.fValue);
+                        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
+                            NWNX_VM_SetStackFloatValue(nStackLocation, IntToFloat(strValue.nValue));
+                        else if (IsNumeric(sValue))
+                            NWNX_VM_SetStackFloatValue(nStackLocation, StringToFloat(sValue));
+                        else
+                            strReturnValue = GetErrorValue("TYPE_MISMATCH:OUT_NOT_FLOAT");
+                    }
+                    else if (nOutAuxType == NWNX_VM_AUXTYPE_OBJECT)
+                    {
+                        if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
+                            NWNX_VM_SetStackObjectValue(nStackLocation, strValue.oValue);
+                        else if (IsObjectString(sValue))
+                            NWNX_VM_SetStackObjectValue(nStackLocation, StringToObject(sValue));
+                        else
+                            strReturnValue = GetErrorValue("TYPE_MISMATCH:OUT_NOT_OBJECT");
+                    }
+                    else if (nOutAuxType == NWNX_VM_AUXTYPE_STRING)
+                        NWNX_VM_SetStackStringValue(nStackLocation, sValue);
+                    else
+                        strReturnValue = GetErrorValue("TYPE_MISMATCH:OUT_UNSUPPORTED_TYPE");
+
+                    if (IsInvalidValue(strReturnValue))
+                        strReturnValue = GetValueFromString();
+                }
             }
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
     }
     return strReturnValue;
 }
@@ -2649,49 +2650,50 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
 struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaName)
 {
     struct Value strReturnValue;
-
     if (sMetaName == "exists")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            string sName = GetRawParameterText(strPC, 0);
-            strReturnValue = GetValueFromInt(SymbolExists(strPC.jStack, sName));
-        }
+        struct Value strError = CheckArity(strPC, 1, 1);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+            strReturnValue = GetValueFromInt(SymbolExists(strPC.jStack, GetRawParameterText(strPC, 0)));
     }
     else if (sMetaName == "type")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            string sName = GetRawParameterText(strPC, 0);
-            strReturnValue = GetValueFromString(GetSymbolType(strPC.jStack, sName));
-        }
+        struct Value strError = CheckArity(strPC, 1, 1);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+            strReturnValue = GetValueFromString(GetSymbolType(strPC.jStack, GetRawParameterText(strPC, 0)));
     }
     else if (sMetaName == "debug")
     {
-        if (GetParameterCount(strPC) == 1)
+        struct Value strError = CheckArity(strPC, 1, 1);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
             string sExpr = GetRawParameterText(strPC, 0);
+            struct Value strValue = EvalCompiledParameter(strPC, 0);
+            if (IsErrorValue(strValue))
+                strReturnValue = strValue;
+            else
+            {
+                string sValue = ValueToDisplayString(strValue);
+                string sSymbolType = GetSymbolType(strPC.jStack, sExpr);
+                string sValueType = InferDebugValueType(sValue);
 
-            string sValue = RenderAsString(EvalCompiledParameter(strPC, 0));
-            string sSymbolType = GetSymbolType(strPC.jStack, sExpr);
-            string sValueType = InferDebugValueType(sValue);
+                string sDebug =
+                    "expr=\"" + sExpr + "\"" +
+                    "; symbol_type=" + sSymbolType +
+                    "; value_type=" + sValueType +
+                    "; truthy=" + (StringToBoolish(sValue) ? "TRUE" : "FALSE") +
+                    "; length=" + IntToString(GetStringLength(sValue)) +
+                    "; value=\"" + TruncateDebugValue(sValue) + "\"";
 
-            string sDebug =
-                "expr=\"" + sExpr + "\"" +
-                "; symbol_type=" + sSymbolType +
-                "; value_type=" + sValueType +
-                "; truthy=" + (StringToBoolish(sValue) ? "TRUE" : "FALSE") +
-                "; length=" + IntToString(GetStringLength(sValue)) +
-                "; value=\"" + TruncateDebugValue(sValue) + "\"";
-
-            strReturnValue = GetValueFromString(sDebug);
+                strReturnValue = GetValueFromString(sDebug);
+            }
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
     }
 
     return strReturnValue;
@@ -2700,128 +2702,98 @@ struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaNam
 struct Value HandleMetaUtility(struct PropertyChain strPC, string sMetaName)
 {
     struct Value strReturnValue;
-
     if (sMetaName == "bar")
     {
-        if (GetParameterCount(strPC) >= 2)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else if (IsValueNumericParameter(strArg0) && IsValueNumericParameter(strArg1))
-            {
-                float fValue = GetValueAsFloat(strArg0);
-                float fMax = GetValueAsFloat(strArg1);
-                int nWidth = STRING_BAR_DEFAULT_WIDTH;
-                string sFilled = "#";
-                string sEmpty = "-";
-
-                if (GetParameterCount(strPC) >= 3)
-                {
-                    struct Value strArg2 = EvalCompiledParameter(strPC, 2);
-                    if (IsErrorValue(strArg2))
-                        strReturnValue = strArg2;
-                    else if (IsValueIntParameter(strArg2))
-                        nWidth = GetValueAsInt(strArg2, STRING_BAR_DEFAULT_WIDTH);
-                }
-
-                if (IsInvalidValue(strReturnValue) && GetParameterCount(strPC) >= 4)
-                {
-                    struct Value strArg3 = EvalCompiledParameter(strPC, 3);
-                    if (IsErrorValue(strArg3))
-                        strReturnValue = strArg3;
-                    else
-                        sFilled = GetValueAsString(strArg3, "#");
-                }
-
-                if (IsInvalidValue(strReturnValue) && GetParameterCount(strPC) >= 5)
-                {
-                    struct Value strArg4 = EvalCompiledParameter(strPC, 4);
-                    if (IsErrorValue(strArg4))
-                        strReturnValue = strArg4;
-                    else
-                        sEmpty = GetValueAsString(strArg4, "-");
-                }
-
-                if (IsInvalidValue(strReturnValue))
-                    strReturnValue = GetValueFromString(MakeBarString(fValue, fMax, nWidth, sFilled, sEmpty));
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NOT_NUMERIC]");
-        }
+        struct Arguments strArgs = EvalArgs(strPC, 2, 5, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY, DAZSCRIPT_ARG_ANY);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_AT_LEAST_2_ARGUMENTS]");
+        {
+            float fValue = GetValueAsFloat(strArgs.strArg0);
+            float fMax = GetValueAsFloat(strArgs.strArg1);
+            int nWidth = STRING_BAR_DEFAULT_WIDTH;
+            string sFilled = "#";
+            string sEmpty = "-";
+
+            if (strArgs.nCount >= 3)
+                nWidth = GetValueAsInt(strArgs.strArg2, STRING_BAR_DEFAULT_WIDTH);
+            if (strArgs.nCount >= 4)
+                sFilled = GetValueAsString(strArgs.strArg3, "#");
+            if (strArgs.nCount >= 5)
+                sEmpty = GetValueAsString(strArgs.strArg4, "-");
+
+            strReturnValue = GetValueFromString(MakeBarString(fValue, fMax, nWidth, sFilled, sEmpty));
+        }
     }
     else if (sMetaName == "roll" || sMetaName == "rollv")
     {
-        int nNumParameters = GetParameterCount(strPC);
-        int nCount = 1, nSides = 0, nBonus = 0;
-        string sSpec = "";
-
-        if (nNumParameters == 1)
+        struct Value strError = CheckArity(strPC, 1, 3);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else
-            {
-                sSpec = GetValueAsTrimmedString(strArg0);
-                json jDice = ParseDiceSpec(sSpec);
+            int nNumParameters = GetParameterCount(strPC);
+            int nCount = 1, nSides = 0, nBonus = 0;
+            string sSpec = "";
 
-                if (JsonGetLength(jDice) >= 3)
+            if (nNumParameters == 1)
+            {
+                struct Arguments strArgs = EvalOneArg(strPC);
+                if (IsErrorValue(strArgs.strError))
+                    strReturnValue = strArgs.strError;
+                else
                 {
-                    nCount = JsonArrayGetInt(jDice, 0);
-                    nSides = JsonArrayGetInt(jDice, 1);
-                    nBonus = JsonArrayGetInt(jDice, 2);
+                    sSpec = GetValueAsTrimmedString(strArgs.strArg0);
+                    json jDice = ParseDiceSpec(sSpec);
+
+                    if (JsonGetLength(jDice) >= 3)
+                    {
+                        nCount = JsonArrayGetInt(jDice, 0);
+                        nSides = JsonArrayGetInt(jDice, 1);
+                        nBonus = JsonArrayGetInt(jDice, 2);
+                    }
+                    else
+                        strReturnValue = GetErrorValue("INVALID_DICE_SPEC:" + sSpec);
                 }
             }
-        }
-        else if (nNumParameters >= 2)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else if (IsValueIntParameter(strArg0) && IsValueIntParameter(strArg1))
+            else
             {
-                nCount = GetValueAsInt(strArg0);
-                nSides = GetValueAsInt(strArg1);
-
-                if (nNumParameters >= 3)
+                struct Arguments strArgs = EvalArgs(strPC, 2, 3, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+                if (IsErrorValue(strArgs.strError))
+                    strReturnValue = strArgs.strError;
+                else
                 {
-                    struct Value strArg2 = EvalCompiledParameter(strPC, 2);
-                    if (IsErrorValue(strArg2))
-                        strReturnValue = strArg2;
-                    else if (IsValueIntParameter(strArg2))
-                        nBonus = GetValueAsInt(strArg2);
+                    nCount = GetValueAsInt(strArgs.strArg0);
+                    nSides = GetValueAsInt(strArgs.strArg1);
+
+                    if (strArgs.nCount >= 3)
+                        nBonus = GetValueAsInt(strArgs.strArg2);
+
+                    sSpec = IntToString(nCount) + "d" + IntToString(nSides);
+
+                    if (nBonus > 0)
+                        sSpec += "+" + IntToString(nBonus);
+                    else if (nBonus < 0)
+                        sSpec += IntToString(nBonus);
                 }
-
-                sSpec = IntToString(nCount) + "d" + IntToString(nSides);
-
-                if (nBonus > 0)
-                    sSpec += "+" + IntToString(nBonus);
-                else if (nBonus < 0)
-                    sSpec += IntToString(nBonus);
             }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NOT_INT]");
-        }
 
-        if (IsInvalidValue(strReturnValue) && nSides > 0)
-        {
-            if (sMetaName == "rollv")
-                strReturnValue = GetValueFromString(RollDiceVerbose(nCount, nSides, nBonus, sSpec));
-            else
-                strReturnValue = GetValueFromInt(RollDiceTotal(nCount, nSides, nBonus));
+            if (IsInvalidValue(strReturnValue))
+            {
+                if (nCount <= 0)
+                    strReturnValue = GetErrorValue("INVALID_DICE_COUNT:" + IntToString(nCount));
+                else if (nSides <= 0)
+                    strReturnValue = GetErrorValue("INVALID_DICE_SIDES:" + IntToString(nSides));
+                else
+                {
+                    if (sMetaName == "rollv")
+                        strReturnValue = GetValueFromString(RollDiceVerbose(nCount, nSides, nBonus, sSpec));
+                    else
+                        strReturnValue = GetValueFromInt(RollDiceTotal(nCount, nSides, nBonus));
+                }
+            }
         }
     }
-
     return strReturnValue;
 }
 
@@ -2831,46 +2803,33 @@ struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
     struct Value strReturnValue;
     if (sMetaName == "sendmessagetopc" || sMetaName == "tell")
     {
-        if (GetParameterCount(strPC) == 2)
+        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_OBJECT, DAZSCRIPT_ARG_ANY);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
+        else
         {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
+            object oPC = GetValueAsObject(strArgs.strArg0);
+            string sMessage = GetValueAsString(strArgs.strArg1);
 
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else if (IsValueObjectParameter(strArg0))
+            if (GetIsObjectValid(oPC))
             {
-                object oPC = GetValueAsObject(strArg0);
-                string sMessage = GetValueAsString(strArg1);
-
-                if (GetIsObjectValid(oPC))
-                    SendMessageToPC(oPC, sMessage);
-
+                SendMessageToPC(oPC, sMessage);
                 strReturnValue = GetValueFromString();
             }
             else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_OBJECT]");
+                strReturnValue = GetErrorValue("INVALID_OBJECT:ARG1");
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
     }
     else if (sMetaName == "print" || sMetaName == "log")
     {
-        if (GetParameterCount(strPC) == 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else
-            {
-                PrintString(GetValueAsString(strArg0));
-                strReturnValue = GetValueFromString();
-            }
-        }
+        struct Arguments strArgs = EvalOneArg(strPC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_1_ARGUMENT]");
+        {
+            PrintString(GetValueAsString(strArgs.strArg0));
+            strReturnValue = GetValueFromString();
+        }
     }
     return strReturnValue;
 }
@@ -2881,102 +2840,83 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
     struct Value strReturnValue;
     if (sMetaName == "add" || sMetaName == "sub" || sMetaName == "mul")
     {
-        if (GetParameterCount(strPC) == 2)
+        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
+        else if (IsValueIntParameter(strArgs.strArg0) && IsValueIntParameter(strArgs.strArg1))
         {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
+            int nValue0 = GetValueAsInt(strArgs.strArg0);
+            int nValue1 = GetValueAsInt(strArgs.strArg1);
 
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else if (IsValueIntParameter(strArg0) && IsValueIntParameter(strArg1))
-            {
-                int nValue0 = GetValueAsInt(strArg0);
-                int nValue1 = GetValueAsInt(strArg1);
-
-                if (sMetaName == "add")
-                    strReturnValue = GetValueFromInt(nValue0 + nValue1);
-                else if (sMetaName == "sub")
-                    strReturnValue = GetValueFromInt(nValue0 - nValue1);
-                else
-                    strReturnValue = GetValueFromInt(nValue0 * nValue1);
-            }
-            else if (IsValueNumericParameter(strArg0) && IsValueNumericParameter(strArg1))
-            {
-                float fValue0 = GetValueAsFloat(strArg0);
-                float fValue1 = GetValueAsFloat(strArg1);
-
-                if (sMetaName == "add")
-                    strReturnValue = GetValueFromFloat(fValue0 + fValue1);
-                else if (sMetaName == "sub")
-                    strReturnValue = GetValueFromFloat(fValue0 - fValue1);
-                else
-                    strReturnValue = GetValueFromFloat(fValue0 * fValue1);
-            }
+            if (sMetaName == "add")
+                strReturnValue = GetValueFromInt(nValue0 + nValue1);
+            else if (sMetaName == "sub")
+                strReturnValue = GetValueFromInt(nValue0 - nValue1);
             else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NOT_INT_OR_NUMERIC]");
+                strReturnValue = GetValueFromInt(nValue0 * nValue1);
         }
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
+        {
+            float fValue0 = GetValueAsFloat(strArgs.strArg0);
+            float fValue1 = GetValueAsFloat(strArgs.strArg1);
+
+            if (sMetaName == "add")
+                strReturnValue = GetValueFromFloat(fValue0 + fValue1);
+            else if (sMetaName == "sub")
+                strReturnValue = GetValueFromFloat(fValue0 - fValue1);
+            else
+                strReturnValue = GetValueFromFloat(fValue0 * fValue1);
+        }
     }
     else if (sMetaName == "div" || sMetaName == "idiv")
     {
-        if (GetParameterCount(strPC) == 2)
+        if (sMetaName == "div")
         {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else if (sMetaName == "div")
-            {
-                if (IsValueNumericParameter(strArg0) && IsValueNumericParameter(strArg1))
-                {
-                    float fValue1 = GetValueAsFloat(strArg0);
-                    float fValue2 = GetValueAsFloat(strArg1);
-                    if (fabs(fValue2) > FLOAT_EPSILON)
-                        strReturnValue = GetValueFromFloat(fValue1 / fValue2);
-                    else
-                        strReturnValue = GetErrorValue("[DIVISION_BY_ZERO]");
-                }
-                else
-                    strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NUMERIC]");
-            }
+            struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
+            if (IsErrorValue(strArgs.strError))
+                strReturnValue = strArgs.strError;
             else
             {
-                if (IsValueIntParameter(strArg0) && IsValueIntParameter(strArg1))
-                {
-                    int nValue1 = GetValueAsInt(strArg0);
-                    int nValue2 = GetValueAsInt(strArg1);
-                    if (nValue2 != 0)
-                        strReturnValue = GetValueFromInt(nValue1 / nValue2);
-                    else
-                        strReturnValue = GetErrorValue("[DIVISION_BY_ZERO]");
-                }
+                float fValue1 = GetValueAsFloat(strArgs.strArg0);
+                float fValue2 = GetValueAsFloat(strArgs.strArg1);
+
+                if (fabs(fValue2) > FLOAT_EPSILON)
+                    strReturnValue = GetValueFromFloat(fValue1 / fValue2);
                 else
-                    strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NOT_INT]");
+                    strReturnValue = GetErrorValue("DIVISION_BY_ZERO");
             }
         }
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
+        {
+            struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                strReturnValue = strArgs.strError;
+            else
+            {
+                int nValue1 = GetValueAsInt(strArgs.strArg0);
+                int nValue2 = GetValueAsInt(strArgs.strArg1);
+
+                if (nValue2 != 0)
+                    strReturnValue = GetValueFromInt(nValue1 / nValue2);
+                else
+                    strReturnValue = GetErrorValue("DIVISION_BY_ZERO");
+            }
+        }
     }
     else if (sMetaName == "min" || sMetaName == "max")
     {
-        int nIndex, nNumParameters = GetParameterCount(strPC);
-
-        if (nNumParameters >= 1)
+        struct Value strError = CheckArity(strPC, 1, -1);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else
         {
-            int bAllInt = TRUE;
-            int nIntResult = 0;
+            int nIndex, nNumParameters = GetParameterCount(strPC);
+            int bAllInt = TRUE, nIntResult = 0;
             float fResult = 0.0;
 
             for (nIndex = 0; nIndex < nNumParameters; nIndex++)
             {
                 struct Value strArg = EvalCompiledParameter(strPC, nIndex);
-
                 if (IsErrorValue(strArg))
                 {
                     strReturnValue = strArg;
@@ -2984,15 +2924,15 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
                 }
                 else if (!IsValueNumericParameter(strArg))
                 {
-                    strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NOT_INT_OR_NUMERIC]");
+                    strReturnValue = GetErrorValue("TYPE_MISMATCH:ARGUMENTS_NOT_NUMERIC");
                     break;
                 }
 
                 float fValue = GetValueAsFloat(strArg);
-
                 if (nIndex == 0)
                 {
                     fResult = fValue;
+
                     if (IsValueIntParameter(strArg))
                         nIntResult = GetValueAsInt(strArg);
                     else
@@ -3031,108 +2971,58 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
                     strReturnValue = GetValueFromFloat(fResult);
             }
         }
-        else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_AT_LEAST_1_ARGUMENT]");
     }
     else if (sMetaName == "clamp")
     {
-        if (GetParameterCount(strPC) == 3)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-            struct Value strArg2 = EvalCompiledParameter(strPC, 2);
-
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else if (IsErrorValue(strArg2))
-                strReturnValue = strArg2;
-            else if (IsValueIntParameter(strArg0) && IsValueIntParameter(strArg1) && IsValueIntParameter(strArg2))
-            {
-                strReturnValue = GetValueFromInt(clamp(GetValueAsInt(strArg0), GetValueAsInt(strArg1), GetValueAsInt(strArg2)));
-            }
-            else if (IsValueNumericParameter(strArg0) && IsValueNumericParameter(strArg1) && IsValueNumericParameter(strArg2))
-            {
-                strReturnValue = GetValueFromFloat(clampf(GetValueAsFloat(strArg0), GetValueAsFloat(strArg1), GetValueAsFloat(strArg2)));
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NOT_INT_OR_NUMERIC]");
-        }
+        struct Arguments strArgs = EvalThreeArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
+        else if (IsValueIntParameter(strArgs.strArg0) && IsValueIntParameter(strArgs.strArg1) && IsValueIntParameter(strArgs.strArg2))
+            strReturnValue = GetValueFromInt(clamp(GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_3_ARGUMENTS]");
+            strReturnValue = GetValueFromFloat(clampf(GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1), GetValueAsFloat(strArgs.strArg2)));
     }
     else if (sMetaName == "mod")
     {
-        if (GetParameterCount(strPC) == 2)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsErrorValue(strArg1))
-                strReturnValue = strArg1;
-            else if (IsValueIntParameter(strArg0) && IsValueIntParameter(strArg1))
-            {
-                int nValue = GetValueAsInt(strArg0);
-                int nDivisor = GetValueAsInt(strArg1);
-
-                if (nDivisor != 0)
-                    strReturnValue = GetValueFromInt(nValue % nDivisor);
-                else
-                    strReturnValue = GetErrorValue("[DIVISION_BY_ZERO]");
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENTS_NOT_INT]");
-        }
+        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_2_ARGUMENTS]");
+        {
+            int nValue = GetValueAsInt(strArgs.strArg0);
+            int nDivisor = GetValueAsInt(strArgs.strArg1);
+            if (nDivisor != 0)
+                strReturnValue = GetValueFromInt(nValue % nDivisor);
+            else
+                strReturnValue = GetErrorValue("DIVISION_BY_ZERO");
+        }
     }
     else if (sMetaName == "random")
     {
-        int nNumParameters = GetParameterCount(strPC);
-        if (nNumParameters >= 1)
-        {
-            struct Value strArg0 = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strArg0))
-                strReturnValue = strArg0;
-            else if (IsValueIntParameter(strArg0))
-            {
-                int nMax = GetValueAsInt(strArg0);
-                int nMin = 0;
-
-                if (nNumParameters >= 2)
-                {
-                    struct Value strArg1 = EvalCompiledParameter(strPC, 1);
-                    if (IsErrorValue(strArg1))
-                    {
-                        strReturnValue = strArg1;
-                    }
-                    else if (IsValueIntParameter(strArg1))
-                    {
-                        nMin = nMax;
-                        nMax = GetValueAsInt(strArg1);
-                    }
-                }
-
-                if (IsInvalidValue(strReturnValue))
-                {
-                    if (nMax > nMin)
-                        strReturnValue = GetValueFromInt(nMin + Random(nMax - nMin));
-                    else if (nMax == nMin)
-                        strReturnValue = GetValueFromInt(nMin);
-                }
-            }
-            else
-                strReturnValue = GetErrorValue("[TYPE_MISMATCH:ARGUMENT_NOT_INT]");
-        }
+        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetErrorValue("[ARITY:EXPECTED_AT_LEAST_1_ARGUMENT]");
+        {
+            int nMax = GetValueAsInt(strArgs.strArg0);
+            int nMin = 0;
+
+            if (strArgs.nCount >= 2)
+            {
+                nMin = nMax;
+                nMax = GetValueAsInt(strArgs.strArg1);
+            }
+
+            if (nMax > nMin)
+                strReturnValue = GetValueFromInt(nMin + Random(nMax - nMin));
+            else if (nMax == nMin)
+                strReturnValue = GetValueFromInt(nMin);
+            else
+                strReturnValue = GetErrorValue("INVALID_RANDOM_RANGE:" + IntToString(nMin) + "_TO_" + IntToString(nMax));
+        }
     }
     return strReturnValue;
 }
-
 
 struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName)
 {

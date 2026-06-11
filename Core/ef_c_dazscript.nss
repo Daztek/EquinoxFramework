@@ -104,11 +104,14 @@ string MakeCacheKey(string sPrefix, string sString);
 json GetCachedJson(string sPrefix, string sInput);
 void SetCachedJson(string sPrefix, string sInput, json jValue);
 
-json MakeStackAliasEntry(string sValue, int nAuxType);
-string GetStackAliasStorageString(struct Value strValue);
+string GetAliasStoredValueAsString(json jEntry);
 json MakeStackAliasEntryFromValue(struct Value strValue);
-json MakeObjectAliasEntry(object oValue);
 json MakeParameterEntry(string sText, int bWasQuoted);
+
+int GetCastAuxTypeFromName(string sCast);
+string GetValueAsCastString(struct Value strValue);
+struct Value CastValueToJson(struct Value strValue);
+struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType);
 
 int IsParserQuote(string sCharacter);
 int IsParserEscapedCharacter(string sString, int nIndex, int nLength);
@@ -155,7 +158,7 @@ struct Arguments EvalOneArg(struct PropertyChain strPC, int nType0 = DAZSCRIPT_A
 struct Arguments EvalTwoArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY);
 struct Arguments EvalThreeArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY);
 
-string GetValueAsString(struct Value strValue, string sDefault = "");
+string GetValueAsText(struct Value strValue, string sDefault = "");
 string GetValueAsTrimmedString(struct Value strValue, string sDefault = "");
 int IsValueIntParameter(struct Value strValue);
 int IsValueNumericParameter(struct Value strValue);
@@ -177,7 +180,7 @@ struct Value GetValueFromString(string sValue = "");
 struct Value GetValueFromObject(object oValue = OBJECT_INVALID);
 struct Value GetValueFromJson(json jValue = JSON_NULL);
 
-string ValueToDisplayString(struct Value strValue);
+string ValueToText(struct Value strValue);
 int ValueToBoolish(struct Value strValue);
 struct Value FormatValueAsFixed(struct Value strValue, int nPrecision);
 struct Value FormatValueAsHex(struct Value strValue);
@@ -233,7 +236,7 @@ string Interpret(string sString, int nDepthOverride = 0, json jStack = JSON_NULL
     if (!JsonGetType(jStack))
         jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
 
-    return ValueToDisplayString(EvalTemplate(jTemplate, jStack));
+    return ValueToText(EvalTemplate(jTemplate, jStack));
 }
 
 string MakeCacheKey(string sPrefix, string sString)
@@ -251,39 +254,40 @@ void SetCachedJson(string sPrefix, string sInput, json jValue)
     SetLocalJson(GetDataObject(DAZSCRIPT_SCRIPT_NAME), MakeCacheKey(sPrefix, sInput), jValue);
 }
 
-json MakeStackAliasEntry(string sValue, int nAuxType)
+string GetAliasStoredValueAsString(json jEntry)
 {
-    json jEntry = JsonObject();
-    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, sValue);
-    JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, nAuxType);
-    return jEntry;
-}
-
-string GetStackAliasStorageString(struct Value strValue)
-{
-    switch (strValue.nAuxType)
+    json jValue = JsonObjectGet(jEntry, DAZSCRIPT_ALIAS_VALUE);
+    switch (JsonGetType(jValue))
     {
-        case NWNX_VM_AUXTYPE_INT:       return IntToString(strValue.nValue);
-        case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 9);
-        case NWNX_VM_AUXTYPE_STRING:    return strValue.sValue;
-        case NWNX_VM_AUXTYPE_OBJECT:    return "0x" + ObjectToString(strValue.oValue);
-        case NWNX_VM_AUXTYPE_JSON:      return JsonDump(strValue.jValue);
+        case JSON_TYPE_STRING: return JsonGetString(jValue);
+        case JSON_TYPE_INTEGER: return IntToString(JsonGetInt(jValue));
+        case JSON_TYPE_FLOAT: return FloatToString(JsonGetFloat(jValue), 0, 9);
     }
-
-    return ValueToDisplayString(strValue);
+    return JsonDump(jValue);
 }
 
 json MakeStackAliasEntryFromValue(struct Value strValue)
 {
+    json jEntry = JsonObject();
+
     if (IsErrorValue(strValue))
-        return MakeStackAliasEntry(strValue.sErrorMessage, NWNX_VM_AUXTYPE_STRING);
+    {
+        JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.sErrorMessage);
+        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_STRING);
+        return jEntry;
+    }
 
-    return MakeStackAliasEntry(GetStackAliasStorageString(strValue), strValue.nAuxType);
-}
-
-json MakeObjectAliasEntry(object oValue)
-{
-    return MakeStackAliasEntry("0x" + ObjectToString(oValue), NWNX_VM_AUXTYPE_OBJECT);
+    JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, strValue.nAuxType);
+    switch (strValue.nAuxType)
+    {
+        case NWNX_VM_AUXTYPE_INT:       JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.nValue); break;
+        case NWNX_VM_AUXTYPE_FLOAT:     JsonObjectSetFloatInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.fValue); break;
+        case NWNX_VM_AUXTYPE_STRING:    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.sValue); break;
+        case NWNX_VM_AUXTYPE_OBJECT:    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, "0x" + ObjectToString(strValue.oValue));  break;
+        case NWNX_VM_AUXTYPE_JSON:      JsonObjectSetInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.jValue); break;
+        default:                        JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, ValueToText(strValue)); break;
+    }
+    return jEntry;
 }
 
 json MakeParameterEntry(string sText, int bWasQuoted)
@@ -292,6 +296,114 @@ json MakeParameterEntry(string sText, int bWasQuoted)
     JsonObjectSetStringInplace(jEntry, DAZSCRIPT_PARAMETER_TEXT, sText);
     JsonObjectSetIntInplace(jEntry, DAZSCRIPT_PARAMETER_WAS_QUOTED, bWasQuoted);
     return jEntry;
+}
+
+int GetCastAuxTypeFromName(string sCast)
+{
+    sCast = GetStringLowerCase(trim(sCast));
+    if (sCast == "i" || sCast == "int")     return NWNX_VM_AUXTYPE_INT;
+    if (sCast == "f" || sCast == "float")   return NWNX_VM_AUXTYPE_FLOAT;
+    if (sCast == "s" || sCast == "string")  return NWNX_VM_AUXTYPE_STRING;
+    if (sCast == "o" || sCast == "object")  return NWNX_VM_AUXTYPE_OBJECT;
+    if (sCast == "j" || sCast == "json")    return NWNX_VM_AUXTYPE_JSON;
+    return NWNX_VM_AUXTYPE_INVALID;
+}
+
+string GetValueAsCastString(struct Value strValue)
+{
+    if (strValue.nAuxType == NWNX_VM_AUXTYPE_JSON)
+    {
+        json jEntry = JsonObject();
+        JsonObjectSetInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.jValue);
+        return GetAliasStoredValueAsString(jEntry);
+    }
+
+    return ValueToText(strValue);
+}
+
+struct Value CastValueToJson(struct Value strValue)
+{
+    if (IsErrorValue(strValue))
+        return strValue;
+
+    switch (strValue.nAuxType)
+    {
+        case NWNX_VM_AUXTYPE_JSON:      return strValue;
+        case NWNX_VM_AUXTYPE_INT:       return GetValueFromJson(JsonInt(strValue.nValue));
+        case NWNX_VM_AUXTYPE_FLOAT:     return GetValueFromJson(JsonFloat(strValue.fValue));
+        case NWNX_VM_AUXTYPE_OBJECT:    return GetValueFromJson(JsonString("0x" + ObjectToString(strValue.oValue)));
+        case NWNX_VM_AUXTYPE_STRING:
+        {
+            json jParsed = JsonParse(strValue.sValue);
+            if (!JsonGetType(jParsed) && JsonGetError(jParsed) != "")
+                return GetErrorValue("INVALID_JSON:" + strValue.sValue);
+
+            return GetValueFromJson(jParsed);
+        }
+    }
+    return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->json");
+}
+
+struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType)
+{
+    if (IsErrorValue(strValue))
+        return strValue;
+
+    if (nTargetAuxType == NWNX_VM_AUXTYPE_JSON)
+        return CastValueToJson(strValue);
+
+    string sValue = GetValueAsCastString(strValue);
+    switch (nTargetAuxType)
+    {
+        case NWNX_VM_AUXTYPE_INT:
+        {
+            if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
+                return strValue;
+
+            if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
+                return GetValueFromInt(FloatToInt(strValue.fValue));
+
+            if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
+                return GetValueFromInt(HexStringToInt(ObjectToString(strValue.oValue)));
+
+            sValue = trim(sValue);
+            if (!IsInteger(sValue))
+                return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->int");
+
+            return GetValueFromInt(StringToInt(sValue));
+        }
+        case NWNX_VM_AUXTYPE_FLOAT:
+        {
+            if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
+                return strValue;
+
+            if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
+                return GetValueFromFloat(IntToFloat(strValue.nValue));
+
+            sValue = trim(sValue);
+            if (!IsNumeric(sValue))
+                return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->float");
+
+            return GetValueFromFloat(StringToFloat(sValue));
+        }
+        case NWNX_VM_AUXTYPE_STRING:
+        {
+            return GetValueFromString(sValue);
+        }
+        case NWNX_VM_AUXTYPE_OBJECT:
+        {
+            if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
+                return strValue;
+
+            sValue = trim(sValue);
+            if (!IsObjectString(sValue))
+                return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->object");
+
+            return GetValueFromObject(StringToObject(sValue));
+        }
+    }
+
+    return GetErrorValue("INVALID_CAST_AUXTYPE:" + IntToString(nTargetAuxType));
 }
 
 int IsParserQuote(string sCharacter)
@@ -500,7 +612,7 @@ struct Value EvalTemplate(json jTemplate, json jStack)
             struct Value strInnerValue = EvalTemplate(JsonArrayGet(jSingleNode, 1), jStack);
             if (IsErrorValue(strInnerValue))
                 return strInnerValue;
-            return GetValueFromString(ValueToDisplayString(strInnerValue));
+            return GetValueFromString(ValueToText(strInnerValue));
         }
 
         if (nSingleNodeType == DAZSCRIPT_NODE_LITERAL)
@@ -520,14 +632,14 @@ struct Value EvalTemplate(json jTemplate, json jStack)
             struct Value strExpressionValue = EvalCompiledExpressionToValue(jNode, jStack);
             if (IsErrorValue(strExpressionValue))
                 return strExpressionValue;
-            sResult += ValueToDisplayString(strExpressionValue);
+            sResult += ValueToText(strExpressionValue);
         }
         else if (nNodeType == DAZSCRIPT_NODE_FORCE_STRING)
         {
             struct Value strInnerValue = EvalTemplate(JsonArrayGet(jNode, 1), jStack);
             if (IsErrorValue(strInnerValue))
                 return strInnerValue;
-            sResult += ValueToDisplayString(strInnerValue);
+            sResult += ValueToText(strInnerValue);
         }
     }
 
@@ -618,7 +730,7 @@ json CompileExpression(string sExpr)
 
 string EvalCompiledExpression(json jExpr, json jStack)
 {
-    return ValueToDisplayString(EvalCompiledExpressionToValue(jExpr, jStack));
+    return ValueToText(EvalCompiledExpressionToValue(jExpr, jStack));
 }
 
 struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
@@ -693,17 +805,32 @@ struct Value ResolveAliasValue(json jStack, string sAliasName)
 
     json jEntry = JsonObjectGet(jStack, sAliasName);
     int nAuxType = JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE);
-    string sValue = JsonObjectGetString(jEntry, DAZSCRIPT_ALIAS_VALUE);
+    json jValue = JsonObjectGet(jEntry, DAZSCRIPT_ALIAS_VALUE);
+    int nJsonType = JsonGetType(jValue);
 
     switch (nAuxType)
     {
-        case NWNX_VM_AUXTYPE_INT:    return GetValueFromInt(StringToInt(sValue));
-        case NWNX_VM_AUXTYPE_FLOAT:  return GetValueFromFloat(StringToFloat(sValue));
-        case NWNX_VM_AUXTYPE_OBJECT: return GetValueFromObject(StringToObject(sValue));
-        case NWNX_VM_AUXTYPE_JSON:   return GetValueFromJson(JsonParse(sValue));
+        case NWNX_VM_AUXTYPE_INT:
+        {
+            if (nJsonType == JSON_TYPE_INTEGER)
+                return GetValueFromInt(JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_VALUE));
+            return GetValueFromInt(StringToInt(GetAliasStoredValueAsString(jEntry)));
+        }
+        case NWNX_VM_AUXTYPE_FLOAT:
+        {
+            if (nJsonType == JSON_TYPE_FLOAT)
+                return GetValueFromFloat(JsonObjectGetFloat(jEntry, DAZSCRIPT_ALIAS_VALUE));
+            if (nJsonType == JSON_TYPE_INTEGER)
+                return GetValueFromFloat(IntToFloat(JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_VALUE)));
+            return GetValueFromFloat(StringToFloat(GetAliasStoredValueAsString(jEntry)));
+        }
+        case NWNX_VM_AUXTYPE_OBJECT:
+            return GetValueFromObject(StringToObject(GetAliasStoredValueAsString(jEntry)));
+        case NWNX_VM_AUXTYPE_JSON:
+            return GetValueFromJson(jValue);
     }
 
-    return GetValueFromString(sValue);
+    return GetValueFromString(GetAliasStoredValueAsString(jEntry));
 }
 
 struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParameters, json jBaseCompiledParameters)
@@ -1426,7 +1553,7 @@ struct Value GetValueFromJson(json jValue = JSON_NULL)
     return str;
 }
 
-string ValueToDisplayString(struct Value strValue)
+string ValueToText(struct Value strValue)
 {
     if (IsErrorValue(strValue))
         return "[" + strValue.sErrorMessage + "]";
@@ -1475,16 +1602,16 @@ struct Value FormatValueAsBoolean(struct Value strValue)
     return GetValueFromString(ValueToBoolish(strValue) ? "TRUE" : "FALSE");
 }
 
-string GetValueAsString(struct Value strValue, string sDefault = "")
+string GetValueAsText(struct Value strValue, string sDefault = "")
 {
     if (IsErrorValue(strValue))
         return sDefault;
-    return ValueToDisplayString(strValue);
+    return ValueToText(strValue);
 }
 
 string GetValueAsTrimmedString(struct Value strValue, string sDefault = "")
 {
-    return trim(GetValueAsString(strValue, sDefault));
+    return trim(GetValueAsText(strValue, sDefault));
 }
 
 int IsValueIntParameter(struct Value strValue)
@@ -1754,7 +1881,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         if (IsErrorValue(strArgs.strError))
             strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetValueFromInt(FindSubString(sValue, GetValueAsString(strArgs.strArg0), 0) != -1);
+            strReturnValue = GetValueFromInt(FindSubString(sValue, GetValueAsText(strArgs.strArg0), 0) != -1);
     }
     else if (sProperty == "startswith" || sProperty == "prefix")
     {
@@ -1762,7 +1889,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         if (IsErrorValue(strArgs.strError))
             strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetValueFromInt(IsStringPrefix(sValue, GetValueAsString(strArgs.strArg0)));
+            strReturnValue = GetValueFromInt(IsStringPrefix(sValue, GetValueAsText(strArgs.strArg0)));
     }
     else if (sProperty == "endswith" || sProperty == "suffix")
     {
@@ -1770,7 +1897,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         if (IsErrorValue(strArgs.strError))
             strReturnValue = strArgs.strError;
         else
-            strReturnValue = GetValueFromInt(IsStringSuffix(sValue, GetValueAsString(strArgs.strArg0)));
+            strReturnValue = GetValueFromInt(IsStringSuffix(sValue, GetValueAsText(strArgs.strArg0)));
     }
     else if (sProperty == "substr" || sProperty == "substring")
     {
@@ -1807,8 +1934,8 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
             strReturnValue = strArgs.strError;
         else
         {
-            string sSearch = NWNX_Util_RegExpEscape(GetValueAsString(strArgs.strArg0));
-            string sReplace = GetValueAsString(strArgs.strArg1);
+            string sSearch = NWNX_Util_RegExpEscape(GetValueAsText(strArgs.strArg0));
+            string sReplace = GetValueAsText(strArgs.strArg1);
             strReturnValue = GetValueFromString(RegExpReplace(sSearch, sValue, sReplace));
         }
     }
@@ -1819,7 +1946,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
             strReturnValue = strArgs.strError;
         else
         {
-            string sCompare = GetValueAsString(strArgs.strArg0);
+            string sCompare = GetValueAsText(strArgs.strArg0);
             int nResult = sProperty == "eq" ? sValue == sCompare : sValue != sCompare;
             strReturnValue = GetValueFromInt(nResult);
         }
@@ -1835,7 +1962,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
             strReturnValue = strArgs.strError;
         else
         {
-            string sOther = GetValueAsString(strArgs.strArg0);
+            string sOther = GetValueAsText(strArgs.strArg0);
             if (sProperty == "append")
                 strReturnValue = GetValueFromString(sValue + sOther);
             else
@@ -1959,9 +2086,9 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
                 nPrecision = GetValueAsInt(strArgs.strArg0, 2);
             nPrecision = clamp(nPrecision, 0, 9);
             vector vPosition = GetPosition(oValue);
-            string sX = ValueToDisplayString(FormatValueAsFixed(GetValueFromFloat(vPosition.x), nPrecision));
-            string sY = ValueToDisplayString(FormatValueAsFixed(GetValueFromFloat(vPosition.y), nPrecision));
-            string sZ = ValueToDisplayString(FormatValueAsFixed(GetValueFromFloat(vPosition.z), nPrecision));
+            string sX = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.x), nPrecision));
+            string sY = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.y), nPrecision));
+            string sZ = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.z), nPrecision));
             strReturnValue = GetValueFromString("[" + sX + "," + sY + "," + sZ + "]");
         }
     }
@@ -2082,7 +2209,7 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
                 strReturnValue = strArgs.strError;
             else
             {
-                string sValue = ValueToDisplayString(strPC.strValue);
+                string sValue = ValueToText(strPC.strValue);
                 string sColor = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
                 if (GetStringLeft(sColor, 1) == "#")
                     strReturnValue = GetValueFromHexColor(sValue, sColor);
@@ -2096,7 +2223,7 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
             if (IsErrorValue(strArgs.strError))
                 strReturnValue = strArgs.strError;
             else
-                strReturnValue = GetValueFromString(ColorString(ValueToDisplayString(strPC.strValue), GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
+                strReturnValue = GetValueFromString(ColorString(ValueToText(strPC.strValue), GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
         }
         else
         {
@@ -2113,42 +2240,24 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
             int nLength = GetValueAsInt(strArgs.strArg0);
             string sPadding = " ";
             if (strArgs.nCount >= 2)
-                sPadding = GetValueAsString(strArgs.strArg1, " ");
+                sPadding = GetValueAsText(strArgs.strArg1, " ");
             if (sProperty == "padleft")
-                strReturnValue = GetValueFromString(LeftPadString(ValueToDisplayString(strPC.strValue), nLength, sPadding));
+                strReturnValue = GetValueFromString(LeftPadString(ValueToText(strPC.strValue), nLength, sPadding));
             else
-                strReturnValue = GetValueFromString(RightPadString(ValueToDisplayString(strPC.strValue), nLength, sPadding));
+                strReturnValue = GetValueFromString(RightPadString(ValueToText(strPC.strValue), nLength, sPadding));
         }
     }
     else if (sProperty == "int")
     {
-        struct Value strValue = strPC.strValue;
-        if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
-            strReturnValue = strValue;
-        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
-            strReturnValue = GetValueFromInt(FloatToInt(strValue.fValue));
-        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
-            strReturnValue = GetValueFromInt(StringToInt(strValue.sValue));
-        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
-            strReturnValue = GetValueFromInt(HexStringToInt(ObjectToString(strValue.oValue)));
-        else
-            strReturnValue = GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->int");
+        strReturnValue = CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_INT);
     }
     else if (sProperty == "float")
     {
-        struct Value strValue = strPC.strValue;
-        if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
-            strReturnValue = GetValueFromFloat(IntToFloat(strValue.nValue));
-        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
-            strReturnValue = strValue;
-        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
-            strReturnValue = GetValueFromFloat(StringToFloat(strValue.sValue));
-        else
-            strReturnValue = GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->float");
+        strReturnValue = CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_FLOAT);
     }
     else if (sProperty == "string")
     {
-        strReturnValue = GetValueFromString(ValueToDisplayString(strPC.strValue));
+        strReturnValue = CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_STRING);
     }
     else if (sProperty == "fixed")
     {
@@ -2180,29 +2289,26 @@ struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName)
 {
     if (sMetaName == "int")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
-
-        return GetValueFromInt(GetValueAsInt(strArgs.strArg0));
+        return CastValueToAuxType(strArgs.strArg0, NWNX_VM_AUXTYPE_INT);
     }
 
     if (sMetaName == "float")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_NUMERIC);
+        struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
-
-        return GetValueFromFloat(GetValueAsFloat(strArgs.strArg0));
+        return CastValueToAuxType(strArgs.strArg0, NWNX_VM_AUXTYPE_FLOAT);
     }
 
     if (sMetaName == "object")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_OBJECT);
+        struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
-
-        return GetValueFromObject(GetValueAsObject(strArgs.strArg0));
+        return CastValueToAuxType(strArgs.strArg0, NWNX_VM_AUXTYPE_OBJECT);
     }
 
     if (sMetaName == "string")
@@ -2210,8 +2316,7 @@ struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName)
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
-
-        return GetValueFromString(GetValueAsString(strArgs.strArg0));
+        return CastValueToAuxType(strArgs.strArg0, NWNX_VM_AUXTYPE_STRING);
     }
 
     return GetInvalidValue();
@@ -2256,6 +2361,7 @@ struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName)
 
         return GetValueFromString();
     }
+
     return GetInvalidValue();
 }
 
@@ -2273,7 +2379,8 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
         return EvalCompiledParameter(strPC, ValueToBoolish(strCondition) ? 1 : 2);
     }
-    else if (sMetaName == "while")
+
+    if (sMetaName == "while")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
         if (IsErrorValue(strError))
@@ -2293,11 +2400,12 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             if (IsErrorValue(strBodyResult))
                 return strBodyResult;
 
-            sAccumulator += ValueToDisplayString(strBodyResult);
+            sAccumulator += ValueToText(strBodyResult);
         }
         return GetValueFromString(sAccumulator);
     }
-    else if (sMetaName == "pick")
+
+    if (sMetaName == "pick")
     {
         struct Value strError = CheckArity(strPC, 1, -1);
         if (IsErrorValue(strError))
@@ -2307,7 +2415,8 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         int nIndex = Random(nNumParameters);
         return EvalCompiledParameter(strPC, nIndex);
     }
-    else if (sMetaName == "not")
+
+    if (sMetaName == "not")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
@@ -2315,7 +2424,8 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
         return GetValueFromInt(!ValueToBoolish(strArgs.strArg0));
     }
-    else if (sMetaName == "and" || sMetaName == "all")
+
+    if (sMetaName == "and" || sMetaName == "all")
     {
         struct Value strError = CheckArity(strPC, 1, -1);
         if (IsErrorValue(strError))
@@ -2337,7 +2447,8 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
         return GetValueFromInt(bResult);
     }
-    else if (sMetaName == "or" || sMetaName == "any")
+
+    if (sMetaName == "or" || sMetaName == "any")
     {
         struct Value strError = CheckArity(strPC, 1, -1);
         if (IsErrorValue(strError))
@@ -2359,7 +2470,8 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
         return GetValueFromInt(bResult);
     }
-    else if (sMetaName == "switch" || sMetaName == "case")
+
+    if (sMetaName == "switch" || sMetaName == "case")
     {
         struct Value strError = CheckArity(strPC, 3, -1);
         if (IsErrorValue(strError))
@@ -2370,7 +2482,7 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         if (IsErrorValue(strSelectorValue))
             return strSelectorValue;
 
-        string sSelector = ValueToDisplayString(strSelectorValue);
+        string sSelector = ValueToText(strSelectorValue);
         int nDefaultIndex = -1;
 
         if (nCount % 2 == 0)
@@ -2383,7 +2495,7 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             if (IsErrorValue(strCaseValue))
                 return strCaseValue;
 
-            string sCase = ValueToDisplayString(strCaseValue);
+            string sCase = ValueToText(strCaseValue);
             if (sSelector == sCase)
                 return EvalCompiledParameter(strPC, nIndex + 1);
         }
@@ -2393,7 +2505,8 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
         return GetValueFromString();
     }
-    else if (sMetaName == "foreachpc")
+
+    if (sMetaName == "foreachpc")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
         if (IsErrorValue(strError))
@@ -2411,18 +2524,19 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         object oPC = GetFirstPC();
         while (GetIsObjectValid(oPC))
         {
-            JsonObjectSetInplace(jFrame, sAlias, MakeObjectAliasEntry(oPC));
+            JsonObjectSetInplace(jFrame, sAlias, MakeStackAliasEntryFromValue(GetValueFromObject(oPC)));
             struct Value strBodyResult = EvalTemplate(jBody, jFrame);
 
             if (IsErrorValue(strBodyResult))
                 return strBodyResult;
 
-            sAccumulator += ValueToDisplayString(strBodyResult);
+            sAccumulator += ValueToText(strBodyResult);
             oPC = GetNextPC();
         }
 
         return GetValueFromString(sAccumulator);
     }
+
     return GetInvalidValue();
 }
 
@@ -2440,12 +2554,13 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
 
         struct Value strValue = EvalCompiledParameter(strPC, 1);
         if (IsErrorValue(strValue))
-            return  strValue;
+            return strValue;
 
         JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(strValue));
         return GetValueFromString();
     }
-    else if (sMetaName == "unset")
+
+    if (sMetaName == "unset")
     {
         struct Value strError = CheckArity(strPC, 1, 1);
         if (IsErrorValue(strError))
@@ -2458,7 +2573,8 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
         JsonObjectDelInplace(strPC.jStack, sAlias);
         return GetValueFromString();
     }
-    else if (sMetaName == "cast")
+
+    if (sMetaName == "cast")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
         if (IsErrorValue(strError))
@@ -2471,38 +2587,25 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
         if (!JsonObjectContainsKey(strPC.jStack, sAlias))
             return GetErrorValue("UNKNOWN_ALIAS:" + sAlias);
 
-        json jStackVar = JsonObjectGet(strPC.jStack, sAlias);
-        string sCast = GetStringLowerCase(GetRawParameterText(strPC, 1));
+        string sCast = GetRawParameterText(strPC, 1);
+        int nTargetAuxType = GetCastAuxTypeFromName(sCast);
 
-        if (sCast == "i" || sCast == "int")
-        {
-            JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INT));
-            return GetValueFromString();
-        }
-        else if (sCast == "f" || sCast == "float")
-        {
-            JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_FLOAT));
-            return GetValueFromString();
-        }
-        else if (sCast == "s" || sCast == "string")
-        {
-            JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_STRING));
-            return GetValueFromString();
-        }
-        else if (sCast == "o" || sCast == "object")
-        {
-            JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_OBJECT));
-            return GetValueFromString();
-        }
-        else if (sCast == "j" || sCast == "json")
-        {
-            JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_JSON));
-            return GetValueFromString();
-        }
+        if (nTargetAuxType == NWNX_VM_AUXTYPE_INVALID)
+            return GetErrorValue("INVALID_CAST_TYPE:" + sCast);
 
-        return GetErrorValue("INVALID_CAST_TYPE:" + sCast);
+        struct Value strCurrentValue = ResolveAliasValue(strPC.jStack, sAlias);
+        if (IsErrorValue(strCurrentValue))
+            return strCurrentValue;
+
+        struct Value strCastedValue = CastValueToAuxType(strCurrentValue, nTargetAuxType);
+        if (IsErrorValue(strCastedValue))
+            return strCastedValue;
+
+        JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(strCastedValue));
+        return GetValueFromString();
     }
-    else if (sMetaName == "out")
+
+    if (sMetaName == "out")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
         if (IsErrorValue(strError))
@@ -2521,44 +2624,43 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
         json jStackVar = JsonObjectGet(strPC.jStack, sVarName);
         int nOutAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
         int nStackLocation = JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY);
-        string sValue = ValueToDisplayString(strValue);
 
         if (nOutAuxType == NWNX_VM_AUXTYPE_INT)
         {
-            if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
-                NWNX_VM_SetStackIntegerValue(nStackLocation, strValue.nValue);
-            else if (IsInteger(sValue))
-                NWNX_VM_SetStackIntegerValue(nStackLocation, StringToInt(sValue));
-            else
+            struct Value strOutValue = CastValueToAuxType(strValue, NWNX_VM_AUXTYPE_INT);
+            if (IsErrorValue(strOutValue))
                 return GetErrorValue("TYPE_MISMATCH:OUT_NOT_INT");
+            NWNX_VM_SetStackIntegerValue(nStackLocation, strOutValue.nValue);
         }
         else if (nOutAuxType == NWNX_VM_AUXTYPE_FLOAT)
         {
-            if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
-                NWNX_VM_SetStackFloatValue(nStackLocation, strValue.fValue);
-            else if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
-                NWNX_VM_SetStackFloatValue(nStackLocation, IntToFloat(strValue.nValue));
-            else if (IsNumeric(sValue))
-                NWNX_VM_SetStackFloatValue(nStackLocation, StringToFloat(sValue));
-            else
+            struct Value strOutValue = CastValueToAuxType(strValue, NWNX_VM_AUXTYPE_FLOAT);
+            if (IsErrorValue(strOutValue))
                 return GetErrorValue("TYPE_MISMATCH:OUT_NOT_FLOAT");
+            NWNX_VM_SetStackFloatValue(nStackLocation, strOutValue.fValue);
         }
         else if (nOutAuxType == NWNX_VM_AUXTYPE_OBJECT)
         {
-            if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
-                NWNX_VM_SetStackObjectValue(nStackLocation, strValue.oValue);
-            else if (IsObjectString(sValue))
-                NWNX_VM_SetStackObjectValue(nStackLocation, StringToObject(sValue));
-            else
+            struct Value strOutValue = CastValueToAuxType(strValue, NWNX_VM_AUXTYPE_OBJECT);
+            if (IsErrorValue(strOutValue))
                 return GetErrorValue("TYPE_MISMATCH:OUT_NOT_OBJECT");
+            NWNX_VM_SetStackObjectValue(nStackLocation, strOutValue.oValue);
         }
         else if (nOutAuxType == NWNX_VM_AUXTYPE_STRING)
-            NWNX_VM_SetStackStringValue(nStackLocation, sValue);
+        {
+            struct Value strOutValue = CastValueToAuxType(strValue, NWNX_VM_AUXTYPE_STRING);
+            if (IsErrorValue(strOutValue))
+                return GetErrorValue("TYPE_MISMATCH:OUT_NOT_STRING");
+            NWNX_VM_SetStackStringValue(nStackLocation, strOutValue.sValue);
+        }
         else
+        {
             return GetErrorValue("TYPE_MISMATCH:OUT_UNSUPPORTED_TYPE");
+        }
 
         return GetValueFromString();
     }
+
     return GetInvalidValue();
 }
 
@@ -2571,14 +2673,16 @@ struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaNam
             return strError;
         return GetValueFromInt(SymbolExists(strPC.jStack, GetRawParameterText(strPC, 0)));
     }
-    else if (sMetaName == "type")
+
+    if (sMetaName == "type")
     {
         struct Value strError = CheckArity(strPC, 1, 1);
         if (IsErrorValue(strError))
             return strError;
         return GetValueFromString(GetSymbolType(strPC.jStack, GetRawParameterText(strPC, 0)));
     }
-    else if (sMetaName == "debug")
+
+    if (sMetaName == "debug")
     {
         struct Value strError = CheckArity(strPC, 1, 1);
         if (IsErrorValue(strError))
@@ -2589,7 +2693,7 @@ struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaNam
         if (IsErrorValue(strValue))
             return strValue;
 
-        string sValue = ValueToDisplayString(strValue);
+        string sValue = ValueToText(strValue);
         string sSymbolType = GetSymbolType(strPC.jStack, sExpr);
         string sValueType = InferDebugValueType(sValue);
 
@@ -2597,12 +2701,13 @@ struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaNam
             "expr=\"" + sExpr + "\"" +
             "; symbol_type=" + sSymbolType +
             "; value_type=" + sValueType +
-            "; truthy=" + (StringToBoolish(sValue) ? "TRUE" : "FALSE") +
+            "; truthy=" + (ValueToBoolish(strValue) ? "TRUE" : "FALSE") +
             "; length=" + IntToString(GetStringLength(sValue)) +
             "; value=\"" + TruncateDebugValue(sValue) + "\"";
 
         return GetValueFromString(sDebug);
     }
+
     return GetInvalidValue();
 }
 
@@ -2623,13 +2728,14 @@ struct Value HandleMetaUtility(struct PropertyChain strPC, string sMetaName)
         if (strArgs.nCount >= 3)
             nWidth = GetValueAsInt(strArgs.strArg2, STRING_BAR_DEFAULT_WIDTH);
         if (strArgs.nCount >= 4)
-            sFilled = GetValueAsString(strArgs.strArg3, "#");
+            sFilled = GetValueAsText(strArgs.strArg3, "#");
         if (strArgs.nCount >= 5)
-            sEmpty = GetValueAsString(strArgs.strArg4, "-");
+            sEmpty = GetValueAsText(strArgs.strArg4, "-");
 
         return GetValueFromString(MakeBarString(fValue, fMax, nWidth, sFilled, sEmpty));
     }
-    else if (sMetaName == "roll" || sMetaName == "rollv")
+
+    if (sMetaName == "roll" || sMetaName == "rollv")
     {
         struct Value strError = CheckArity(strPC, 1, 3);
         if (IsErrorValue(strError))
@@ -2689,6 +2795,7 @@ struct Value HandleMetaUtility(struct PropertyChain strPC, string sMetaName)
                 return GetValueFromInt(RollDiceTotal(nCount, nSides, nBonus));
         }
     }
+
     return GetInvalidValue();
 }
 
@@ -2705,18 +2812,20 @@ struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
         if (!GetIsObjectValid(oPC))
             return GetErrorValue("INVALID_OBJECT:ARG1");
 
-        SendMessageToPC(oPC, GetValueAsString(strArgs.strArg1));
+        SendMessageToPC(oPC, GetValueAsText(strArgs.strArg1));
         return GetValueFromString();
     }
-    else if (sMetaName == "print" || sMetaName == "log")
+
+    if (sMetaName == "print" || sMetaName == "log")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
-        PrintString(GetValueAsString(strArgs.strArg0));
+        PrintString(GetValueAsText(strArgs.strArg0));
         return GetValueFromString();
     }
+
     return GetInvalidValue();
 }
 
@@ -2753,7 +2862,8 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
                 return GetValueFromFloat(fValue0 * fValue1);
         }
     }
-    else if (sMetaName == "div" || sMetaName == "idiv")
+
+    if (sMetaName == "div" || sMetaName == "idiv")
     {
         if (sMetaName == "div")
         {
@@ -2784,7 +2894,8 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
                 return GetErrorValue("DIVISION_BY_ZERO");
         }
     }
-    else if (sMetaName == "min" || sMetaName == "max")
+
+    if (sMetaName == "min" || sMetaName == "max")
     {
         struct Value strError = CheckArity(strPC, 1, -1);
         if (IsErrorValue(strError))
@@ -2842,7 +2953,8 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
         else
             return GetValueFromFloat(fResult);
     }
-    else if (sMetaName == "clamp")
+
+    if (sMetaName == "clamp")
     {
         struct Arguments strArgs = EvalThreeArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
@@ -2851,7 +2963,8 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
             return GetValueFromInt(clamp(GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
         return GetValueFromFloat(clampf(GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1), GetValueAsFloat(strArgs.strArg2)));
     }
-    else if (sMetaName == "mod")
+
+    if (sMetaName == "mod")
     {
         struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
@@ -2864,7 +2977,8 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
         else
             return GetErrorValue("DIVISION_BY_ZERO");
     }
-    else if (sMetaName == "random")
+
+    if (sMetaName == "random")
     {
         struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
@@ -2886,6 +3000,7 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
         else
             return GetErrorValue("INVALID_RANDOM_RANGE:" + IntToString(nMin) + "_TO_" + IntToString(nMax));
     }
+
     return GetInvalidValue();
 }
 
@@ -2898,10 +3013,12 @@ struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName)
         else
             return GetValueFromObject(GetNextPC());
     }
-    else if (sMetaName == "module")
+
+    if (sMetaName == "module")
     {
         return GetValueFromObject(GetModule());
     }
+
     return GetInvalidValue();
 }
 

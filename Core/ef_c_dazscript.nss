@@ -13,6 +13,12 @@
 
 const string DAZSCRIPT_SCRIPT_NAME                          = "ef_c_dazscript";
 
+const string DAZSCRIPT_PARSE_ERROR                          = "parse_error";
+const string DAZSCRIPT_PARSE_CODE                           = "code";
+const string DAZSCRIPT_PARSE_AT                             = "at";
+const string DAZSCRIPT_PARSE_SOURCE                         = "source";
+const string DAZSCRIPT_PARSE_CONTEXT                        = "context";
+
 const string DAZSCRIPT_TEMPLATE_CACHE_PREFIX                = "DazScriptTemplateCache_";
 const string DAZSCRIPT_PROPERTY_CHAIN_CACHE_PREFIX          = "DazScriptPropertyChainCache_";
 const string DAZSCRIPT_COMPILED_PARAMETER_CACHE_PREFIX      = "DazScriptCompiledParameterCache_";
@@ -121,6 +127,13 @@ int IsParserEscapedCharacter(string sString, int nIndex, int nLength);
 string NormalizePropertyChainOperators(string sString);
 json SplitTopLevel(string sString, string sDelimiter, int bIncludeEmpty = TRUE);
 int FindTopLevelDelimiter(string sString, string sDelimiter);
+
+string GetParserContext(string sSource, int nAt);
+json MakeParserError(string sCode, int nAt, string sSource);
+json MakeParserErrorPropertySegment(string sProperty, string sParameters, json jError);
+int IsParserError(json jValue);
+struct Value GetValueFromParserError(json jError, string sWhere = "");
+struct Value CheckParameterParserError(struct PropertyChain strPC);
 
 json CompileTemplate(string sString);
 json CompileForcedStringTemplate(string sValue);
@@ -493,9 +506,9 @@ json SplitTopLevel(string sString, string sDelimiter, int bIncludeEmpty = TRUE)
     string sQuoteChar = "";
 
     int nIndex;
-    for (nIndex = 0; nIndex <= nLength; nIndex++)
+    for (nIndex = 0; nIndex < nLength; nIndex++)
     {
-        string sCharacter = nIndex < nLength ? GetSubString(sString, nIndex, 1) : sDelimiter;
+        string sCharacter = GetSubString(sString, nIndex, 1);
 
         if (bInQuotes)
         {
@@ -519,13 +532,21 @@ json SplitTopLevel(string sString, string sDelimiter, int bIncludeEmpty = TRUE)
         }
 
         if (sCharacter == "{")
+        {
             nBraceDepth++;
+        }
         else if (sCharacter == "}")
+        {
             nBraceDepth--;
+        }
         else if (sCharacter == "(" && nBraceDepth == 0)
+        {
             nParenDepth++;
+        }
         else if (sCharacter == ")" && nBraceDepth == 0)
+        {
             nParenDepth--;
+        }
         else if (sCharacter == sDelimiter && nBraceDepth == 0 && nParenDepth == 0)
         {
             string sPart = GetSubString(sString, nStart, nIndex - nStart);
@@ -536,6 +557,10 @@ json SplitTopLevel(string sString, string sDelimiter, int bIncludeEmpty = TRUE)
         }
     }
 
+    string sFinalPart = GetSubString(sString, nStart, nLength - nStart);
+    if (bIncludeEmpty || sFinalPart != "")
+        JsonArrayInsertStringInplace(jParts, sFinalPart);
+
     return jParts;
 }
 
@@ -545,6 +570,80 @@ int FindTopLevelDelimiter(string sString, string sDelimiter)
     if (JsonGetLength(jParts) <= 1)
         return -1;
     return GetStringLength(JsonArrayGetString(jParts, 0));
+}
+
+string GetParserContext(string sSource, int nAt)
+{
+    int nLength = GetStringLength(sSource);
+
+    if (nAt < 0)
+        nAt = 0;
+    if (nAt > nLength)
+        nAt = nLength;
+    int nStart = nAt - 12;
+    if (nStart < 0)
+        nStart = 0;
+    int nEnd = nAt + 12;
+    if (nEnd > nLength)
+        nEnd = nLength;
+
+    string sBefore = GetSubString(sSource, nStart, nAt - nStart);
+    string sCurrent = nAt < nLength ? GetSubString(sSource, nAt, 1) : "<eof>";
+    string sAfter = GetSubString(sSource, nAt + 1, nEnd - nAt - 1);
+    return sBefore + "[" + sCurrent + "]" + sAfter;
+}
+
+json MakeParserError(string sCode, int nAt, string sSource)
+{
+    json jError = JsonObject();
+    JsonObjectSetIntInplace(jError, DAZSCRIPT_PARSE_ERROR, TRUE);
+    JsonObjectSetStringInplace(jError, DAZSCRIPT_PARSE_CODE, sCode);
+    JsonObjectSetIntInplace(jError, DAZSCRIPT_PARSE_AT, nAt);
+    JsonObjectSetStringInplace(jError, DAZSCRIPT_PARSE_SOURCE, sSource);
+    JsonObjectSetStringInplace(jError, DAZSCRIPT_PARSE_CONTEXT, GetParserContext(sSource, nAt));
+    return jError;
+}
+
+json MakeParserErrorPropertySegment(string sProperty, string sParameters, json jError)
+{
+    json jSegment = JsonArray();
+    JsonArrayInsertStringInplace(jSegment, GetStringLowerCase(sProperty));
+    JsonArrayInsertStringInplace(jSegment, sParameters);
+    JsonArrayInsertInplace(jSegment, jError);
+    JsonArrayInsertInplace(jSegment, jError);
+    return jSegment;
+}
+
+int IsParserError(json jValue)
+{
+    return JsonGetType(jValue) == JSON_TYPE_OBJECT && JsonObjectGetInt(jValue, DAZSCRIPT_PARSE_ERROR);
+}
+
+struct Value GetValueFromParserError(json jError, string sWhere = "")
+{
+    string sCode = JsonObjectGetString(jError, DAZSCRIPT_PARSE_CODE);
+    string sContext = JsonObjectGetString(jError, DAZSCRIPT_PARSE_CONTEXT);
+    int nAt = JsonObjectGetInt(jError, DAZSCRIPT_PARSE_AT);
+
+    string sMessage = "PARSE_ERROR:" + sCode;
+
+    if (sWhere != "")
+        sMessage += ":IN_" + sWhere;
+
+    sMessage += ":AT_" + IntToString(nAt);
+
+    if (sContext != "")
+        sMessage += ":NEAR:" + sContext;
+
+    return GetErrorValue(sMessage);
+}
+
+struct Value CheckParameterParserError(struct PropertyChain strPC)
+{
+    json jCompiledParameters = GetCompiledParameters(strPC);
+    if (IsParserError(jCompiledParameters))
+        return GetValueFromParserError(jCompiledParameters, strPC.sCurrentProperty);
+    return GetInvalidValue();
 }
 
 json CompileTemplate(string sString)
@@ -629,10 +728,7 @@ json CompileTemplate(string sString)
         }
 
         if (nDepth != 0)
-        {
-            nIndex = nLength;
-            break;
-        }
+            return MakeParserError("UNTERMINATED_TEMPLATE_EXPR", nStart, sString);
 
         if (nStart > nLiteralStart)
         {
@@ -654,13 +750,20 @@ json CompileTemplate(string sString)
 
 json CompileForcedStringTemplate(string sValue)
 {
+    json jInner = CompileTemplate(sValue);
+    if (IsParserError(jInner))
+        return jInner;
+
     json jTemplate = JsonArray();
-    JsonArrayInsertForceStringNodeInplace(jTemplate, CompileTemplate(sValue));
+    JsonArrayInsertForceStringNodeInplace(jTemplate, jInner);
     return jTemplate;
 }
 
 struct Value EvalTemplate(json jTemplate, json jStack)
 {
+    if (IsParserError(jTemplate))
+        return GetValueFromParserError(jTemplate, "template");
+
     int nIndex, nLength = JsonGetLength(jTemplate);
 
     if (nLength == 1)
@@ -835,7 +938,11 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
         strPC = EvalCompiledPropertyChain(strPC, jChain);
 
         if (IsErrorValue(strPC.strValue))
+        {
+            if (GetStringLeft(strPC.strValue.sErrorMessage, 12) == "PARSE_ERROR:")
+                return strPC.strValue;
             return GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty + " -> " + strPC.strValue.sErrorMessage);
+        }
 
         if (IsInvalidValue(strPC.strValue))
             return GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty);
@@ -906,6 +1013,10 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
     strMeta.sCurrentParameters = sBaseParameters;
     strMeta.jCurrentParameters = jBaseCompiledParameters;
 
+    struct Value strParseError = CheckParameterParserError(strMeta);
+    if (IsErrorValue(strParseError))
+        return strParseError;
+
     struct Value strReturnValue = GetInvalidValue();
 
     if (IsInvalidValue(strReturnValue))
@@ -959,6 +1070,10 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
     strFunction.sCurrentProperty = sFunctionName;
     strFunction.sCurrentParameters = sBaseParameters;
     strFunction.jCurrentParameters = jBaseCompiledParameters;
+
+    struct Value strParseError = CheckParameterParserError(strFunction);
+    if (IsErrorValue(strParseError))
+        return strParseError;
 
     json jCompiledParameters = GetCompiledParameters(strFunction);
     if (JsonGetLength(jCompiledParameters) != JsonGetLength(jArgNames))
@@ -1080,7 +1195,22 @@ json CompilePropertySegment(string sPropertySegment)
             if (sCharacter == "{")
                 nBraceDepth++;
             else if (sCharacter == "}")
+            {
                 nBraceDepth--;
+
+                if (nBraceDepth < 0)
+                {
+                    json jError = MakeParserError("UNEXPECTED_CLOSING_BRACE", nIndex, sPropertySegment);
+
+                    json jSegment = JsonArray();
+                    JsonArrayInsertStringInplace(jSegment, GetStringLowerCase(sProperty));
+                    JsonArrayInsertStringInplace(jSegment, "");
+                    JsonArrayInsertInplace(jSegment, jError);
+                    JsonArrayInsertInplace(jSegment, jError);
+
+                    return jSegment;
+                }
+            }
             else if (nBraceDepth == 0 && sCharacter == "(")
                 nParenDepth++;
             else if (nBraceDepth == 0 && sCharacter == ")")
@@ -1095,15 +1225,35 @@ json CompilePropertySegment(string sPropertySegment)
             }
         }
 
+        if (nParameterEnd == -1)
+        {
+            json jError = MakeParserError("UNTERMINATED_PROPERTY_CALL", nLength, sPropertySegment);
+            return MakeParserErrorPropertySegment(sProperty, "", jError);
+        }
+
         if (nParameterEnd != -1)
             sParameters = GetSubString(sPropertySegment, nParameterStart + 1, nParameterEnd - nParameterStart - 1);
+
+        string sRemainder = trim(GetSubString(sPropertySegment, nParameterEnd + 1, nLength - nParameterEnd - 1));
+        if (sRemainder != "")
+        {
+            json jError = MakeParserError("TRAILING_TEXT_AFTER_PROPERTY_CALL", nParameterEnd + 1, sPropertySegment);
+            return MakeParserErrorPropertySegment(sProperty, sParameters, jError);
+        }
     }
 
     json jParameterEntries = ParseParameterEntries(sParameters);
+    json jCompiledParameters;
+
+    if (IsParserError(jParameterEntries))
+        jCompiledParameters = jParameterEntries;
+    else
+        jCompiledParameters = CompileParameters(sParameters);
+
     json jSegment = JsonArray();
     JsonArrayInsertStringInplace(jSegment, GetStringLowerCase(sProperty));
     JsonArrayInsertStringInplace(jSegment, sParameters);
-    JsonArrayInsertInplace(jSegment, CompileParameters(sParameters));
+    JsonArrayInsertInplace(jSegment, jCompiledParameters);
     JsonArrayInsertInplace(jSegment, jParameterEntries);
 
     return jSegment;
@@ -1137,6 +1287,13 @@ struct PropertyChain EvalCompiledPropertyChain(struct PropertyChain strPC, json 
 
 struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC)
 {
+    struct Value strParseError = CheckParameterParserError(strPC);
+    if (IsErrorValue(strParseError))
+    {
+        strPC.strValue = strParseError;
+        return strPC;
+    }
+
     struct PropertyChain strOriginal = strPC;
 
     switch (strPC.strValue.nAuxType)
@@ -1164,10 +1321,13 @@ json CompileParameters(string sParameters)
         return JsonArray();
 
     json jCached = GetCachedJson(DAZSCRIPT_COMPILED_PARAMETER_CACHE_PREFIX, sParameters);
-    if (JsonGetType(jCached) == JSON_TYPE_ARRAY)
+    if (JsonGetType(jCached) == JSON_TYPE_ARRAY  || IsParserError(jCached))
         return jCached;
 
     json jParameterEntries = ParseParameterEntries(sParameters);
+    if (IsParserError(jParameterEntries))
+        return jParameterEntries;
+
     json jCompiledParameters = JsonArray();
 
     int nIndex, nNumParameters = JsonGetLength(jParameterEntries);
@@ -1193,7 +1353,7 @@ json ParseParameterEntries(string sParameters)
         return JsonArray();
 
     json jEntries = GetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters);
-    if (JsonGetType(jEntries) == JSON_TYPE_ARRAY)
+    if (JsonGetType(jEntries) == JSON_TYPE_ARRAY || IsParserError(jEntries))
         return jEntries;
 
     jEntries = JsonArray();
@@ -1279,6 +1439,13 @@ json ParseParameterEntries(string sParameters)
                 bLastWasComma = FALSE;
                 continue;
             }
+
+            if (sCharacter != ",")
+            {
+                json jError = MakeParserError("TRAILING_TEXT_AFTER_QUOTED_ARGUMENT", nIndex, sParameters);
+                SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
+                return jError;
+            }
         }
 
         if (sCharacter == "{")
@@ -1289,6 +1456,14 @@ json ParseParameterEntries(string sParameters)
         else if (sCharacter == "}")
         {
             nBraceDepth--;
+
+            if (nBraceDepth < 0)
+            {
+                json jError = MakeParserError("UNEXPECTED_CLOSING_BRACE", nIndex, sParameters);
+                SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
+                return jError;
+            }
+
             sCurrent += sCharacter;
         }
         else if (sCharacter == "(" && nBraceDepth == 0)
@@ -1299,6 +1474,14 @@ json ParseParameterEntries(string sParameters)
         else if (sCharacter == ")" && nBraceDepth == 0)
         {
             nParenDepth--;
+
+            if (nParenDepth < 0)
+            {
+                json jError = MakeParserError("UNEXPECTED_CLOSING_PAREN", nIndex, sParameters);
+                SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
+                return jError;
+            }
+
             sCurrent += sCharacter;
         }
         else if (sCharacter == "," && nBraceDepth == 0 && nParenDepth == 0)
@@ -1320,7 +1503,25 @@ json ParseParameterEntries(string sParameters)
     }
 
     if (bInQuotes)
-        return JsonArray();
+    {
+        json jError = MakeParserError("UNTERMINATED_QUOTE", nLength, sParameters);
+        SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
+        return jError;
+    }
+
+    if (nBraceDepth > 0)
+    {
+        json jError = MakeParserError("UNTERMINATED_BRACE", nLength, sParameters);
+        SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
+        return jError;
+    }
+
+    if (nParenDepth > 0)
+    {
+        json jError = MakeParserError("UNTERMINATED_PAREN", nLength, sParameters);
+        SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
+        return jError;
+    }
 
     if (!bLastWasComma)
         JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : trim(sCurrent), bWasQuoted));
@@ -1332,17 +1533,17 @@ json ParseParameterEntries(string sParameters)
 json GetCompiledParameters(struct PropertyChain strPC)
 {
     json jCompiledParameters = strPC.jCurrentParameters;
-    if (JsonGetType(jCompiledParameters) != JSON_TYPE_ARRAY)
-        jCompiledParameters = CompileParameters(strPC.sCurrentParameters);
-    return jCompiledParameters;
+    if (JsonGetType(jCompiledParameters) == JSON_TYPE_ARRAY || IsParserError(jCompiledParameters))
+        return jCompiledParameters;
+    return CompileParameters(strPC.sCurrentParameters);
 }
 
 json GetParameterEntries(struct PropertyChain strPC)
 {
     json jParameterEntries = strPC.jCurrentParameterEntries;
-    if (JsonGetType(jParameterEntries) != JSON_TYPE_ARRAY)
-        jParameterEntries = ParseParameterEntries(strPC.sCurrentParameters);
-    return jParameterEntries;
+    if (JsonGetType(jParameterEntries) == JSON_TYPE_ARRAY || IsParserError(jParameterEntries))
+        return jParameterEntries;
+    return ParseParameterEntries(strPC.sCurrentParameters);
 }
 
 string GetRawParameterText(struct PropertyChain strPC, int nIndex, string sDefault = "")
@@ -1363,12 +1564,17 @@ int GetRawParameterWasQuoted(struct PropertyChain strPC, int nIndex)
 
 int GetParameterCount(struct PropertyChain strPC)
 {
-    return JsonGetLength(GetCompiledParameters(strPC));
+    json jCompiledParameters = GetCompiledParameters(strPC);
+    if (IsParserError(jCompiledParameters))
+        return -1;
+    return JsonGetLength(jCompiledParameters);
 }
 
 struct Value EvalCompiledParameter(struct PropertyChain strPC, int nIndex)
 {
     json jCompiledParameters = GetCompiledParameters(strPC);
+    if (IsParserError(jCompiledParameters))
+        return GetValueFromParserError(jCompiledParameters, strPC.sCurrentProperty);
     if (nIndex < 0 || nIndex >= JsonGetLength(jCompiledParameters))
         return GetErrorValue("PARAM_INDEX_OUT_OF_RANGE");
     return EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), strPC.jStack);
@@ -1407,6 +1613,10 @@ int IsValueArgType(struct Value strValue, int nArgType)
 
 struct Value CheckArity(struct PropertyChain strPC, int nMin, int nMax)
 {
+    struct Value strParseError = CheckParameterParserError(strPC);
+    if (IsErrorValue(strParseError))
+        return strParseError;
+
     int nCount = GetParameterCount(strPC);
     if (nCount < nMin)
     {

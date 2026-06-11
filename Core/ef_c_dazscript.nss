@@ -166,6 +166,7 @@ object GetValueAsObject(struct Value strValue, object oDefault = OBJECT_INVALID)
 
 int IsInvalidValue(struct Value strValue);
 int IsErrorValue(struct Value strValue);
+struct Value GetInvalidValue();
 struct Value GetErrorValue(string sMessage);
 
 struct Value GetValueFromStackLocation(int nAuxType, int nStackLocation);
@@ -200,6 +201,7 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName);
 
 int IsStackVar(string sVarName);
+int IsSymbol(string sVarName, string sSymbol);
 string GetAuxTypeDisplayName(int nAuxType);
 string GetSymbolType(json jStack, string sName);
 int SymbolExists(json jStack, string sName);
@@ -712,7 +714,7 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
     strMeta.sCurrentParameters = sBaseParameters;
     strMeta.jCurrentParameters = jBaseCompiledParameters;
 
-    struct Value strReturnValue;
+    struct Value strReturnValue = GetInvalidValue();
 
     if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaPrimitive(strMeta, sMetaName);
@@ -951,7 +953,7 @@ struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC)
         case NWNX_VM_AUXTYPE_STRING:    strPC = GetStringProperty(strPC); break;
         case NWNX_VM_AUXTYPE_OBJECT:    strPC = GetObjectProperty(strPC); break;
         case NWNX_VM_AUXTYPE_JSON:      strPC = GetJsonProperty(strPC); break;
-        default: strPC.strValue.nAuxType = NWNX_VM_AUXTYPE_INVALID; break;
+        default: strPC.strValue = GetInvalidValue(); break;
     }
 
     if (IsErrorValue(strPC.strValue))
@@ -1327,6 +1329,13 @@ int IsErrorValue(struct Value strValue)
     return strValue.bError;
 }
 
+struct Value GetInvalidValue()
+{
+    struct Value str;
+    str.nAuxType = NWNX_VM_AUXTYPE_INVALID;
+    return str;
+}
+
 struct Value GetErrorValue(string sMessage)
 {
     struct Value str;
@@ -1426,7 +1435,7 @@ string ValueToDisplayString(struct Value strValue)
     {
         case NWNX_VM_AUXTYPE_STRING:    return strValue.sValue;
         case NWNX_VM_AUXTYPE_INT:       return IntToString(strValue.nValue);
-        case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 2);
+        case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 9);
         case NWNX_VM_AUXTYPE_OBJECT:    return "0x" + ObjectToString(strValue.oValue);
         case NWNX_VM_AUXTYPE_JSON:      return JsonDump(strValue.jValue);
     }
@@ -1541,8 +1550,7 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     int nValue = strPC.strValue.nValue;
-
-    struct Value strReturnValue;
+    struct Value strReturnValue = GetInvalidValue();
 
     if (sProperty == "abs")
     {
@@ -1647,8 +1655,7 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     float fValue = strPC.strValue.fValue;
-
-    struct Value strReturnValue;
+    struct Value strReturnValue = GetInvalidValue();
 
     if (sProperty == "fabs")
     {
@@ -1715,8 +1722,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     string sValue = strPC.strValue.sValue;
-
-    struct Value strReturnValue;
+    struct Value strReturnValue = GetInvalidValue();
 
     if (sProperty == "length")
     {
@@ -1846,8 +1852,7 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     object oValue = strPC.strValue.oValue;
-
-    struct Value strReturnValue;
+    struct Value strReturnValue = GetInvalidValue();
 
     if (sProperty == "name")
     {
@@ -2000,7 +2005,7 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
     string sProperty = strPC.sCurrentProperty;
     json jValue = strPC.strValue.jValue;
     */
-    struct Value strReturnValue;
+    struct Value strReturnValue = GetInvalidValue();
     strPC.strValue = strReturnValue;
     return strPC;
 }
@@ -2065,7 +2070,7 @@ struct Value GetValueFromHexColor(string sValue, string sColor)
 struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
-    struct Value strReturnValue;
+    struct Value strReturnValue = GetInvalidValue();
 
     if (sProperty == "color")
     {
@@ -2173,687 +2178,567 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
 
 struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName)
 {
-    struct Value strReturnValue;
     if (sMetaName == "int")
     {
         struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-            strReturnValue = GetValueFromInt(GetValueAsInt(strArgs.strArg0));
+            return strArgs.strError;
+
+        return GetValueFromInt(GetValueAsInt(strArgs.strArg0));
     }
-    else if (sMetaName == "float")
+
+    if (sMetaName == "float")
     {
         struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-            strReturnValue = GetValueFromFloat(GetValueAsFloat(strArgs.strArg0));
+            return strArgs.strError;
+
+        return GetValueFromFloat(GetValueAsFloat(strArgs.strArg0));
     }
-    else if (sMetaName == "object")
+
+    if (sMetaName == "object")
     {
         struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_OBJECT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-            strReturnValue = GetValueFromObject(GetValueAsObject(strArgs.strArg0));
+            return strArgs.strError;
+
+        return GetValueFromObject(GetValueAsObject(strArgs.strArg0));
     }
-    else if (sMetaName == "string")
+
+    if (sMetaName == "string")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-            strReturnValue = GetValueFromString(GetValueAsString(strArgs.strArg0));
+            return strArgs.strError;
+
+        return GetValueFromString(GetValueAsString(strArgs.strArg0));
     }
-    return strReturnValue;
+
+    return GetInvalidValue();
 }
 
 struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName)
 {
-    struct Value strReturnValue;
     if (sMetaName == "fn")
     {
         int nParameterCount = GetParameterCount(strPC);
         if (nParameterCount < 2)
-            strReturnValue = GetErrorValue("FN_USAGE:@fn(#name, $arg..., body)");
-        else
+            return GetErrorValue("FN_USAGE:@fn(#name, $arg..., body)");
+
+        string sFunctionName = GetStringLowerCase(GetRawParameterText(strPC, 0));
+        if (!IsSymbol(sFunctionName, DAZSCRIPT_FUNCTION_SYMBOL))
+            return GetErrorValue("INVALID_FUNCTION_NAME:" + sFunctionName);
+
+        json jArgs = JsonArray();
+        int nIndex, nLast = nParameterCount - 1;
+        for (nIndex = 1; nIndex < nLast; nIndex++)
         {
-            string sFunctionName = GetStringLowerCase(GetRawParameterText(strPC, 0));
-            if (GetStringLeft(sFunctionName, 1) != DAZSCRIPT_FUNCTION_SYMBOL)
-                strReturnValue = GetErrorValue("FUNCTION_NAME_IS_NON_FUNCTION:" + sFunctionName);
-            else if (GetStringLength(sFunctionName) < 2)
-                strReturnValue = GetErrorValue("FUNCTION_NAME_IS_EMPTY");
-            else
-            {
-                json jArgs = JsonArray();
-                int nIndex, nLast = nParameterCount - 1;
-                for (nIndex = 1; nIndex < nLast; nIndex++)
-                {
-                    string sAlias = GetRawParameterText(strPC, nIndex);
-                    if (GetStringLength(sAlias) < 2 || GetStringLeft(sAlias, 1) != DAZSCRIPT_ALIAS_SYMBOL)
-                    {
-                        strReturnValue = GetErrorValue("FUNCTION_PARAMETER_IS_NON_ALIAS:" + sAlias);
-                        break;
-                    }
-                    else if (JsonArrayContainsString(jArgs, sAlias))
-                    {
-                        strReturnValue = GetErrorValue("DUPLICATE_FUNCTION_PARAMETER:" + sAlias);
-                        break;
-                    }
-                    else
-                        JsonArrayInsertStringInplace(jArgs, sAlias);
-                }
+            string sAlias = GetRawParameterText(strPC, nIndex);
+            if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
+                return GetErrorValue("FUNCTION_PARAMETER_IS_NON_ALIAS:" + sAlias);
+            if (JsonArrayContainsString(jArgs, sAlias))
+                return GetErrorValue("DUPLICATE_FUNCTION_PARAMETER:" + sAlias);
 
-                if (IsInvalidValue(strReturnValue))
-                {
-                    string sBody = GetRawParameterText(strPC, nLast);
-                    json jCompiledBody = CompileTemplate(sBody);
-
-                    if (JsonGetType(jCompiledBody) != JSON_TYPE_ARRAY)
-                        strReturnValue = GetErrorValue("INVALID_FUNCTION_BODY:" + sFunctionName);
-                    else
-                    {
-                        json jFunction = JsonObject();
-                        JsonObjectSetInplace(jFunction, DAZSCRIPT_FUNCTION_ARGS, jArgs);
-                        JsonObjectSetStringInplace(jFunction, DAZSCRIPT_FUNCTION_BODY, sBody);
-                        JsonObjectSetInplace(jFunction, DAZSCRIPT_FUNCTION_BODY_COMPILED, jCompiledBody);
-                        JsonObjectSetInplace(strPC.jStack, sFunctionName, jFunction);
-                        strReturnValue = GetValueFromString();
-                    }
-                }
-            }
+            JsonArrayInsertStringInplace(jArgs, sAlias);
         }
+
+        string sBody = GetRawParameterText(strPC, nLast);
+        json jCompiledBody = CompileTemplate(sBody);
+
+        if (JsonGetType(jCompiledBody) != JSON_TYPE_ARRAY)
+            return GetErrorValue("INVALID_FUNCTION_BODY:" + sFunctionName);
+
+        json jFunction = JsonObject();
+        JsonObjectSetInplace(jFunction, DAZSCRIPT_FUNCTION_ARGS, jArgs);
+        JsonObjectSetStringInplace(jFunction, DAZSCRIPT_FUNCTION_BODY, sBody);
+        JsonObjectSetInplace(jFunction, DAZSCRIPT_FUNCTION_BODY_COMPILED, jCompiledBody);
+        JsonObjectSetInplace(strPC.jStack, sFunctionName, jFunction);
+
+        return GetValueFromString();
     }
-    return strReturnValue;
+    return GetInvalidValue();
 }
 
 struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 {
-    struct Value strReturnValue;
     if (sMetaName == "if")
     {
         struct Value strError = CheckArity(strPC, 3, 3);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
-        {
-            struct Value strCondition = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strCondition))
-                strReturnValue = strCondition;
-            else
-                strReturnValue = EvalCompiledParameter(strPC, ValueToBoolish(strCondition) ? 1 : 2);
-        }
+            return strError;
+
+        struct Value strCondition = EvalCompiledParameter(strPC, 0);
+        if (IsErrorValue(strCondition))
+            return strCondition;
+
+        return EvalCompiledParameter(strPC, ValueToBoolish(strCondition) ? 1 : 2);
     }
     else if (sMetaName == "while")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
+            return strError;
+
+        string sAccumulator;
+        while (TRUE)
         {
-            string sAccumulator;
-            while (TRUE)
-            {
-                struct Value strConditionResult = EvalCompiledParameter(strPC, 0);
-                if (IsErrorValue(strConditionResult))
-                {
-                    strReturnValue = strConditionResult;
-                    break;
-                }
+            struct Value strConditionResult = EvalCompiledParameter(strPC, 0);
+            if (IsErrorValue(strConditionResult))
+                return strConditionResult;
 
-                if (!ValueToBoolish(strConditionResult))
-                    break;
+            if (!ValueToBoolish(strConditionResult))
+                break;
 
-                struct Value strBodyResult = EvalCompiledParameter(strPC, 1);
-                if (IsErrorValue(strBodyResult))
-                {
-                    strReturnValue = strBodyResult;
-                    break;
-                }
+            struct Value strBodyResult = EvalCompiledParameter(strPC, 1);
+            if (IsErrorValue(strBodyResult))
+                return strBodyResult;
 
-                sAccumulator += ValueToDisplayString(strBodyResult);
-            }
-
-            if (IsInvalidValue(strReturnValue))
-                strReturnValue = GetValueFromString(sAccumulator);
+            sAccumulator += ValueToDisplayString(strBodyResult);
         }
+        return GetValueFromString(sAccumulator);
     }
     else if (sMetaName == "pick")
     {
         struct Value strError = CheckArity(strPC, 1, -1);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
-        {
-            int nNumParameters = GetParameterCount(strPC);
-            int nIndex = Random(nNumParameters);
-            strReturnValue = EvalCompiledParameter(strPC, nIndex);
-        }
+            return strError;
+
+        int nNumParameters = GetParameterCount(strPC);
+        int nIndex = Random(nNumParameters);
+        return EvalCompiledParameter(strPC, nIndex);
     }
     else if (sMetaName == "not")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-            strReturnValue = GetValueFromInt(!ValueToBoolish(strArgs.strArg0));
+            return strArgs.strError;
+
+        return GetValueFromInt(!ValueToBoolish(strArgs.strArg0));
     }
     else if (sMetaName == "and" || sMetaName == "all")
     {
         struct Value strError = CheckArity(strPC, 1, -1);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
+            return strError;
+
+        int nIndex, nCount = GetParameterCount(strPC), bResult = TRUE;
+        for (nIndex = 0; nIndex < nCount; nIndex++)
         {
-            int nIndex, nCount = GetParameterCount(strPC), bResult = TRUE;
-            for (nIndex = 0; nIndex < nCount; nIndex++)
+            struct Value strParameter = EvalCompiledParameter(strPC, nIndex);
+            if (IsErrorValue(strParameter))
+                return strParameter;
+
+            if (!ValueToBoolish(strParameter))
             {
-                struct Value strParameter = EvalCompiledParameter(strPC, nIndex);
-                if (IsErrorValue(strParameter))
-                {
-                    strReturnValue = strParameter;
-                    break;
-                }
-
-                if (!ValueToBoolish(strParameter))
-                {
-                    bResult = FALSE;
-                    break;
-                }
+                bResult = FALSE;
+                break;
             }
-
-            if (IsInvalidValue(strReturnValue))
-                strReturnValue = GetValueFromInt(bResult);
         }
+
+        return GetValueFromInt(bResult);
     }
     else if (sMetaName == "or" || sMetaName == "any")
     {
         struct Value strError = CheckArity(strPC, 1, -1);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
+            return strError;
+
+        int nIndex, nCount = GetParameterCount(strPC), bResult = FALSE;
+        for (nIndex = 0; nIndex < nCount; nIndex++)
         {
-            int nIndex, nCount = GetParameterCount(strPC), bResult = FALSE;
-            for (nIndex = 0; nIndex < nCount; nIndex++)
+            struct Value strParameter = EvalCompiledParameter(strPC, nIndex);
+            if (IsErrorValue(strParameter))
+                return strParameter;
+
+            if (ValueToBoolish(strParameter))
             {
-                struct Value strParameter = EvalCompiledParameter(strPC, nIndex);
-
-                if (IsErrorValue(strParameter))
-                {
-                    strReturnValue = strParameter;
-                    break;
-                }
-
-                if (ValueToBoolish(strParameter))
-                {
-                    bResult = TRUE;
-                    break;
-                }
+                bResult = TRUE;
+                break;
             }
-
-            if (IsInvalidValue(strReturnValue))
-                strReturnValue = GetValueFromInt(bResult);
         }
+
+        return GetValueFromInt(bResult);
     }
     else if (sMetaName == "switch" || sMetaName == "case")
     {
         struct Value strError = CheckArity(strPC, 3, -1);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
+            return strError;
+
+        int nCount = GetParameterCount(strPC);
+        struct Value strSelectorValue = EvalCompiledParameter(strPC, 0);
+        if (IsErrorValue(strSelectorValue))
+            return strSelectorValue;
+
+        string sSelector = ValueToDisplayString(strSelectorValue);
+        int nDefaultIndex = -1;
+
+        if (nCount % 2 == 0)
+            nDefaultIndex = nCount - 1;
+
+        int nIndex, nEnd = nDefaultIndex == -1 ? nCount : nDefaultIndex, bMatched;
+        for (nIndex = 1; nIndex + 1 < nEnd; nIndex += 2)
         {
-            int nCount = GetParameterCount(strPC);
-            struct Value strSelectorValue = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strSelectorValue))
-                strReturnValue = strSelectorValue;
-            else
-            {
-                string sSelector = ValueToDisplayString(strSelectorValue);
-                int nDefaultIndex = -1;
+            struct Value strCaseValue = EvalCompiledParameter(strPC, nIndex);
+            if (IsErrorValue(strCaseValue))
+                return strCaseValue;
 
-                if (nCount % 2 == 0)
-                    nDefaultIndex = nCount - 1;
-
-                int nIndex, nEnd = nDefaultIndex == -1 ? nCount : nDefaultIndex, bMatched;
-                for (nIndex = 1; nIndex + 1 < nEnd; nIndex += 2)
-                {
-                    struct Value strCaseValue = EvalCompiledParameter(strPC, nIndex);
-                    if (IsErrorValue(strCaseValue))
-                    {
-                        strReturnValue = strCaseValue;
-                        break;
-                    }
-
-                    string sCase = ValueToDisplayString(strCaseValue);
-                    if (sSelector == sCase)
-                    {
-                        strReturnValue = EvalCompiledParameter(strPC, nIndex + 1);
-                        bMatched = TRUE;
-                        break;
-                    }
-                }
-
-                if (IsInvalidValue(strReturnValue))
-                {
-                    if (!bMatched && nDefaultIndex != -1)
-                        strReturnValue = EvalCompiledParameter(strPC, nDefaultIndex);
-                }
-
-                if (IsInvalidValue(strReturnValue))
-                    strReturnValue = GetValueFromString();
-            }
+            string sCase = ValueToDisplayString(strCaseValue);
+            if (sSelector == sCase)
+                return EvalCompiledParameter(strPC, nIndex + 1);
         }
+
+        if (nDefaultIndex != -1)
+            return EvalCompiledParameter(strPC, nDefaultIndex);
+
+        return GetValueFromString();
     }
     else if (sMetaName == "foreachpc")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
+            return strError;
+
+        string sAlias = GetRawParameterText(strPC, 0);
+        if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
+            return GetErrorValue("FOREACHPC_ALIAS_IS_NON_ALIAS:" + sAlias);
+
+        json jCompiledParameters = GetCompiledParameters(strPC);
+        json jBody = JsonArrayGet(jCompiledParameters, 1);
+        json jFrame = JsonCopyObject(strPC.jStack);
+        string sAccumulator = "";
+
+        object oPC = GetFirstPC();
+        while (GetIsObjectValid(oPC))
         {
-            string sAlias = GetRawParameterText(strPC, 0);
-            if (GetStringLength(sAlias) < 2 || GetStringLeft(sAlias, 1) != DAZSCRIPT_ALIAS_SYMBOL)
-                strReturnValue = GetErrorValue("FOREACHPC_ALIAS_IS_NON_ALIAS:" + sAlias);
-            else
-            {
-                json jCompiledParameters = GetCompiledParameters(strPC);
-                json jBody = JsonArrayGet(jCompiledParameters, 1);
-                json jFrame = JsonCopyObject(strPC.jStack);
+            JsonObjectSetInplace(jFrame, sAlias, MakeObjectAliasEntry(oPC));
+            struct Value strBodyResult = EvalTemplate(jBody, jFrame);
 
-                string sAccumulator = "";
+            if (IsErrorValue(strBodyResult))
+                return strBodyResult;
 
-                object oPC = GetFirstPC();
-                while (GetIsObjectValid(oPC))
-                {
-                    JsonObjectSetInplace(jFrame, sAlias, MakeObjectAliasEntry(oPC));
-                    struct Value strBodyResult = EvalTemplate(jBody, jFrame);
-
-                    if (IsErrorValue(strBodyResult))
-                    {
-                        strReturnValue = strBodyResult;
-                        break;
-                    }
-
-                    sAccumulator += ValueToDisplayString(strBodyResult);
-                    oPC = GetNextPC();
-                }
-
-                if (IsInvalidValue(strReturnValue))
-                    strReturnValue = GetValueFromString(sAccumulator);
-            }
+            sAccumulator += ValueToDisplayString(strBodyResult);
+            oPC = GetNextPC();
         }
+
+        return GetValueFromString(sAccumulator);
     }
-    return strReturnValue;
+    return GetInvalidValue();
 }
 
 struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
 {
-    struct Value strReturnValue;
     if (sMetaName == "set")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
-        {
-            string sAlias = GetRawParameterText(strPC, 0);
-            if (GetStringLeft(sAlias, 1) == DAZSCRIPT_ALIAS_SYMBOL && GetStringLength(sAlias) >= 2)
-            {
-                struct Value strValue = EvalCompiledParameter(strPC, 1);
-                if (IsErrorValue(strValue))
-                    strReturnValue = strValue;
-                else
-                {
-                    JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(strValue));
-                    strReturnValue = GetValueFromString();
-                }
-            }
-            else
-                strReturnValue = GetErrorValue("SET_ALIAS_IS_NON_ALIAS:" + sAlias);
-        }
+            return strError;
+
+        string sAlias = GetRawParameterText(strPC, 0);
+        if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
+            return GetErrorValue("SET_ALIAS_IS_NON_ALIAS:" + sAlias);
+
+        struct Value strValue = EvalCompiledParameter(strPC, 1);
+        if (IsErrorValue(strValue))
+            return  strValue;
+
+        JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(strValue));
+        return GetValueFromString();
     }
     else if (sMetaName == "unset")
     {
         struct Value strError = CheckArity(strPC, 1, 1);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
-        {
-            string sAlias = GetRawParameterText(strPC, 0);
-            if (GetStringLeft(sAlias, 1) == DAZSCRIPT_ALIAS_SYMBOL && GetStringLength(sAlias) >= 2)
-            {
-                JsonObjectDelInplace(strPC.jStack, sAlias);
-                strReturnValue = GetValueFromString();
-            }
-            else
-                strReturnValue = GetErrorValue("UNSET_ALIAS_IS_NON_ALIAS:" + sAlias);
-        }
+            return strError;
+
+        string sAlias = GetRawParameterText(strPC, 0);
+        if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
+            return GetErrorValue("UNSET_ALIAS_IS_NON_ALIAS:" + sAlias);
+
+        JsonObjectDelInplace(strPC.jStack, sAlias);
+        return GetValueFromString();
     }
     else if (sMetaName == "cast")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
-        {
-            string sAlias = GetRawParameterText(strPC, 0);
-            if (GetStringLeft(sAlias, 1) == DAZSCRIPT_ALIAS_SYMBOL && GetStringLength(sAlias) >= 2)
-            {
-                if (JsonObjectContainsKey(strPC.jStack, sAlias))
-                {
-                    json jStackVar = JsonObjectGet(strPC.jStack, sAlias);
-                    string sCast = GetStringLowerCase(GetRawParameterText(strPC, 1));
+            return strError;
 
-                    if (sCast == "i" || sCast == "int")
-                    {
-                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INT));
-                        strReturnValue = GetValueFromString();
-                    }
-                    else if (sCast == "f" || sCast == "float")
-                    {
-                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_FLOAT));
-                        strReturnValue = GetValueFromString();
-                    }
-                    else if (sCast == "s" || sCast == "string")
-                    {
-                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_STRING));
-                        strReturnValue = GetValueFromString();
-                    }
-                    else if (sCast == "o" || sCast == "object")
-                    {
-                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_OBJECT));
-                        strReturnValue = GetValueFromString();
-                    }
-                    else if (sCast == "j" || sCast == "json")
-                    {
-                        JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_JSON));
-                        strReturnValue = GetValueFromString();
-                    }
-                    else
-                        strReturnValue = GetErrorValue("INVALID_CAST_TYPE:" + sCast);
-                }
-                else
-                    strReturnValue = GetErrorValue("UNKNOWN_ALIAS:" + sAlias);
-            }
-            else
-                strReturnValue = GetErrorValue("CAST_ALIAS_IS_NON_ALIAS:" + sAlias);
+        string sAlias = GetRawParameterText(strPC, 0);
+        if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
+            return GetErrorValue("CAST_ALIAS_IS_NON_ALIAS:" + sAlias);
+
+        if (!JsonObjectContainsKey(strPC.jStack, sAlias))
+            return GetErrorValue("UNKNOWN_ALIAS:" + sAlias);
+
+        json jStackVar = JsonObjectGet(strPC.jStack, sAlias);
+        string sCast = GetStringLowerCase(GetRawParameterText(strPC, 1));
+
+        if (sCast == "i" || sCast == "int")
+        {
+            JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INT));
+            return GetValueFromString();
         }
+        else if (sCast == "f" || sCast == "float")
+        {
+            JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_FLOAT));
+            return GetValueFromString();
+        }
+        else if (sCast == "s" || sCast == "string")
+        {
+            JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_STRING));
+            return GetValueFromString();
+        }
+        else if (sCast == "o" || sCast == "object")
+        {
+            JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_OBJECT));
+            return GetValueFromString();
+        }
+        else if (sCast == "j" || sCast == "json")
+        {
+            JsonObjectSetInplace(strPC.jStack, sAlias, JsonObjectSetInt(jStackVar, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_JSON));
+            return GetValueFromString();
+        }
+
+        return GetErrorValue("INVALID_CAST_TYPE:" + sCast);
     }
     else if (sMetaName == "out")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
+            return strError;
+
+        string sVarName = GetRawParameterText(strPC, 0);
+        if (!IsStackVar(sVarName))
+            return GetErrorValue("OUT_ARGUMENT_IS_NON_STACKVAR:" + sVarName);
+        if (!JsonObjectContainsKey(strPC.jStack, sVarName))
+            return GetErrorValue("UNKNOWN_STACK_VAR:" + sVarName);
+
+        struct Value strValue = EvalCompiledParameter(strPC, 1);
+        if (IsErrorValue(strValue))
+            return strValue;
+
+        json jStackVar = JsonObjectGet(strPC.jStack, sVarName);
+        int nOutAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
+        int nStackLocation = JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY);
+        string sValue = ValueToDisplayString(strValue);
+
+        if (nOutAuxType == NWNX_VM_AUXTYPE_INT)
         {
-            string sVarName = GetRawParameterText(strPC, 0);
-            if (!IsStackVar(sVarName))
-                strReturnValue = GetErrorValue("OUT_ARGUMENT_IS_NON_STACKVAR:" + sVarName);
-            else if (!JsonObjectContainsKey(strPC.jStack, sVarName))
-                strReturnValue = GetErrorValue("UNKNOWN_STACK_VAR:" + sVarName);
+            if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
+                NWNX_VM_SetStackIntegerValue(nStackLocation, strValue.nValue);
+            else if (IsInteger(sValue))
+                NWNX_VM_SetStackIntegerValue(nStackLocation, StringToInt(sValue));
             else
-            {
-                struct Value strValue = EvalCompiledParameter(strPC, 1);
-                if (IsErrorValue(strValue))
-                    strReturnValue = strValue;
-                else
-                {
-                    json jStackVar = JsonObjectGet(strPC.jStack, sVarName);
-                    int nOutAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
-                    int nStackLocation = JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY);
-                    string sValue = ValueToDisplayString(strValue);
-
-                    if (nOutAuxType == NWNX_VM_AUXTYPE_INT)
-                    {
-                        if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
-                            NWNX_VM_SetStackIntegerValue(nStackLocation, strValue.nValue);
-                        else if (IsInteger(sValue))
-                            NWNX_VM_SetStackIntegerValue(nStackLocation, StringToInt(sValue));
-                        else
-                            strReturnValue = GetErrorValue("TYPE_MISMATCH:OUT_NOT_INT");
-                    }
-                    else if (nOutAuxType == NWNX_VM_AUXTYPE_FLOAT)
-                    {
-                        if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
-                            NWNX_VM_SetStackFloatValue(nStackLocation, strValue.fValue);
-                        else if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
-                            NWNX_VM_SetStackFloatValue(nStackLocation, IntToFloat(strValue.nValue));
-                        else if (IsNumeric(sValue))
-                            NWNX_VM_SetStackFloatValue(nStackLocation, StringToFloat(sValue));
-                        else
-                            strReturnValue = GetErrorValue("TYPE_MISMATCH:OUT_NOT_FLOAT");
-                    }
-                    else if (nOutAuxType == NWNX_VM_AUXTYPE_OBJECT)
-                    {
-                        if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
-                            NWNX_VM_SetStackObjectValue(nStackLocation, strValue.oValue);
-                        else if (IsObjectString(sValue))
-                            NWNX_VM_SetStackObjectValue(nStackLocation, StringToObject(sValue));
-                        else
-                            strReturnValue = GetErrorValue("TYPE_MISMATCH:OUT_NOT_OBJECT");
-                    }
-                    else if (nOutAuxType == NWNX_VM_AUXTYPE_STRING)
-                        NWNX_VM_SetStackStringValue(nStackLocation, sValue);
-                    else
-                        strReturnValue = GetErrorValue("TYPE_MISMATCH:OUT_UNSUPPORTED_TYPE");
-
-                    if (IsInvalidValue(strReturnValue))
-                        strReturnValue = GetValueFromString();
-                }
-            }
+                return GetErrorValue("TYPE_MISMATCH:OUT_NOT_INT");
         }
+        else if (nOutAuxType == NWNX_VM_AUXTYPE_FLOAT)
+        {
+            if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
+                NWNX_VM_SetStackFloatValue(nStackLocation, strValue.fValue);
+            else if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
+                NWNX_VM_SetStackFloatValue(nStackLocation, IntToFloat(strValue.nValue));
+            else if (IsNumeric(sValue))
+                NWNX_VM_SetStackFloatValue(nStackLocation, StringToFloat(sValue));
+            else
+                return GetErrorValue("TYPE_MISMATCH:OUT_NOT_FLOAT");
+        }
+        else if (nOutAuxType == NWNX_VM_AUXTYPE_OBJECT)
+        {
+            if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
+                NWNX_VM_SetStackObjectValue(nStackLocation, strValue.oValue);
+            else if (IsObjectString(sValue))
+                NWNX_VM_SetStackObjectValue(nStackLocation, StringToObject(sValue));
+            else
+                return GetErrorValue("TYPE_MISMATCH:OUT_NOT_OBJECT");
+        }
+        else if (nOutAuxType == NWNX_VM_AUXTYPE_STRING)
+            NWNX_VM_SetStackStringValue(nStackLocation, sValue);
+        else
+            return GetErrorValue("TYPE_MISMATCH:OUT_UNSUPPORTED_TYPE");
+
+        return GetValueFromString();
     }
-    return strReturnValue;
+    return GetInvalidValue();
 }
 
 struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaName)
 {
-    struct Value strReturnValue;
     if (sMetaName == "exists")
     {
         struct Value strError = CheckArity(strPC, 1, 1);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
-            strReturnValue = GetValueFromInt(SymbolExists(strPC.jStack, GetRawParameterText(strPC, 0)));
+            return strError;
+        return GetValueFromInt(SymbolExists(strPC.jStack, GetRawParameterText(strPC, 0)));
     }
     else if (sMetaName == "type")
     {
         struct Value strError = CheckArity(strPC, 1, 1);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
-            strReturnValue = GetValueFromString(GetSymbolType(strPC.jStack, GetRawParameterText(strPC, 0)));
+            return strError;
+        return GetValueFromString(GetSymbolType(strPC.jStack, GetRawParameterText(strPC, 0)));
     }
     else if (sMetaName == "debug")
     {
         struct Value strError = CheckArity(strPC, 1, 1);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
-        {
-            string sExpr = GetRawParameterText(strPC, 0);
-            struct Value strValue = EvalCompiledParameter(strPC, 0);
-            if (IsErrorValue(strValue))
-                strReturnValue = strValue;
-            else
-            {
-                string sValue = ValueToDisplayString(strValue);
-                string sSymbolType = GetSymbolType(strPC.jStack, sExpr);
-                string sValueType = InferDebugValueType(sValue);
+            return strError;
 
-                string sDebug =
-                    "expr=\"" + sExpr + "\"" +
-                    "; symbol_type=" + sSymbolType +
-                    "; value_type=" + sValueType +
-                    "; truthy=" + (StringToBoolish(sValue) ? "TRUE" : "FALSE") +
-                    "; length=" + IntToString(GetStringLength(sValue)) +
-                    "; value=\"" + TruncateDebugValue(sValue) + "\"";
+        string sExpr = GetRawParameterText(strPC, 0);
+        struct Value strValue = EvalCompiledParameter(strPC, 0);
+        if (IsErrorValue(strValue))
+            return strValue;
 
-                strReturnValue = GetValueFromString(sDebug);
-            }
-        }
+        string sValue = ValueToDisplayString(strValue);
+        string sSymbolType = GetSymbolType(strPC.jStack, sExpr);
+        string sValueType = InferDebugValueType(sValue);
+
+        string sDebug =
+            "expr=\"" + sExpr + "\"" +
+            "; symbol_type=" + sSymbolType +
+            "; value_type=" + sValueType +
+            "; truthy=" + (StringToBoolish(sValue) ? "TRUE" : "FALSE") +
+            "; length=" + IntToString(GetStringLength(sValue)) +
+            "; value=\"" + TruncateDebugValue(sValue) + "\"";
+
+        return GetValueFromString(sDebug);
     }
-
-    return strReturnValue;
+    return GetInvalidValue();
 }
 
 struct Value HandleMetaUtility(struct PropertyChain strPC, string sMetaName)
 {
-    struct Value strReturnValue;
     if (sMetaName == "bar")
     {
         struct Arguments strArgs = EvalArgs(strPC, 2, 5, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            float fValue = GetValueAsFloat(strArgs.strArg0);
-            float fMax = GetValueAsFloat(strArgs.strArg1);
-            int nWidth = STRING_BAR_DEFAULT_WIDTH;
-            string sFilled = "#";
-            string sEmpty = "-";
+            return strArgs.strError;
 
-            if (strArgs.nCount >= 3)
-                nWidth = GetValueAsInt(strArgs.strArg2, STRING_BAR_DEFAULT_WIDTH);
-            if (strArgs.nCount >= 4)
-                sFilled = GetValueAsString(strArgs.strArg3, "#");
-            if (strArgs.nCount >= 5)
-                sEmpty = GetValueAsString(strArgs.strArg4, "-");
+        float fValue = GetValueAsFloat(strArgs.strArg0);
+        float fMax = GetValueAsFloat(strArgs.strArg1);
+        int nWidth = STRING_BAR_DEFAULT_WIDTH;
+        string sFilled = "#";
+        string sEmpty = "-";
 
-            strReturnValue = GetValueFromString(MakeBarString(fValue, fMax, nWidth, sFilled, sEmpty));
-        }
+        if (strArgs.nCount >= 3)
+            nWidth = GetValueAsInt(strArgs.strArg2, STRING_BAR_DEFAULT_WIDTH);
+        if (strArgs.nCount >= 4)
+            sFilled = GetValueAsString(strArgs.strArg3, "#");
+        if (strArgs.nCount >= 5)
+            sEmpty = GetValueAsString(strArgs.strArg4, "-");
+
+        return GetValueFromString(MakeBarString(fValue, fMax, nWidth, sFilled, sEmpty));
     }
     else if (sMetaName == "roll" || sMetaName == "rollv")
     {
         struct Value strError = CheckArity(strPC, 1, 3);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
+            return strError;
+
+        int nNumParameters = GetParameterCount(strPC);
+        int nCount = 1, nSides = 0, nBonus = 0;
+        string sSpec = "";
+
+        if (nNumParameters == 1)
         {
-            int nNumParameters = GetParameterCount(strPC);
-            int nCount = 1, nSides = 0, nBonus = 0;
-            string sSpec = "";
+            struct Arguments strArgs = EvalOneArg(strPC);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
 
-            if (nNumParameters == 1)
+            sSpec = GetValueAsTrimmedString(strArgs.strArg0);
+            json jDice = ParseDiceSpec(sSpec);
+
+            if (JsonGetLength(jDice) >= 3)
             {
-                struct Arguments strArgs = EvalOneArg(strPC);
-                if (IsErrorValue(strArgs.strError))
-                    strReturnValue = strArgs.strError;
-                else
-                {
-                    sSpec = GetValueAsTrimmedString(strArgs.strArg0);
-                    json jDice = ParseDiceSpec(sSpec);
-
-                    if (JsonGetLength(jDice) >= 3)
-                    {
-                        nCount = JsonArrayGetInt(jDice, 0);
-                        nSides = JsonArrayGetInt(jDice, 1);
-                        nBonus = JsonArrayGetInt(jDice, 2);
-                    }
-                    else
-                        strReturnValue = GetErrorValue("INVALID_DICE_SPEC:" + sSpec);
-                }
+                nCount = JsonArrayGetInt(jDice, 0);
+                nSides = JsonArrayGetInt(jDice, 1);
+                nBonus = JsonArrayGetInt(jDice, 2);
             }
             else
-            {
-                struct Arguments strArgs = EvalArgs(strPC, 2, 3, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
-                if (IsErrorValue(strArgs.strError))
-                    strReturnValue = strArgs.strError;
-                else
-                {
-                    nCount = GetValueAsInt(strArgs.strArg0);
-                    nSides = GetValueAsInt(strArgs.strArg1);
+                return GetErrorValue("INVALID_DICE_SPEC:" + sSpec);
+        }
+        else
+        {
+            struct Arguments strArgs = EvalArgs(strPC, 2, 3, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
 
-                    if (strArgs.nCount >= 3)
-                        nBonus = GetValueAsInt(strArgs.strArg2);
+            nCount = GetValueAsInt(strArgs.strArg0);
+            nSides = GetValueAsInt(strArgs.strArg1);
 
-                    sSpec = IntToString(nCount) + "d" + IntToString(nSides);
+            if (strArgs.nCount >= 3)
+                nBonus = GetValueAsInt(strArgs.strArg2);
 
-                    if (nBonus > 0)
-                        sSpec += "+" + IntToString(nBonus);
-                    else if (nBonus < 0)
-                        sSpec += IntToString(nBonus);
-                }
-            }
+            sSpec = IntToString(nCount) + "d" + IntToString(nSides);
 
-            if (IsInvalidValue(strReturnValue))
-            {
-                if (nCount <= 0)
-                    strReturnValue = GetErrorValue("INVALID_DICE_COUNT:" + IntToString(nCount));
-                else if (nSides <= 0)
-                    strReturnValue = GetErrorValue("INVALID_DICE_SIDES:" + IntToString(nSides));
-                else
-                {
-                    if (sMetaName == "rollv")
-                        strReturnValue = GetValueFromString(RollDiceVerbose(nCount, nSides, nBonus, sSpec));
-                    else
-                        strReturnValue = GetValueFromInt(RollDiceTotal(nCount, nSides, nBonus));
-                }
-            }
+            if (nBonus > 0)
+                sSpec += "+" + IntToString(nBonus);
+            else if (nBonus < 0)
+                sSpec += IntToString(nBonus);
+        }
+
+        if (nCount <= 0)
+            return GetErrorValue("INVALID_DICE_COUNT:" + IntToString(nCount));
+        else if (nSides <= 0)
+            return GetErrorValue("INVALID_DICE_SIDES:" + IntToString(nSides));
+        else
+        {
+            if (sMetaName == "rollv")
+                return GetValueFromString(RollDiceVerbose(nCount, nSides, nBonus, sSpec));
+            else
+                return GetValueFromInt(RollDiceTotal(nCount, nSides, nBonus));
         }
     }
-    return strReturnValue;
+    return GetInvalidValue();
 }
-
 
 struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
 {
-    struct Value strReturnValue;
     if (sMetaName == "sendmessagetopc" || sMetaName == "tell")
     {
         struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_OBJECT, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            object oPC = GetValueAsObject(strArgs.strArg0);
-            string sMessage = GetValueAsString(strArgs.strArg1);
+            return strArgs.strError;
 
-            if (GetIsObjectValid(oPC))
-            {
-                SendMessageToPC(oPC, sMessage);
-                strReturnValue = GetValueFromString();
-            }
-            else
-                strReturnValue = GetErrorValue("INVALID_OBJECT:ARG1");
-        }
+        object oPC = GetValueAsObject(strArgs.strArg0);
+
+        if (!GetIsObjectValid(oPC))
+            return GetErrorValue("INVALID_OBJECT:ARG1");
+
+        SendMessageToPC(oPC, GetValueAsString(strArgs.strArg1));
+        return GetValueFromString();
     }
     else if (sMetaName == "print" || sMetaName == "log")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            PrintString(GetValueAsString(strArgs.strArg0));
-            strReturnValue = GetValueFromString();
-        }
-    }
-    return strReturnValue;
-}
+            return strArgs.strError;
 
+        PrintString(GetValueAsString(strArgs.strArg0));
+        return GetValueFromString();
+    }
+    return GetInvalidValue();
+}
 
 struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
 {
-    struct Value strReturnValue;
     if (sMetaName == "add" || sMetaName == "sub" || sMetaName == "mul")
     {
         struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else if (IsValueIntParameter(strArgs.strArg0) && IsValueIntParameter(strArgs.strArg1))
+            return strArgs.strError;
+
+        if (IsValueIntParameter(strArgs.strArg0) && IsValueIntParameter(strArgs.strArg1))
         {
             int nValue0 = GetValueAsInt(strArgs.strArg0);
             int nValue1 = GetValueAsInt(strArgs.strArg1);
 
             if (sMetaName == "add")
-                strReturnValue = GetValueFromInt(nValue0 + nValue1);
+                return GetValueFromInt(nValue0 + nValue1);
             else if (sMetaName == "sub")
-                strReturnValue = GetValueFromInt(nValue0 - nValue1);
+                return GetValueFromInt(nValue0 - nValue1);
             else
-                strReturnValue = GetValueFromInt(nValue0 * nValue1);
+                return GetValueFromInt(nValue0 * nValue1);
         }
         else
         {
@@ -2861,11 +2746,11 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
             float fValue1 = GetValueAsFloat(strArgs.strArg1);
 
             if (sMetaName == "add")
-                strReturnValue = GetValueFromFloat(fValue0 + fValue1);
+                return GetValueFromFloat(fValue0 + fValue1);
             else if (sMetaName == "sub")
-                strReturnValue = GetValueFromFloat(fValue0 - fValue1);
+                return GetValueFromFloat(fValue0 - fValue1);
             else
-                strReturnValue = GetValueFromFloat(fValue0 * fValue1);
+                return GetValueFromFloat(fValue0 * fValue1);
         }
     }
     else if (sMetaName == "div" || sMetaName == "idiv")
@@ -2874,177 +2759,161 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
         {
             struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
             if (IsErrorValue(strArgs.strError))
-                strReturnValue = strArgs.strError;
-            else
-            {
-                float fValue1 = GetValueAsFloat(strArgs.strArg0);
-                float fValue2 = GetValueAsFloat(strArgs.strArg1);
+                return strArgs.strError;
 
-                if (fabs(fValue2) > FLOAT_EPSILON)
-                    strReturnValue = GetValueFromFloat(fValue1 / fValue2);
-                else
-                    strReturnValue = GetErrorValue("DIVISION_BY_ZERO");
-            }
+            float fValue1 = GetValueAsFloat(strArgs.strArg0);
+            float fValue2 = GetValueAsFloat(strArgs.strArg1);
+
+            if (fabs(fValue2) > FLOAT_EPSILON)
+                return GetValueFromFloat(fValue1 / fValue2);
+            else
+                return GetErrorValue("DIVISION_BY_ZERO");
         }
         else
         {
             struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
             if (IsErrorValue(strArgs.strError))
-                strReturnValue = strArgs.strError;
-            else
-            {
-                int nValue1 = GetValueAsInt(strArgs.strArg0);
-                int nValue2 = GetValueAsInt(strArgs.strArg1);
+                return strArgs.strError;
 
-                if (nValue2 != 0)
-                    strReturnValue = GetValueFromInt(nValue1 / nValue2);
-                else
-                    strReturnValue = GetErrorValue("DIVISION_BY_ZERO");
-            }
+            int nValue1 = GetValueAsInt(strArgs.strArg0);
+            int nValue2 = GetValueAsInt(strArgs.strArg1);
+
+            if (nValue2 != 0)
+                return GetValueFromInt(nValue1 / nValue2);
+            else
+                return GetErrorValue("DIVISION_BY_ZERO");
         }
     }
     else if (sMetaName == "min" || sMetaName == "max")
     {
         struct Value strError = CheckArity(strPC, 1, -1);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
+            return strError;
+
+        int nIndex, nNumParameters = GetParameterCount(strPC);
+        int bAllInt = TRUE, nIntResult = 0;
+        float fResult = 0.0;
+
+        for (nIndex = 0; nIndex < nNumParameters; nIndex++)
         {
-            int nIndex, nNumParameters = GetParameterCount(strPC);
-            int bAllInt = TRUE, nIntResult = 0;
-            float fResult = 0.0;
+            struct Value strArg = EvalCompiledParameter(strPC, nIndex);
+            if (IsErrorValue(strArg))
+                 return strArg;
+            if (!IsValueNumericParameter(strArg))
+                return GetErrorValue("TYPE_MISMATCH:ARGUMENTS_NOT_NUMERIC");
 
-            for (nIndex = 0; nIndex < nNumParameters; nIndex++)
+            float fValue = GetValueAsFloat(strArg);
+            if (nIndex == 0)
             {
-                struct Value strArg = EvalCompiledParameter(strPC, nIndex);
-                if (IsErrorValue(strArg))
-                {
-                    strReturnValue = strArg;
-                    break;
-                }
-                else if (!IsValueNumericParameter(strArg))
-                {
-                    strReturnValue = GetErrorValue("TYPE_MISMATCH:ARGUMENTS_NOT_NUMERIC");
-                    break;
-                }
+                fResult = fValue;
 
-                float fValue = GetValueAsFloat(strArg);
-                if (nIndex == 0)
-                {
-                    fResult = fValue;
-
-                    if (IsValueIntParameter(strArg))
-                        nIntResult = GetValueAsInt(strArg);
-                    else
-                        bAllInt = FALSE;
-                }
+                if (IsValueIntParameter(strArg))
+                    nIntResult = GetValueAsInt(strArg);
                 else
-                {
-                    if (IsValueIntParameter(strArg))
-                    {
-                        int nValue = GetValueAsInt(strArg);
-                        if (bAllInt)
-                        {
-                            if (sMetaName == "min" && nValue < nIntResult)
-                                nIntResult = nValue;
-                            else if (sMetaName == "max" && nValue > nIntResult)
-                                nIntResult = nValue;
-                        }
-                    }
-                    else
-                    {
-                        bAllInt = FALSE;
-                    }
-
-                    if (sMetaName == "min" && fValue < fResult)
-                        fResult = fValue;
-                    else if (sMetaName == "max" && fValue > fResult)
-                        fResult = fValue;
-                }
+                    bAllInt = FALSE;
             }
-
-            if (IsInvalidValue(strReturnValue))
+            else
             {
-                if (bAllInt)
-                    strReturnValue = GetValueFromInt(nIntResult);
+                if (IsValueIntParameter(strArg))
+                {
+                    int nValue = GetValueAsInt(strArg);
+                    if (bAllInt)
+                    {
+                        if (sMetaName == "min" && nValue < nIntResult)
+                            nIntResult = nValue;
+                        else if (sMetaName == "max" && nValue > nIntResult)
+                            nIntResult = nValue;
+                    }
+                }
                 else
-                    strReturnValue = GetValueFromFloat(fResult);
+                {
+                    bAllInt = FALSE;
+                }
+
+                if (sMetaName == "min" && fValue < fResult)
+                    fResult = fValue;
+                else if (sMetaName == "max" && fValue > fResult)
+                    fResult = fValue;
             }
         }
+
+        if (bAllInt)
+            return GetValueFromInt(nIntResult);
+        else
+            return GetValueFromFloat(fResult);
     }
     else if (sMetaName == "clamp")
     {
         struct Arguments strArgs = EvalThreeArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else if (IsValueIntParameter(strArgs.strArg0) && IsValueIntParameter(strArgs.strArg1) && IsValueIntParameter(strArgs.strArg2))
-            strReturnValue = GetValueFromInt(clamp(GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
-        else
-            strReturnValue = GetValueFromFloat(clampf(GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1), GetValueAsFloat(strArgs.strArg2)));
+            return strArgs.strError;
+        if (IsValueIntParameter(strArgs.strArg0) && IsValueIntParameter(strArgs.strArg1) && IsValueIntParameter(strArgs.strArg2))
+            return GetValueFromInt(clamp(GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
+        return GetValueFromFloat(clampf(GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1), GetValueAsFloat(strArgs.strArg2)));
     }
     else if (sMetaName == "mod")
     {
         struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
+            return strArgs.strError;
+
+        int nValue = GetValueAsInt(strArgs.strArg0);
+        int nDivisor = GetValueAsInt(strArgs.strArg1);
+        if (nDivisor != 0)
+            return GetValueFromInt(nValue % nDivisor);
         else
-        {
-            int nValue = GetValueAsInt(strArgs.strArg0);
-            int nDivisor = GetValueAsInt(strArgs.strArg1);
-            if (nDivisor != 0)
-                strReturnValue = GetValueFromInt(nValue % nDivisor);
-            else
-                strReturnValue = GetErrorValue("DIVISION_BY_ZERO");
-        }
+            return GetErrorValue("DIVISION_BY_ZERO");
     }
     else if (sMetaName == "random")
     {
         struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
+            return strArgs.strError;
+
+        int nMax = GetValueAsInt(strArgs.strArg0);
+        int nMin = 0;
+
+        if (strArgs.nCount >= 2)
         {
-            int nMax = GetValueAsInt(strArgs.strArg0);
-            int nMin = 0;
-
-            if (strArgs.nCount >= 2)
-            {
-                nMin = nMax;
-                nMax = GetValueAsInt(strArgs.strArg1);
-            }
-
-            if (nMax > nMin)
-                strReturnValue = GetValueFromInt(nMin + Random(nMax - nMin));
-            else if (nMax == nMin)
-                strReturnValue = GetValueFromInt(nMin);
-            else
-                strReturnValue = GetErrorValue("INVALID_RANDOM_RANGE:" + IntToString(nMin) + "_TO_" + IntToString(nMax));
+            nMin = nMax;
+            nMax = GetValueAsInt(strArgs.strArg1);
         }
+
+        if (nMax > nMin)
+            return GetValueFromInt(nMin + Random(nMax - nMin));
+        else if (nMax == nMin)
+            return GetValueFromInt(nMin);
+        else
+            return GetErrorValue("INVALID_RANDOM_RANGE:" + IntToString(nMin) + "_TO_" + IntToString(nMax));
     }
-    return strReturnValue;
+    return GetInvalidValue();
 }
 
 struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName)
 {
-    struct Value strReturnValue;
     if (sMetaName == "firstpc" || sMetaName == "nextpc")
     {
         if (sMetaName == "firstpc")
-            strReturnValue = GetValueFromObject(GetFirstPC());
+            return GetValueFromObject(GetFirstPC());
         else
-            strReturnValue = GetValueFromObject(GetNextPC());
+            return GetValueFromObject(GetNextPC());
     }
     else if (sMetaName == "module")
     {
-        strReturnValue = GetValueFromObject(GetModule());
+        return GetValueFromObject(GetModule());
     }
-    return strReturnValue;
+    return GetInvalidValue();
 }
 
 int IsStackVar(string sVarName)
 {
     string sPrefix = GetStringLeft(sVarName, 1);
     return sPrefix != DAZSCRIPT_ALIAS_SYMBOL && sPrefix != DAZSCRIPT_META_SYMBOL && sPrefix != DAZSCRIPT_FUNCTION_SYMBOL;
+}
+
+int IsSymbol(string sVarName, string sSymbol)
+{
+    return GetStringLeft(sVarName, 1) == sSymbol && GetStringLength(sVarName) >= 2;
 }
 
 string GetAuxTypeDisplayName(int nAuxType)

@@ -1523,8 +1523,14 @@ json ParseParameterEntries(string sParameters)
         return jError;
     }
 
-    if (!bLastWasComma)
-        JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : trim(sCurrent), bWasQuoted));
+    if (bLastWasComma)
+    {
+        json jError = MakeParserError("TRAILING_COMMA_IN_ARGUMENT_LIST", nLength - 1, sParameters);
+        SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
+        return jError;
+    }
+
+    JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : trim(sCurrent), bWasQuoted));
 
     SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jEntries);
     return jEntries;
@@ -2122,7 +2128,6 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
     return strPC;
 }
 
-
 struct PropertyChain GetStringProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
@@ -2253,11 +2258,16 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
     return strPC;
 }
 
-
 struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     object oValue = strPC.strValue.oValue;
+
+    if (!GetIsObjectValid(oValue) && sProperty != "valid")
+    {
+        strPC.strValue = GetErrorValue("INVALID_OBJECT:SELF");
+        return strPC;
+    }
 
     struct Value strReturnValue = GetInvalidValue();
 
@@ -2321,10 +2331,7 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
         else
         {
             object oOther = GetValueAsObject(strArgs.strArg0);
-
-            if (!GetIsObjectValid(oValue))
-                strReturnValue = GetErrorValue("INVALID_OBJECT:SELF");
-            else if (!GetIsObjectValid(oOther))
+            if (!GetIsObjectValid(oOther))
                 strReturnValue = GetErrorValue("INVALID_OBJECT:ARG1");
             else
                 strReturnValue = GetValueFromFloat(GetDistanceBetween(oValue, oOther));
@@ -2357,8 +2364,6 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
         struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
             strReturnValue = strArgs.strError;
-        else if (!GetIsObjectValid(oValue))
-            strReturnValue = GetErrorValue("INVALID_OBJECT:SELF");
         else
         {
             int nPrecision = 2;
@@ -2381,8 +2386,6 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
         struct Arguments strArgs = EvalTwoArgs(strPC);
         if (IsErrorValue(strArgs.strError))
             strReturnValue = strArgs.strError;
-        else if (!GetIsObjectValid(oValue))
-            strReturnValue = GetErrorValue("INVALID_OBJECT:SELF");
         else
         {
             string sType = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));

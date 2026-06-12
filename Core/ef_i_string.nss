@@ -11,7 +11,6 @@ const int STRING_BAR_DEFAULT_WIDTH = 20;
 const int STRING_BAR_MAX_WIDTH = 80;
 const string STRING_OBJECT_INVALID = "0x7f000000";
 
-
 string ltrim(string sString);
 string rtrim(string sString);
 string trim(string sString);
@@ -30,9 +29,9 @@ string CapitalizeWord(string sWord);
 int StringToBoolish(string sValue);
 int IsStringPrefix(string sValue, string sPrefix);
 int IsStringSuffix(string sValue, string sSuffix);
-int IsObjectString(string sValue);
+int IsObjectIDString(string sValue);
 string RepeatText(string sText, int nCount);
-string MakeBarString(float fValue, float fMax, int nWidth, string sFilled = "#", string sEmpty = "-");
+string ObjectIDToString(object oObject);
 
 string ltrim(string sString)
 {
@@ -233,11 +232,10 @@ int IsStringSuffix(string sValue, string sSuffix)
     return GetStringRight(sValue, GetStringLength(sSuffix)) == sSuffix;
 }
 
-int IsObjectString(string sValue)
+int IsObjectIDString(string sValue)
 {
     sValue = GetStringLowerCase(trim(sValue));
-
-    if (GetStringLeft(sValue, 2) != "0x")
+    if (GetStringLeft(sValue, 2) != "0x" || GetStringLength(sValue) < 3 )
         return FALSE;
 
     if (sValue == STRING_OBJECT_INVALID)
@@ -262,35 +260,9 @@ string RepeatText(string sText, int nCount)
     return sResult;
 }
 
-string MakeBarString(float fValue, float fMax, int nWidth, string sFilled = "#", string sEmpty = "-")
+string ObjectIDToString(object oObject)
 {
-    if (nWidth <= 0)
-        nWidth = STRING_BAR_DEFAULT_WIDTH;
-
-    if (nWidth > STRING_BAR_MAX_WIDTH)
-        nWidth = STRING_BAR_MAX_WIDTH;
-
-    if (sFilled == "")
-        sFilled = "#";
-
-    if (sEmpty == "")
-        sEmpty = "-";
-
-    float fRatio = 0.0;
-
-    if (fabs(fMax) > FLOAT_EPSILON)
-        fRatio = fValue / fMax;
-
-    if (fRatio < 0.0)
-        fRatio = 0.0;
-
-    if (fRatio > 1.0)
-        fRatio = 1.0;
-
-    int nFilled = FloatToInt((fRatio * IntToFloat(nWidth)) + 0.5);
-    int nEmpty = nWidth - nFilled;
-
-    string sPercent = FloatToString(fRatio * 100.0, 0, 0);
-
-    return "[" + RepeatText(sFilled, nFilled) + RepeatText(sEmpty, nEmpty) + "] " + sPercent + "%";
+    if (!GetIsObjectValid(oObject))
+        return STRING_OBJECT_INVALID;
+    return "0x" + ObjectToString(oObject);
 }

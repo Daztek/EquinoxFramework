@@ -29,7 +29,7 @@ int ExecuteScriptChunkAndReturnInt(string sInclude, string sScriptChunk, object 
 void ExecuteScriptChunkAndReturnVoid(string sInclude, string sScriptChunk, object oObject);
 string CacheScriptChunk(string sScriptChunk, int bWrapIntoMain = FALSE, int bAlwaysPrecache = FALSE);
 void ResetScriptInstructions();
-string AuxTypeToString(int nAuxType);
+string AuxTypeToString(int nAuxType, int bLowerCase = FALSE);
 
 struct VMFrame GetVMFrame(int nDepth = 0)
 {
@@ -130,26 +130,27 @@ void ResetScriptInstructions()
     NWNX_VM_SetInstructionsExecuted(0);
 }
 
-string AuxTypeToString(int nAuxType)
+string AuxTypeToString(int nAuxType, int bLowerCase = FALSE)
 {
+    string sAuxType = "UNKNOWN_AUXTYPE";
     switch (nAuxType)
     {
-        case NWNX_VM_AUXTYPE_INVALID:       return "INVALID";
-        case NWNX_VM_AUXTYPE_VOID:          return "VOID";
-        case NWNX_VM_AUXTYPE_COMMAND:       return "COMMAND";
-        case NWNX_VM_AUXTYPE_INT:           return "INT";
-        case NWNX_VM_AUXTYPE_FLOAT:         return "FLOAT";
-        case NWNX_VM_AUXTYPE_STRING:        return "STRING";
-        case NWNX_VM_AUXTYPE_OBJECT:        return "OBJECT";
-        case NWNX_VM_AUXTYPE_EFFECT:        return "EFFECT";
-        case NWNX_VM_AUXTYPE_EVENT:         return "EVENT";
-        case NWNX_VM_AUXTYPE_LOCATION:      return "LOCATION";
-        case NWNX_VM_AUXTYPE_TALENT:        return "TALENT";
-        case NWNX_VM_AUXTYPE_ITEMPROPERTY:  return "ITEMPROPERTY";
-        case NWNX_VM_AUXTYPE_SQLQUERY:      return "SQLQUERY";
-        case NWNX_VM_AUXTYPE_CSWYSOLVER:    return "CSWYSOLVER";
-        case NWNX_VM_AUXTYPE_JSON:          return "JSON";
+        case NWNX_VM_AUXTYPE_INVALID:       sAuxType = "INVALID"; break;
+        case NWNX_VM_AUXTYPE_VOID:          sAuxType = "VOID"; break;
+        case NWNX_VM_AUXTYPE_COMMAND:       sAuxType = "COMMAND"; break;
+        case NWNX_VM_AUXTYPE_INT:           sAuxType = "INT"; break;
+        case NWNX_VM_AUXTYPE_FLOAT:         sAuxType = "FLOAT"; break;
+        case NWNX_VM_AUXTYPE_STRING:        sAuxType = "STRING"; break;
+        case NWNX_VM_AUXTYPE_OBJECT:        sAuxType = "OBJECT"; break;
+        case NWNX_VM_AUXTYPE_EFFECT:        sAuxType = "EFFECT"; break;
+        case NWNX_VM_AUXTYPE_EVENT:         sAuxType = "EVENT"; break;
+        case NWNX_VM_AUXTYPE_LOCATION:      sAuxType = "LOCATION"; break;
+        case NWNX_VM_AUXTYPE_TALENT:        sAuxType = "TALENT"; break;
+        case NWNX_VM_AUXTYPE_ITEMPROPERTY:  sAuxType = "ITEMPROPERTY"; break;
+        case NWNX_VM_AUXTYPE_SQLQUERY:      sAuxType = "SQLQUERY"; break;
+        case NWNX_VM_AUXTYPE_CSWYSOLVER:    sAuxType = "CSWYSOLVER"; break;
+        case NWNX_VM_AUXTYPE_JSON:          sAuxType = "JSON"; break;
     }
 
-    return "UNKNOWN AUXTYPE";
+    return bLowerCase ? GetStringLowerCase(sAuxType) : sAuxType;
 }

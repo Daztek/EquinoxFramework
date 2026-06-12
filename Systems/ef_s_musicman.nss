@@ -122,7 +122,7 @@ void MusMan_RegisterMusicEvent(struct AnnotationData str)
     SqlBindString(sql, "@track_function", nssFunction(str.sFunction));
     SqlStep(sql);
 
-    LogInfo("System '{str.sSystem}' registered music event '{sEvent}' with priority '{nPriority}' and fadetime '{fFadeTime}'");
+    LogInfo("System '{str.sSystem}' registered music event '{sEvent}' with priority '{nPriority}' and fadetime '{fFadeTime>fixed(2)}'");
 }
 
 // @GUIEVENT[GUIEVENT_AREA_LOADSCREEN_FINISHED]

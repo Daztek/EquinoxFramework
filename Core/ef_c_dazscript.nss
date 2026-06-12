@@ -215,14 +215,12 @@ struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaUtility(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName);
 
 int IsStackVar(string sVarName);
 int IsSymbol(string sVarName, string sSymbol);
-string GetAuxTypeDisplayName(int nAuxType);
 string GetSymbolType(json jStack, string sName);
 int SymbolExists(json jStack, string sName);
 string InferDebugValueType(string sValue);
@@ -300,7 +298,7 @@ json MakeStackAliasEntryFromValue(struct Value strValue)
         case NWNX_VM_AUXTYPE_INT:       JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.nValue); break;
         case NWNX_VM_AUXTYPE_FLOAT:     JsonObjectSetFloatInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.fValue); break;
         case NWNX_VM_AUXTYPE_STRING:    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.sValue); break;
-        case NWNX_VM_AUXTYPE_OBJECT:    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, "0x" + ObjectToString(strValue.oValue));  break;
+        case NWNX_VM_AUXTYPE_OBJECT:    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, ObjectIDToString(strValue.oValue));  break;
         case NWNX_VM_AUXTYPE_JSON:      JsonObjectSetInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.jValue); break;
         default:                        JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, ValueToText(strValue)); break;
     }
@@ -348,7 +346,7 @@ struct Value CastValueToJson(struct Value strValue)
         case NWNX_VM_AUXTYPE_JSON:      return strValue;
         case NWNX_VM_AUXTYPE_INT:       return GetValueFromJson(JsonInt(strValue.nValue));
         case NWNX_VM_AUXTYPE_FLOAT:     return GetValueFromJson(JsonFloat(strValue.fValue));
-        case NWNX_VM_AUXTYPE_OBJECT:    return GetValueFromJson(JsonString("0x" + ObjectToString(strValue.oValue)));
+        case NWNX_VM_AUXTYPE_OBJECT:    return GetValueFromJson(JsonString(ObjectIDToString(strValue.oValue)));
         case NWNX_VM_AUXTYPE_STRING:
         {
             json jParsed = JsonParse(strValue.sValue);
@@ -413,7 +411,7 @@ struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType)
                 return strValue;
 
             sValue = trim(sValue);
-            if (!IsObjectString(sValue))
+            if (!IsObjectIDString(sValue))
                 return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->object");
 
             return GetValueFromObject(StringToObject(sValue));
@@ -1033,9 +1031,6 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
 
     if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaIntrospection(strMeta, sMetaName);
-
-    if (IsInvalidValue(strReturnValue))
-        strReturnValue = HandleMetaUtility(strMeta, sMetaName);
 
     if (IsInvalidValue(strReturnValue))
         strReturnValue = HandleMetaOutput(strMeta, sMetaName);
@@ -1779,18 +1774,12 @@ struct Value GetValueFromTypedLiteral(string sValue)
         return GetValueFromInt(TRUE);
     if (sLower == "false")
         return GetValueFromInt(FALSE);
-    if (sLower == STRING_OBJECT_INVALID)
-        return GetValueFromObject(OBJECT_INVALID);
     if (IsInteger(sValue))
         return GetValueFromInt(StringToInt(sValue));
     if (IsFloat(sValue))
         return GetValueFromFloat(StringToFloat(sValue));
-    if (GetStringLength(sValue) >= 3 && GetStringLeft(sValue, 2) == "0x")
-    {
-        object oValue = StringToObject(sValue);
-        if (oValue != OBJECT_INVALID)
-            return GetValueFromObject(oValue);
-    }
+    if (IsObjectIDString(sValue))
+        return GetValueFromObject(StringToObject(sValue));
 
     return GetValueFromString(sValue);
 }
@@ -1845,7 +1834,7 @@ string ValueToText(struct Value strValue)
         case NWNX_VM_AUXTYPE_STRING:    return strValue.sValue;
         case NWNX_VM_AUXTYPE_INT:       return IntToString(strValue.nValue);
         case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 9);
-        case NWNX_VM_AUXTYPE_OBJECT:    return "0x" + ObjectToString(strValue.oValue);
+        case NWNX_VM_AUXTYPE_OBJECT:    return ObjectIDToString(strValue.oValue);
         case NWNX_VM_AUXTYPE_JSON:      return JsonDump(strValue.jValue);
     }
     return "[UNHANDLED_AUXTYPE:" + AuxTypeToString(strValue.nAuxType) + "]";
@@ -1920,7 +1909,7 @@ int IsValueObjectParameter(struct Value strValue)
         return FALSE;
     if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
         return TRUE;
-    return IsObjectString(GetValueAsTrimmedString(strValue));
+    return IsObjectIDString(GetValueAsTrimmedString(strValue));
 }
 
 int GetValueAsInt(struct Value strValue, int nDefault = 0)
@@ -2167,7 +2156,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         else
             strReturnValue = GetValueFromInt(FindSubString(sValue, GetValueAsText(strArgs.strArg0), 0) != -1);
     }
-    else if (sProperty == "startswith" || sProperty == "prefix")
+    else if (sProperty == "startswith")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
@@ -2175,7 +2164,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         else
             strReturnValue = GetValueFromInt(IsStringPrefix(sValue, GetValueAsText(strArgs.strArg0)));
     }
-    else if (sProperty == "endswith" || sProperty == "suffix")
+    else if (sProperty == "endswith")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
@@ -2859,7 +2848,7 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         return GetValueFromInt(bResult);
     }
 
-    if (sMetaName == "switch" || sMetaName == "case")
+    if (sMetaName == "switch")
     {
         struct Value strError = CheckArity(strPC, 3, -1);
         if (IsErrorValue(strError))
@@ -2876,7 +2865,7 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         if (nCount % 2 == 0)
             nDefaultIndex = nCount - 1;
 
-        int nIndex, nEnd = nDefaultIndex == -1 ? nCount : nDefaultIndex, bMatched;
+        int nIndex, nEnd = nDefaultIndex == -1 ? nCount : nDefaultIndex;
         for (nIndex = 1; nIndex + 1 < nEnd; nIndex += 2)
         {
             struct Value strCaseValue = EvalCompiledParameter(strPC, nIndex);
@@ -3094,94 +3083,6 @@ struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaNam
             "; value=\"" + TruncateDebugValue(sValue) + "\"";
 
         return GetValueFromString(sDebug);
-    }
-
-    return GetInvalidValue();
-}
-
-struct Value HandleMetaUtility(struct PropertyChain strPC, string sMetaName)
-{
-    if (sMetaName == "bar")
-    {
-        struct Arguments strArgs = EvalArgs(strPC, 2, 5, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY, DAZSCRIPT_ARG_ANY);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        float fValue = GetValueAsFloat(strArgs.strArg0);
-        float fMax = GetValueAsFloat(strArgs.strArg1);
-        int nWidth = STRING_BAR_DEFAULT_WIDTH;
-        string sFilled = "#";
-        string sEmpty = "-";
-
-        if (strArgs.nCount >= 3)
-            nWidth = GetValueAsInt(strArgs.strArg2, STRING_BAR_DEFAULT_WIDTH);
-        if (strArgs.nCount >= 4)
-            sFilled = GetValueAsText(strArgs.strArg3, "#");
-        if (strArgs.nCount >= 5)
-            sEmpty = GetValueAsText(strArgs.strArg4, "-");
-
-        return GetValueFromString(MakeBarString(fValue, fMax, nWidth, sFilled, sEmpty));
-    }
-
-    if (sMetaName == "roll" || sMetaName == "rollv")
-    {
-        struct Value strError = CheckArity(strPC, 1, 3);
-        if (IsErrorValue(strError))
-            return strError;
-
-        int nNumParameters = GetParameterCount(strPC);
-        int nCount = 1, nSides = 0, nBonus = 0;
-        string sSpec = "";
-
-        if (nNumParameters == 1)
-        {
-            struct Arguments strArgs = EvalOneArg(strPC);
-            if (IsErrorValue(strArgs.strError))
-                return strArgs.strError;
-
-            sSpec = GetValueAsTrimmedString(strArgs.strArg0);
-            json jDice = ParseDiceSpec(sSpec);
-
-            if (JsonGetLength(jDice) >= 3)
-            {
-                nCount = JsonArrayGetInt(jDice, 0);
-                nSides = JsonArrayGetInt(jDice, 1);
-                nBonus = JsonArrayGetInt(jDice, 2);
-            }
-            else
-                return GetErrorValue("INVALID_DICE_SPEC:" + sSpec);
-        }
-        else
-        {
-            struct Arguments strArgs = EvalArgs(strPC, 2, 3, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
-            if (IsErrorValue(strArgs.strError))
-                return strArgs.strError;
-
-            nCount = GetValueAsInt(strArgs.strArg0);
-            nSides = GetValueAsInt(strArgs.strArg1);
-
-            if (strArgs.nCount >= 3)
-                nBonus = GetValueAsInt(strArgs.strArg2);
-
-            sSpec = IntToString(nCount) + "d" + IntToString(nSides);
-
-            if (nBonus > 0)
-                sSpec += "+" + IntToString(nBonus);
-            else if (nBonus < 0)
-                sSpec += IntToString(nBonus);
-        }
-
-        if (nCount <= 0)
-            return GetErrorValue("INVALID_DICE_COUNT:" + IntToString(nCount));
-        else if (nSides <= 0)
-            return GetErrorValue("INVALID_DICE_SIDES:" + IntToString(nSides));
-        else
-        {
-            if (sMetaName == "rollv")
-                return GetValueFromString(RollDiceVerbose(nCount, nSides, nBonus, sSpec));
-            else
-                return GetValueFromInt(RollDiceTotal(nCount, nSides, nBonus));
-        }
     }
 
     return GetInvalidValue();
@@ -3407,6 +3308,22 @@ struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName)
         return GetValueFromObject(GetModule());
     }
 
+    if (sMetaName == "objectbytag")
+    {
+        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            return strArgs.strError;
+
+        string sTag = GetValueAsText(strArgs.strArg0);
+        int nNth = 0;
+        if (strArgs.nCount >= 2)
+            nNth = GetValueAsInt(strArgs.strArg1);
+
+        if (sTag == "")
+            return GetErrorValue("EMPTY_TAG");
+        return GetValueFromObject(GetObjectByTag(sTag, nNth));
+    }
+
     return GetInvalidValue();
 }
 
@@ -3419,21 +3336,6 @@ int IsStackVar(string sVarName)
 int IsSymbol(string sVarName, string sSymbol)
 {
     return GetStringLeft(sVarName, 1) == sSymbol && GetStringLength(sVarName) >= 2;
-}
-
-string GetAuxTypeDisplayName(int nAuxType)
-{
-    switch (nAuxType)
-    {
-        case NWNX_VM_AUXTYPE_INT:       return "int";
-        case NWNX_VM_AUXTYPE_FLOAT:     return "float";
-        case NWNX_VM_AUXTYPE_STRING:    return "string";
-        case NWNX_VM_AUXTYPE_OBJECT:    return "object";
-        case NWNX_VM_AUXTYPE_JSON:      return "json";
-        case NWNX_VM_AUXTYPE_VOID:      return "void";
-    }
-
-    return "invalid";
 }
 
 string GetSymbolType(json jStack, string sName)
@@ -3475,14 +3377,14 @@ string GetSymbolType(json jStack, string sName)
         if (!JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_VALUE))
             return "invalid:alias";
 
-        return "alias:" + GetAuxTypeDisplayName(JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE));
+        return "alias:" + AuxTypeToString(JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE), TRUE);
     }
 
     if (JsonGetType(jEntry) != JSON_TYPE_OBJECT)
         return "invalid";
 
     if (JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_VALUE))
-        return "alias:" + GetAuxTypeDisplayName(JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE));
+        return "alias:" + AuxTypeToString(JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE), TRUE);
 
     if (JsonObjectContainsKey(jEntry, DAZSCRIPT_FUNCTION_ARGS))
         return "function";
@@ -3498,7 +3400,7 @@ string GetSymbolType(json jStack, string sName)
         return "struct";
     }
 
-    return GetAuxTypeDisplayName(nAuxType);
+    return AuxTypeToString(nAuxType, TRUE);
 }
 
 int SymbolExists(json jStack, string sName)
@@ -3522,7 +3424,7 @@ string InferDebugValueType(string sValue)
     if (sLower == STRING_OBJECT_INVALID)
         return "object-invalid";
 
-    if (StringToObject(sValue) != OBJECT_INVALID)
+    if (IsObjectIDString(sValue))
         return "object-ish";
 
     return "string";
@@ -3573,21 +3475,21 @@ string DumpStruct(json jStack, string sVarName, string sStructName, string sInst
 string InspectObject(object oValue)
 {
     if (!GetIsObjectValid(oValue))
-        return "Object: " + ObjectToString(oValue) + "\n" + "Valid: FALSE";
+        return "Object: 0x" + ObjectToString(oValue) + "\n" + "Valid: FALSE";
 
     vector vPosition = GetPosition(oValue);
     object oArea = GetArea(oValue);
     string sHP = IntToString(GetCurrentHitPoints(oValue)) + "/" + IntToString(GetMaxHitPoints(oValue));
     string sPosition = FloatToString(vPosition.x, 0, 2) + ", " + FloatToString(vPosition.y, 0, 2) + ", " + FloatToString(vPosition.z, 0, 2);
 
-    return "Object: " + ObjectToString(oValue) + "\n" +
-            "Name: " + GetName(oValue) + "\n" +
-            "Tag: " + GetTag(oValue) + "\n" +
-            "ResRef: " + GetResRef(oValue) + "\n" +
-            "Type: " + GetObjectTypeName(oValue) + "\n" +
-            "Area: " + (GetIsObjectValid(oArea) ? GetName(oArea) : "") + "\n" +
-            "HP: " + sHP + "\n" +
-            "Position: " + sPosition + "\n" +
-            "Facing: " + FloatToString(GetFacing(oValue), 0, 2) + "\n" +
-            "Valid: TRUE";
+    return "Object: 0x" + ObjectToString(oValue) + "\n" +
+           "Name: " + GetName(oValue) + "\n" +
+           "Tag: " + GetTag(oValue) + "\n" +
+           "ResRef: " + GetResRef(oValue) + "\n" +
+           "Type: " + GetObjectTypeName(oValue) + "\n" +
+           "Area: " + (GetIsObjectValid(oArea) ? GetName(oArea) : "") + "\n" +
+           "HP: " + sHP + "\n" +
+           "Position: " + sPosition + "\n" +
+           "Facing: " + FloatToString(GetFacing(oValue), 0, 2) + "\n" +
+           "Valid: TRUE";
 }

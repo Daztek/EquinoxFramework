@@ -171,10 +171,6 @@ void main()
         "{@pick(a)}",
         "a");
 
-    DazScript_Test("bar",
-        "{@bar(5, 10, 10)}",
-        "[#####-----] 50%");
-
     DazScript_Test("debug exists missing",
         "{@exists($missing)>bool}",
         "FALSE");
@@ -305,12 +301,12 @@ void DazScript_TestStringProperties()
         "{sText>contains('ell')>bool}",
         "TRUE");
 
-    DazScript_Test("string prefix",
-        "{sText>prefix('he')>bool}",
+    DazScript_Test("string startswith",
+        "{sText>startswith('he')>bool}",
         "TRUE");
 
-    DazScript_Test("string suffix",
-        "{sText>suffix('lo')>bool}",
+    DazScript_Test("string endswith",
+        "{sText>endswith('lo')>bool}",
         "TRUE");
 
     DazScript_Test("string empty",

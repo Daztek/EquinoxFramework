@@ -12,6 +12,8 @@
 #include "nwnx_vm"
 
 const string DAZSCRIPT_SCRIPT_NAME                          = "ef_c_dazscript";
+const int DAZSCRIPT_ENABLE_PERSISTENT_CACHE                 = TRUE;
+const int DAZSCRIPT_PERSISTENT_CACHE_VERSION                = 1;
 
 const string DAZSCRIPT_PARSE_ERROR                          = "parse_error";
 const string DAZSCRIPT_PARSE_CODE                           = "code";
@@ -24,9 +26,7 @@ const string DAZSCRIPT_PROPERTY_CHAIN_CACHE_PREFIX          = "DazScriptProperty
 const string DAZSCRIPT_COMPILED_PARAMETER_CACHE_PREFIX      = "DazScriptCompiledParameterCache_";
 const string DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX         = "DazScriptParameterEntryCache_";
 
-const string DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_CANONICAL      = ">";
-const string DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_ALT            = "->";
-
+const string DAZSCRIPT_PROPERTY_CHAIN_SYMBOL                = ">";
 const string DAZSCRIPT_META_SYMBOL                          = "@";
 const string DAZSCRIPT_ALIAS_SYMBOL                         = "$";
 const string DAZSCRIPT_FUNCTION_SYMBOL                      = "#";
@@ -152,7 +152,6 @@ json SplitTopLevelToken(string sString, string sToken, int bIncludeEmpty = TRUE)
 int FindMatchingTemplateExprEnd(string sString, int nOpenAt);
 int FindPropertyCallStart(string sPropertySegment);
 int FindMatchingPropertyCallParen(string sString, int nOpenAt);
-string NormalizePropertyChainOperators(string sString);
 
 string GetParserContext(string sSource, int nAt);
 json MakeParserError(string sCode, int nAt, string sSource);
@@ -211,6 +210,7 @@ int GetValueAsInt(struct Value strValue, int nDefault = 0);
 float GetValueAsFloat(struct Value strValue, float fDefault = 0.0);
 object GetValueAsObject(struct Value strValue, object oDefault = OBJECT_INVALID);
 
+int ValueNeedsDefault(struct Value strValue);
 int IsInvalidValue(struct Value strValue);
 int IsErrorValue(struct Value strValue);
 struct Value GetInvalidValue();
@@ -279,6 +279,31 @@ string Interpret(string sString, int nDepthOverride = 0, json jStack = JSON_NULL
         jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
 
     return ValueToText(EvalTemplate(jTemplate, jStack));
+}
+
+void DazScript_Init()
+{
+    if (DAZSCRIPT_ENABLE_PERSISTENT_CACHE)
+    {
+        if (GetCampaignInt(DAZSCRIPT_SCRIPT_NAME, "PERSISTENT_CACHE_VERSION") != DAZSCRIPT_PERSISTENT_CACHE_VERSION)
+        {
+            DestroyCampaignDatabase(DAZSCRIPT_SCRIPT_NAME);
+            SetCampaignInt(DAZSCRIPT_SCRIPT_NAME, "PERSISTENT_CACHE_VERSION", DAZSCRIPT_PERSISTENT_CACHE_VERSION);
+        }
+
+        object oDataObject = RetrieveCampaignObject(DAZSCRIPT_SCRIPT_NAME, "PERSISTENT_CACHE", GetStartingLocation(), OBJECT_INVALID, OBJECT_INVALID, TRUE);
+        if (GetIsObjectValid(oDataObject))
+            SetDataObject(DAZSCRIPT_SCRIPT_NAME, oDataObject);
+        else
+            oDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
+    }
+}
+
+// @NWNX[NWNX_ON_SHUTDOWN_SERVER]
+void DazScript_OnShutdownServer()
+{
+    if (DAZSCRIPT_ENABLE_PERSISTENT_CACHE)
+        StoreCampaignObject(DAZSCRIPT_SCRIPT_NAME, "PERSISTENT_CACHE", GetDataObject(DAZSCRIPT_SCRIPT_NAME), OBJECT_INVALID, TRUE);
 }
 
 string MakeCacheKey(string sPrefix, string sString)
@@ -401,10 +426,8 @@ struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType)
         {
             if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
                 return strValue;
-
             if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
                 return GetValueFromInt(FloatToInt(strValue.fValue));
-
             if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
                 return GetValueFromInt(HexStringToInt(ObjectToString(strValue.oValue)));
 
@@ -418,7 +441,6 @@ struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType)
         {
             if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
                 return strValue;
-
             if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
                 return GetValueFromFloat(IntToFloat(strValue.nValue));
 
@@ -436,8 +458,6 @@ struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType)
         {
             if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
                 return strValue;
-
-            sValue = trim(sValue);
             if (!IsObjectIDString(sValue))
                 return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->object");
 
@@ -567,7 +587,7 @@ struct Parser ParserAdvance(struct Parser str)
 
 int FindTopLevelToken(string sString, string sToken)
 {
-    struct Parser str= ParserBegin(sString);
+    struct Parser str = ParserBegin(sString);
     while (!ParserAtEnd(str))
     {
         if (ParserIsTopLevel(str) && ParserMatches(str, sToken))
@@ -692,46 +712,12 @@ int FindMatchingPropertyCallParen(string sString, int nOpenAt)
     return -1;
 }
 
-string NormalizePropertyChainOperators(string sString)
-{
-    if (FindSubString(sString, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_ALT) == -1)
-        return sString;
-
-    string sOut = "";
-    struct Parser str = ParserBegin(sString);
-
-    while (!ParserAtEnd(str))
-    {
-        if (ParserIsTopLevel(str) && ParserMatches(str, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_ALT))
-        {
-            sOut += DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_CANONICAL;
-            str.nIndex += GetStringLength(DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_ALT);
-            continue;
-        }
-
-        int nOldIndex = str.nIndex;
-        str = ParserAdvance(str);
-        sOut += GetSubString(sString, nOldIndex, str.nIndex - nOldIndex);
-    }
-
-    return sOut;
-}
-
 string GetParserContext(string sSource, int nAt)
 {
     int nLength = GetStringLength(sSource);
-
-    if (nAt < 0)
-        nAt = 0;
-    if (nAt > nLength)
-        nAt = nLength;
-    int nStart = nAt - 12;
-    if (nStart < 0)
-        nStart = 0;
-    int nEnd = nAt + 12;
-    if (nEnd > nLength)
-        nEnd = nLength;
-
+    nAt = clamp(nAt, 0, nLength);
+    int nStart = max(0, nAt - 12);
+    int nEnd = min(nLength, nAt + 12);
     string sBefore = GetSubString(sSource, nStart, nAt - nStart);
     string sCurrent = nAt < nLength ? GetSubString(sSource, nAt, 1) : "<eof>";
     string sAfter = GetSubString(sSource, nAt + 1, nEnd - nAt - 1);
@@ -802,16 +788,13 @@ json CompileTemplate(string sString)
 {
     json jTemplate = JsonArray();
     int nIndex, nLiteralStart, nLength = GetStringLength(sString);
-
     while (nIndex < nLength)
     {
         string sCurrent = GetSubString(sString, nIndex, 1);
         if (sCurrent == "{" && nIndex + 1 < nLength && GetSubString(sString, nIndex + 1, 1) == "{")
         {
             if (nIndex > nLiteralStart)
-            {
                 JsonArrayInsertLiteralNodeInplace(jTemplate, GetSubString(sString, nLiteralStart, nIndex - nLiteralStart));
-            }
 
             JsonArrayInsertLiteralNodeInplace(jTemplate, "{");
             nIndex += 2;
@@ -822,9 +805,7 @@ json CompileTemplate(string sString)
         if (sCurrent == "}" && nIndex + 1 < nLength && GetSubString(sString, nIndex + 1, 1) == "}")
         {
             if (nIndex > nLiteralStart)
-            {
                 JsonArrayInsertLiteralNodeInplace(jTemplate, GetSubString(sString, nLiteralStart, nIndex - nLiteralStart));
-            }
 
             JsonArrayInsertLiteralNodeInplace(jTemplate, "}");
             nIndex += 2;
@@ -845,9 +826,7 @@ json CompileTemplate(string sString)
             return MakeParserError("UNTERMINATED_TEMPLATE_EXPR", nStart, sString);
 
         if (nStart > nLiteralStart)
-        {
             JsonArrayInsertLiteralNodeInplace(jTemplate, GetSubString(sString, nLiteralStart, nStart - nLiteralStart));
-        }
 
         JsonArrayInsertExprNodeInplace(jTemplate, GetSubString(sString, nStart + 1, nEnd - nStart - 1));
 
@@ -856,9 +835,7 @@ json CompileTemplate(string sString)
     }
 
     if (nLiteralStart < nLength)
-    {
         JsonArrayInsertLiteralNodeInplace(jTemplate, GetSubString(sString, nLiteralStart, nLength - nLiteralStart));
-    }
 
     return jTemplate;
 }
@@ -880,7 +857,6 @@ struct Value EvalTemplate(json jTemplate, json jStack)
         return GetValueFromParserError(jTemplate, "template");
 
     int nIndex, nLength = JsonGetLength(jTemplate);
-
     if (nLength == 1)
     {
         json jSingleNode = JsonArrayGet(jTemplate, 0);
@@ -955,9 +931,8 @@ void JsonArrayInsertForceStringNodeInplace(json jTemplate, json jInnerTemplate)
 json CompileExpression(string sExpr)
 {
     sExpr = trim(sExpr);
-    sExpr = NormalizePropertyChainOperators(sExpr);
 
-    int nPropertyPosition = FindTopLevelToken(sExpr, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_CANONICAL);
+    int nPropertyPosition = FindTopLevelToken(sExpr, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL);
     string sBase, sPropertyPath;
 
     if (nPropertyPosition == -1)
@@ -1210,13 +1185,12 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
 json CompilePropertyChain(string sPropertyPath)
 {
     sPropertyPath = trim(sPropertyPath);
-    sPropertyPath = NormalizePropertyChainOperators(sPropertyPath);
 
     json jCached = GetCachedJson(DAZSCRIPT_PROPERTY_CHAIN_CACHE_PREFIX, sPropertyPath);
     if (JsonGetType(jCached) == JSON_TYPE_ARRAY)
         return jCached;
 
-    json jRawSegments = SplitTopLevelToken(sPropertyPath, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_CANONICAL, TRUE);
+    json jRawSegments = SplitTopLevelToken(sPropertyPath, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL, TRUE);
     json jCompiledSegments = JsonArray();
     int nSegment, nNumSegments = JsonGetLength(jRawSegments);
 
@@ -1720,6 +1694,22 @@ struct Arguments EvalTwoArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_
 struct Arguments EvalThreeArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY)
 {
     return EvalArgs(strPC, 3, 3, nType0, nType1, nType2);
+}
+
+int ValueNeedsDefault(struct Value strValue)
+{
+    if (IsErrorValue(strValue))
+        return FALSE;
+    switch (strValue.nAuxType)
+    {
+        case NWNX_VM_AUXTYPE_STRING:
+            return strValue.sValue == "";
+        case NWNX_VM_AUXTYPE_OBJECT:
+            return !GetIsObjectValid(strValue.oValue);
+        case NWNX_VM_AUXTYPE_JSON:
+            return JsonGetType(strValue.jValue) == JSON_TYPE_NULL;
+    }
+    return FALSE;
 }
 
 int IsInvalidValue(struct Value strValue)
@@ -2325,18 +2315,6 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
                 strReturnValue = GetValueFromFloat(GetDistanceBetween(oValue, oOther));
         }
     }
-    else if (sProperty == "samearea")
-    {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_OBJECT);
-        if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            object oOther = GetValueAsObject(strArgs.strArg0);
-            int bSameArea = GetIsObjectValid(oValue) && GetIsObjectValid(oOther) && GetArea(oValue) == GetArea(oOther);
-            strReturnValue = GetValueFromInt(bSameArea);
-        }
-    }
     else if (sProperty == "x" || sProperty == "y" || sProperty == "z")
     {
         vector vPosition = GetPosition(oValue);
@@ -2656,6 +2634,16 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
     {
         strReturnValue = FormatValueAsBoolean(strPC.strValue);
     }
+    else if (sProperty == "default" || sProperty == "fallback")
+    {
+        struct Value strError = CheckArity(strPC, 1, 1);
+        if (IsErrorValue(strError))
+            strReturnValue = strError;
+        else if (ValueNeedsDefault(strPC.strValue))
+            strReturnValue = EvalCompiledParameter(strPC, 0);
+        else
+            strReturnValue = strPC.strValue;
+    }
 
     strPC.strValue = strReturnValue;
     return strPC;
@@ -2913,11 +2901,61 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         return GetValueFromString(sAccumulator);
     }
 
+    if (sMetaName == "try")
+    {
+        struct Value strError = CheckArity(strPC, 2, -1);
+        if (IsErrorValue(strError))
+            return strError;
+
+        int nIndex, nCount = GetParameterCount(strPC);
+        struct Value strLastError = GetInvalidValue();
+
+        for (nIndex = 0; nIndex < nCount; nIndex++)
+        {
+            struct Value strCandidate = EvalCompiledParameter(strPC, nIndex);
+            if (!IsErrorValue(strCandidate))
+                return strCandidate;
+            strLastError = strCandidate;
+        }
+
+        return strLastError;
+    }
+
     return GetInvalidValue();
 }
 
 struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
 {
+    if (sMetaName == "let")
+    {
+        struct Value strError = CheckArity(strPC, 3, -1);
+        if (IsErrorValue(strError))
+            return strError;
+
+        int nCount = GetParameterCount(strPC);
+        if (nCount % 2 != 1)
+            return GetErrorValue("LET_EXPECTS_BINDINGS_PLUS_BODY");
+
+        json jCompiledParameters = GetCompiledParameters(strPC);
+        json jFrame = JsonCopyObject(strPC.jStack);
+
+        int nIndex;
+        for (nIndex = 0; nIndex < nCount - 1; nIndex += 2)
+        {
+            string sAlias = GetRawParameterText(strPC, nIndex);
+            if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
+                return GetErrorValue("LET_ALIAS_IS_NON_ALIAS:" + sAlias);
+
+            struct Value strValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex + 1), jFrame);
+            if (IsErrorValue(strValue))
+                return strValue;
+
+            JsonObjectSetInplace(jFrame, sAlias, MakeStackAliasEntryFromValue(strValue));
+        }
+
+        return EvalTemplate(JsonArrayGet(jCompiledParameters, nCount - 1), jFrame);
+    }
+
     if (sMetaName == "set")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
@@ -3096,7 +3134,6 @@ struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
             return strArgs.strError;
 
         object oPC = GetValueAsObject(strArgs.strArg0);
-
         if (!GetIsObjectValid(oPC))
             return GetErrorValue("INVALID_OBJECT:ARG1");
 
@@ -3127,27 +3164,27 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
 
         if (IsValueIntParameter(strArgs.strArg0) && IsValueIntParameter(strArgs.strArg1))
         {
-            int nValue0 = GetValueAsInt(strArgs.strArg0);
-            int nValue1 = GetValueAsInt(strArgs.strArg1);
+            int nValue1 = GetValueAsInt(strArgs.strArg0);
+            int nValue2 = GetValueAsInt(strArgs.strArg1);
 
             if (sMetaName == "add")
-                return GetValueFromInt(nValue0 + nValue1);
+                return GetValueFromInt(nValue1 + nValue2);
             else if (sMetaName == "sub")
-                return GetValueFromInt(nValue0 - nValue1);
+                return GetValueFromInt(nValue1 - nValue2);
             else
-                return GetValueFromInt(nValue0 * nValue1);
+                return GetValueFromInt(nValue1 * nValue2);
         }
         else
         {
-            float fValue0 = GetValueAsFloat(strArgs.strArg0);
-            float fValue1 = GetValueAsFloat(strArgs.strArg1);
+            float fValue1 = GetValueAsFloat(strArgs.strArg0);
+            float fValue2 = GetValueAsFloat(strArgs.strArg1);
 
             if (sMetaName == "add")
-                return GetValueFromFloat(fValue0 + fValue1);
+                return GetValueFromFloat(fValue1 + fValue2);
             else if (sMetaName == "sub")
-                return GetValueFromFloat(fValue0 - fValue1);
+                return GetValueFromFloat(fValue1 - fValue2);
             else
-                return GetValueFromFloat(fValue0 * fValue1);
+                return GetValueFromFloat(fValue1 * fValue2);
         }
     }
 

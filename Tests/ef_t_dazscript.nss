@@ -18,61 +18,77 @@ void DazScript_TestJson();
 void DazScript_TestErrorHandling();
 void DazScript_TestControlFlow();
 
-void DazScript_Test(string sName, string sInput, string sExpected)
-{
-    string sActual = Interpret(sInput, 1);
+int g_nPassed = 0;
+int g_nFailed = 0;
+int g_bVerbosePasses = FALSE;
 
-    if (sActual == sExpected)
-    {
+void DazScript_ResetInstructionCounter()
+{
+    NWNX_VM_SetInstructionsExecuted(0);
+}
+
+void DazScript_PrintPass(string sName)
+{
+    if (g_bVerbosePasses)
         PrintString("[PASS] " + sName);
+}
+
+void DazScript_PrintFailure(string sName, string sInput, string sExpectationLabel, string sExpected, string sActual)
+{
+    PrintString("[FAIL] " + sName);
+    if (sInput != "")
+        PrintString("  input:    " + sInput);
+    PrintString("  " + sExpectationLabel + " " + sExpected);
+    PrintString("  actual:   " + sActual);
+}
+
+void DazScript_RecordResult(string sName, int bPassed, string sInput, string sExpectationLabel, string sExpected, string sActual)
+{
+    if (bPassed)
+    {
+        g_nPassed++;
+        DazScript_PrintPass(sName);
     }
     else
     {
-        PrintString("[FAIL] " + sName);
-        PrintString("  input:    " + sInput);
-        PrintString("  expected: " + sExpected);
-        PrintString("  actual:   " + sActual);
+        g_nFailed++;
+        DazScript_PrintFailure(sName, sInput, sExpectationLabel, sExpected, sActual);
     }
 
-    NWNX_VM_SetInstructionsExecuted(0);
+    DazScript_ResetInstructionCounter();
+}
+
+void DazScript_Test(string sName, string sInput, string sExpected)
+{
+    string sActual = Interpret(sInput, 1);
+    DazScript_RecordResult(sName, sActual == sExpected, sInput, "expected:", sExpected, sActual);
 }
 
 void DazScript_TestContains(string sName, string sInput, string sExpectedSubstring)
 {
     string sActual = Interpret(sInput, 1);
-
-    if (FindSubString(sActual, sExpectedSubstring) >= 0)
-    {
-        PrintString("[PASS] " + sName);
-    }
-    else
-    {
-        PrintString("[FAIL] " + sName);
-        PrintString("  input:       " + sInput);
-        PrintString("  expected has: " + sExpectedSubstring);
-        PrintString("  actual:      " + sActual);
-    }
-
-    NWNX_VM_SetInstructionsExecuted(0);
+    DazScript_RecordResult(sName, FindSubString(sActual, sExpectedSubstring) >= 0, sInput, "expected has:", sExpectedSubstring, sActual);
 }
 
 void DazScript_TestNotContains(string sName, string sInput, string sForbiddenSubstring)
 {
     string sActual = Interpret(sInput, 1);
+    DazScript_RecordResult(sName, FindSubString(sActual, sForbiddenSubstring) == -1, sInput, "should avoid:", sForbiddenSubstring, sActual);
+}
 
-    if (FindSubString(sActual, sForbiddenSubstring) == -1)
-    {
-        PrintString("[PASS] " + sName);
-    }
-    else
-    {
-        PrintString("[FAIL] " + sName);
-        PrintString("  input:        " + sInput);
-        PrintString("  should avoid: " + sForbiddenSubstring);
-        PrintString("  actual:       " + sActual);
-    }
+void DazScript_TestStateString(string sName, string sActual, string sExpected)
+{
+    DazScript_RecordResult(sName, sActual == sExpected, "", "expected:", sExpected, sActual);
+}
 
-    NWNX_VM_SetInstructionsExecuted(0);
+void DazScript_TestStateInt(string sName, int nActual, int nExpected)
+{
+    DazScript_RecordResult(sName, nActual == nExpected, "", "expected:", IntToString(nExpected), IntToString(nActual));
+}
+
+void DazScript_TestStateFloat(string sName, float fActual, float fExpected, float fTolerance)
+{
+    DazScript_RecordResult(sName, fabs(fActual - fExpected) <= fTolerance, "", "expected:", FloatToString(fExpected), FloatToString(fActual));
 }
 
 void main()
@@ -191,42 +207,37 @@ void main()
     DazScript_TestJson();
     DazScript_TestErrorHandling();
     DazScript_TestControlFlow();
+
+    PrintString("DazScript tests complete: " + IntToString(g_nPassed) + " passed, " + IntToString(g_nFailed) + " failed.");
 }
 
 void DazScript_TestLazy()
 {
     string sOut = "";
 
-    DazScript_Test("if does not eval false branch",
-        "{@if(TRUE, ok, {@out(sOut,bad)})}",
-        "ok");
-
-    if (sOut != "")
-        PrintString("[FAIL] if lazy false branch mutated sOut: " + sOut);
-    else
-        PrintString("[PASS] if lazy false branch did not run");
+    DazScript_Test("if lazy false branch",
+        "{@if(TRUE, ok, {@out(sOut,bad)})}|{sOut}",
+        "ok|");
 
     sOut = "";
-
-    DazScript_Test("or short-circuits",
-        "{@or(TRUE, {@out(sOut,bad)})>bool}",
-        "TRUE");
-
-    if (sOut != "")
-        PrintString("[FAIL] or evaluated unused branch: " + sOut);
-    else
-        PrintString("[PASS] or short-circuit");
+    DazScript_Test("or lazy unused branch",
+        "{@or(TRUE, {@out(sOut,bad)})>bool}|{sOut}",
+        "TRUE|");
 
     sOut = "";
+    DazScript_Test("and lazy unused branch",
+        "{@and(FALSE, {@out(sOut,bad)})>bool}|{sOut}",
+        "FALSE|");
 
-    DazScript_Test("and short-circuits",
-        "{@and(FALSE, {@out(sOut,bad)})>bool}",
-        "FALSE");
+    sOut = "";
+    DazScript_Test("try lazy fallback skipped on success",
+        "{@try(ok, {@out(sOut,bad)})}|{sOut}",
+        "ok|");
 
-    if (sOut != "")
-        PrintString("[FAIL] and evaluated unused branch: " + sOut);
-    else
-        PrintString("[PASS] and short-circuit");
+    sOut = "";
+    DazScript_Test("try fallback evaluated on failure",
+        "{@try({missingVar}, {@out(sOut,changed)}fallback)}|{sOut}",
+        "fallback|changed");
 }
 
 void DazScript_TestParserWhitespace()
@@ -399,6 +410,54 @@ void DazScript_TestMetaVars()
     DazScript_Test("then false branch",
         "{@int(0)>then(yes, no)}",
         "no");
+
+    DazScript_Test("let scoped alias",
+        "{@let($x, 123, {$x})}",
+        "123");
+
+    DazScript_Test("let alias does not leak",
+        "{@let($x, 123, {$x})}{@exists($x)>bool}",
+        "123FALSE");
+
+    DazScript_Test("let shadows outer alias",
+        "{@set($x, outer)}{@let($x, inner, {$x})}:{$x}",
+        "inner:outer");
+
+    DazScript_Test("let sequential bindings",
+        "{@let($a, 2, $b, {$a>incr}, '{$a},{$b}')}",
+        "2,3");
+
+    DazScript_Test("let inner set remains scoped",
+        "{@set($x, outer)}{@let($x, inner, {@set($x, changed)}{$x})}:{$x}",
+        "changed:outer");
+
+    DazScript_TestContains("let requires alias syntax",
+        "{@let(x, 1, body)}",
+        "LET_ALIAS_IS_NON_ALIAS:x");
+
+    DazScript_TestContains("let requires odd argument count",
+        "{@let($x, 1, $y, 2)}",
+        "LET_EXPECTS_BINDINGS_PLUS_BODY");
+
+    DazScript_Test("try primary success",
+        "{@try(ok, fallback)}",
+        "ok");
+
+    DazScript_Test("try catches missing var",
+        "{@try({missingVar}, fallback)}",
+        "fallback");
+
+    DazScript_Test("try catches bad property chain",
+        "{@try({@int(5)>nosuchproperty}, fallback)}",
+        "fallback");
+
+    DazScript_Test("try variadic fallback",
+        "{@try({missingVar}, {@int(5)>bad}, final)}",
+        "final");
+
+    DazScript_TestContains("try all branches failed returns last error",
+        "{@try({missingVar}, {@int(5)>bad})}",
+        "INVALID_PROPERTY_CHAIN");
 }
 
 void DazScript_TestFunctionParams()
@@ -486,25 +545,13 @@ void DazScript_TestOut()
     float fOut = 0.0;
 
     Interpret("{@out(sOut,done)}");
-
-    if (sOut == "done")
-        PrintString("[PASS] out string");
-    else
-        PrintString("[FAIL] out string: " + sOut);
+    DazScript_TestStateString("out string", sOut, "done");
 
     Interpret("{@out(nOut,42)}");
-
-    if (nOut == 42)
-        PrintString("[PASS] out int");
-    else
-        PrintString("[FAIL] out int: " + IntToString(nOut));
+    DazScript_TestStateInt("out int", nOut, 42);
 
     Interpret("{@out(fOut,12.5)}");
-
-    if (fabs(fOut - 12.5) < 0.001)
-        PrintString("[PASS] out float");
-    else
-        PrintString("[FAIL] out float: " + FloatToString(fOut));
+    DazScript_TestStateFloat("out float", fOut, 12.5, 0.001);
 }
 
 void DazScript_TestParserErrors()
@@ -558,34 +605,6 @@ void DazScript_TestParserErrors()
     DazScript_TestContains("parser error trailing comma function arg",
         "{@fn(#echo, $x, {$x})}{#echo(test,)}",
         "PARSE_ERROR:TRAILING_COMMA_IN_ARGUMENT_LIST:IN_#echo");
-
-    DazScript_Test("evil alt operator ignored inside nested expression arg",
-        "{m->append({@string('a->b')})}",
-        "5a->b");
-
-    DazScript_Test("evil canonical operator ignored inside quoted property arg",
-        "{m>append('a>b')}",
-        "5a>b");
-
-    DazScript_Test("evil parens inside quoted property arg",
-        "{m>append('(x,y)')}",
-        "5(x,y)");
-
-    DazScript_Test("evil comma inside quoted meta arg",
-        "{@string('a,b')}",
-        "a,b");
-
-    DazScript_TestContains("evil unmatched paren in property call",
-        "{m>append((x)}",
-        "PARSE_ERROR:UNTERMINATED_PROPERTY_CALL:IN_append");
-
-    DazScript_TestContains("evil unmatched paren in meta call",
-        "{@string((x)}",
-        "PARSE_ERROR:UNTERMINATED_PROPERTY_CALL:IN_string");
-
-    DazScript_Test("evil comma inside nested expression arg",
-        "{@string('a,b')>append(c)}",
-        "a,bc");
 }
 
 void DazScript_TestJson()
@@ -777,14 +796,6 @@ void DazScript_TestParserEvil()
         "{m>append({@string('>tail')})}",
         "5>tail");
 
-    DazScript_Test("evil alt property operator works at top level",
-        "{m->string->append(x)}",
-        "5x");
-
-    DazScript_Test("evil alt property operator ignored inside quotes",
-        "{@string('a->b')}",
-        "a->b");
-
     DazScript_TestContains("evil nested parse error in property arg bubbles",
         "{m>append({@string(ok)wat})}",
         "PARSE_ERROR:TRAILING_TEXT_AFTER_PROPERTY_CALL:IN_string");
@@ -828,4 +839,20 @@ void DazScript_TestParserEvil()
     DazScript_Test("evil parens inside quoted property arg",
         "{m>append('(x,y)')}",
         "5(x,y)");
+
+    DazScript_Test("evil comma inside quoted meta arg",
+        "{@string('a,b')}",
+        "a,b");
+
+    DazScript_TestContains("evil unmatched paren in property call",
+        "{m>append((x)}",
+        "PARSE_ERROR:UNTERMINATED_PROPERTY_CALL:IN_append");
+
+    DazScript_TestContains("evil unmatched paren in meta call",
+        "{@string((x)}",
+        "PARSE_ERROR:UNTERMINATED_PROPERTY_CALL:IN_string");
+
+    DazScript_Test("evil comma inside nested expression arg",
+        "{@string('a,b')>append(c)}",
+        "a,bc");
 }

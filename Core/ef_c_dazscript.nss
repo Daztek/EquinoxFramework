@@ -69,6 +69,23 @@ const int DAZSCRIPT_ARG_OBJECT                              = 3;
 const int DAZSCRIPT_ARG_STRING                              = 4;
 const int DAZSCRIPT_ARG_JSON                                = 5;
 
+struct Parser
+{
+    string sSource;
+    int nLength;
+    int nIndex;
+
+    int bInQuotes;
+    string sQuoteChar;
+
+    int nBraceDepth;
+    int nParenDepth;
+
+    int bError;
+    string sErrorCode;
+    int nErrorAt;
+};
+
 struct Value
 {
     int nAuxType;
@@ -124,13 +141,23 @@ struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType);
 
 int IsParserQuote(string sCharacter);
 int IsParserEscapedCharacter(string sString, int nIndex, int nLength);
+struct Parser ParserBegin(string sSource);
+int ParserAtEnd(struct Parser str);
+string ParserChar(struct Parser str);
+int ParserIsTopLevel(struct Parser str);
+int ParserMatches(struct Parser str, string sToken);
+struct Parser ParserAdvance(struct Parser c);
+int FindTopLevelToken(string sString, string sToken);
+json SplitTopLevelToken(string sString, string sToken, int bIncludeEmpty = TRUE);
+int FindMatchingTemplateExprEnd(string sString, int nOpenAt);
+int FindPropertyCallStart(string sPropertySegment);
+int FindMatchingPropertyCallParen(string sString, int nOpenAt);
 string NormalizePropertyChainOperators(string sString);
-json SplitTopLevel(string sString, string sDelimiter, int bIncludeEmpty = TRUE);
-int FindTopLevelDelimiter(string sString, string sDelimiter);
 
 string GetParserContext(string sSource, int nAt);
 json MakeParserError(string sCode, int nAt, string sSource);
 json MakeParserErrorPropertySegment(string sProperty, string sParameters, json jError);
+json CacheParameterParserError(string sParameters, string sCode, int nAt);
 int IsParserError(json jValue);
 struct Value GetValueFromParserError(json jError, string sWhere = "");
 struct Value CheckParameterParserError(struct PropertyChain strPC);
@@ -435,139 +462,259 @@ int IsParserEscapedCharacter(string sString, int nIndex, int nLength)
     return sNext == "\"" || sNext == "'" || sNext == "\\";
 }
 
-string NormalizePropertyChainOperators(string sString)
+struct Parser ParserBegin(string sSource)
 {
-    if (FindSubString(sString, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_ALT) == -1)
-        return sString;
-
-    int nLength = GetStringLength(sString);
-    int nBraceDepth = 0, nParenDepth = 0, bInQuotes = FALSE;
-    string sOut, sQuoteChar;
-
-    int nIndex;
-    for (nIndex = 0; nIndex < nLength; nIndex++)
-    {
-        string sCharacter = GetSubString(sString, nIndex, 1);
-        if (bInQuotes)
-        {
-            sOut += sCharacter;
-            if (IsParserEscapedCharacter(sString, nIndex, nLength))
-            {
-                nIndex++;
-                if (nIndex < nLength)
-                    sOut += GetSubString(sString, nIndex, 1);
-                continue;
-            }
-
-            if (sCharacter == sQuoteChar)
-                bInQuotes = FALSE;
-
-            continue;
-        }
-
-        if (IsParserQuote(sCharacter))
-        {
-            bInQuotes = TRUE;
-            sQuoteChar = sCharacter;
-            sOut += sCharacter;
-            continue;
-        }
-
-        if (sCharacter == "{")
-            nBraceDepth++;
-        else if (sCharacter == "}")
-            nBraceDepth--;
-        else if (sCharacter == "(" && nBraceDepth == 0)
-            nParenDepth++;
-        else if (sCharacter == ")" && nBraceDepth == 0)
-            nParenDepth--;
-
-        if (nBraceDepth == 0 && nParenDepth == 0 && nIndex + 1 < nLength && GetSubString(sString, nIndex, 2) == DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_ALT)
-        {
-            sOut += DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_CANONICAL;
-            nIndex++;
-            continue;
-        }
-
-        sOut += sCharacter;
-    }
-
-    return sOut;
+    struct Parser str;
+    str.sSource = sSource;
+    str.nLength = GetStringLength(sSource);
+    str.nIndex = 0;
+    return str;
 }
 
-json SplitTopLevel(string sString, string sDelimiter, int bIncludeEmpty = TRUE)
+int ParserAtEnd(struct Parser str)
+{
+    return str.nIndex >= str.nLength;
+}
+
+string ParserChar(struct Parser str)
+{
+    if (str.nIndex >= str.nLength)
+        return "";
+    return GetSubString(str.sSource, str.nIndex, 1);
+}
+
+int ParserIsTopLevel(struct Parser str)
+{
+    return !str.bInQuotes && str.nBraceDepth == 0 && str.nParenDepth == 0;
+}
+
+int ParserMatches(struct Parser str, string sToken)
+{
+    int nTokenLength = GetStringLength(sToken);
+    if (nTokenLength == 0)
+        return FALSE;
+    if (str.nIndex + nTokenLength > str.nLength)
+        return FALSE;
+    return GetSubString(str.sSource, str.nIndex, nTokenLength) == sToken;
+}
+
+struct Parser ParserAdvance(struct Parser str)
+{
+    if (str.nIndex >= str.nLength)
+        return str;
+
+    string sCharacter = GetSubString(str.sSource, str.nIndex, 1);
+    if (str.bInQuotes)
+    {
+        if (IsParserEscapedCharacter(str.sSource, str.nIndex, str.nLength))
+        {
+            str.nIndex += 2;
+            return str;
+        }
+
+        if (sCharacter == str.sQuoteChar)
+        {
+            str.bInQuotes = FALSE;
+            str.sQuoteChar = "";
+        }
+
+        str.nIndex++;
+        return str;
+    }
+
+    if (IsParserQuote(sCharacter))
+    {
+        str.bInQuotes = TRUE;
+        str.sQuoteChar = sCharacter;
+        str.nIndex++;
+        return str;
+    }
+
+    if (sCharacter == "{")
+    {
+        str.nBraceDepth++;
+    }
+    else if (sCharacter == "}")
+    {
+        str.nBraceDepth--;
+
+        if (str.nBraceDepth < 0)
+        {
+            str.bError = TRUE;
+            str.sErrorCode = "UNEXPECTED_CLOSING_BRACE";
+            str.nErrorAt = str.nIndex;
+        }
+    }
+    else if (sCharacter == "(" && str.nBraceDepth == 0)
+    {
+        str.nParenDepth++;
+    }
+    else if (sCharacter == ")" && str.nBraceDepth == 0)
+    {
+        str.nParenDepth--;
+
+        if (str.nParenDepth < 0)
+        {
+            str.bError = TRUE;
+            str.sErrorCode = "UNEXPECTED_CLOSING_PAREN";
+            str.nErrorAt = str.nIndex;
+        }
+    }
+
+    str.nIndex++;
+    return str;
+}
+
+int FindTopLevelToken(string sString, string sToken)
+{
+    struct Parser str= ParserBegin(sString);
+    while (!ParserAtEnd(str))
+    {
+        if (ParserIsTopLevel(str) && ParserMatches(str, sToken))
+            return str.nIndex;
+        str = ParserAdvance(str);
+        if (str.bError)
+            return -1;
+    }
+    return -1;
+}
+
+json SplitTopLevelToken(string sString, string sToken, int bIncludeEmpty = TRUE)
 {
     json jParts = JsonArray();
-    int nLength = GetStringLength(sString);
-    int nStart = 0, nBraceDepth = 0, nParenDepth = 0;
-    int bInQuotes = FALSE;
-    string sQuoteChar = "";
+    int nTokenLength = GetStringLength(sToken);
+    int nStart = 0;
 
-    int nIndex;
-    for (nIndex = 0; nIndex < nLength; nIndex++)
+    if (nTokenLength == 0)
     {
-        string sCharacter = GetSubString(sString, nIndex, 1);
+        JsonArrayInsertStringInplace(jParts, sString);
+        return jParts;
+    }
 
-        if (bInQuotes)
+    struct Parser str = ParserBegin(sString);
+    while (!ParserAtEnd(str))
+    {
+        if (ParserIsTopLevel(str) && ParserMatches(str, sToken))
         {
-            if (IsParserEscapedCharacter(sString, nIndex, nLength))
-            {
-                nIndex++;
-                continue;
-            }
-
-            if (sCharacter == sQuoteChar)
-                bInQuotes = FALSE;
-
-            continue;
-        }
-
-        if (IsParserQuote(sCharacter))
-        {
-            bInQuotes = TRUE;
-            sQuoteChar = sCharacter;
-            continue;
-        }
-
-        if (sCharacter == "{")
-        {
-            nBraceDepth++;
-        }
-        else if (sCharacter == "}")
-        {
-            nBraceDepth--;
-        }
-        else if (sCharacter == "(" && nBraceDepth == 0)
-        {
-            nParenDepth++;
-        }
-        else if (sCharacter == ")" && nBraceDepth == 0)
-        {
-            nParenDepth--;
-        }
-        else if (sCharacter == sDelimiter && nBraceDepth == 0 && nParenDepth == 0)
-        {
-            string sPart = GetSubString(sString, nStart, nIndex - nStart);
+            string sPart = GetSubString(sString, nStart, str.nIndex - nStart);
             if (bIncludeEmpty || sPart != "")
                 JsonArrayInsertStringInplace(jParts, sPart);
 
-            nStart = nIndex + 1;
+            str.nIndex += nTokenLength;
+            nStart = str.nIndex;
+            continue;
         }
+        str = ParserAdvance(str);
     }
 
-    string sFinalPart = GetSubString(sString, nStart, nLength - nStart);
+    string sFinalPart = GetSubString(sString, nStart, GetStringLength(sString) - nStart);
     if (bIncludeEmpty || sFinalPart != "")
         JsonArrayInsertStringInplace(jParts, sFinalPart);
 
     return jParts;
 }
 
-int FindTopLevelDelimiter(string sString, string sDelimiter)
+int FindMatchingTemplateExprEnd(string sString, int nOpenAt)
 {
-    json jParts = SplitTopLevel(sString, sDelimiter, TRUE);
-    if (JsonGetLength(jParts) <= 1)
-        return -1;
-    return GetStringLength(JsonArrayGetString(jParts, 0));
+    int nDepth = 1;
+    struct Parser str = ParserBegin(sString);
+    str.nIndex = nOpenAt + 1;
+
+    while (!ParserAtEnd(str))
+    {
+        string sCharacter = ParserChar(str);
+        if (!str.bInQuotes)
+        {
+            if (sCharacter == "{")
+                nDepth++;
+            else if (sCharacter == "}")
+            {
+                nDepth--;
+                if (nDepth == 0)
+                    return str.nIndex;
+            }
+        }
+
+        str = ParserAdvance(str);
+    }
+
+    return -1;
+}
+
+int FindPropertyCallStart(string sPropertySegment)
+{
+    struct Parser str = ParserBegin(sPropertySegment);
+    while (!ParserAtEnd(str))
+    {
+        if (ParserIsTopLevel(str) && ParserChar(str) == "(")
+            return str.nIndex;
+        str = ParserAdvance(str);
+    }
+    return -1;
+}
+
+int FindMatchingPropertyCallParen(string sString, int nOpenAt)
+{
+    int nParenDepth = 1, nBraceDepth = 0;
+    struct Parser str = ParserBegin(sString);
+    str.nIndex = nOpenAt + 1;
+
+    while (!ParserAtEnd(str))
+    {
+        string sCharacter = ParserChar(str);
+        if (!str.bInQuotes)
+        {
+            if (sCharacter == "{")
+            {
+                nBraceDepth++;
+            }
+            else if (sCharacter == "}")
+            {
+                nBraceDepth--;
+
+                if (nBraceDepth < 0)
+                    return -2 - str.nIndex;
+            }
+            else if (sCharacter == "(" && nBraceDepth == 0)
+            {
+                nParenDepth++;
+            }
+            else if (sCharacter == ")" && nBraceDepth == 0)
+            {
+                nParenDepth--;
+
+                if (nParenDepth == 0)
+                    return str.nIndex;
+            }
+        }
+        str = ParserAdvance(str);
+    }
+    return -1;
+}
+
+string NormalizePropertyChainOperators(string sString)
+{
+    if (FindSubString(sString, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_ALT) == -1)
+        return sString;
+
+    string sOut = "";
+    struct Parser str = ParserBegin(sString);
+
+    while (!ParserAtEnd(str))
+    {
+        if (ParserIsTopLevel(str) && ParserMatches(str, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_ALT))
+        {
+            sOut += DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_CANONICAL;
+            str.nIndex += GetStringLength(DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_ALT);
+            continue;
+        }
+
+        int nOldIndex = str.nIndex;
+        str = ParserAdvance(str);
+        sOut += GetSubString(sString, nOldIndex, str.nIndex - nOldIndex);
+    }
+
+    return sOut;
 }
 
 string GetParserContext(string sSource, int nAt)
@@ -610,6 +757,13 @@ json MakeParserErrorPropertySegment(string sProperty, string sParameters, json j
     JsonArrayInsertInplace(jSegment, jError);
     JsonArrayInsertInplace(jSegment, jError);
     return jSegment;
+}
+
+json CacheParameterParserError(string sParameters, string sCode, int nAt)
+{
+    json jError = MakeParserError(sCode, nAt, sParameters);
+    SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
+    return jError;
 }
 
 int IsParserError(json jValue)
@@ -684,48 +838,10 @@ json CompileTemplate(string sString)
             continue;
         }
 
-        int nStart = nIndex, nDepth = 1, bInQuotes = FALSE;
-        string sQuoteChar = "";
+        int nStart = nIndex;
+        int nEnd = FindMatchingTemplateExprEnd(sString, nStart);
 
-        nIndex++;
-
-        while (nIndex < nLength && nDepth > 0)
-        {
-            string sCharacter = GetSubString(sString, nIndex, 1);
-
-            if (bInQuotes)
-            {
-                if (IsParserEscapedCharacter(sString, nIndex, nLength))
-                {
-                    nIndex += 2;
-                    continue;
-                }
-
-                if (sCharacter == sQuoteChar)
-                    bInQuotes = FALSE;
-
-                nIndex++;
-                continue;
-            }
-
-            if (IsParserQuote(sCharacter))
-            {
-                bInQuotes = TRUE;
-                sQuoteChar = sCharacter;
-            }
-            else if (sCharacter == "{")
-            {
-                nDepth++;
-            }
-            else if (sCharacter == "}")
-            {
-                nDepth--;
-            }
-
-            nIndex++;
-        }
-
-        if (nDepth != 0)
+        if (nEnd == -1)
             return MakeParserError("UNTERMINATED_TEMPLATE_EXPR", nStart, sString);
 
         if (nStart > nLiteralStart)
@@ -733,8 +849,9 @@ json CompileTemplate(string sString)
             JsonArrayInsertLiteralNodeInplace(jTemplate, GetSubString(sString, nLiteralStart, nStart - nLiteralStart));
         }
 
-        JsonArrayInsertExprNodeInplace(jTemplate, GetSubString(sString, nStart + 1, nIndex - nStart - 2));
+        JsonArrayInsertExprNodeInplace(jTemplate, GetSubString(sString, nStart + 1, nEnd - nStart - 1));
 
+        nIndex = nEnd + 1;
         nLiteralStart = nIndex;
     }
 
@@ -840,7 +957,7 @@ json CompileExpression(string sExpr)
     sExpr = trim(sExpr);
     sExpr = NormalizePropertyChainOperators(sExpr);
 
-    int nPropertyPosition = FindTopLevelDelimiter(sExpr, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_CANONICAL);
+    int nPropertyPosition = FindTopLevelToken(sExpr, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_CANONICAL);
     string sBase, sPropertyPath;
 
     if (nPropertyPosition == -1)
@@ -1099,7 +1216,7 @@ json CompilePropertyChain(string sPropertyPath)
     if (JsonGetType(jCached) == JSON_TYPE_ARRAY)
         return jCached;
 
-    json jRawSegments = SplitTopLevel(sPropertyPath, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_CANONICAL, TRUE);
+    json jRawSegments = SplitTopLevelToken(sPropertyPath, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL_CANONICAL, TRUE);
     json jCompiledSegments = JsonArray();
     int nSegment, nNumSegments = JsonGetLength(jRawSegments);
 
@@ -1116,40 +1233,8 @@ json CompilePropertySegment(string sPropertySegment)
 {
     sPropertySegment = trim(sPropertySegment);
 
-    string sQuoteChar;
-    int nIndex, nLength = GetStringLength(sPropertySegment), nParameterStart = -1, bInQuotes;
-
-    for (nIndex = 0; nIndex < nLength; nIndex++)
-    {
-        string sCharacter = GetSubString(sPropertySegment, nIndex, 1);
-
-        if (bInQuotes)
-        {
-            if (IsParserEscapedCharacter(sPropertySegment, nIndex, nLength))
-            {
-                nIndex++;
-                continue;
-            }
-
-            if (sCharacter == sQuoteChar)
-                bInQuotes = FALSE;
-
-            continue;
-        }
-
-        if (IsParserQuote(sCharacter))
-        {
-            bInQuotes = TRUE;
-            sQuoteChar = sCharacter;
-            continue;
-        }
-
-        if (sCharacter == "(")
-        {
-            nParameterStart = nIndex;
-            break;
-        }
-    }
+    int nLength = GetStringLength(sPropertySegment);
+    int nParameterStart = FindPropertyCallStart(sPropertySegment);
 
     string sProperty, sParameters;
     if (nParameterStart == -1)
@@ -1157,67 +1242,13 @@ json CompilePropertySegment(string sPropertySegment)
     else
     {
         sProperty = trim(GetStringLeft(sPropertySegment, nParameterStart));
+        int nParameterEnd = FindMatchingPropertyCallParen(sPropertySegment, nParameterStart);
 
-        int nParameterEnd = -1, nParenDepth = 1, nBraceDepth = 0;
-        bInQuotes = FALSE;
-        sQuoteChar = "";
-
-        for (nIndex = nParameterStart + 1; nIndex < nLength; nIndex++)
+        if (nParameterEnd <= -2)
         {
-            string sCharacter = GetSubString(sPropertySegment, nIndex, 1);
-
-            if (bInQuotes)
-            {
-                if (IsParserEscapedCharacter(sPropertySegment, nIndex, nLength))
-                {
-                    nIndex++;
-                    continue;
-                }
-
-                if (sCharacter == sQuoteChar)
-                    bInQuotes = FALSE;
-
-                continue;
-            }
-
-            if (IsParserQuote(sCharacter))
-            {
-                bInQuotes = TRUE;
-                sQuoteChar = sCharacter;
-                continue;
-            }
-
-            if (sCharacter == "{")
-                nBraceDepth++;
-            else if (sCharacter == "}")
-            {
-                nBraceDepth--;
-
-                if (nBraceDepth < 0)
-                {
-                    json jError = MakeParserError("UNEXPECTED_CLOSING_BRACE", nIndex, sPropertySegment);
-
-                    json jSegment = JsonArray();
-                    JsonArrayInsertStringInplace(jSegment, GetStringLowerCase(sProperty));
-                    JsonArrayInsertStringInplace(jSegment, "");
-                    JsonArrayInsertInplace(jSegment, jError);
-                    JsonArrayInsertInplace(jSegment, jError);
-
-                    return jSegment;
-                }
-            }
-            else if (nBraceDepth == 0 && sCharacter == "(")
-                nParenDepth++;
-            else if (nBraceDepth == 0 && sCharacter == ")")
-            {
-                nParenDepth--;
-
-                if (nParenDepth == 0)
-                {
-                    nParameterEnd = nIndex;
-                    break;
-                }
-            }
+            int nErrorAt = -nParameterEnd - 2;
+            json jError = MakeParserError("UNEXPECTED_CLOSING_BRACE", nErrorAt, sPropertySegment);
+            return MakeParserErrorPropertySegment(sProperty, "", jError);
         }
 
         if (nParameterEnd == -1)
@@ -1226,8 +1257,7 @@ json CompilePropertySegment(string sPropertySegment)
             return MakeParserErrorPropertySegment(sProperty, "", jError);
         }
 
-        if (nParameterEnd != -1)
-            sParameters = GetSubString(sPropertySegment, nParameterStart + 1, nParameterEnd - nParameterStart - 1);
+        sParameters = GetSubString(sPropertySegment, nParameterStart + 1, nParameterEnd - nParameterStart - 1);
 
         string sRemainder = trim(GetSubString(sPropertySegment, nParameterEnd + 1, nLength - nParameterEnd - 1));
         if (sRemainder != "")
@@ -1436,11 +1466,7 @@ json ParseParameterEntries(string sParameters)
             }
 
             if (sCharacter != ",")
-            {
-                json jError = MakeParserError("TRAILING_TEXT_AFTER_QUOTED_ARGUMENT", nIndex, sParameters);
-                SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
-                return jError;
-            }
+                return CacheParameterParserError(sParameters, "TRAILING_TEXT_AFTER_QUOTED_ARGUMENT", nIndex);
         }
 
         if (sCharacter == "{")
@@ -1453,11 +1479,7 @@ json ParseParameterEntries(string sParameters)
             nBraceDepth--;
 
             if (nBraceDepth < 0)
-            {
-                json jError = MakeParserError("UNEXPECTED_CLOSING_BRACE", nIndex, sParameters);
-                SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
-                return jError;
-            }
+                return CacheParameterParserError(sParameters, "UNEXPECTED_CLOSING_BRACE", nIndex);
 
             sCurrent += sCharacter;
         }
@@ -1471,11 +1493,7 @@ json ParseParameterEntries(string sParameters)
             nParenDepth--;
 
             if (nParenDepth < 0)
-            {
-                json jError = MakeParserError("UNEXPECTED_CLOSING_PAREN", nIndex, sParameters);
-                SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
-                return jError;
-            }
+                return CacheParameterParserError(sParameters, "UNEXPECTED_CLOSING_PAREN", nIndex);
 
             sCurrent += sCharacter;
         }
@@ -1498,32 +1516,13 @@ json ParseParameterEntries(string sParameters)
     }
 
     if (bInQuotes)
-    {
-        json jError = MakeParserError("UNTERMINATED_QUOTE", nLength, sParameters);
-        SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
-        return jError;
-    }
-
+        return CacheParameterParserError(sParameters, "UNTERMINATED_QUOTE", nLength);
     if (nBraceDepth > 0)
-    {
-        json jError = MakeParserError("UNTERMINATED_BRACE", nLength, sParameters);
-        SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
-        return jError;
-    }
-
+        return CacheParameterParserError(sParameters, "UNTERMINATED_BRACE", nLength);
     if (nParenDepth > 0)
-    {
-        json jError = MakeParserError("UNTERMINATED_PAREN", nLength, sParameters);
-        SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
-        return jError;
-    }
-
+        return CacheParameterParserError(sParameters, "UNTERMINATED_PAREN", nLength);
     if (bLastWasComma)
-    {
-        json jError = MakeParserError("TRAILING_COMMA_IN_ARGUMENT_LIST", nLength - 1, sParameters);
-        SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
-        return jError;
-    }
+        return CacheParameterParserError(sParameters, "TRAILING_COMMA_IN_ARGUMENT_LIST", nLength - 1);
 
     JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : trim(sCurrent), bWasQuoted));
 

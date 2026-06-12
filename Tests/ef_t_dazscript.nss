@@ -262,6 +262,14 @@ void DazScript_TestParserWhitespace()
     DazScript_Test("quoted param preserves parens and comma",
         "{@string('a (b), c')}",
         "a (b), c");
+
+    DazScript_Test("param quoted empty string",
+        "{@string('')}",
+        "");
+
+    DazScript_Test("param quoted spaces only",
+        "{@string('   ')}",
+        "   ");
 }
 
 void DazScript_TestStringProperties()
@@ -550,6 +558,34 @@ void DazScript_TestParserErrors()
     DazScript_TestContains("parser error trailing comma function arg",
         "{@fn(#echo, $x, {$x})}{#echo(test,)}",
         "PARSE_ERROR:TRAILING_COMMA_IN_ARGUMENT_LIST:IN_#echo");
+
+    DazScript_Test("evil alt operator ignored inside nested expression arg",
+        "{m->append({@string('a->b')})}",
+        "5a->b");
+
+    DazScript_Test("evil canonical operator ignored inside quoted property arg",
+        "{m>append('a>b')}",
+        "5a>b");
+
+    DazScript_Test("evil parens inside quoted property arg",
+        "{m>append('(x,y)')}",
+        "5(x,y)");
+
+    DazScript_Test("evil comma inside quoted meta arg",
+        "{@string('a,b')}",
+        "a,b");
+
+    DazScript_TestContains("evil unmatched paren in property call",
+        "{m>append((x)}",
+        "PARSE_ERROR:UNTERMINATED_PROPERTY_CALL:IN_append");
+
+    DazScript_TestContains("evil unmatched paren in meta call",
+        "{@string((x)}",
+        "PARSE_ERROR:UNTERMINATED_PROPERTY_CALL:IN_string");
+
+    DazScript_Test("evil comma inside nested expression arg",
+        "{@string('a,b')>append(c)}",
+        "a,bc");
 }
 
 void DazScript_TestJson()
@@ -784,4 +820,12 @@ void DazScript_TestParserEvil()
     DazScript_TestNotContains("evil nested parse error not invalid chain",
         "{m>append({@string(ok)wat})}",
         "INVALID_PROPERTY_CHAIN");
+
+    DazScript_Test("evil canonical operator ignored inside quoted property arg",
+        "{m>append('a>b')}",
+        "5a>b");
+
+    DazScript_Test("evil parens inside quoted property arg",
+        "{m>append('(x,y)')}",
+        "5(x,y)");
 }

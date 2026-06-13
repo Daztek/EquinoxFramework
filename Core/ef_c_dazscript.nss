@@ -183,6 +183,7 @@ struct PropertyChain ApplyCompiledPropertySegment(struct PropertyChain strPC, js
 struct PropertyChain EvalCompiledPropertyChain(struct PropertyChain strPC, json jSegments);
 struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC);
 
+json CompileParsedParameters(string sParameters, json jParameterEntries);
 json CompileParameters(string sParameters);
 json ParseParameterEntries(string sParameters);
 json GetCompiledParameters(struct PropertyChain strPC);
@@ -230,6 +231,7 @@ struct Value FormatValueAsFixed(struct Value strValue, int nPrecision);
 struct Value FormatValueAsHex(struct Value strValue);
 struct Value FormatValueAsBoolean(struct Value strValue);
 
+struct PropertyChain ReturnPropertyChainWithValue(struct PropertyChain strPC, struct Value strValue);
 struct PropertyChain GetIntProperty(struct PropertyChain strPC);
 struct PropertyChain GetFloatProperty(struct PropertyChain strPC);
 struct PropertyChain GetStringProperty(struct PropertyChain strPC);
@@ -1242,12 +1244,7 @@ json CompilePropertySegment(string sPropertySegment)
     }
 
     json jParameterEntries = ParseParameterEntries(sParameters);
-    json jCompiledParameters;
-
-    if (IsParserError(jParameterEntries))
-        jCompiledParameters = jParameterEntries;
-    else
-        jCompiledParameters = CompileParameters(sParameters);
+    json jCompiledParameters = CompileParsedParameters(sParameters, jParameterEntries);
 
     json jSegment = JsonArray();
     JsonArrayInsertStringInplace(jSegment, GetStringLowerCase(sProperty));
@@ -1314,21 +1311,18 @@ struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC)
     return strPC;
 }
 
-json CompileParameters(string sParameters)
+json CompileParsedParameters(string sParameters, json jParameterEntries)
 {
+    if (IsParserError(jParameterEntries))
+        return jParameterEntries;
     if (sParameters == "")
         return JsonArray();
 
     json jCached = GetCachedJson(DAZSCRIPT_COMPILED_PARAMETER_CACHE_PREFIX, sParameters);
-    if (JsonGetType(jCached) == JSON_TYPE_ARRAY  || IsParserError(jCached))
+    if (JsonGetType(jCached) == JSON_TYPE_ARRAY || IsParserError(jCached))
         return jCached;
 
-    json jParameterEntries = ParseParameterEntries(sParameters);
-    if (IsParserError(jParameterEntries))
-        return jParameterEntries;
-
     json jCompiledParameters = JsonArray();
-
     int nIndex, nNumParameters = JsonGetLength(jParameterEntries);
     for (nIndex = 0; nIndex < nNumParameters; nIndex++)
     {
@@ -1344,6 +1338,12 @@ json CompileParameters(string sParameters)
 
     SetCachedJson(DAZSCRIPT_COMPILED_PARAMETER_CACHE_PREFIX, sParameters, jCompiledParameters);
     return jCompiledParameters;
+}
+
+json CompileParameters(string sParameters)
+{
+    json jParameterEntries = ParseParameterEntries(sParameters);
+    return CompileParsedParameters(sParameters, jParameterEntries);
 }
 
 json ParseParameterEntries(string sParameters)
@@ -1933,110 +1933,108 @@ object GetValueAsObject(struct Value strValue, object oDefault = OBJECT_INVALID)
     return oValue;
 }
 
+struct PropertyChain ReturnPropertyChainWithValue(struct PropertyChain strPC, struct Value strValue)
+{
+    strPC.strValue = strValue;
+    return strPC;
+}
+
 struct PropertyChain GetIntProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
     int nValue = strPC.strValue.nValue;
 
-    struct Value strReturnValue = GetInvalidValue();
-
     if (sProperty == "abs")
-    {
-        strReturnValue = GetValueFromInt(abs(nValue));
-    }
-    else if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
-    {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            int nCompare = GetValueAsInt(strArgs.strArg0);
-            if (sProperty == "eq")          strReturnValue = GetValueFromInt(nValue == nCompare);
-            else if (sProperty == "neq")    strReturnValue = GetValueFromInt(nValue != nCompare);
-            else if (sProperty == "gt")     strReturnValue = GetValueFromInt(nValue > nCompare);
-            else if (sProperty == "gte")    strReturnValue = GetValueFromInt(nValue >= nCompare);
-            else if (sProperty == "lt")     strReturnValue = GetValueFromInt(nValue < nCompare);
-            else if (sProperty == "lte")    strReturnValue = GetValueFromInt(nValue <= nCompare);
-        }
-    }
-    else if (sProperty == "min" || sProperty == "max")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(abs(nValue)));
+
+    if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
         struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            int nOther = GetValueAsInt(strArgs.strArg0);
-            if (sProperty == "min")
-                strReturnValue = GetValueFromInt(nValue < nOther ? nValue : nOther);
-            else
-                strReturnValue = GetValueFromInt(nValue > nOther ? nValue : nOther);
-        }
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        int nCompare = GetValueAsInt(strArgs.strArg0);
+        if (sProperty == "eq")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue == nCompare));
+        if (sProperty == "neq") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue != nCompare));
+        if (sProperty == "gt")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue > nCompare));
+        if (sProperty == "gte") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue >= nCompare));
+        if (sProperty == "lt")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue < nCompare));
+        if (sProperty == "lte") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue <= nCompare));
     }
-    else if (sProperty == "clamp")
+
+    if (sProperty == "min" || sProperty == "max")
+    {
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        int nOther = GetValueAsInt(strArgs.strArg0);
+        if (sProperty == "min")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue < nOther ? nValue : nOther));
+        else
+            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue > nOther ? nValue : nOther));
+    }
+
+    if (sProperty == "clamp")
     {
         struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-            strReturnValue = GetValueFromInt(clamp(nValue, GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1)));
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(clamp(nValue, GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1))));
     }
-    else if (sProperty == "mod")
+
+    if (sProperty == "mod")
     {
         struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        int nDivisor = GetValueAsInt(strArgs.strArg0);
+        if (nDivisor != 0)
+            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue % nDivisor));
         else
-        {
-            int nDivisor = GetValueAsInt(strArgs.strArg0);
-            if (nDivisor != 0)
-                strReturnValue = GetValueFromInt(nValue % nDivisor);
-            else
-                strReturnValue = GetErrorValue("DIVISION_BY_ZERO");
-        }
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("DIVISION_BY_ZERO"));
     }
-    else if (sProperty == "then")
+
+    if (sProperty == "then")
     {
         struct Value strError = CheckArity(strPC, 2, 2);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else
-            strReturnValue = EvalCompiledParameter(strPC, nValue != 0 ? 0 : 1);
+            return ReturnPropertyChainWithValue(strPC, strError);
+        return ReturnPropertyChainWithValue(strPC, EvalCompiledParameter(strPC, nValue != 0 ? 0 : 1));
     }
-    else if (sProperty == "plural")
+
+    if (sProperty == "plural")
     {
         struct Value strError = CheckArity(strPC, 1, 2);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else if (GetParameterCount(strPC) == 1)
+            return ReturnPropertyChainWithValue(strPC, strError);
+        if (GetParameterCount(strPC) == 1)
         {
             if (nValue == 1)
-                strReturnValue = GetValueFromString();
+                return ReturnPropertyChainWithValue(strPC, GetValueFromString());
             else
-                strReturnValue = EvalCompiledParameter(strPC, 0);
+                return ReturnPropertyChainWithValue(strPC, EvalCompiledParameter(strPC, 0));
         }
         else
-            strReturnValue = EvalCompiledParameter(strPC, nValue != 1);
-    }
-    else if (sProperty == "increment" || sProperty == "incr")
-    {
-        strReturnValue = GetValueFromInt(nValue + 1);
-    }
-    else if (sProperty == "decrement" || sProperty == "decr")
-    {
-        strReturnValue = GetValueFromInt(nValue - 1);
-    }
-    else if (sProperty == "even" || sProperty == "odd")
-    {
-        if (sProperty == "even")
-            strReturnValue = GetValueFromInt(nValue % 2 == 0);
-        else
-            strReturnValue = GetValueFromInt(nValue % 2 != 0);
+            return ReturnPropertyChainWithValue(strPC, EvalCompiledParameter(strPC, nValue != 1));
     }
 
-    strPC.strValue = strReturnValue;
-    return strPC;
+    if (sProperty == "increment" || sProperty == "incr")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue + 1));
+
+    if (sProperty == "decrement" || sProperty == "decr")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue - 1));
+
+    if (sProperty == "even" || sProperty == "odd")
+    {
+        if (sProperty == "even")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue % 2 == 0));
+        else
+            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue % 2 != 0));
+    }
+
+    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
 }
 
 struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
@@ -2044,66 +2042,56 @@ struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
     string sProperty = strPC.sCurrentProperty;
     float fValue = strPC.strValue.fValue;
 
-    struct Value strReturnValue = GetInvalidValue();
-
     if (sProperty == "fabs")
-    {
-        strReturnValue = GetValueFromFloat(fabs(fValue));
-    }
-    else if (sProperty == "floor")
-    {
-        strReturnValue = GetValueFromInt(floor(fValue));
-    }
-    else if (sProperty == "ceil")
-    {
-        strReturnValue = GetValueFromInt(ceil(fValue));
-    }
-    else if (sProperty == "round")
-    {
-        strReturnValue = GetValueFromInt(round(fValue));
-    }
-    else if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(fabs(fValue)));
+
+    if (sProperty == "floor")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(floor(fValue)));
+
+    if (sProperty == "ceil")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(ceil(fValue)));
+
+    if (sProperty == "round")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(round(fValue)));
+
+    if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
         struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            float fCompare = GetValueAsFloat(strArgs.strArg0);
-            float fDiff = fValue - fCompare;
-            if (sProperty == "eq")          strReturnValue = GetValueFromInt(fabs(fDiff) < FLOAT_EPSILON);
-            else if (sProperty == "neq")    strReturnValue = GetValueFromInt(fabs(fDiff) >= FLOAT_EPSILON);
-            else if (sProperty == "gt")     strReturnValue = GetValueFromInt(fDiff > FLOAT_EPSILON);
-            else if (sProperty == "gte")    strReturnValue = GetValueFromInt(fDiff >= -FLOAT_EPSILON);
-            else if (sProperty == "lt")     strReturnValue = GetValueFromInt(fDiff < -FLOAT_EPSILON);
-            else if (sProperty == "lte")    strReturnValue = GetValueFromInt(fDiff <= FLOAT_EPSILON);
-        }
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        float fCompare = GetValueAsFloat(strArgs.strArg0);
+        float fDiff = fValue - fCompare;
+        if (sProperty == "eq")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fabs(fDiff) < FLOAT_EPSILON));
+        if (sProperty == "neq") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fabs(fDiff) >= FLOAT_EPSILON));
+        if (sProperty == "gt")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fDiff > FLOAT_EPSILON));
+        if (sProperty == "gte") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fDiff >= -FLOAT_EPSILON));
+        if (sProperty == "lt")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fDiff < -FLOAT_EPSILON));
+        if (sProperty == "lte") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fDiff <= FLOAT_EPSILON));
     }
-    else if (sProperty == "min" || sProperty == "max")
+
+    if (sProperty == "min" || sProperty == "max")
     {
         struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        float fOther = GetValueAsFloat(strArgs.strArg0);
+        if (sProperty == "min")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(fValue < fOther ? fValue : fOther));
         else
-        {
-            float fOther = GetValueAsFloat(strArgs.strArg0);
-            if (sProperty == "min")
-                strReturnValue = GetValueFromFloat(fValue < fOther ? fValue : fOther);
-            else
-                strReturnValue = GetValueFromFloat(fValue > fOther ? fValue : fOther);
-        }
+            return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(fValue > fOther ? fValue : fOther));
     }
-    else if (sProperty == "clamp")
+
+    if (sProperty == "clamp")
     {
         struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-            strReturnValue = GetValueFromFloat(clampf(fValue, GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1)));
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(clampf(fValue, GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1))));
     }
 
-    strPC.strValue = strReturnValue;
-    return strPC;
+    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
 }
 
 struct PropertyChain GetStringProperty(struct PropertyChain strPC)
@@ -2111,129 +2099,113 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
     string sProperty = strPC.sCurrentProperty;
     string sValue = strPC.strValue.sValue;
 
-    struct Value strReturnValue = GetInvalidValue();
-
     if (sProperty == "length")
-    {
-        strReturnValue = GetValueFromInt(GetStringLength(sValue));
-    }
-    else if (sProperty == "upper")
-    {
-        strReturnValue = GetValueFromString(GetStringUpperCase(sValue));
-    }
-    else if (sProperty == "lower")
-    {
-        strReturnValue = GetValueFromString(GetStringLowerCase(sValue));
-    }
-    else if (sProperty == "trim")
-    {
-        strReturnValue = GetValueFromString(trim(sValue));
-    }
-    else if (sProperty == "empty")
-    {
-        strReturnValue = GetValueFromInt(sValue == "");
-    }
-    else if (sProperty == "notempty")
-    {
-        strReturnValue = GetValueFromInt(sValue != "");
-    }
-    else if (sProperty == "contains")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetStringLength(sValue)));
+
+    if (sProperty == "upper")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetStringUpperCase(sValue)));
+
+    if (sProperty == "lower")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetStringLowerCase(sValue)));
+
+    if (sProperty == "trim")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(trim(sValue)));
+
+    if (sProperty == "empty")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(sValue == ""));
+
+    if (sProperty == "notempty")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(sValue != ""));
+
+    if (sProperty == "contains")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-            strReturnValue = GetValueFromInt(FindSubString(sValue, GetValueAsText(strArgs.strArg0), 0) != -1);
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(FindSubString(sValue, GetValueAsText(strArgs.strArg0), 0) != -1));
     }
-    else if (sProperty == "startswith")
+
+    if (sProperty == "startswith")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-            strReturnValue = GetValueFromInt(IsStringPrefix(sValue, GetValueAsText(strArgs.strArg0)));
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(IsStringPrefix(sValue, GetValueAsText(strArgs.strArg0))));
     }
-    else if (sProperty == "endswith")
+
+    if (sProperty == "endswith")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-            strReturnValue = GetValueFromInt(IsStringSuffix(sValue, GetValueAsText(strArgs.strArg0)));
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(IsStringSuffix(sValue, GetValueAsText(strArgs.strArg0))));
     }
-    else if (sProperty == "substr" || sProperty == "substring")
+
+    if (sProperty == "substr" || sProperty == "substring")
     {
         struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            int nStart = GetValueAsInt(strArgs.strArg0);
-            int nCount = GetStringLength(sValue) - nStart;
-            if (strArgs.nCount == 2)
-                nCount = GetValueAsInt(strArgs.strArg1);
-            strReturnValue = GetValueFromString(GetSubString(sValue, nStart, nCount));
-        }
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        int nStart = GetValueAsInt(strArgs.strArg0);
+        int nCount = GetStringLength(sValue) - nStart;
+        if (strArgs.nCount == 2)
+            nCount = GetValueAsInt(strArgs.strArg1);
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetSubString(sValue, nStart, nCount)));
     }
-    else if (sProperty == "left" || sProperty == "right")
+
+    if (sProperty == "left" || sProperty == "right")
     {
         struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        int nLength = GetValueAsInt(strArgs.strArg0);
+        if (sProperty == "left")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetStringLeft(sValue, nLength)));
         else
-        {
-            int nLength = GetValueAsInt(strArgs.strArg0);
-            if (sProperty == "left")
-                strReturnValue = GetValueFromString(GetStringLeft(sValue, nLength));
-            else
-                strReturnValue = GetValueFromString(GetStringRight(sValue, nLength));
-        }
+            return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetStringRight(sValue, nLength)));
     }
-    else if (sProperty == "replace")
+
+    if (sProperty == "replace")
     {
         struct Arguments strArgs = EvalTwoArgs(strPC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            string sSearch = NWNX_Util_RegExpEscape(GetValueAsText(strArgs.strArg0));
-            string sReplace = GetValueAsText(strArgs.strArg1);
-            strReturnValue = GetValueFromString(RegExpReplace(sSearch, sValue, sReplace));
-        }
-    }
-    else if (sProperty == "eq" || sProperty == "neq")
-    {
-        struct Arguments strArgs = EvalOneArg(strPC);
-        if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            string sCompare = GetValueAsText(strArgs.strArg0);
-            int nResult = sProperty == "eq" ? sValue == sCompare : sValue != sCompare;
-            strReturnValue = GetValueFromInt(nResult);
-        }
-    }
-    else if (sProperty == "capitalize")
-    {
-        strReturnValue = GetValueFromString(CapitalizeWord(sValue));
-    }
-    else if (sProperty == "append" || sProperty == "prepend")
-    {
-        struct Arguments strArgs = EvalOneArg(strPC);
-        if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            string sOther = GetValueAsText(strArgs.strArg0);
-            if (sProperty == "append")
-                strReturnValue = GetValueFromString(sValue + sOther);
-            else
-                strReturnValue = GetValueFromString(sOther + sValue);
-        }
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        string sSearch = NWNX_Util_RegExpEscape(GetValueAsText(strArgs.strArg0));
+        string sReplace = GetValueAsText(strArgs.strArg1);
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(RegExpReplace(sSearch, sValue, sReplace)));
     }
 
-    strPC.strValue = strReturnValue;
-    return strPC;
+    if (sProperty == "eq" || sProperty == "neq")
+    {
+        struct Arguments strArgs = EvalOneArg(strPC);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        string sCompare = GetValueAsText(strArgs.strArg0);
+        int nResult = sProperty == "eq" ? sValue == sCompare : sValue != sCompare;
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nResult));
+    }
+
+    if (sProperty == "capitalize")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(CapitalizeWord(sValue)));
+
+    if (sProperty == "append" || sProperty == "prepend")
+    {
+        struct Arguments strArgs = EvalOneArg(strPC);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        string sOther = GetValueAsText(strArgs.strArg0);
+        if (sProperty == "append")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromString(sValue + sOther));
+        else
+            return ReturnPropertyChainWithValue(strPC, GetValueFromString(sOther + sValue));
+    }
+
+    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
 }
 
 struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
@@ -2242,137 +2214,111 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
     object oValue = strPC.strValue.oValue;
 
     if (!GetIsObjectValid(oValue) && sProperty != "valid")
-    {
-        strPC.strValue = GetErrorValue("INVALID_OBJECT:SELF");
-        return strPC;
-    }
-
-    struct Value strReturnValue = GetInvalidValue();
+        return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_OBJECT:SELF"));
 
     if (sProperty == "name")
-    {
-        strReturnValue = GetValueFromString(GetName(oValue));
-    }
-    else if (sProperty == "tag")
-    {
-        strReturnValue = GetValueFromString(GetTag(oValue));
-    }
-    else if (sProperty == "resref")
-    {
-        strReturnValue = GetValueFromString(GetResRef(oValue));
-    }
-    else if (sProperty == "type")
-    {
-        strReturnValue = GetValueFromString(GetObjectTypeName(oValue));
-    }
-    else if (sProperty == "area")
-    {
-        strReturnValue = GetValueFromObject(GetArea(oValue));
-    }
-    else if (sProperty == "valid")
-    {
-        strReturnValue = GetValueFromInt(GetIsObjectValid(oValue));
-    }
-    else if (sProperty == "inspect")
-    {
-        strReturnValue = GetValueFromString(InspectObject(oValue));
-    }
-    else if (sProperty == "ispc")
-    {
-        strReturnValue = GetValueFromInt(GetIsPlayer(oValue));
-    }
-    else if (sProperty == "isdm")
-    {
-        strReturnValue = GetValueFromInt(GetIsDM(oValue));
-    }
-    else if (sProperty == "isplayerdm")
-    {
-        strReturnValue = GetValueFromInt(GetIsPlayerDM(oValue));
-    }
-    else if (sProperty == "dead")
-    {
-        strReturnValue = GetValueFromInt(GetIsDead(oValue));
-    }
-    else if (sProperty == "hp")
-    {
-        strReturnValue = GetValueFromInt(GetCurrentHitPoints(oValue));
-    }
-    else if (sProperty == "maxhp")
-    {
-        strReturnValue = GetValueFromInt(GetMaxHitPoints(oValue));
-    }
-    else if (sProperty == "distance")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetName(oValue)));
+
+    if (sProperty == "tag")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetTag(oValue)));
+
+    if (sProperty == "resref")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetResRef(oValue)));
+
+    if (sProperty == "type")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetObjectTypeName(oValue)));
+
+    if (sProperty == "area")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromObject(GetArea(oValue)));
+
+    if (sProperty == "valid")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetIsObjectValid(oValue)));
+
+    if (sProperty == "inspect")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(InspectObject(oValue)));
+
+    if (sProperty == "ispc")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetIsPlayer(oValue)));
+
+    if (sProperty == "isdm")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetIsDM(oValue)));
+
+    if (sProperty == "isplayerdm")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetIsPlayerDM(oValue)));
+
+    if (sProperty == "dead")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetIsDead(oValue)));
+
+    if (sProperty == "hp")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetCurrentHitPoints(oValue)));
+
+    if (sProperty == "maxhp")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetMaxHitPoints(oValue)));
+
+    if (sProperty == "distance")
     {
         struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_OBJECT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        object oOther = GetValueAsObject(strArgs.strArg0);
+        if (!GetIsObjectValid(oOther))
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_OBJECT:ARG1"));
         else
-        {
-            object oOther = GetValueAsObject(strArgs.strArg0);
-            if (!GetIsObjectValid(oOther))
-                strReturnValue = GetErrorValue("INVALID_OBJECT:ARG1");
-            else
-                strReturnValue = GetValueFromFloat(GetDistanceBetween(oValue, oOther));
-        }
+            return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(GetDistanceBetween(oValue, oOther)));
     }
-    else if (sProperty == "x" || sProperty == "y" || sProperty == "z")
+
+    if (sProperty == "x" || sProperty == "y" || sProperty == "z")
     {
         vector vPosition = GetPosition(oValue);
-        if (sProperty == "x")
-            strReturnValue = GetValueFromFloat(vPosition.x);
-        else if (sProperty == "y")
-            strReturnValue = GetValueFromFloat(vPosition.y);
-        else
-            strReturnValue = GetValueFromFloat(vPosition.z);
+        if (sProperty == "x")   return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(vPosition.x));
+        if (sProperty == "y")   return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(vPosition.y));
+        if (sProperty == "z")   return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(vPosition.z));
     }
-    else if (sProperty == "position")
+
+    if (sProperty == "position")
     {
         struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            int nPrecision = 2;
-            if (strArgs.nCount == 1)
-                nPrecision = GetValueAsInt(strArgs.strArg0, 2);
-            nPrecision = clamp(nPrecision, 0, 9);
-            vector vPosition = GetPosition(oValue);
-            string sX = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.x), nPrecision));
-            string sY = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.y), nPrecision));
-            string sZ = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.z), nPrecision));
-            strReturnValue = GetValueFromString("[" + sX + "," + sY + "," + sZ + "]");
-        }
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        int nPrecision = 2;
+        if (strArgs.nCount == 1)
+            nPrecision = GetValueAsInt(strArgs.strArg0, 2);
+        nPrecision = clamp(nPrecision, 0, 9);
+
+        vector vPosition = GetPosition(oValue);
+        string sX = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.x), nPrecision));
+        string sY = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.y), nPrecision));
+        string sZ = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.z), nPrecision));
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString("[" + sX + "," + sY + "," + sZ + "]"));
     }
-    else if (sProperty == "facing")
-    {
-        strReturnValue = GetValueFromFloat(GetFacing(oValue));
-    }
-    else if (sProperty == "localvar")
+
+    if (sProperty == "facing")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(GetFacing(oValue)));
+
+    if (sProperty == "localvar")
     {
         struct Arguments strArgs = EvalTwoArgs(strPC);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        string sType = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
+        if (sType == "i")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetLocalInt(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
+        else if (sType == "f")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(GetLocalFloat(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
+        else if (sType == "s")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetLocalString(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
+        else if (sType == "o")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromObject(GetLocalObject(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
+        else if (sType == "j")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromJson(GetLocalJson(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
         else
-        {
-            string sType = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
-            string sVarName = GetValueAsTrimmedString(strArgs.strArg1);
-            if (sType == "i")
-                strReturnValue = GetValueFromInt(GetLocalInt(oValue, sVarName));
-            else if (sType == "f")
-                strReturnValue = GetValueFromFloat(GetLocalFloat(oValue, sVarName));
-            else if (sType == "s")
-                strReturnValue = GetValueFromString(GetLocalString(oValue, sVarName));
-            else if (sType == "o")
-                strReturnValue = GetValueFromObject(GetLocalObject(oValue, sVarName));
-            else if (sType == "j")
-                strReturnValue = GetValueFromJson(GetLocalJson(oValue, sVarName));
-            else
-                strReturnValue = GetErrorValue("INVALID_LOCALVAR_TYPE:" + sType);
-        }
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_LOCALVAR_TYPE:" + sType));
     }
 
-    strPC.strValue = strReturnValue;
-    return strPC;
+    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
 }
 
 struct Value ConvertJsonToValue(json jValue)
@@ -2402,92 +2348,81 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
     string sProperty = strPC.sCurrentProperty;
     json jValue = strPC.strValue.jValue;
 
-    struct Value strReturnValue = GetInvalidValue();
-
     if (sProperty == "type")
     {
         switch (JsonGetType(jValue))
         {
-            case JSON_TYPE_NULL:    strReturnValue = GetValueFromString("null"); break;
-            case JSON_TYPE_OBJECT:  strReturnValue = GetValueFromString("object"); break;
-            case JSON_TYPE_ARRAY:   strReturnValue = GetValueFromString("array"); break;
-            case JSON_TYPE_STRING:  strReturnValue = GetValueFromString("string"); break;
-            case JSON_TYPE_INTEGER: strReturnValue = GetValueFromString("int"); break;
-            case JSON_TYPE_FLOAT:   strReturnValue = GetValueFromString("float"); break;
-            case JSON_TYPE_BOOL:    strReturnValue = GetValueFromString("bool"); break;
-            default:                strReturnValue = GetValueFromString("invalid"); break;
+            case JSON_TYPE_NULL:    return ReturnPropertyChainWithValue(strPC, GetValueFromString("null"));
+            case JSON_TYPE_OBJECT:  return ReturnPropertyChainWithValue(strPC, GetValueFromString("object"));
+            case JSON_TYPE_ARRAY:   return ReturnPropertyChainWithValue(strPC, GetValueFromString("array"));
+            case JSON_TYPE_STRING:  return ReturnPropertyChainWithValue(strPC, GetValueFromString("string"));
+            case JSON_TYPE_INTEGER: return ReturnPropertyChainWithValue(strPC, GetValueFromString("int"));
+            case JSON_TYPE_FLOAT:   return ReturnPropertyChainWithValue(strPC, GetValueFromString("float"));
+            case JSON_TYPE_BOOL:    return ReturnPropertyChainWithValue(strPC, GetValueFromString("bool"));
+            default:                return ReturnPropertyChainWithValue(strPC, GetValueFromString("invalid"));
         }
     }
-    else if (sProperty == "null")
-    {
-        strReturnValue = GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_NULL);
-    }
-    else if (sProperty == "object")
-    {
-        strReturnValue = GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_OBJECT);
-    }
-    else if (sProperty == "array")
-    {
-        strReturnValue = GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_ARRAY);
-    }
-    else if (sProperty == "length")
-    {
-        strReturnValue = GetValueFromInt(JsonGetLength(jValue));
-    }
-    else if (sProperty == "has")
+
+    if (sProperty == "null")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_NULL));
+
+    if (sProperty == "object")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_OBJECT));
+
+    if (sProperty == "array")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_ARRAY));
+
+    if (sProperty == "length")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetLength(jValue)));
+
+    if (sProperty == "has")
     {
         struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_STRING);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
-            strReturnValue = GetErrorValue("JSON_NOT_OBJECT");
-        else
-            strReturnValue = GetValueFromInt(JsonObjectContainsKey(jValue, GetValueAsText(strArgs.strArg0)));
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_OBJECT"));
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonObjectContainsKey(jValue, GetValueAsText(strArgs.strArg0))));
     }
-    else if (sProperty == "get")
+
+    if (sProperty == "get")
     {
         struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
-            strReturnValue = GetErrorValue("JSON_NOT_OBJECT");
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_OBJECT"));
+
+        string sKey = GetValueAsText(strArgs.strArg0);
+        if (JsonObjectContainsKey(jValue, sKey))
+            return ReturnPropertyChainWithValue(strPC, ConvertJsonToValue(JsonObjectGet(jValue, sKey)));
+        else if (strArgs.nCount == 2)
+            return ReturnPropertyChainWithValue(strPC, strArgs.strArg1);
         else
-        {
-            string sKey = GetValueAsText(strArgs.strArg0);
-            if (JsonObjectContainsKey(jValue, sKey))
-                strReturnValue = ConvertJsonToValue(JsonObjectGet(jValue, sKey));
-            else if (strArgs.nCount == 2)
-                strReturnValue = strArgs.strArg1;
-            else
-                strReturnValue = GetErrorValue("JSON_MISSING_KEY:" + sKey);
-        }
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_MISSING_KEY:" + sKey));
     }
-    else if (sProperty == "at")
+
+    if (sProperty == "at")
     {
         struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            strReturnValue = GetErrorValue("JSON_NOT_ARRAY");
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+
+        int nIndex = GetValueAsInt(strArgs.strArg0), nLength = JsonGetLength(jValue);
+        if (nIndex < 0)
+            nIndex = nLength + nIndex;
+
+        if (nIndex >= 0 && nIndex < nLength)
+            return ReturnPropertyChainWithValue(strPC, ConvertJsonToValue(JsonArrayGet(jValue, nIndex)));
+        else if (strArgs.nCount == 2)
+            return ReturnPropertyChainWithValue(strPC, strArgs.strArg1);
         else
-        {
-            int nLength = JsonGetLength(jValue);
-            int nIndex = GetValueAsInt(strArgs.strArg0);
-
-            if (nIndex < 0)
-                nIndex = nLength + nIndex;
-
-            if (nIndex >= 0 && nIndex < nLength)
-                strReturnValue = ConvertJsonToValue(JsonArrayGet(jValue, nIndex));
-            else if (strArgs.nCount == 2)
-                strReturnValue = strArgs.strArg1;
-            else
-                strReturnValue = GetErrorValue("JSON_INDEX_OUT_OF_RANGE:" + IntToString(nIndex));
-        }
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_INDEX_OUT_OF_RANGE:" + IntToString(nIndex)));
     }
 
-    strPC.strValue = strReturnValue;
-    return strPC;
+    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
 }
 
 struct Value GetValueFromNamedColor(string sValue, string sColor)
@@ -2551,8 +2486,6 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
 {
     string sProperty = strPC.sCurrentProperty;
 
-    struct Value strReturnValue = GetInvalidValue();
-
     if (sProperty == "color")
     {
         int nNumParameters = GetParameterCount(strPC);
@@ -2560,93 +2493,81 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
         {
             struct Arguments strArgs = EvalOneArg(strPC);
             if (IsErrorValue(strArgs.strError))
-                strReturnValue = strArgs.strError;
+                return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+            string sValue = ValueToText(strPC.strValue);
+            string sColor = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
+            if (GetStringLeft(sColor, 1) == "#")
+                return ReturnPropertyChainWithValue(strPC, GetValueFromHexColor(sValue, sColor));
             else
-            {
-                string sValue = ValueToText(strPC.strValue);
-                string sColor = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
-                if (GetStringLeft(sColor, 1) == "#")
-                    strReturnValue = GetValueFromHexColor(sValue, sColor);
-                else
-                    strReturnValue = GetValueFromNamedColor(sValue, sColor);
-            }
+                return ReturnPropertyChainWithValue(strPC, GetValueFromNamedColor(sValue, sColor));
         }
-        else if (nNumParameters == 3)
+
+        if (nNumParameters == 3)
         {
             struct Arguments strArgs = EvalThreeArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
             if (IsErrorValue(strArgs.strError))
-                strReturnValue = strArgs.strError;
-            else
-                strReturnValue = GetValueFromString(ColorString(ValueToText(strPC.strValue), GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
+                return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return ReturnPropertyChainWithValue(strPC, GetValueFromString(ColorString(ValueToText(strPC.strValue), GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2))));
         }
-        else
-        {
-            strReturnValue = GetErrorValue("ARITY:EXPECTED_1_OR_3_ARGUMENTS");
-        }
+        return ReturnPropertyChainWithValue(strPC, GetErrorValue("ARITY:EXPECTED_1_OR_3_ARGUMENTS"));
     }
-    else if (sProperty == "padleft" || sProperty == "padright")
+
+    if (sProperty == "padleft" || sProperty == "padright")
     {
         struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        int nLength = GetValueAsInt(strArgs.strArg0);
+        string sPadding = " ";
+        if (strArgs.nCount >= 2)
+            sPadding = GetValueAsText(strArgs.strArg1, " ");
+        if (sProperty == "padleft")
+            return ReturnPropertyChainWithValue(strPC, GetValueFromString(LeftPadString(ValueToText(strPC.strValue), nLength, sPadding)));
         else
-        {
-            int nLength = GetValueAsInt(strArgs.strArg0);
-            string sPadding = " ";
-            if (strArgs.nCount >= 2)
-                sPadding = GetValueAsText(strArgs.strArg1, " ");
-            if (sProperty == "padleft")
-                strReturnValue = GetValueFromString(LeftPadString(ValueToText(strPC.strValue), nLength, sPadding));
-            else
-                strReturnValue = GetValueFromString(RightPadString(ValueToText(strPC.strValue), nLength, sPadding));
-        }
+            return ReturnPropertyChainWithValue(strPC, GetValueFromString(RightPadString(ValueToText(strPC.strValue), nLength, sPadding)));
     }
-    else if (sProperty == "int")
-    {
-        strReturnValue = CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_INT);
-    }
-    else if (sProperty == "float")
-    {
-        strReturnValue = CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_FLOAT);
-    }
-    else if (sProperty == "string")
-    {
-        strReturnValue = CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_STRING);
-    }
-    else if (sProperty == "fixed")
+
+    if (sProperty == "int")
+        return ReturnPropertyChainWithValue(strPC, CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_INT));
+
+    if (sProperty == "float")
+        return ReturnPropertyChainWithValue(strPC, CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_FLOAT));
+
+    if (sProperty == "string")
+        return ReturnPropertyChainWithValue(strPC, CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_STRING));
+
+    if (sProperty == "fixed")
     {
         struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            strReturnValue = strArgs.strError;
-        else
-        {
-            int nPrecision = 2;
-            if (strArgs.nCount == 1)
-                nPrecision = GetValueAsInt(strArgs.strArg0, 2);
-            strReturnValue = FormatValueAsFixed(strPC.strValue, nPrecision);
-        }
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        int nPrecision = 2;
+        if (strArgs.nCount == 1)
+            nPrecision = GetValueAsInt(strArgs.strArg0, 2);
+        return ReturnPropertyChainWithValue(strPC, FormatValueAsFixed(strPC.strValue, nPrecision));
     }
-    else if (sProperty == "hex")
-    {
-        strReturnValue = FormatValueAsHex(strPC.strValue);
-    }
-    else if (sProperty == "bool" || sProperty == "boolean")
-    {
-        strReturnValue = FormatValueAsBoolean(strPC.strValue);
-    }
-    else if (sProperty == "default" || sProperty == "fallback")
+
+    if (sProperty == "hex")
+        return ReturnPropertyChainWithValue(strPC, FormatValueAsHex(strPC.strValue));
+
+    if (sProperty == "bool" || sProperty == "boolean")
+        return ReturnPropertyChainWithValue(strPC, FormatValueAsBoolean(strPC.strValue));
+
+    if (sProperty == "default" || sProperty == "fallback")
     {
         struct Value strError = CheckArity(strPC, 1, 1);
         if (IsErrorValue(strError))
-            strReturnValue = strError;
-        else if (ValueNeedsDefault(strPC.strValue))
-            strReturnValue = EvalCompiledParameter(strPC, 0);
+            return ReturnPropertyChainWithValue(strPC, strError);
+        if (ValueNeedsDefault(strPC.strValue))
+            return ReturnPropertyChainWithValue(strPC, EvalCompiledParameter(strPC, 0));
         else
-            strReturnValue = strPC.strValue;
+            return ReturnPropertyChainWithValue(strPC, strPC.strValue);
     }
 
-    strPC.strValue = strReturnValue;
-    return strPC;
+    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
 }
 
 struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName)

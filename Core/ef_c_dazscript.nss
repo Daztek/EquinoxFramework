@@ -145,6 +145,7 @@ struct Parser ParserBegin(string sSource);
 int ParserAtEnd(struct Parser str);
 string ParserChar(struct Parser str);
 int ParserIsTopLevel(struct Parser str);
+int ParserIsRootDepth(struct Parser str);
 int ParserMatches(struct Parser str, string sToken);
 struct Parser ParserAdvance(struct Parser c);
 int FindTopLevelToken(string sString, string sToken);
@@ -510,6 +511,11 @@ int ParserIsTopLevel(struct Parser str)
     return !str.bInQuotes && str.nBraceDepth == 0 && str.nParenDepth == 0;
 }
 
+int ParserIsRootDepth(struct Parser str)
+{
+    return str.nBraceDepth == 0 && str.nParenDepth == 0;
+}
+
 int ParserMatches(struct Parser str, string sToken)
 {
     int nTokenLength = GetStringLength(sToken);
@@ -638,28 +644,18 @@ json SplitTopLevelToken(string sString, string sToken, int bIncludeEmpty = TRUE)
 
 int FindMatchingTemplateExprEnd(string sString, int nOpenAt)
 {
-    int nDepth = 1;
     struct Parser str = ParserBegin(sString);
     str.nIndex = nOpenAt + 1;
+    str.nBraceDepth = 1;
 
     while (!ParserAtEnd(str))
     {
-        string sCharacter = ParserChar(str);
-        if (!str.bInQuotes)
-        {
-            if (sCharacter == "{")
-                nDepth++;
-            else if (sCharacter == "}")
-            {
-                nDepth--;
-                if (nDepth == 0)
-                    return str.nIndex;
-            }
-        }
-
+        int nAt = str.nIndex;
         str = ParserAdvance(str);
-    }
 
+        if (str.nBraceDepth == 0)
+            return nAt;
+    }
     return -1;
 }
 
@@ -677,39 +673,23 @@ int FindPropertyCallStart(string sPropertySegment)
 
 int FindMatchingPropertyCallParen(string sString, int nOpenAt)
 {
-    int nParenDepth = 1, nBraceDepth = 0;
     struct Parser str = ParserBegin(sString);
     str.nIndex = nOpenAt + 1;
+    str.nParenDepth = 1;
 
     while (!ParserAtEnd(str))
     {
-        string sCharacter = ParserChar(str);
-        if (!str.bInQuotes)
-        {
-            if (sCharacter == "{")
-            {
-                nBraceDepth++;
-            }
-            else if (sCharacter == "}")
-            {
-                nBraceDepth--;
-
-                if (nBraceDepth < 0)
-                    return -2 - str.nIndex;
-            }
-            else if (sCharacter == "(" && nBraceDepth == 0)
-            {
-                nParenDepth++;
-            }
-            else if (sCharacter == ")" && nBraceDepth == 0)
-            {
-                nParenDepth--;
-
-                if (nParenDepth == 0)
-                    return str.nIndex;
-            }
-        }
+        int nAt = str.nIndex;
         str = ParserAdvance(str);
+        if (str.bError)
+        {
+            if (str.sErrorCode == "UNEXPECTED_CLOSING_BRACE")
+                return -2 - str.nErrorAt;
+
+            return -1;
+        }
+        if (str.nParenDepth == 0)
+            return nAt;
     }
     return -1;
 }
@@ -1356,42 +1336,34 @@ json ParseParameterEntries(string sParameters)
         return jEntries;
 
     jEntries = JsonArray();
+    string sCurrent;
+    int bWasQuoted, bLastWasComma, bAfterTopLevelQuote;
+    struct Parser str = ParserBegin(sParameters);
 
-    string sCurrent, sQuoteChar;
-    int bInQuotes, bWasQuoted, bLastWasComma, bAfterTopLevelQuote;
-    int nBraceDepth, nParenDepth;
-    int nIndex, nLength = GetStringLength(sParameters);
-
-    for (nIndex = 0; nIndex < nLength; nIndex++)
+    while (!ParserAtEnd(str))
     {
-        string sCharacter = GetSubString(sParameters, nIndex, 1);
-        if (bInQuotes && sCharacter == "\\" && nIndex + 1 < nLength)
+        string sCharacter = ParserChar(str);
+        int bRootDepth = ParserIsRootDepth(str);
+
+        if (str.bInQuotes && IsParserEscapedCharacter(str.sSource, str.nIndex, str.nLength))
         {
-            string sNext = GetSubString(sParameters, nIndex + 1, 1);
-            if (sNext == "\"" || sNext == "'" || sNext == "\\")
-            {
-                if (nBraceDepth > 0 || nParenDepth > 0)
-                    sCurrent += sCharacter;
+            string sNext = GetSubString(str.sSource, str.nIndex + 1, 1);
 
-                sCurrent += sNext;
-                nIndex++;
-                bLastWasComma = FALSE;
-                continue;
-            }
+            if (!bRootDepth)
+                sCurrent += sCharacter;
 
-            sCurrent += sCharacter;
+            sCurrent += sNext;
+
+            str = ParserAdvance(str);
             bLastWasComma = FALSE;
             continue;
         }
 
-        if (sCharacter == "\"" || sCharacter == "'")
+        if (IsParserQuote(sCharacter))
         {
-            if (!bInQuotes)
+            if (!str.bInQuotes)
             {
-                bInQuotes = TRUE;
-                sQuoteChar = sCharacter;
-
-                if (nBraceDepth == 0 && nParenDepth == 0)
+                if (bRootDepth)
                 {
                     if (trim(sCurrent) == "")
                         sCurrent = "";
@@ -1401,11 +1373,9 @@ json ParseParameterEntries(string sParameters)
                     sCurrent += sCharacter;
                 }
             }
-            else if (sCharacter == sQuoteChar)
+            else if (sCharacter == str.sQuoteChar)
             {
-                bInQuotes = FALSE;
-
-                if (nBraceDepth == 0 && nParenDepth == 0)
+                if (bRootDepth)
                 {
                     bWasQuoted = TRUE;
                     bAfterTopLevelQuote = TRUE;
@@ -1420,58 +1390,33 @@ json ParseParameterEntries(string sParameters)
                 sCurrent += sCharacter;
             }
 
+            str = ParserAdvance(str);
             bLastWasComma = FALSE;
             continue;
         }
 
-        if (bInQuotes)
+        if (str.bInQuotes)
         {
             sCurrent += sCharacter;
+            str = ParserAdvance(str);
             bLastWasComma = FALSE;
             continue;
         }
 
-        if (bAfterTopLevelQuote && nBraceDepth == 0 && nParenDepth == 0)
+        if (bAfterTopLevelQuote && bRootDepth)
         {
             if (sCharacter == " ")
             {
+                str = ParserAdvance(str);
                 bLastWasComma = FALSE;
                 continue;
             }
 
             if (sCharacter != ",")
-                return CacheParameterParserError(sParameters, "TRAILING_TEXT_AFTER_QUOTED_ARGUMENT", nIndex);
+                return CacheParameterParserError(sParameters, "TRAILING_TEXT_AFTER_QUOTED_ARGUMENT", str.nIndex);
         }
 
-        if (sCharacter == "{")
-        {
-            nBraceDepth++;
-            sCurrent += sCharacter;
-        }
-        else if (sCharacter == "}")
-        {
-            nBraceDepth--;
-
-            if (nBraceDepth < 0)
-                return CacheParameterParserError(sParameters, "UNEXPECTED_CLOSING_BRACE", nIndex);
-
-            sCurrent += sCharacter;
-        }
-        else if (sCharacter == "(" && nBraceDepth == 0)
-        {
-            nParenDepth++;
-            sCurrent += sCharacter;
-        }
-        else if (sCharacter == ")" && nBraceDepth == 0)
-        {
-            nParenDepth--;
-
-            if (nParenDepth < 0)
-                return CacheParameterParserError(sParameters, "UNEXPECTED_CLOSING_PAREN", nIndex);
-
-            sCurrent += sCharacter;
-        }
-        else if (sCharacter == "," && nBraceDepth == 0 && nParenDepth == 0)
+        if (sCharacter == "," && bRootDepth)
         {
             JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : trim(sCurrent), bWasQuoted));
 
@@ -1479,24 +1424,28 @@ json ParseParameterEntries(string sParameters)
             bWasQuoted = FALSE;
             bAfterTopLevelQuote = FALSE;
             bLastWasComma = TRUE;
+
+            str = ParserAdvance(str);
             continue;
         }
-        else
-        {
-            sCurrent += sCharacter;
-        }
 
+        str = ParserAdvance(str);
+
+        if (str.bError)
+            return CacheParameterParserError(sParameters, str.sErrorCode, str.nErrorAt);
+
+        sCurrent += sCharacter;
         bLastWasComma = FALSE;
     }
 
-    if (bInQuotes)
-        return CacheParameterParserError(sParameters, "UNTERMINATED_QUOTE", nLength);
-    if (nBraceDepth > 0)
-        return CacheParameterParserError(sParameters, "UNTERMINATED_BRACE", nLength);
-    if (nParenDepth > 0)
-        return CacheParameterParserError(sParameters, "UNTERMINATED_PAREN", nLength);
+    if (str.bInQuotes)
+        return CacheParameterParserError(sParameters, "UNTERMINATED_QUOTE", str.nLength);
+    if (str.nBraceDepth > 0)
+        return CacheParameterParserError(sParameters, "UNTERMINATED_BRACE", str.nLength);
+    if (str.nParenDepth > 0)
+        return CacheParameterParserError(sParameters, "UNTERMINATED_PAREN", str.nLength);
     if (bLastWasComma)
-        return CacheParameterParserError(sParameters, "TRAILING_COMMA_IN_ARGUMENT_LIST", nLength - 1);
+        return CacheParameterParserError(sParameters, "TRAILING_COMMA_IN_ARGUMENT_LIST", str.nLength - 1);
 
     JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : trim(sCurrent), bWasQuoted));
 

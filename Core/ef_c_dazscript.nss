@@ -12,8 +12,10 @@
 #include "nwnx_vm"
 
 const string DAZSCRIPT_SCRIPT_NAME                          = "ef_c_dazscript";
-const int DAZSCRIPT_ENABLE_PERSISTENT_CACHE                 = TRUE;
+const int DAZSCRIPT_ENABLE_PERSISTENT_CACHE                 = FALSE;
 const int DAZSCRIPT_PERSISTENT_CACHE_VERSION                = 1;
+const int DAZSCRIPT_WHILE_DEFAULT_ITERATION_LIMIT           = 50;
+const int DAZSCRIPT_WHILE_MAX_ITERATION_LIMIT               = 250;
 
 const string DAZSCRIPT_PARSE_ERROR                          = "parse_error";
 const string DAZSCRIPT_PARSE_CODE                           = "code";
@@ -165,6 +167,7 @@ struct Value CheckParameterParserError(struct PropertyChain strPC);
 json CompileTemplate(string sString);
 json CompileForcedStringTemplate(string sValue);
 struct Value EvalTemplate(json jTemplate, json jStack);
+struct Value EvalTemplateToString(json jTemplate, json jStack);
 void JsonArrayInsertLiteralNodeInplace(json jTemplate, string sLiteral);
 void JsonArrayInsertExprNodeInplace(json jTemplate, string sExpr);
 void JsonArrayInsertForceStringNodeInplace(json jTemplate, json jInnerTemplate);
@@ -211,6 +214,7 @@ int IsValueObjectParameter(struct Value strValue);
 int GetValueAsInt(struct Value strValue, int nDefault = 0);
 float GetValueAsFloat(struct Value strValue, float fDefault = 0.0);
 object GetValueAsObject(struct Value strValue, object oDefault = OBJECT_INVALID);
+struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct Value strValue);
 
 int ValueNeedsDefault(struct Value strValue);
 int IsInvalidValue(struct Value strValue);
@@ -311,7 +315,7 @@ void DazScript_OnShutdownServer()
 
 string MakeCacheKey(string sPrefix, string sString)
 {
-    return sPrefix + sString;
+    return sPrefix + IntToString(GetStringLength(sString)) + "_" + IntToString(HashString(sString));
 }
 
 json GetCachedJson(string sPrefix, string sInput)
@@ -405,7 +409,7 @@ struct Value CastValueToJson(struct Value strValue)
         case NWNX_VM_AUXTYPE_STRING:
         {
             json jParsed = JsonParse(strValue.sValue);
-            if (!JsonGetType(jParsed) && JsonGetError(jParsed) != "")
+            if (JsonGetError(jParsed) != "")
                 return GetErrorValue("INVALID_JSON:" + strValue.sValue);
 
             return GetValueFromJson(jParsed);
@@ -838,35 +842,41 @@ struct Value EvalTemplate(json jTemplate, json jStack)
     if (IsParserError(jTemplate))
         return GetValueFromParserError(jTemplate, "template");
 
-    int nIndex, nLength = JsonGetLength(jTemplate);
+    int nLength = JsonGetLength(jTemplate);
+
     if (nLength == 1)
     {
         json jSingleNode = JsonArrayGet(jTemplate, 0);
         int nSingleNodeType = JsonArrayGetInt(jSingleNode, 0);
 
-        if (nSingleNodeType == DAZSCRIPT_NODE_EXPR)
-            return EvalCompiledExpressionToValue(jSingleNode, jStack);
-
-        if (nSingleNodeType == DAZSCRIPT_NODE_FORCE_STRING)
-        {
-            struct Value strInnerValue = EvalTemplate(JsonArrayGet(jSingleNode, 1), jStack);
-            if (IsErrorValue(strInnerValue))
-                return strInnerValue;
-            return GetValueFromString(ValueToText(strInnerValue));
-        }
-
         if (nSingleNodeType == DAZSCRIPT_NODE_LITERAL)
             return GetValueFromTypedLiteral(JsonArrayGetString(jSingleNode, 1));
+        if (nSingleNodeType == DAZSCRIPT_NODE_EXPR)
+            return EvalCompiledExpressionToValue(jSingleNode, jStack);
+        if (nSingleNodeType == DAZSCRIPT_NODE_FORCE_STRING)
+            return EvalTemplateToString(JsonArrayGet(jSingleNode, 1), jStack);
+        return GetErrorValue("UNKNOWN_TEMPLATE_NODE:" + IntToString(nSingleNodeType));
     }
 
+    return EvalTemplateToString(jTemplate, jStack);
+}
+
+struct Value EvalTemplateToString(json jTemplate, json jStack)
+{
+    if (IsParserError(jTemplate))
+        return GetValueFromParserError(jTemplate, "template");
+
     string sResult = "";
+    int nIndex, nLength = JsonGetLength(jTemplate);
     for (nIndex = 0; nIndex < nLength; nIndex++)
     {
         json jNode = JsonArrayGet(jTemplate, nIndex);
         int nNodeType = JsonArrayGetInt(jNode, 0);
 
         if (nNodeType == DAZSCRIPT_NODE_LITERAL)
+        {
             sResult += JsonArrayGetString(jNode, 1);
+        }
         else if (nNodeType == DAZSCRIPT_NODE_EXPR)
         {
             struct Value strExpressionValue = EvalCompiledExpressionToValue(jNode, jStack);
@@ -876,10 +886,14 @@ struct Value EvalTemplate(json jTemplate, json jStack)
         }
         else if (nNodeType == DAZSCRIPT_NODE_FORCE_STRING)
         {
-            struct Value strInnerValue = EvalTemplate(JsonArrayGet(jNode, 1), jStack);
+            struct Value strInnerValue = EvalTemplateToString(JsonArrayGet(jNode, 1), jStack);
             if (IsErrorValue(strInnerValue))
                 return strInnerValue;
-            sResult += ValueToText(strInnerValue);
+            sResult += strInnerValue.sValue;
+        }
+        else
+        {
+            return GetErrorValue("UNKNOWN_TEMPLATE_NODE:" + IntToString(nNodeType));
         }
     }
 
@@ -1048,6 +1062,12 @@ struct Value ResolveAliasValue(json jStack, string sAliasName)
         return GetErrorValue("MISSING_ALIAS:" + sAliasName);
 
     json jEntry = JsonObjectGet(jStack, sAliasName);
+
+    if (JsonGetType(jEntry) != JSON_TYPE_OBJECT ||
+        !JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_VALUE) ||
+        !JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_TYPE))
+        return GetErrorValue("INVALID_ALIAS:" + sAliasName);
+
     int nAuxType = JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE);
     json jValue = JsonObjectGet(jEntry, DAZSCRIPT_ALIAS_VALUE);
     int nJsonType = JsonGetType(jValue);
@@ -1786,7 +1806,24 @@ int ValueToBoolish(struct Value strValue)
         case NWNX_VM_AUXTYPE_FLOAT:     return fabs(strValue.fValue) >= FLOAT_EPSILON;
         case NWNX_VM_AUXTYPE_STRING:    return StringToBoolish(strValue.sValue);
         case NWNX_VM_AUXTYPE_OBJECT:    return GetIsObjectValid(strValue.oValue);
-        case NWNX_VM_AUXTYPE_JSON:      return JsonGetType(strValue.jValue) != JSON_TYPE_NULL;
+        case NWNX_VM_AUXTYPE_JSON:
+        {
+            json jValue = strValue.jValue;
+            if (JsonGetError(jValue) != "")
+                return FALSE;
+
+            int nJsonType = JsonGetType(jValue);
+            if (nJsonType == JSON_TYPE_NULL)
+                return FALSE;
+            if (nJsonType == JSON_TYPE_INTEGER || nJsonType == JSON_TYPE_BOOL)
+                return JsonGetInt(jValue) != 0;
+            if (nJsonType == JSON_TYPE_FLOAT)
+                return fabs(JsonGetFloat(jValue)) >= FLOAT_EPSILON;
+            if (nJsonType == JSON_TYPE_STRING)
+                return StringToBoolish(JsonGetString(jValue));
+
+            return TRUE;
+        }
     }
     return FALSE;
 }
@@ -1880,6 +1917,28 @@ object GetValueAsObject(struct Value strValue, object oDefault = OBJECT_INVALID)
     if (oValue == OBJECT_INVALID)
         return oDefault;
     return oValue;
+}
+
+struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct Value strValue)
+{
+    struct Value strOutValue = CastValueToAuxType(strValue, nAuxType);
+    if (IsErrorValue(strOutValue))
+        return GetErrorValue("TYPE_MISMATCH:OUT_NOT_" + GetStringUpperCase(AuxTypeToString(nAuxType, TRUE)));
+
+    if (nAuxType == NWNX_VM_AUXTYPE_INT)
+        NWNX_VM_SetStackIntegerValue(nStackLocation, strOutValue.nValue);
+    else if (nAuxType == NWNX_VM_AUXTYPE_FLOAT)
+        NWNX_VM_SetStackFloatValue(nStackLocation, strOutValue.fValue);
+    else if (nAuxType == NWNX_VM_AUXTYPE_OBJECT)
+        NWNX_VM_SetStackObjectValue(nStackLocation, strOutValue.oValue);
+    else if (nAuxType == NWNX_VM_AUXTYPE_STRING)
+        NWNX_VM_SetStackStringValue(nStackLocation, strOutValue.sValue);
+    else if (nAuxType == NWNX_VM_AUXTYPE_JSON)
+        NWNX_VM_SetStackJsonValue(nStackLocation, strOutValue.jValue);
+    else
+        return GetErrorValue("TYPE_MISMATCH:OUT_UNSUPPORTED_TYPE");
+
+    return GetValueFromString();
 }
 
 struct PropertyChain ReturnPropertyChainWithValue(struct PropertyChain strPC, struct Value strValue)
@@ -2289,6 +2348,7 @@ struct Value ConvertJsonToValue(json jValue)
         case JSON_TYPE_FLOAT:
             return GetValueFromFloat(JsonGetFloat(jValue));
     }
+
     return GetErrorValue("INVALID_JSON_VARIABLE");
 }
 
@@ -2312,17 +2372,63 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
         }
     }
 
-    if (sProperty == "null")
+    if (sProperty == "isnull")
         return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_NULL));
 
-    if (sProperty == "object")
+    if (sProperty == "isobject")
         return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_OBJECT));
 
-    if (sProperty == "array")
+    if (sProperty == "isarray")
         return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_ARRAY));
+
+    if (sProperty == "isstring")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_STRING));
+
+    if (sProperty == "isint" || sProperty == "isinteger")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_INTEGER));
+
+    if (sProperty == "isfloat")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_FLOAT));
+
+    if (sProperty == "isnumber")
+    {
+        int nType = JsonGetType(jValue);
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nType == JSON_TYPE_INTEGER || nType == JSON_TYPE_FLOAT));
+    }
+
+    if (sProperty == "isbool" || sProperty == "isboolean")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_BOOL));
+
+    if (sProperty == "scalar")
+    {
+        int nType = JsonGetType(jValue);
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(
+            nType == JSON_TYPE_NULL ||
+            nType == JSON_TYPE_STRING ||
+            nType == JSON_TYPE_INTEGER ||
+            nType == JSON_TYPE_FLOAT ||
+            nType == JSON_TYPE_BOOL));
+    }
 
     if (sProperty == "length")
         return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetLength(jValue)));
+
+    if (sProperty == "empty" || sProperty == "notempty")
+    {
+        int nType = JsonGetType(jValue), bEmpty = FALSE;
+
+        if (nType == JSON_TYPE_NULL)
+            bEmpty = TRUE;
+        else if (nType == JSON_TYPE_STRING)
+            bEmpty = JsonGetString(jValue) == "";
+        else if (nType == JSON_TYPE_ARRAY || nType == JSON_TYPE_OBJECT)
+            bEmpty = JsonGetLength(jValue) == 0;
+
+        if (sProperty == "notempty")
+            bEmpty = !bEmpty;
+
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(bEmpty));
+    }
 
     if (sProperty == "has")
     {
@@ -2370,6 +2476,37 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
         else
             return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_INDEX_OUT_OF_RANGE:" + IntToString(nIndex)));
     }
+
+    if (sProperty == "first" || sProperty == "last")
+    {
+        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_ANY);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+
+        int nLength = JsonGetLength(jValue);
+        if (nLength <= 0)
+        {
+            if (strArgs.nCount == 1)
+                return ReturnPropertyChainWithValue(strPC, strArgs.strArg0);
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_INDEX_OUT_OF_RANGE:0"));
+        }
+
+        int nIndex = sProperty == "first" ? 0 : nLength - 1;
+        return ReturnPropertyChainWithValue(strPC, ConvertJsonToValue(JsonArrayGet(jValue, nIndex)));
+    }
+
+    if (sProperty == "keys")
+    {
+        if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_OBJECT"));
+        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(JsonObjectKeys(jValue)));
+    }
+
+    if (sProperty == "raw" || sProperty == "dump")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(JsonDump(jValue)));
 
     return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
 }
@@ -2521,36 +2658,12 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
 
 struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName)
 {
-    if (sMetaName == "int")
+    if (sMetaName == "int" || sMetaName == "float" || sMetaName == "string" || sMetaName == "object" || sMetaName == "json")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
-        return CastValueToAuxType(strArgs.strArg0, NWNX_VM_AUXTYPE_INT);
-    }
-
-    if (sMetaName == "float")
-    {
-        struct Arguments strArgs = EvalOneArg(strPC);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        return CastValueToAuxType(strArgs.strArg0, NWNX_VM_AUXTYPE_FLOAT);
-    }
-
-    if (sMetaName == "object")
-    {
-        struct Arguments strArgs = EvalOneArg(strPC);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        return CastValueToAuxType(strArgs.strArg0, NWNX_VM_AUXTYPE_OBJECT);
-    }
-
-    if (sMetaName == "string")
-    {
-        struct Arguments strArgs = EvalOneArg(strPC);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        return CastValueToAuxType(strArgs.strArg0, NWNX_VM_AUXTYPE_STRING);
+        return CastValueToAuxType(strArgs.strArg0, GetCastAuxTypeFromName(sMetaName));
     }
 
     return GetInvalidValue();
@@ -2584,6 +2697,8 @@ struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName)
         string sBody = GetRawParameterText(strPC, nLast);
         json jCompiledBody = CompileTemplate(sBody);
 
+        if (IsParserError(jCompiledBody))
+            return GetValueFromParserError(jCompiledBody, "function_body");
         if (JsonGetType(jCompiledBody) != JSON_TYPE_ARRAY)
             return GetErrorValue("INVALID_FUNCTION_BODY:" + sFunctionName);
 
@@ -2616,9 +2731,18 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "while")
     {
-        struct Value strError = CheckArity(strPC, 2, 2);
+        struct Value strError = CheckArity(strPC, 2, 3);
         if (IsErrorValue(strError))
             return strError;
+
+        int nIterations = 0, nLimit = DAZSCRIPT_WHILE_DEFAULT_ITERATION_LIMIT;
+        if (GetParameterCount(strPC) == 3)
+        {
+           struct Value strLimit = EvalTypedParameter(strPC, 2, DAZSCRIPT_ARG_INT);
+           if (IsErrorValue(strLimit))
+                return strLimit;
+            nLimit = clamp(GetValueAsInt(strLimit), 0, DAZSCRIPT_WHILE_MAX_ITERATION_LIMIT);
+        }
 
         string sAccumulator;
         while (TRUE)
@@ -2629,6 +2753,10 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
             if (!ValueToBoolish(strConditionResult))
                 break;
+
+            if (nIterations >= nLimit)
+                return GetErrorValue("WHILE_ITERATION_LIMIT");
+            nIterations++;
 
             struct Value strBodyResult = EvalCompiledParameter(strPC, 1);
             if (IsErrorValue(strBodyResult))
@@ -2906,43 +3034,10 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
             return strValue;
 
         json jStackVar = JsonObjectGet(strPC.jStack, sVarName);
-        int nOutAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
+        int nAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
         int nStackLocation = JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY);
 
-        if (nOutAuxType == NWNX_VM_AUXTYPE_INT)
-        {
-            struct Value strOutValue = CastValueToAuxType(strValue, NWNX_VM_AUXTYPE_INT);
-            if (IsErrorValue(strOutValue))
-                return GetErrorValue("TYPE_MISMATCH:OUT_NOT_INT");
-            NWNX_VM_SetStackIntegerValue(nStackLocation, strOutValue.nValue);
-        }
-        else if (nOutAuxType == NWNX_VM_AUXTYPE_FLOAT)
-        {
-            struct Value strOutValue = CastValueToAuxType(strValue, NWNX_VM_AUXTYPE_FLOAT);
-            if (IsErrorValue(strOutValue))
-                return GetErrorValue("TYPE_MISMATCH:OUT_NOT_FLOAT");
-            NWNX_VM_SetStackFloatValue(nStackLocation, strOutValue.fValue);
-        }
-        else if (nOutAuxType == NWNX_VM_AUXTYPE_OBJECT)
-        {
-            struct Value strOutValue = CastValueToAuxType(strValue, NWNX_VM_AUXTYPE_OBJECT);
-            if (IsErrorValue(strOutValue))
-                return GetErrorValue("TYPE_MISMATCH:OUT_NOT_OBJECT");
-            NWNX_VM_SetStackObjectValue(nStackLocation, strOutValue.oValue);
-        }
-        else if (nOutAuxType == NWNX_VM_AUXTYPE_STRING)
-        {
-            struct Value strOutValue = CastValueToAuxType(strValue, NWNX_VM_AUXTYPE_STRING);
-            if (IsErrorValue(strOutValue))
-                return GetErrorValue("TYPE_MISMATCH:OUT_NOT_STRING");
-            NWNX_VM_SetStackStringValue(nStackLocation, strOutValue.sValue);
-        }
-        else
-        {
-            return GetErrorValue("TYPE_MISMATCH:OUT_UNSUPPORTED_TYPE");
-        }
-
-        return GetValueFromString();
+        return SetStackLocationFromValue(nAuxType, nStackLocation, strValue);
     }
 
     return GetInvalidValue();
@@ -3365,7 +3460,7 @@ string DumpStruct(json jStack, string sVarName, string sStructName, string sInst
                     sResult += DumpStruct(jStack, sKey, JsonObjectGetString(jStructVar, NWNX_VM_STRUCT_NAME_KEY), sMemberPath);
                 else
                 {
-                    string sValue = EvalCompiledExpression(CompileExpression(sKey), jStack);
+                    string sValue = ValueToText(GetStackValue(jStack, sKey));
                     if (nAuxType == NWNX_VM_AUXTYPE_STRING)
                         sValue = "\"" + sValue + "\"";
                     sResult += GetStringLowerCase(AuxTypeToString(nAuxType)) + " " + sMemberPath + " = " + sValue + "; ";
@@ -3381,14 +3476,14 @@ string DumpStruct(json jStack, string sVarName, string sStructName, string sInst
 string InspectObject(object oValue)
 {
     if (!GetIsObjectValid(oValue))
-        return "Object: 0x" + ObjectToString(oValue) + "\n" + "Valid: FALSE";
+        return "Object: " + ObjectIDToString(oValue) + "\n" + "Valid: FALSE";
 
     vector vPosition = GetPosition(oValue);
     object oArea = GetArea(oValue);
     string sHP = IntToString(GetCurrentHitPoints(oValue)) + "/" + IntToString(GetMaxHitPoints(oValue));
     string sPosition = FloatToString(vPosition.x, 0, 2) + ", " + FloatToString(vPosition.y, 0, 2) + ", " + FloatToString(vPosition.z, 0, 2);
 
-    return "Object: 0x" + ObjectToString(oValue) + "\n" +
+    return "Object: " + ObjectIDToString(oValue) + "\n" +
            "Name: " + GetName(oValue) + "\n" +
            "Tag: " + GetTag(oValue) + "\n" +
            "ResRef: " + GetResRef(oValue) + "\n" +

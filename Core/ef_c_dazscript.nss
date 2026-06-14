@@ -15,9 +15,10 @@ const string DAZSCRIPT_SCRIPT_NAME                          = "ef_c_dazscript";
 const int DAZSCRIPT_ENABLE_PERSISTENT_CACHE                 = FALSE;
 const int DAZSCRIPT_PERSISTENT_CACHE_VERSION                = 1;
 
-const int DAZSCRIPT_TRACE_EVENT_WIDTH                       = 20;
+const int DAZSCRIPT_TRACE_EVENT_WIDTH                       = 30;
 const int DAZSCRIPT_TRACE_MAX_LENGTH                        = 160;
 const string DAZSCRIPT_TRACE_DEPTH_KEY                      = "DazScriptTraceDepth";
+const string DAZSCRIPT_TRACE_INDENT_KEY                     = "DazScriptTraceIndent";
 
 const string DAZSCRIPT_TEMPLATE_CACHE_PREFIX                = "DazScriptTemplateCache_";
 const string DAZSCRIPT_PROPERTY_CHAIN_CACHE_PREFIX          = "DazScriptPropertyChainCache_";
@@ -259,7 +260,12 @@ struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName);
 int IsTraceEnabled();
 void PushTrace();
 void PopTrace();
+void PushTraceIndent();
+void PopTraceIndent();
+string GetTraceIndent();
 void Trace(string sEvent, string sDetail = "");
+void TraceEnter(string sEvent, string sDetail = "");
+void TraceExit(string sEvent, string sDetail = "");
 string TraceValue(struct Value strValue);
 string TraceExprKind(int nKind);
 
@@ -299,8 +305,7 @@ string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride =
         bPushedTrace = TRUE;
     }
 
-    if (IsTraceEnabled())
-        Trace("interpret", sString);
+    if (IsTraceEnabled()) { Trace("interpret", sString); }
 
     json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sString);
     if (!JsonGetType(jTemplate))
@@ -1611,10 +1616,12 @@ struct Value EvalCompiledParameter(struct PropertyChain strPC, int nIndex)
     if (nIndex < 0 || nIndex >= JsonGetLength(jCompiledParameters))
         return GetErrorValue("PARAM_INDEX_OUT_OF_RANGE");
 
+    int bTraceEnabled = IsTraceEnabled();
+    if (bTraceEnabled) { TraceEnter("arg.enter", strPC.sCurrentProperty + "[" + IntToString(nIndex) + "]" + " raw=\"" + GetRawParameterText(strPC, nIndex) + "\""); }
+
     struct Value strValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), strPC.jStack);
 
-    if (IsTraceEnabled())
-        Trace("arg.eval", strPC.sCurrentProperty + "[" + IntToString(nIndex) + "]" + " raw=\"" + GetRawParameterText(strPC, nIndex) + "\"" + " => " + TraceValue(strValue));
+    if (bTraceEnabled) { TraceExit("arg.exit", strPC.sCurrentProperty + "[" + IntToString(nIndex) + "]" + " => " + TraceValue(strValue)); }
 
     return strValue;
 }
@@ -1834,8 +1841,7 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
     string sPropertyPath = JsonArrayGetString(jExpr, DAZSCRIPT_EXPR_PROPERTY_PATH);
     json jBaseCompiledParameters = JsonArrayGet(jExpr, DAZSCRIPT_EXPR_BASE_COMPILED_PARAMETERS);
 
-    if (bTraceEnabled)
-        Trace("expr", "kind=" + TraceExprKind(nKind) + "; base=" + sBaseName + "; params=\"" + sBaseParameters + "\"" + "; chain=\"" + sPropertyPath + "\"");
+    if (bTraceEnabled) { Trace("expression", "kind=" + TraceExprKind(nKind) + "; base=" + sBaseName + "; params=\"" + sBaseParameters + "\"" + "; chain=\"" + sPropertyPath + "\""); }
 
     struct Value strValue;
 
@@ -1848,8 +1854,7 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
     else if (nKind == DAZSCRIPT_EXPR_FUNCTION)
         strValue = ResolveFunctionValue(jStack, sBaseName, sBaseParameters, jBaseCompiledParameters);
 
-    if (bTraceEnabled)
-        Trace("expr.base.resolved", sBaseName + " => " + TraceValue(strValue));
+    if (bTraceEnabled) { Trace("base.value", sBaseName + " => " + TraceValue(strValue)); }
 
     if (IsErrorValue(strValue))
         return strValue;
@@ -1877,8 +1882,7 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
         if (IsInvalidValue(strPC.strValue))
             return GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty);
 
-        if (bTraceEnabled)
-            Trace("expr.chain.resolved", sBaseName + ">" + sPropertyPath + " => " + TraceValue(strPC.strValue));
+        if (bTraceEnabled) { Trace("chain.value", sBaseName + ">" + sPropertyPath + " => " + TraceValue(strPC.strValue)); }
 
         strValue = strPC.strValue;
     }
@@ -1950,8 +1954,7 @@ struct Value ResolveAliasValue(json jStack, string sAliasName)
 struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParameters, json jBaseCompiledParameters)
 {
     int bTraceEnabled = IsTraceEnabled();
-    if (bTraceEnabled)
-        Trace("meta.enter", sMetaName + "(\"" + sBaseParameters + "\")");
+    if (bTraceEnabled) { TraceEnter("meta.enter", sMetaName + "(\"" + sBaseParameters + "\")"); }
 
     struct PropertyChain strMeta;
     strMeta.jStack = jStack;
@@ -1959,41 +1962,41 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
     strMeta.sCurrentParameters = sBaseParameters;
     strMeta.jCurrentParameters = jBaseCompiledParameters;
 
-    struct Value strParseError = CheckParameterParserError(strMeta);
-    if (IsErrorValue(strParseError))
-        return strParseError;
+    struct Value strReturnValue = CheckParameterParserError(strMeta);
 
-    struct Value strReturnValue = GetInvalidValue();
+    if (!IsErrorValue(strReturnValue))
+    {
+        strReturnValue = GetInvalidValue();
 
-    if (IsInvalidValue(strReturnValue))
-        strReturnValue = HandleMetaPrimitive(strMeta, sMetaName);
+        if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaPrimitive(strMeta, sMetaName);
 
-    if (IsInvalidValue(strReturnValue))
-        strReturnValue = HandleMetaFunction(strMeta, sMetaName);
+        if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaFunction(strMeta, sMetaName);
 
-    if (IsInvalidValue(strReturnValue))
-        strReturnValue = HandleMetaControlFlow(strMeta, sMetaName);
+        if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaControlFlow(strMeta, sMetaName);
 
-    if (IsInvalidValue(strReturnValue))
-        strReturnValue = HandleMetaVariable(strMeta, sMetaName);
+        if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaVariable(strMeta, sMetaName);
 
-    if (IsInvalidValue(strReturnValue))
-        strReturnValue = HandleMetaIntrospection(strMeta, sMetaName);
+        if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaIntrospection(strMeta, sMetaName);
 
-    if (IsInvalidValue(strReturnValue))
-        strReturnValue = HandleMetaOutput(strMeta, sMetaName);
+        if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaOutput(strMeta, sMetaName);
 
-    if (IsInvalidValue(strReturnValue))
-        strReturnValue = HandleMetaMath(strMeta, sMetaName);
+        if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaMath(strMeta, sMetaName);
 
-    if (IsInvalidValue(strReturnValue))
-        strReturnValue = HandleMetaObject(strMeta, sMetaName);
+        if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaObject(strMeta, sMetaName);
 
-    if (IsInvalidValue(strReturnValue))
-        return GetErrorValue("UNKNOWN_META:" + sMetaName);
+        if (IsInvalidValue(strReturnValue))
+            strReturnValue = GetErrorValue("UNKNOWN_META:" + sMetaName);
+    }
 
-    if (bTraceEnabled)
-        Trace("meta.exit", sMetaName + " => " + TraceValue(strReturnValue));
+    if (bTraceEnabled) { TraceExit("meta.exit", sMetaName + " => " + TraceValue(strReturnValue)); }
 
     return strReturnValue;
 }
@@ -2001,57 +2004,83 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
 struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBaseParameters, json jBaseCompiledParameters)
 {
     int bTraceEnabled = IsTraceEnabled();
-    if (bTraceEnabled)
-        Trace("function.enter", sFunctionName + "(\"" + sBaseParameters + "\")");
+    if (bTraceEnabled) { TraceEnter("fn.enter", sFunctionName + "(\"" + sBaseParameters + "\")"); }
+
+    struct Value strReturnValue = GetInvalidValue();
 
     if (!JsonObjectContainsKey(jStack, sFunctionName))
-        return GetErrorValue("UNKNOWN_FUNCTION:" + sFunctionName);
-    json jFunction = JsonObjectGet(jStack, sFunctionName);
-    if (!IsFunctionEntry(jFunction))
-        return GetErrorValue("INVALID_FUNCTION:" + sFunctionName);
-
-    json jArgNames = JsonObjectGet(jFunction, DAZSCRIPT_FUNCTION_ARGS);
-    json jBody = JsonObjectGet(jFunction, DAZSCRIPT_FUNCTION_BODY_COMPILED);
-
-    if (JsonGetType(jBody) != JSON_TYPE_ARRAY)
-        return GetErrorValue("INVALID_FUNCTION_BODY:" + sFunctionName);
-
-    struct PropertyChain strFunction;
-    strFunction.jStack = jStack;
-    strFunction.sCurrentProperty = sFunctionName;
-    strFunction.sCurrentParameters = sBaseParameters;
-    strFunction.jCurrentParameters = jBaseCompiledParameters;
-
-    struct Value strParseError = CheckParameterParserError(strFunction);
-    if (IsErrorValue(strParseError))
-        return strParseError;
-
-    json jCompiledParameters = GetCompiledParameters(strFunction);
-    if (JsonGetLength(jCompiledParameters) != JsonGetLength(jArgNames))
-        return GetErrorValue("FUNCTION_ARITY:" + sFunctionName);
-
-    json jFrame = JsonCopyObject(jStack);
-    int nIndex, nNumArgs = JsonGetLength(jArgNames);
-    for (nIndex = 0; nIndex < nNumArgs; nIndex++)
     {
-        string sArgName = JsonArrayGetString(jArgNames, nIndex);
-        struct Value strArgValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), jStack);
+        strReturnValue = GetErrorValue("UNKNOWN_FUNCTION:" + sFunctionName);
+    }
+    else
+    {
+        json jFunction = JsonObjectGet(jStack, sFunctionName);
+        if (!IsFunctionEntry(jFunction))
+        {
+            strReturnValue = GetErrorValue("INVALID_FUNCTION:" + sFunctionName);
+        }
+        else
+        {
+            json jArgNames = JsonObjectGet(jFunction, DAZSCRIPT_FUNCTION_ARGS);
+            json jBody = JsonObjectGet(jFunction, DAZSCRIPT_FUNCTION_BODY_COMPILED);
 
-        if (IsErrorValue(strArgValue))
-            return strArgValue;
+            if (JsonGetType(jBody) != JSON_TYPE_ARRAY)
+            {
+                strReturnValue = GetErrorValue("INVALID_FUNCTION_BODY:" + sFunctionName);
+            }
+            else
+            {
+                struct PropertyChain strFunction;
+                strFunction.jStack = jStack;
+                strFunction.sCurrentProperty = sFunctionName;
+                strFunction.sCurrentParameters = sBaseParameters;
+                strFunction.jCurrentParameters = jBaseCompiledParameters;
 
-        if (bTraceEnabled)
-            Trace("function.arg", sFunctionName + ":" + sArgName + " => " + TraceValue(strArgValue));
+                strReturnValue = CheckParameterParserError(strFunction);
 
-        JsonObjectSetInplace(jFrame, sArgName, MakeStackAliasEntryFromValue(strArgValue));
+                if (!IsErrorValue(strReturnValue))
+                {
+                    json jCompiledParameters = GetCompiledParameters(strFunction);
+                    if (JsonGetLength(jCompiledParameters) != JsonGetLength(jArgNames))
+                    {
+                        strReturnValue = GetErrorValue("FUNCTION_ARITY:" + sFunctionName);
+                    }
+                    else
+                    {
+                        json jFrame = JsonCopyObject(jStack);
+                        int nIndex, nNumArgs = JsonGetLength(jArgNames);
+                        for (nIndex = 0; nIndex < nNumArgs; nIndex++)
+                        {
+                            string sArgName = JsonArrayGetString(jArgNames, nIndex);
+
+                            if (bTraceEnabled) { TraceEnter("arg.enter", sFunctionName + "[" + IntToString(nIndex) + "]" + " raw=\"" + GetRawParameterText(strFunction, nIndex) + "\""); }
+
+                            struct Value strArgValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), jStack);
+
+                            if (bTraceEnabled) { TraceExit("arg.exit", sFunctionName + "[" + IntToString(nIndex) + "]" + " => " + TraceValue(strArgValue)); }
+
+                            if (IsErrorValue(strArgValue))
+                            {
+                                strReturnValue = strArgValue;
+                                break;
+                            }
+
+                            if (bTraceEnabled) { Trace("fn.arg", sFunctionName + ":" + sArgName + " => " + TraceValue(strArgValue)); }
+
+                            JsonObjectSetInplace(jFrame, sArgName, MakeStackAliasEntryFromValue(strArgValue));
+                        }
+
+                        if (!IsErrorValue(strReturnValue))
+                            strReturnValue = EvalTemplate(jBody, jFrame);
+                    }
+                }
+            }
+        }
     }
 
-    struct Value strResult = EvalTemplate(jBody, jFrame);
+    if (bTraceEnabled) { TraceExit("fn.exit", sFunctionName + " => " + TraceValue(strReturnValue)); }
 
-    if (bTraceEnabled)
-        Trace("function.exit", sFunctionName + " => " + TraceValue(strResult));
-
-    return strResult;
+    return strReturnValue;
 }
 
 struct PropertyChain ApplyCompiledPropertySegment(struct PropertyChain strPC, json jSegment)
@@ -2071,24 +2100,17 @@ struct PropertyChain EvalCompiledPropertyChain(struct PropertyChain strPC, json 
     {
         strPC = ApplyCompiledPropertySegment(strPC, JsonArrayGet(jSegments, nSegment));
 
-        if (bTraceEnabled)
-            Trace("property.enter", IntToString(nSegment) + "; property=" + strPC.sCurrentProperty + "; params=\"" + strPC.sCurrentParameters + "\"" + "; input=" + TraceValue(strPC.strValue));
+        if (bTraceEnabled) { TraceEnter("prop.enter", IntToString(nSegment) + "; property=" + strPC.sCurrentProperty + "; params=\"" + strPC.sCurrentParameters + "\"" + "; input=" + TraceValue(strPC.strValue)); }
 
         strPC = GetPropertyValueByType(strPC);
 
-        if (bTraceEnabled)
-            Trace("property.exit", strPC.sCurrentProperty + " => " + TraceValue(strPC.strValue));
+        if (IsInvalidValue(strPC.strValue))
+            strPC.strValue = GetErrorValue("UNKNOWN_PROPERTY:" + strPC.sCurrentProperty);
+
+        if (bTraceEnabled) { TraceExit("prop.exit", strPC.sCurrentProperty + " => " + TraceValue(strPC.strValue)); }
 
         if (IsErrorValue(strPC.strValue))
             break;
-        if (IsInvalidValue(strPC.strValue))
-        {
-            strPC.strValue = GetErrorValue("UNKNOWN_PROPERTY:" + strPC.sCurrentProperty);
-
-            if (bTraceEnabled)
-                Trace("property.error", strPC.sCurrentProperty + " => " + TraceValue(strPC.strValue));
-            break;
-        }
     }
     return strPC;
 }
@@ -2821,12 +2843,15 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         struct Value strError = CheckArity(strPC, 3, 3);
         if (IsErrorValue(strError))
             return strError;
-
         struct Value strCondition = EvalCompiledParameter(strPC, 0);
         if (IsErrorValue(strCondition))
             return strCondition;
 
-        return EvalCompiledParameter(strPC, ValueToBoolish(strCondition) ? 1 : 2);
+        int nBranch = ValueToBoolish(strCondition) ? 1 : 2;
+
+        if (IsTraceEnabled()) { Trace("if.branch", nBranch == 1 ? "then[1]" : "else[2]"); }
+
+        return EvalCompiledParameter(strPC, nBranch);
     }
 
     if (sMetaName == "while")
@@ -2838,11 +2863,13 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         int nIterations = 0, nLimit = DAZSCRIPT_WHILE_DEFAULT_ITERATION_LIMIT;
         if (GetParameterCount(strPC) == 3)
         {
-           struct Value strLimit = EvalTypedParameter(strPC, 2, DAZSCRIPT_ARG_INT);
-           if (IsErrorValue(strLimit))
+            struct Value strLimit = EvalTypedParameter(strPC, 2, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strLimit))
                 return strLimit;
             nLimit = clamp(GetValueAsInt(strLimit), 0, DAZSCRIPT_WHILE_MAX_ITERATION_LIMIT);
         }
+        int bTraceEnabled = IsTraceEnabled();
+        if (bTraceEnabled) { Trace("while.start", "limit=" + IntToString(nLimit)); }
 
         string sAccumulator;
         while (TRUE)
@@ -2852,18 +2879,32 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
                 return strConditionResult;
 
             if (!ValueToBoolish(strConditionResult))
+            {
+                if (bTraceEnabled) { Trace("while.exit", "iterations=" + IntToString(nIterations) + "; reason=condition_false"); }
                 break;
+            }
 
             if (nIterations >= nLimit)
-                return GetErrorValue("WHILE_ITERATION_LIMIT");
-            nIterations++;
+            {
+                struct Value strLimitError = GetErrorValue("WHILE_ITERATION_LIMIT");
+                if (bTraceEnabled) { Trace("while.exit", "iterations=" + IntToString(nIterations) + "; reason=limit; " + TraceValue(strLimitError)); }
+                return strLimitError;
+            }
 
+            int nIteration = nIterations;
+            if (bTraceEnabled) TraceEnter("while.iter", IntToString(nIteration));
+
+            nIterations++;
             struct Value strBodyResult = EvalCompiledParameter(strPC, 1);
+
+            if (bTraceEnabled) { TraceExit("while.iter.exit", IntToString(nIteration) + " => " + TraceValue(strBodyResult)); }
+
             if (IsErrorValue(strBodyResult))
                 return strBodyResult;
 
             sAccumulator += ValueToText(strBodyResult);
         }
+
         return GetValueFromString(sAccumulator);
     }
 
@@ -3476,17 +3517,61 @@ void PopTrace()
     object oDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
     int nDepth = GetLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY) - 1;
     if (nDepth <= 0)
+    {
         DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY);
+        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
+    }
     else
+    {
         SetLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY, nDepth);
+    }
+}
+
+void PushTraceIndent()
+{
+    IncrementLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_INDENT_KEY);
+}
+
+void PopTraceIndent()
+{
+    object oDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
+    int nDepth = GetLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY) - 1;
+    if (nDepth <= 0)
+        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
+    else
+        SetLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY, nDepth);
+}
+
+string GetTraceIndent()
+{
+    int nDepth = GetLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_INDENT_KEY);
+    string sIndent = "";
+    while (nDepth > 0)
+    {
+        sIndent += "  ";
+        nDepth--;
+    }
+    return sIndent;
 }
 
 void Trace(string sEvent, string sDetail = "")
 {
-    string sLine = "[TRACE] " + RightPadString(sEvent, DAZSCRIPT_TRACE_EVENT_WIDTH, " ");
+    string sLine = "[TRACE] " + RightPadString(GetTraceIndent() + sEvent, DAZSCRIPT_TRACE_EVENT_WIDTH, " ");
     if (sDetail != "")
         sLine += " | " + sDetail;
     PrintString(sLine);
+}
+
+void TraceEnter(string sEvent, string sDetail = "")
+{
+    Trace(sEvent, sDetail);
+    PushTraceIndent();
+}
+
+void TraceExit(string sEvent, string sDetail = "")
+{
+    PopTraceIndent();
+    Trace(sEvent, sDetail);
 }
 
 string TraceValue(struct Value strValue)

@@ -78,19 +78,19 @@ void DazScript_RecordResult(string sName, int bPassed, string sInput, string sEx
 
 void DazScript_Test(string sName, string sInput, string sExpected)
 {
-    string sActual = Interpret(sInput, 1);
+    string sActual = Interpret(sInput, FALSE, 1);
     DazScript_RecordResult(sName, sActual == sExpected, sInput, "expected:", sExpected, sActual);
 }
 
 void DazScript_TestContains(string sName, string sInput, string sExpectedSubstring)
 {
-    string sActual = Interpret(sInput, 1);
+    string sActual = Interpret(sInput, FALSE, 1);
     DazScript_RecordResult(sName, FindSubString(sActual, sExpectedSubstring) >= 0, sInput, "expected has:", sExpectedSubstring, sActual);
 }
 
 void DazScript_TestNotContains(string sName, string sInput, string sForbiddenSubstring)
 {
-    string sActual = Interpret(sInput, 1);
+    string sActual = Interpret(sInput, FALSE, 1);
     DazScript_RecordResult(sName, FindSubString(sActual, sForbiddenSubstring) == -1, sInput, "should avoid:", sForbiddenSubstring, sActual);
 }
 

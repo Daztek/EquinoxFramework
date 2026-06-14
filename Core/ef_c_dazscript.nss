@@ -15,6 +15,10 @@ const string DAZSCRIPT_SCRIPT_NAME                          = "ef_c_dazscript";
 const int DAZSCRIPT_ENABLE_PERSISTENT_CACHE                 = FALSE;
 const int DAZSCRIPT_PERSISTENT_CACHE_VERSION                = 1;
 
+const int DAZSCRIPT_TRACE_EVENT_WIDTH                       = 20;
+const int DAZSCRIPT_TRACE_MAX_LENGTH                        = 160;
+const string DAZSCRIPT_TRACE_DEPTH_KEY                      = "DazScriptTraceDepth";
+
 const string DAZSCRIPT_TEMPLATE_CACHE_PREFIX                = "DazScriptTemplateCache_";
 const string DAZSCRIPT_PROPERTY_CHAIN_CACHE_PREFIX          = "DazScriptPropertyChainCache_";
 const string DAZSCRIPT_COMPILED_PARAMETER_CACHE_PREFIX      = "DazScriptCompiledParameterCache_";
@@ -128,7 +132,7 @@ struct Arguments
 };
 
 string FormatString(string sString, int nDepthOverride = 0);
-string Interpret(string sString, int nDepthOverride = 0, json jStack = JSON_NULL);
+string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL);
 
 string MakeCacheKey(string sPrefix, string sString);
 json GetCachedJson(string sPrefix, string sInput);
@@ -226,7 +230,6 @@ struct Arguments EvalThreeArgs(struct PropertyChain strPC, int nType0 = DAZSCRIP
 
 struct Value EvalTemplate(json jTemplate, json jStack);
 struct Value EvalTemplateToString(json jTemplate, json jStack);
-string EvalCompiledExpression(json jExpr, json jStack);
 struct Value EvalCompiledExpressionToValue(json jExpr, json jStack);
 struct Value GetStackValue(json jStack, string sVarName);
 struct Value ResolveAliasValue(json jStack, string sAliasName);
@@ -253,6 +256,13 @@ struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName);
 
+int IsTraceEnabled();
+void PushTrace();
+void PopTrace();
+void Trace(string sEvent, string sDetail = "");
+string TraceValue(struct Value strValue);
+string TraceExprKind(int nKind);
+
 int IsStackVar(string sVarName);
 int IsSymbol(string sVarName, string sSymbol);
 int IsAliasEntry(json jEntry);
@@ -271,16 +281,26 @@ string InspectObject(object oValue);
 
 string FormatString(string sString, int nDepthOverride = 0)
 {
-    return Interpret(sString, 1 + nDepthOverride, JsonNull());
+    return Interpret(sString, FALSE, 1 + nDepthOverride, JsonNull());
 }
 
-string Interpret(string sString, int nDepthOverride = 0, json jStack = JSON_NULL)
+string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL)
 {
     if (sString == "")
         return "";
 
     if (FindSubString(sString, "{", 0) == -1 && FindSubString(sString, "}", 0) == -1)
         return sString;
+
+    int bPushedTrace = FALSE;
+    if (bTraceEnabled)
+    {
+        PushTrace();
+        bPushedTrace = TRUE;
+    }
+
+    if (IsTraceEnabled())
+        Trace("interpret", sString);
 
     json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sString);
     if (!JsonGetType(jTemplate))
@@ -292,7 +312,12 @@ string Interpret(string sString, int nDepthOverride = 0, json jStack = JSON_NULL
     if (!JsonGetType(jStack))
         jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
 
-    return ValueToText(EvalTemplate(jTemplate, jStack));
+    sString = ValueToText(EvalTemplate(jTemplate, jStack));
+
+    if (bPushedTrace)
+        PopTrace();
+
+    return sString;
 }
 
 void DazScript_Init()
@@ -1585,7 +1610,13 @@ struct Value EvalCompiledParameter(struct PropertyChain strPC, int nIndex)
         return GetValueFromParserError(jCompiledParameters, strPC.sCurrentProperty);
     if (nIndex < 0 || nIndex >= JsonGetLength(jCompiledParameters))
         return GetErrorValue("PARAM_INDEX_OUT_OF_RANGE");
-    return EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), strPC.jStack);
+
+    struct Value strValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), strPC.jStack);
+
+    if (IsTraceEnabled())
+        Trace("arg.eval", strPC.sCurrentProperty + "[" + IntToString(nIndex) + "]" + " raw=\"" + GetRawParameterText(strPC, nIndex) + "\"" + " => " + TraceValue(strValue));
+
+    return strValue;
 }
 
 string GetArgTypeName(int nArgType)
@@ -1793,19 +1824,18 @@ struct Value EvalTemplateToString(json jTemplate, json jStack)
     return GetValueFromString(sResult);
 }
 
-string EvalCompiledExpression(json jExpr, json jStack)
-{
-    return ValueToText(EvalCompiledExpressionToValue(jExpr, jStack));
-}
-
 struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
 {
+    int bTraceEnabled = IsTraceEnabled();
     int nKind = JsonArrayGetInt(jExpr, DAZSCRIPT_EXPR_KIND);
     string sBaseName = JsonArrayGetString(jExpr, DAZSCRIPT_EXPR_BASE_NAME);
     json jChain = JsonArrayGet(jExpr, DAZSCRIPT_EXPR_CHAIN);
     string sBaseParameters = JsonArrayGetString(jExpr, DAZSCRIPT_EXPR_BASE_PARAMETERS);
     string sPropertyPath = JsonArrayGetString(jExpr, DAZSCRIPT_EXPR_PROPERTY_PATH);
     json jBaseCompiledParameters = JsonArrayGet(jExpr, DAZSCRIPT_EXPR_BASE_COMPILED_PARAMETERS);
+
+    if (bTraceEnabled)
+        Trace("expr", "kind=" + TraceExprKind(nKind) + "; base=" + sBaseName + "; params=\"" + sBaseParameters + "\"" + "; chain=\"" + sPropertyPath + "\"");
 
     struct Value strValue;
 
@@ -1817,6 +1847,9 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
         strValue = ResolveMetaValue(jStack, sBaseName, sBaseParameters, jBaseCompiledParameters);
     else if (nKind == DAZSCRIPT_EXPR_FUNCTION)
         strValue = ResolveFunctionValue(jStack, sBaseName, sBaseParameters, jBaseCompiledParameters);
+
+    if (bTraceEnabled)
+        Trace("expr.base.resolved", sBaseName + " => " + TraceValue(strValue));
 
     if (IsErrorValue(strValue))
         return strValue;
@@ -1843,6 +1876,9 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
 
         if (IsInvalidValue(strPC.strValue))
             return GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty);
+
+        if (bTraceEnabled)
+            Trace("expr.chain.resolved", sBaseName + ">" + sPropertyPath + " => " + TraceValue(strPC.strValue));
 
         strValue = strPC.strValue;
     }
@@ -1913,6 +1949,10 @@ struct Value ResolveAliasValue(json jStack, string sAliasName)
 
 struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParameters, json jBaseCompiledParameters)
 {
+    int bTraceEnabled = IsTraceEnabled();
+    if (bTraceEnabled)
+        Trace("meta.enter", sMetaName + "(\"" + sBaseParameters + "\")");
+
     struct PropertyChain strMeta;
     strMeta.jStack = jStack;
     strMeta.sCurrentProperty = sMetaName;
@@ -1952,11 +1992,18 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
     if (IsInvalidValue(strReturnValue))
         return GetErrorValue("UNKNOWN_META:" + sMetaName);
 
+    if (bTraceEnabled)
+        Trace("meta.exit", sMetaName + " => " + TraceValue(strReturnValue));
+
     return strReturnValue;
 }
 
 struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBaseParameters, json jBaseCompiledParameters)
 {
+    int bTraceEnabled = IsTraceEnabled();
+    if (bTraceEnabled)
+        Trace("function.enter", sFunctionName + "(\"" + sBaseParameters + "\")");
+
     if (!JsonObjectContainsKey(jStack, sFunctionName))
         return GetErrorValue("UNKNOWN_FUNCTION:" + sFunctionName);
     json jFunction = JsonObjectGet(jStack, sFunctionName);
@@ -1993,10 +2040,18 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
         if (IsErrorValue(strArgValue))
             return strArgValue;
 
+        if (bTraceEnabled)
+            Trace("function.arg", sFunctionName + ":" + sArgName + " => " + TraceValue(strArgValue));
+
         JsonObjectSetInplace(jFrame, sArgName, MakeStackAliasEntryFromValue(strArgValue));
     }
 
-    return EvalTemplate(jBody, jFrame);
+    struct Value strResult = EvalTemplate(jBody, jFrame);
+
+    if (bTraceEnabled)
+        Trace("function.exit", sFunctionName + " => " + TraceValue(strResult));
+
+    return strResult;
 }
 
 struct PropertyChain ApplyCompiledPropertySegment(struct PropertyChain strPC, json jSegment)
@@ -2010,15 +2065,28 @@ struct PropertyChain ApplyCompiledPropertySegment(struct PropertyChain strPC, js
 
 struct PropertyChain EvalCompiledPropertyChain(struct PropertyChain strPC, json jSegments)
 {
+    int bTraceEnabled = IsTraceEnabled();
     int nSegment, nNumSegments = JsonGetLength(jSegments);
     for (nSegment = 0; nSegment < nNumSegments; nSegment++)
     {
-        strPC = GetPropertyValueByType(ApplyCompiledPropertySegment(strPC, JsonArrayGet(jSegments, nSegment)));
+        strPC = ApplyCompiledPropertySegment(strPC, JsonArrayGet(jSegments, nSegment));
+
+        if (bTraceEnabled)
+            Trace("property.enter", IntToString(nSegment) + "; property=" + strPC.sCurrentProperty + "; params=\"" + strPC.sCurrentParameters + "\"" + "; input=" + TraceValue(strPC.strValue));
+
+        strPC = GetPropertyValueByType(strPC);
+
+        if (bTraceEnabled)
+            Trace("property.exit", strPC.sCurrentProperty + " => " + TraceValue(strPC.strValue));
+
         if (IsErrorValue(strPC.strValue))
             break;
         if (IsInvalidValue(strPC.strValue))
         {
             strPC.strValue = GetErrorValue("UNKNOWN_PROPERTY:" + strPC.sCurrentProperty);
+
+            if (bTraceEnabled)
+                Trace("property.error", strPC.sCurrentProperty + " => " + TraceValue(strPC.strValue));
             break;
         }
     }
@@ -3161,6 +3229,26 @@ struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
         return GetValueFromString();
     }
 
+    if (sMetaName == "trace")
+    {
+        PushTrace();
+
+        struct Arguments strArgs = EvalOneArg(strPC);
+
+        if (IsErrorValue(strArgs.strError))
+        {
+            Trace("trace.value", TraceValue(strArgs.strError));
+            PopTrace();
+            return strArgs.strError;
+        }
+
+        Trace("trace.value", TraceValue(strArgs.strArg0));
+
+        PopTrace();
+
+        return strArgs.strArg0;
+    }
+
     return GetInvalidValue();
 }
 
@@ -3371,6 +3459,61 @@ struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName)
     }
 
     return GetInvalidValue();
+}
+
+int IsTraceEnabled()
+{
+    return GetLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_DEPTH_KEY) > 0;
+}
+
+void PushTrace()
+{
+    IncrementLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_DEPTH_KEY);
+}
+
+void PopTrace()
+{
+    object oDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
+    int nDepth = GetLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY) - 1;
+    if (nDepth <= 0)
+        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY);
+    else
+        SetLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY, nDepth);
+}
+
+void Trace(string sEvent, string sDetail = "")
+{
+    string sLine = "[TRACE] " + RightPadString(sEvent, DAZSCRIPT_TRACE_EVENT_WIDTH, " ");
+    if (sDetail != "")
+        sLine += " | " + sDetail;
+    PrintString(sLine);
+}
+
+string TraceValue(struct Value strValue)
+{
+    if (IsErrorValue(strValue))
+        return "ERROR " + strValue.sErrorMessage;
+
+    string sType = AuxTypeToString(strValue.nAuxType, TRUE);
+    string sText = ValueToText(strValue);
+
+    if (GetStringLength(sText) > DAZSCRIPT_TRACE_MAX_LENGTH)
+        sText = GetStringLeft(sText, DAZSCRIPT_TRACE_MAX_LENGTH) + "...";
+
+    return sType + " \"" + sText + "\"";
+}
+
+string TraceExprKind(int nKind)
+{
+    switch (nKind)
+    {
+        case DAZSCRIPT_EXPR_VAR:      return "var";
+        case DAZSCRIPT_EXPR_ALIAS:    return "alias";
+        case DAZSCRIPT_EXPR_META:     return "meta";
+        case DAZSCRIPT_EXPR_FUNCTION: return "function";
+    }
+
+    return "unknown";
 }
 
 int IsStackVar(string sVarName)

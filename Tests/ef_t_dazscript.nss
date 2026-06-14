@@ -9,6 +9,7 @@ void DazScript_TestLazy();
 void DazScript_TestParserWhitespace();
 void DazScript_TestStringProperties();
 void DazScript_TestMetaVars();
+void DazScript_TestSymbolTypes();
 void DazScript_TestFunctionParams();
 void DazScript_TestMath();
 void DazScript_TestOut();
@@ -206,6 +207,7 @@ void main()
     DazScript_TestParserWhitespace();
     DazScript_TestStringProperties();
     DazScript_TestMetaVars();
+    DazScript_TestSymbolTypes();
     DazScript_TestFunctionParams();
     DazScript_TestMath();
     DazScript_TestOut();
@@ -486,6 +488,103 @@ void DazScript_TestMetaVars()
     DazScript_TestContains("try all branches failed returns last error",
         "{@try({missingVar}, {@int(5)>bad})}",
         "INVALID_PROPERTY_CHAIN");
+
+    DazScript_Test("type alias from error",
+        "{@set($x, {@div(1, 0)})}{@type($x)}",
+        "alias:error");
+
+    DazScript_Test("type alias from error",
+        "{@set($x, {@div(1, 0)})}{@type($x)}",
+        "alias:error");
+}
+
+void DazScript_TestSymbolTypes()
+{
+    json jStack = JsonObject();
+
+    JsonObjectSetInplace(jStack, "$err", MakeStackAliasEntryFromValue(GetErrorValue("BOOM")));
+
+    DazScript_TestStateString("symbol type error alias",
+        GetSymbolType(jStack, "$err"),
+        "alias:error");
+
+    DazScript_TestStateInt("symbol exists error alias",
+        SymbolExists(jStack, "$err"),
+        TRUE);
+
+    struct Value strErrorAlias = ResolveAliasValue(jStack, "$err");
+
+    DazScript_TestStateInt("resolve error alias is error",
+        IsErrorValue(strErrorAlias),
+        TRUE);
+
+    DazScript_TestStateString("resolve error alias message",
+        strErrorAlias.sErrorMessage,
+        "BOOM");
+
+    json jBadAlias = JsonObject();
+    JsonObjectSetIntInplace(jBadAlias, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INVALID);
+    JsonObjectSetStringInplace(jBadAlias, DAZSCRIPT_ALIAS_VALUE, "not an error");
+    JsonObjectSetIntInplace(jBadAlias, DAZSCRIPT_ALIAS_ERROR, FALSE);
+    JsonObjectSetInplace(jStack, "$bad", jBadAlias);
+
+    DazScript_TestStateString("symbol type non-error invalid alias",
+        GetSymbolType(jStack, "$bad"),
+        "invalid:alias");
+
+    DazScript_TestStateInt("symbol exists non-error invalid alias false",
+        SymbolExists(jStack, "$bad"),
+        FALSE);
+
+    struct Value strBadAlias = ResolveAliasValue(jStack, "$bad");
+
+    DazScript_TestStateInt("resolve non-error invalid alias is error",
+        IsErrorValue(strBadAlias),
+        TRUE);
+
+    DazScript_TestStateString("resolve non-error invalid alias message",
+        strBadAlias.sErrorMessage,
+        "INVALID_ALIAS_TYPE:$bad");
+
+    json jMalformedAlias = JsonObject();
+    JsonObjectSetStringInplace(jMalformedAlias, DAZSCRIPT_ALIAS_VALUE, "missing type");
+    JsonObjectSetInplace(jStack, "$malformed", jMalformedAlias);
+
+    DazScript_TestStateString("symbol type malformed alias",
+        GetSymbolType(jStack, "$malformed"),
+        "invalid:alias");
+
+    DazScript_TestStateInt("symbol exists malformed alias false",
+        SymbolExists(jStack, "$malformed"),
+        FALSE);
+
+    json jMalformedFunction = JsonObject();
+    JsonObjectSetInplace(jStack, "#badfn", jMalformedFunction);
+
+    DazScript_TestStateString("symbol type malformed function",
+        GetSymbolType(jStack, "#badfn"),
+        "invalid:function");
+
+    DazScript_TestStateInt("symbol exists malformed function false",
+        SymbolExists(jStack, "#badfn"),
+        FALSE);
+
+    json jMalformedStackVar = JsonObject();
+    JsonObjectSetInplace(jStack, "badStack", jMalformedStackVar);
+
+    DazScript_TestStateString("symbol type malformed stack var",
+        GetSymbolType(jStack, "badStack"),
+        "invalid:stack");
+
+    DazScript_TestStateInt("symbol exists malformed stack var false",
+        SymbolExists(jStack, "badStack"),
+        FALSE);
+
+    json jMadeFromInvalid = MakeStackAliasEntryFromValue(GetInvalidValue());
+
+    DazScript_TestStateString("invalid value becomes error alias",
+        GetAliasEntryType(jMadeFromInvalid),
+        "alias:error");
 }
 
 void DazScript_TestFunctionParams()
@@ -1240,6 +1339,34 @@ void DazScript_TestControlFlow()
     DazScript_Test("while accumulates body output",
         "{@set($i,0)}{@while({$i>lt(3)}, {@set($i, {$i>incr})}{$i})}",
         "123");
+
+    DazScript_Test("do returns last value",
+        "{@do(1, 2, 3)}",
+        "3");
+
+    DazScript_Test("seq returns last value",
+        "{@seq(1, 2, 3)}",
+        "3");
+
+    DazScript_Test("do sequences set",
+        "{@do({@set($x, 1)}, {@set($x, {@add({$x}, 1)})}, {$x})}",
+        "2");
+
+    DazScript_Test("do preserves int return",
+        "{@add({@do({@set($x, 1)}, 2)}, 3)}",
+        "5");
+
+    DazScript_TestContains("do stops on error",
+        "{@do(1, {@div(1, 0)}, 3)}",
+        "DIVISION_BY_ZERO");
+
+    DazScript_Test("do can inspect stored error alias",
+        "{@do({@set($x, {@div(1, 0)})}, {@type($x)})}",
+        "alias:error");
+
+    DazScript_Test("do in while body",
+        "{@set($i, 0)}{@while({$i>lt(3)}, {@do({@set($out, {$i})}, {@set($i, {$i>increment})}, {$out})})}",
+        "012");
 
     DazScript_Test("all alias for and",
         "{@all(TRUE, yes, 1)>bool}",

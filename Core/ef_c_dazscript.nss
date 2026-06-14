@@ -35,6 +35,7 @@ const string DAZSCRIPT_FUNCTION_SYMBOL                      = "#";
 
 const string DAZSCRIPT_ALIAS_TYPE                           = "type";
 const string DAZSCRIPT_ALIAS_VALUE                          = "value";
+const string DAZSCRIPT_ALIAS_ERROR                          = "error";
 
 const string DAZSCRIPT_FUNCTION_ARGS                        = "args";
 const string DAZSCRIPT_FUNCTION_BODY                        = "body";
@@ -255,6 +256,14 @@ struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName);
 
 int IsStackVar(string sVarName);
 int IsSymbol(string sVarName, string sSymbol);
+int IsKnownAuxType(int nAuxType);
+int IsKnownStackAuxType(int nAuxType);
+int IsAliasEntry(json jEntry);
+int IsErrorAliasEntry(json jEntry);
+int IsFunctionEntry(json jEntry);
+int IsStackEntry(json jEntry);
+string GetAliasEntryType(json jEntry);
+string GetStackEntryType(json jEntry);
 string GetSymbolType(json jStack, string sName);
 int SymbolExists(json jStack, string sName);
 string InferDebugValueType(string sValue);
@@ -346,12 +355,23 @@ json MakeStackAliasEntryFromValue(struct Value strValue)
 
     if (IsErrorValue(strValue))
     {
+        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INVALID);
         JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.sErrorMessage);
-        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_STRING);
+        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_ERROR, TRUE);
+        return jEntry;
+    }
+
+    if (!IsKnownAuxType(strValue.nAuxType))
+    {
+        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INVALID);
+        JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, "INVALID_ALIAS_VALUE");
+        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_ERROR, TRUE);
         return jEntry;
     }
 
     JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, strValue.nAuxType);
+    JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_ERROR, FALSE);
+
     switch (strValue.nAuxType)
     {
         case NWNX_VM_AUXTYPE_INT:       JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.nValue); break;
@@ -1060,15 +1080,15 @@ struct Value ResolveAliasValue(json jStack, string sAliasName)
 {
     if (!JsonObjectContainsKey(jStack, sAliasName))
         return GetErrorValue("MISSING_ALIAS:" + sAliasName);
-
     json jEntry = JsonObjectGet(jStack, sAliasName);
-
-    if (JsonGetType(jEntry) != JSON_TYPE_OBJECT ||
-        !JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_VALUE) ||
-        !JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_TYPE))
+    if (!IsAliasEntry(jEntry))
         return GetErrorValue("INVALID_ALIAS:" + sAliasName);
-
+    if (IsErrorAliasEntry(jEntry))
+        return GetErrorValue(GetAliasStoredValueAsString(jEntry));
     int nAuxType = JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE);
+    if (!IsKnownAuxType(nAuxType))
+        return GetErrorValue("INVALID_ALIAS_TYPE:" + sAliasName);
+
     json jValue = JsonObjectGet(jEntry, DAZSCRIPT_ALIAS_VALUE);
     int nJsonType = JsonGetType(jValue);
 
@@ -1078,6 +1098,7 @@ struct Value ResolveAliasValue(json jStack, string sAliasName)
         {
             if (nJsonType == JSON_TYPE_INTEGER)
                 return GetValueFromInt(JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_VALUE));
+
             return GetValueFromInt(StringToInt(GetAliasStoredValueAsString(jEntry)));
         }
         case NWNX_VM_AUXTYPE_FLOAT:
@@ -1088,13 +1109,15 @@ struct Value ResolveAliasValue(json jStack, string sAliasName)
                 return GetValueFromFloat(IntToFloat(JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_VALUE)));
             return GetValueFromFloat(StringToFloat(GetAliasStoredValueAsString(jEntry)));
         }
+        case NWNX_VM_AUXTYPE_STRING:
+            return GetValueFromString(GetAliasStoredValueAsString(jEntry));
         case NWNX_VM_AUXTYPE_OBJECT:
             return GetValueFromObject(StringToObject(GetAliasStoredValueAsString(jEntry)));
         case NWNX_VM_AUXTYPE_JSON:
             return GetValueFromJson(jValue);
     }
 
-    return GetValueFromString(GetAliasStoredValueAsString(jEntry));
+    return GetErrorValue("INVALID_ALIAS_TYPE:" + sAliasName);
 }
 
 struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParameters, json jBaseCompiledParameters)
@@ -1143,10 +1166,11 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
 
 struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBaseParameters, json jBaseCompiledParameters)
 {
-    json jFunction = JsonObjectGet(jStack, sFunctionName);
-
-    if (JsonGetType(jFunction) != JSON_TYPE_OBJECT)
+    if (!JsonObjectContainsKey(jStack, sFunctionName))
         return GetErrorValue("UNKNOWN_FUNCTION:" + sFunctionName);
+    json jFunction = JsonObjectGet(jStack, sFunctionName);
+    if (!IsFunctionEntry(jFunction))
+        return GetErrorValue("INVALID_FUNCTION:" + sFunctionName);
 
     json jArgNames = JsonObjectGet(jFunction, DAZSCRIPT_FUNCTION_ARGS);
     json jBody = JsonObjectGet(jFunction, DAZSCRIPT_FUNCTION_BODY_COMPILED);
@@ -2919,6 +2943,23 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         return strLastError;
     }
 
+    if (sMetaName == "do" || sMetaName == "seq")
+    {
+        int nCount = GetParameterCount(strPC);
+        if (nCount < 1)
+            return GetErrorValue("ARITY:EXPECTED_AT_LEAST_1_ARGUMENT");
+
+        int nIndex;
+        struct Value strResult = GetValueFromString();
+        for (nIndex = 0; nIndex < nCount; nIndex++)
+        {
+            strResult = EvalCompiledParameter(strPC, nIndex);
+            if (IsErrorValue(strResult))
+                return strResult;
+        }
+        return strResult;
+    }
+
     return GetInvalidValue();
 }
 
@@ -2964,11 +3005,7 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
         if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("SET_ALIAS_IS_NON_ALIAS:" + sAlias);
 
-        struct Value strValue = EvalCompiledParameter(strPC, 1);
-        if (IsErrorValue(strValue))
-            return strValue;
-
-        JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(strValue));
+        JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(EvalCompiledParameter(strPC, 1)));
         return GetValueFromString();
     }
 
@@ -3339,74 +3376,124 @@ int IsSymbol(string sVarName, string sSymbol)
     return GetStringLeft(sVarName, 1) == sSymbol && GetStringLength(sVarName) >= 2;
 }
 
-string GetSymbolType(json jStack, string sName)
+int IsKnownAuxType(int nAuxType)
 {
-    sName = trim(sName);
+    return nAuxType == NWNX_VM_AUXTYPE_INT || nAuxType == NWNX_VM_AUXTYPE_FLOAT || nAuxType == NWNX_VM_AUXTYPE_STRING ||
+           nAuxType == NWNX_VM_AUXTYPE_OBJECT || nAuxType == NWNX_VM_AUXTYPE_JSON;
+}
 
-    if (sName == "")
-        return "missing";
+int IsKnownStackAuxType(int nAuxType)
+{
+    return nAuxType == NWNX_VM_AUXTYPE_INT || nAuxType == NWNX_VM_AUXTYPE_FLOAT || nAuxType == NWNX_VM_AUXTYPE_STRING ||
+           nAuxType == NWNX_VM_AUXTYPE_OBJECT || nAuxType == NWNX_VM_AUXTYPE_JSON || nAuxType == NWNX_VM_AUXTYPE_VOID;
+}
 
-    string sPrefix = GetStringLeft(sName, 1);
-
-    if (sPrefix == DAZSCRIPT_FUNCTION_SYMBOL)
-        sName = GetStringLowerCase(sName);
-
-    if (!JsonObjectContainsKey(jStack, sName))
-        return "missing";
-
-    json jEntry = JsonObjectGet(jStack, sName);
-
-    if (sPrefix == DAZSCRIPT_FUNCTION_SYMBOL)
-    {
-        if (JsonGetType(jEntry) != JSON_TYPE_OBJECT)
-            return "invalid:function";
-
-        if (JsonGetType(JsonObjectGet(jEntry, DAZSCRIPT_FUNCTION_ARGS)) == JSON_TYPE_ARRAY &&
-            JsonGetType(JsonObjectGet(jEntry, DAZSCRIPT_FUNCTION_BODY_COMPILED)) == JSON_TYPE_ARRAY)
-        {
-            return "function";
-        }
-
-        return "invalid:function";
-    }
-
-    if (sPrefix == DAZSCRIPT_ALIAS_SYMBOL)
-    {
-        if (JsonGetType(jEntry) != JSON_TYPE_OBJECT)
-            return "invalid:alias";
-
-        if (!JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_VALUE))
-            return "invalid:alias";
-
-        return "alias:" + AuxTypeToString(JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE), TRUE);
-    }
-
+int IsAliasEntry(json jEntry)
+{
     if (JsonGetType(jEntry) != JSON_TYPE_OBJECT)
-        return "invalid";
+        return FALSE;
+    if (!JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_TYPE))
+        return FALSE;
+    if (!JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_VALUE))
+        return FALSE;
+    return TRUE;
+}
 
-    if (JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_VALUE))
-        return "alias:" + AuxTypeToString(JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE), TRUE);
+int IsErrorAliasEntry(json jEntry)
+{
+    if (!IsAliasEntry(jEntry))
+        return FALSE;
+    if (!JsonObjectContainsKey(jEntry, DAZSCRIPT_ALIAS_ERROR))
+        return FALSE;
+    if (!JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_ERROR))
+        return FALSE;
+    return JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE) == NWNX_VM_AUXTYPE_INVALID;
+}
 
-    if (JsonObjectContainsKey(jEntry, DAZSCRIPT_FUNCTION_ARGS))
-        return "function";
+int IsFunctionEntry(json jEntry)
+{
+    if (JsonGetType(jEntry) != JSON_TYPE_OBJECT)
+        return FALSE;
+    if (JsonGetType(JsonObjectGet(jEntry, DAZSCRIPT_FUNCTION_ARGS)) != JSON_TYPE_ARRAY)
+        return FALSE;
+    if (JsonGetType(JsonObjectGet(jEntry, DAZSCRIPT_FUNCTION_BODY)) != JSON_TYPE_STRING)
+        return FALSE;
+    if (JsonGetType(JsonObjectGet(jEntry, DAZSCRIPT_FUNCTION_BODY_COMPILED)) != JSON_TYPE_ARRAY)
+        return FALSE;
+    return TRUE;
+}
 
+int IsStackEntry(json jEntry)
+{
+    if (JsonGetType(jEntry) != JSON_TYPE_OBJECT)
+        return FALSE;
+    if (!JsonObjectContainsKey(jEntry, NWNX_VM_TYPE_KEY))
+        return FALSE;
     int nAuxType = JsonObjectGetInt(jEntry, NWNX_VM_TYPE_KEY);
+    if (!IsKnownStackAuxType(nAuxType))
+        return FALSE;
+    if (nAuxType != NWNX_VM_AUXTYPE_VOID && !JsonObjectContainsKey(jEntry, NWNX_VM_STACK_LOCATION_KEY))
+        return FALSE;
+    return TRUE;
+}
 
+string GetAliasEntryType(json jEntry)
+{
+    if (!IsAliasEntry(jEntry))
+        return "invalid:alias";
+    if (IsErrorAliasEntry(jEntry))
+        return "alias:error";
+    int nAuxType = JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE);
+    if (!IsKnownAuxType(nAuxType))
+        return "invalid:alias";
+    return "alias:" + AuxTypeToString(nAuxType, TRUE);
+}
+
+string GetStackEntryType(json jEntry)
+{
+    if (!IsStackEntry(jEntry))
+        return "invalid:stack";
+    int nAuxType = JsonObjectGetInt(jEntry, NWNX_VM_TYPE_KEY);
     if (nAuxType == NWNX_VM_AUXTYPE_VOID)
     {
         string sStructName = JsonObjectGetString(jEntry, NWNX_VM_STRUCT_NAME_KEY);
         if (sStructName != "")
             return "struct:" + sStructName;
-
         return "struct";
     }
-
     return AuxTypeToString(nAuxType, TRUE);
+}
+
+string GetSymbolType(json jStack, string sName)
+{
+    sName = trim(sName);
+    if (sName == "")
+        return "missing";
+    string sPrefix = GetStringLeft(sName, 1);
+    if (sPrefix == DAZSCRIPT_FUNCTION_SYMBOL)
+        sName = GetStringLowerCase(sName);
+    if (!JsonObjectContainsKey(jStack, sName))
+        return "missing";
+    json jEntry = JsonObjectGet(jStack, sName);
+    if (sPrefix == DAZSCRIPT_ALIAS_SYMBOL)
+        return GetAliasEntryType(jEntry);
+    if (sPrefix == DAZSCRIPT_FUNCTION_SYMBOL)
+    {
+        if (IsFunctionEntry(jEntry))
+            return "function";
+        return "invalid:function";
+    }
+    return GetStackEntryType(jEntry);
 }
 
 int SymbolExists(json jStack, string sName)
 {
-    return GetSymbolType(jStack, sName) != "missing";
+    string sType = GetSymbolType(jStack, sName);
+    if (sType == "missing")
+        return FALSE;
+    if (GetStringLeft(sType, 8) == "invalid:")
+        return FALSE;
+    return TRUE;
 }
 
 string InferDebugValueType(string sValue)

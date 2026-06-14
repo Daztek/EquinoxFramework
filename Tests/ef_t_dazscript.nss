@@ -5,20 +5,36 @@
 
 #include "ef_c_dazscript"
 
-void DazScript_TestLazy();
-void DazScript_TestParserWhitespace();
-void DazScript_TestStringProperties();
-void DazScript_TestMetaVars();
-void DazScript_TestSymbolTypes();
-void DazScript_TestFunctionParams();
-void DazScript_TestMath();
-void DazScript_TestOut();
-void DazScript_TestParserErrors();
-void DazScript_TestParserEvil();
+void DazScript_ResetInstructionCounter();
+void DazScript_PrintPass(string sName);
+void DazScript_PrintFailure(string sName, string sInput, string sExpectationLabel, string sExpected, string sActual);
+void DazScript_RecordResult(string sName, int bPassed, string sInput, string sExpectationLabel, string sExpected, string sActual);
+void DazScript_Test(string sName, string sInput, string sExpected);
+void DazScript_TestContains(string sName, string sInput, string sExpectedSubstring);
+void DazScript_TestNotContains(string sName, string sInput, string sForbiddenSubstring);
+void DazScript_TestStateString(string sName, string sActual, string sExpected);
+void DazScript_TestStateInt(string sName, int nActual, int nExpected);
+void DazScript_TestStateFloat(string sName, float fActual, float fExpected, float fTolerance);
+void DazScript_TestStateJson(string sName, json jActual, string sExpectedDump);
+
+void DazScript_TestSmoke();
 void DazScript_TestPrimitives();
 void DazScript_TestJson();
-void DazScript_TestErrorHandling();
+
+void DazScript_TestParserWhitespace();
+void DazScript_TestStringProperties();
+void DazScript_TestParserErrors();
+void DazScript_TestParserEvil();
+
+void DazScript_TestMetaVars();
+void DazScript_TestFunctionParams();
+void DazScript_TestLazy();
 void DazScript_TestControlFlow();
+
+void DazScript_TestMath();
+void DazScript_TestOut();
+void DazScript_TestSymbolTypes();
+void DazScript_TestErrorHandling();
 
 int g_nPassed = 0;
 int g_nFailed = 0;
@@ -99,7 +115,7 @@ void DazScript_TestStateJson(string sName, json jActual, string sExpectedDump)
     DazScript_RecordResult(sName, sActual == sExpectedDump, "", "expected:", sExpectedDump, sActual);
 }
 
-void main()
+void DazScript_TestSmoke()
 {
     int nNum = 5;
     float fNum = 12.5;
@@ -202,581 +218,6 @@ void main()
     DazScript_Test("type alias",
         "{@set($x, 123)}{@type($x)}",
         "alias:int");
-
-    DazScript_TestLazy();
-    DazScript_TestParserWhitespace();
-    DazScript_TestStringProperties();
-    DazScript_TestMetaVars();
-    DazScript_TestSymbolTypes();
-    DazScript_TestFunctionParams();
-    DazScript_TestMath();
-    DazScript_TestOut();
-    DazScript_TestParserErrors();
-    DazScript_TestParserEvil();
-    DazScript_TestPrimitives();
-    DazScript_TestJson();
-    DazScript_TestErrorHandling();
-    DazScript_TestControlFlow();
-
-    PrintString("DazScript tests complete: " + IntToString(g_nPassed) + " passed, " + IntToString(g_nFailed) + " failed.");
-}
-
-void DazScript_TestLazy()
-{
-    string sOut = "";
-
-    DazScript_Test("if lazy false branch",
-        "{@if(TRUE, ok, {@out(sOut,bad)})}|{sOut}",
-        "ok|");
-
-    sOut = "";
-    DazScript_Test("or lazy unused branch",
-        "{@or(TRUE, {@out(sOut,bad)})>bool}|{sOut}",
-        "TRUE|");
-
-    sOut = "";
-    DazScript_Test("and lazy unused branch",
-        "{@and(FALSE, {@out(sOut,bad)})>bool}|{sOut}",
-        "FALSE|");
-
-    sOut = "";
-    DazScript_Test("try lazy fallback skipped on success",
-        "{@try(ok, {@out(sOut,bad)})}|{sOut}",
-        "ok|");
-
-    sOut = "";
-    DazScript_Test("try fallback evaluated on failure",
-        "{@try({missingVar}, {@out(sOut,changed)}fallback)}|{sOut}",
-        "fallback|changed");
-}
-
-void DazScript_TestParserWhitespace()
-{
-    DazScript_Test("parser trims expression whitespace",
-        "{ @string( hello ) }",
-        "hello");
-
-    DazScript_Test("parser trims meta name whitespace",
-        "{ @int( 123 ) > int }",
-        "123");
-
-    DazScript_Test("parser trims property whitespace",
-        "{ @int( 150 ) > clamp( 0, 100 ) > int }",
-        "100");
-
-    DazScript_Test("quoted param ignores leading syntax space",
-        "{@string( 'hello')}",
-        "hello");
-
-    DazScript_Test("quoted param ignores trailing syntax space",
-        "{@string('hello' )}",
-        "hello");
-
-    DazScript_Test("quoted param preserves intentional spaces",
-        "{@string('  hello  ')}",
-        "  hello  ");
-
-    DazScript_Test("quoted param preserves comma",
-        "{@string('a,b,c')}",
-        "a,b,c");
-
-    DazScript_Test("quoted param preserves parens and comma",
-        "{@string('a (b), c')}",
-        "a (b), c");
-
-    DazScript_Test("param quoted empty string",
-        "{@string('')}",
-        "");
-
-    DazScript_Test("param quoted spaces only",
-        "{@string('   ')}",
-        "   ");
-}
-
-void DazScript_TestStringProperties()
-{
-    string sText = "hello";
-    string sEmpty = "";
-
-    DazScript_Test("property chain whitespace",
-        "{ sText > upper > lower > capitalize }",
-        "Hello");
-
-    DazScript_Test("string trim property",
-        "{@string('  hello  ')>trim}",
-        "hello");
-
-    DazScript_Test("string append quoted leading data",
-        "{sText>append(' world')}",
-        "hello world");
-
-    DazScript_Test("string prepend quoted trailing data",
-        "{sText>prepend('say ')}",
-        "say hello");
-
-    DazScript_Test("string substring",
-        "{sText>substring(1, 3)}",
-        "ell");
-
-    DazScript_Test("string left",
-        "{sText>left(2)}",
-        "he");
-
-    DazScript_Test("string right",
-        "{sText>right(2)}",
-        "lo");
-
-    DazScript_Test("string contains",
-        "{sText>contains('ell')>bool}",
-        "TRUE");
-
-    DazScript_Test("string startswith",
-        "{sText>startswith('he')>bool}",
-        "TRUE");
-
-    DazScript_Test("string endswith",
-        "{sText>endswith('lo')>bool}",
-        "TRUE");
-
-    DazScript_Test("string empty",
-        "{sEmpty>empty>bool}",
-        "TRUE");
-
-    DazScript_Test("string notempty",
-        "{sText>notempty>bool}",
-        "TRUE");
-
-    DazScript_Test("padleft with quoted pad char",
-        "{sText>padleft(7, '.')}",
-        "..hello");
-
-    DazScript_Test("padright with quoted pad char",
-        "{sText>padright(7, '.')}",
-        "hello..");
-}
-
-void DazScript_TestMetaVars()
-{
-    DazScript_Test("set alias with whitespace",
-        "{ @set( $x, 123 ) }{ $x }",
-        "123");
-
-    DazScript_Test("set quoted alias preserves spaces",
-        "{@set($x, '  padded  ')}{$x}",
-        "  padded  ");
-
-    DazScript_Test("alias increment",
-        "{@set($x, 5)}{$x>incr}",
-        "6");
-
-    DazScript_Test("alias decrement",
-        "{@set($x, 5)}{$x>decr}",
-        "4");
-
-    DazScript_Test("exists alias true",
-        "{@set($x, 123)}{@exists($x)>bool}",
-        "TRUE");
-
-    DazScript_Test("unset alias",
-        "{@set($x, 123)}{@unset($x)}{@exists($x)>bool}",
-        "FALSE");
-
-    DazScript_Test("type int alias",
-        "{@set($x, 123)}{@type($x)}",
-        "alias:int");
-
-    DazScript_Test("type float alias",
-        "{@set($x, 12.5)}{@type($x)}",
-        "alias:float");
-
-    DazScript_Test("type string alias",
-        "{@set($x, abc)}{@type($x)}",
-        "alias:string");
-
-    DazScript_Test("cast alias to string",
-        "{@set($x, 123)}{@cast($x, string)}{@type($x)}",
-        "alias:string");
-
-    DazScript_Test("cast alias string to json type",
-        "{@set($x, '{{\"hp\":42}}')}{@cast($x, json)}{@type($x)}",
-        "alias:json");
-
-    DazScript_Test("cast alias string to json access",
-        "{@set($x, '{{\"hp\":42}}')}{@cast($x, json)}{$x>get(hp)}",
-        "42");
-
-    DazScript_Test("cast alias shorthand j to json",
-        "{@set($x, '{{\"hp\":42}}')}{@cast($x, j)}{$x>get(hp)}",
-        "42");
-
-    DazScript_Test("cast alias int to json root type",
-        "{@set($x, 5)}{@cast($x, json)}{$x>type}",
-        "int");
-
-    DazScript_TestContains("cast alias invalid json string",
-        "{@set($x, '{{bad}}')}{@cast($x, json)}",
-        "INVALID_JSON:{bad}");
-
-    DazScript_Test("plural full sentence plural",
-        "{@set($count,2)}{$count>plural( 'There is {$count} player online.', 'There are {$count} players online.')}",
-        "There are 2 players online.");
-
-    DazScript_Test("plural full sentence singular",
-        "{@set($count,1)}{$count>plural( 'There is {$count} player online.', 'There are {$count} players online.' )}",
-        "There is 1 player online.");
-
-    DazScript_Test("plural suffix singular",
-        "{@int(1)>plural(s)}",
-        "");
-
-    DazScript_Test("plural suffix plural",
-        "{@int(2)>plural(s)}",
-        "s");
-
-    DazScript_Test("then true branch",
-        "{@int(1)>then(yes, no)}",
-        "yes");
-
-    DazScript_Test("then false branch",
-        "{@int(0)>then(yes, no)}",
-        "no");
-
-    DazScript_Test("let scoped alias",
-        "{@let($x, 123, {$x})}",
-        "123");
-
-    DazScript_Test("let alias does not leak",
-        "{@let($x, 123, {$x})}{@exists($x)>bool}",
-        "123FALSE");
-
-    DazScript_Test("let shadows outer alias",
-        "{@set($x, outer)}{@let($x, inner, {$x})}:{$x}",
-        "inner:outer");
-
-    DazScript_Test("let sequential bindings",
-        "{@let($a, 2, $b, {$a>incr}, '{$a},{$b}')}",
-        "2,3");
-
-    DazScript_Test("let inner set remains scoped",
-        "{@set($x, outer)}{@let($x, inner, {@set($x, changed)}{$x})}:{$x}",
-        "changed:outer");
-
-    DazScript_TestContains("let requires alias syntax",
-        "{@let(x, 1, body)}",
-        "LET_ALIAS_IS_NON_ALIAS:x");
-
-    DazScript_TestContains("let requires odd argument count",
-        "{@let($x, 1, $y, 2)}",
-        "LET_EXPECTS_BINDINGS_PLUS_BODY");
-
-    DazScript_Test("try primary success",
-        "{@try(ok, fallback)}",
-        "ok");
-
-    DazScript_Test("try catches missing var",
-        "{@try({missingVar}, fallback)}",
-        "fallback");
-
-    DazScript_Test("try catches bad property chain",
-        "{@try({@int(5)>nosuchproperty}, fallback)}",
-        "fallback");
-
-    DazScript_Test("try variadic fallback",
-        "{@try({missingVar}, {@int(5)>bad}, final)}",
-        "final");
-
-    DazScript_TestContains("try all branches failed returns last error",
-        "{@try({missingVar}, {@int(5)>bad})}",
-        "INVALID_PROPERTY_CHAIN");
-
-    DazScript_Test("type alias from error",
-        "{@set($x, {@div(1, 0)})}{@type($x)}",
-        "alias:error");
-
-    DazScript_Test("type alias from error",
-        "{@set($x, {@div(1, 0)})}{@type($x)}",
-        "alias:error");
-}
-
-void DazScript_TestSymbolTypes()
-{
-    json jStack = JsonObject();
-
-    JsonObjectSetInplace(jStack, "$err", MakeStackAliasEntryFromValue(GetErrorValue("BOOM")));
-
-    DazScript_TestStateString("symbol type error alias",
-        GetSymbolType(jStack, "$err"),
-        "alias:error");
-
-    DazScript_TestStateInt("symbol exists error alias",
-        SymbolExists(jStack, "$err"),
-        TRUE);
-
-    struct Value strErrorAlias = ResolveAliasValue(jStack, "$err");
-
-    DazScript_TestStateInt("resolve error alias is error",
-        IsErrorValue(strErrorAlias),
-        TRUE);
-
-    DazScript_TestStateString("resolve error alias message",
-        strErrorAlias.sErrorMessage,
-        "BOOM");
-
-    json jBadAlias = JsonObject();
-    JsonObjectSetIntInplace(jBadAlias, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INVALID);
-    JsonObjectSetStringInplace(jBadAlias, DAZSCRIPT_ALIAS_VALUE, "not an error");
-    JsonObjectSetIntInplace(jBadAlias, DAZSCRIPT_ALIAS_ERROR, FALSE);
-    JsonObjectSetInplace(jStack, "$bad", jBadAlias);
-
-    DazScript_TestStateString("symbol type non-error invalid alias",
-        GetSymbolType(jStack, "$bad"),
-        "invalid:alias");
-
-    DazScript_TestStateInt("symbol exists non-error invalid alias false",
-        SymbolExists(jStack, "$bad"),
-        FALSE);
-
-    struct Value strBadAlias = ResolveAliasValue(jStack, "$bad");
-
-    DazScript_TestStateInt("resolve non-error invalid alias is error",
-        IsErrorValue(strBadAlias),
-        TRUE);
-
-    DazScript_TestStateString("resolve non-error invalid alias message",
-        strBadAlias.sErrorMessage,
-        "INVALID_ALIAS_TYPE:$bad");
-
-    json jMalformedAlias = JsonObject();
-    JsonObjectSetStringInplace(jMalformedAlias, DAZSCRIPT_ALIAS_VALUE, "missing type");
-    JsonObjectSetInplace(jStack, "$malformed", jMalformedAlias);
-
-    DazScript_TestStateString("symbol type malformed alias",
-        GetSymbolType(jStack, "$malformed"),
-        "invalid:alias");
-
-    DazScript_TestStateInt("symbol exists malformed alias false",
-        SymbolExists(jStack, "$malformed"),
-        FALSE);
-
-    json jMalformedFunction = JsonObject();
-    JsonObjectSetInplace(jStack, "#badfn", jMalformedFunction);
-
-    DazScript_TestStateString("symbol type malformed function",
-        GetSymbolType(jStack, "#badfn"),
-        "invalid:function");
-
-    DazScript_TestStateInt("symbol exists malformed function false",
-        SymbolExists(jStack, "#badfn"),
-        FALSE);
-
-    json jMalformedStackVar = JsonObject();
-    JsonObjectSetInplace(jStack, "badStack", jMalformedStackVar);
-
-    DazScript_TestStateString("symbol type malformed stack var",
-        GetSymbolType(jStack, "badStack"),
-        "invalid:stack");
-
-    DazScript_TestStateInt("symbol exists malformed stack var false",
-        SymbolExists(jStack, "badStack"),
-        FALSE);
-
-    json jMadeFromInvalid = MakeStackAliasEntryFromValue(GetInvalidValue());
-
-    DazScript_TestStateString("invalid value becomes error alias",
-        GetAliasEntryType(jMadeFromInvalid),
-        "alias:error");
-}
-
-void DazScript_TestFunctionParams()
-{
-    DazScript_Test("function trims unquoted args",
-        "{@fn(#pair, $a, $b, {$a}:{$b})}{#pair( left , right )}",
-        "left:right");
-
-    DazScript_Test("function preserves quoted arg spaces",
-        "{@fn(#wrap, $x, [{$x}])}{#wrap( ' x ' )}",
-        "[ x ]");
-
-    DazScript_Test("function body property chain",
-        "{@fn(#lower, $x, {$x>lower})}{#lower(HeLLo)}",
-        "hello");
-
-    DazScript_Test("function nested expression arg",
-        "{@fn(#show, $x, value={$x})}{#show({@add(2, 3)})}",
-        "value=5");
-
-    DazScript_Test("function can use alias from caller stack",
-        "{@set($prefix, Hello)}{@fn(#greet, $name, {$prefix} {$name})}{#greet(Daz)}",
-        "Hello Daz");
-
-    DazScript_Test("function quoted numeric arg remains string",
-        "{@fn(#showtype, $x, {@type($x)}|{$x})}{#showtype('12.50')}",
-        "alias:string|12.50");
-
-    DazScript_Test("function unquoted numeric arg remains float",
-        "{@fn(#showtype, $x, {@type($x)}|{$x>fixed(1)})}{#showtype(12.50)}",
-        "alias:float|12.5");
-}
-
-void DazScript_TestMath()
-{
-    DazScript_Test("math sub int",
-        "{@sub(10, 3)}",
-        "7");
-
-    DazScript_Test("math mul int",
-        "{@mul(4, 3)}",
-        "12");
-
-    DazScript_Test("math div float",
-        "{@div(7, 2)>fixed(1)}",
-        "3.5");
-
-    DazScript_Test("math idiv int",
-        "{@idiv(7, 2)}",
-        "3");
-
-    DazScript_Test("math mod",
-        "{@mod(7, 4)}",
-        "3");
-
-    DazScript_Test("math clamp meta int",
-        "{@clamp(150, 0, 100)}",
-        "100");
-
-    DazScript_Test("math clamp meta float",
-        "{@clamp(12.5, 0.0, 10.0)>fixed(1)}",
-        "10.0");
-
-    DazScript_Test("random equal bounds deterministic",
-        "{@random(5, 5)}",
-        "5");
-
-    DazScript_Test("int abs",
-        "{@int(-5)>abs}",
-        "5");
-
-    DazScript_Test("int even false",
-        "{@int(5)>even>bool}",
-        "FALSE");
-
-    DazScript_Test("int odd true",
-        "{@int(5)>odd>bool}",
-        "TRUE");
-
-    DazScript_Test("float floor",
-        "{@float(12.8)>floor}",
-        "12");
-
-    DazScript_Test("float ceil",
-        "{@float(12.1)>ceil}",
-        "13");
-}
-
-void DazScript_TestOut()
-{
-    string sOut = "";
-    int nOut = 0;
-    float fOut = 0.0;
-    json jOut = JsonParse("{}");
-
-    Interpret("{@out(sOut,done)}");
-    DazScript_TestStateString("out string", sOut, "done");
-
-    Interpret("{@out(nOut,42)}");
-    DazScript_TestStateInt("out int", nOut, 42);
-
-    Interpret("{@out(fOut,12.5)}");
-    DazScript_TestStateFloat("out float", fOut, 12.5, 0.001);
-
-    Interpret("{@out(jOut, '{{\"hp\":42}}')}");
-    DazScript_TestStateJson("out json object from string", jOut, "{\"hp\":42}");
-
-    Interpret("{@out(jOut, '[1,2,3]')}");
-    DazScript_TestStateJson("out json array from string", jOut, "[1,2,3]");
-
-    Interpret("{@out(jOut, {@json('{{\"name\":\"Daz\"}}')})}");
-    DazScript_TestStateJson("out json from json primitive", jOut, "{\"name\":\"Daz\"}");
-
-    Interpret("{@out(jOut, 42)}");
-    DazScript_TestStateJson("out json from int", jOut, "42");
-
-    Interpret("{@out(jOut, true)}");
-    DazScript_TestStateJson("out json from bool true", jOut, "1");
-
-    Interpret("{@out(jOut, false)}");
-    DazScript_TestStateJson("out json from bool false", jOut, "0");
-
-    Interpret("{@out(jOut, 'true')}");
-    DazScript_TestStateJson("out json from quoted bool true", jOut, "true");
-
-    Interpret("{@out(jOut, 'false')}");
-    DazScript_TestStateJson("out json from quoted bool false", jOut, "false");
-
-    DazScript_TestContains("out json invalid string error",
-        "{@out(jOut, '{{bad}}')}",
-        "TYPE_MISMATCH:OUT_NOT_JSON");
-}
-
-void DazScript_TestParserErrors()
-{
-    string m = "5";
-
-    DazScript_Test("parser allows quoted closing brace",
-        "{@string('}')}",
-        "}");
-
-    DazScript_Test("parser allows quoted property delimiter",
-        "{m>append('>tail')}",
-        "5>tail");
-
-    DazScript_TestContains("parser error trailing property call text",
-        "{m>string>eq(5)aa}",
-        "PARSE_ERROR:TRAILING_TEXT_AFTER_PROPERTY_CALL:IN_eq");
-
-    DazScript_TestContains("parser error trailing property call context",
-        "{m>string>eq(5)aa}",
-        "NEAR:eq(5)[a]a");
-
-    DazScript_TestContains("parser error unterminated property call",
-        "{m>string>eq(}",
-        "PARSE_ERROR:UNTERMINATED_PROPERTY_CALL:IN_eq");
-
-    DazScript_TestContains("parser error trailing text after quoted arg",
-        "{@string('hello'wat)}",
-        "PARSE_ERROR:TRAILING_TEXT_AFTER_QUOTED_ARGUMENT:IN_string");
-
-    DazScript_TestContains("parser error unterminated template expression",
-        "Hello {@string('unterminated)}",
-        "PARSE_ERROR:UNTERMINATED_TEMPLATE_EXPR:IN_template");
-
-    DazScript_TestContains("parser error preserved through function call",
-        "{@fn(#echo, $x, {$x})}{#echo('hello'wat)}",
-        "PARSE_ERROR:TRAILING_TEXT_AFTER_QUOTED_ARGUMENT:IN_#echo");
-
-    DazScript_TestNotContains("parser error not wrapped as invalid property chain",
-        "{m>string>eq(5)aa}",
-        "INVALID_PROPERTY_CHAIN");
-
-    DazScript_TestContains("parser error trailing comma meta arg",
-        "{@add(1, 2,)}",
-        "PARSE_ERROR:TRAILING_COMMA_IN_ARGUMENT_LIST:IN_add");
-
-    DazScript_TestContains("parser error trailing comma property arg",
-        "{@int(5)>clamp(0, 10,)}",
-        "PARSE_ERROR:TRAILING_COMMA_IN_ARGUMENT_LIST:IN_clamp");
-
-    DazScript_TestContains("parser error trailing comma function arg",
-        "{@fn(#echo, $x, {$x})}{#echo(test,)}",
-        "PARSE_ERROR:TRAILING_COMMA_IN_ARGUMENT_LIST:IN_#echo");
-
-    DazScript_TestContains("parser error preserved through function body",
-        "{@fn(#bad, $x, 'Hello {$x')}",
-        "PARSE_ERROR:UNTERMINATED_TEMPLATE_EXPR:IN_function_body");
-
-    DazScript_TestNotContains("parser error function body not invalid body",
-        "{@fn(#bad, $x, 'Hello {$x')}",
-        "INVALID_FUNCTION_BODY");
 }
 
 void DazScript_TestPrimitives()
@@ -1281,100 +722,170 @@ void DazScript_TestJson()
         "int");
 }
 
-void DazScript_TestErrorHandling()
+void DazScript_TestParserWhitespace()
 {
-    string m = "hello";
+    DazScript_Test("parser trims expression whitespace",
+        "{ @string( hello ) }",
+        "hello");
 
-    DazScript_TestContains("unknown meta error",
-        "{@doesnotexist()}",
-        "UNKNOWN_META:doesnotexist");
-
-    DazScript_TestContains("unknown property error includes property name",
-        "{m>string>doesnotexist}",
-        "UNKNOWN_PROPERTY:doesnotexist");
-
-    DazScript_TestContains("arity error too few args",
-        "{@add(1)}",
-        "ARITY:EXPECTED_2_ARGUMENTS");
-
-    DazScript_TestContains("arity error too many args",
-        "{@clamp(1, 2, 3, 4)}",
-        "ARITY:EXPECTED_3_ARGUMENTS");
-
-    DazScript_TestContains("type mismatch for int arg",
-        "{@int(5)>clamp(a, 10)}",
-        "TYPE_MISMATCH:ARG1_NOT_INT");
-
-    DazScript_TestContains("division by zero error",
-        "{@div(5, 0)}",
-        "DIVISION_BY_ZERO");
-
-    DazScript_TestContains("invalid cast type error",
-        "{@set($x, 1)}{@cast($x, banana)}",
-        "INVALID_CAST_TYPE:banana");
-
-    DazScript_TestContains("set requires alias syntax",
-        "{@set(x, 1)}",
-        "SET_ALIAS_IS_NON_ALIAS:x");
-
-    DazScript_TestContains("function arity error",
-        "{@fn(#one, $x, {$x})}{#one(a, b)}",
-        "FUNCTION_ARITY:#one");
-}
-
-void DazScript_TestControlFlow()
-{
-    DazScript_Test("switch matched case",
-        "{@switch(b, a, no, b, yes, fallback)}",
-        "yes");
-
-    DazScript_Test("switch default case",
-        "{@switch(c, a, no, b, no, fallback)}",
-        "fallback");
-
-    DazScript_Test("switch no match and no default",
-        "{@switch(c, a, no, b, no)}",
-        "");
-
-    DazScript_Test("while accumulates body output",
-        "{@set($i,0)}{@while({$i>lt(3)}, {@set($i, {$i>incr})}{$i})}",
+    DazScript_Test("parser trims meta name whitespace",
+        "{ @int( 123 ) > int }",
         "123");
 
-    DazScript_Test("do returns last value",
-        "{@do(1, 2, 3)}",
-        "3");
+    DazScript_Test("parser trims property whitespace",
+        "{ @int( 150 ) > clamp( 0, 100 ) > int }",
+        "100");
 
-    DazScript_Test("seq returns last value",
-        "{@seq(1, 2, 3)}",
-        "3");
+    DazScript_Test("quoted param ignores leading syntax space",
+        "{@string( 'hello')}",
+        "hello");
 
-    DazScript_Test("do sequences set",
-        "{@do({@set($x, 1)}, {@set($x, {@add({$x}, 1)})}, {$x})}",
-        "2");
+    DazScript_Test("quoted param ignores trailing syntax space",
+        "{@string('hello' )}",
+        "hello");
 
-    DazScript_Test("do preserves int return",
-        "{@add({@do({@set($x, 1)}, 2)}, 3)}",
-        "5");
+    DazScript_Test("quoted param preserves intentional spaces",
+        "{@string('  hello  ')}",
+        "  hello  ");
 
-    DazScript_TestContains("do stops on error",
-        "{@do(1, {@div(1, 0)}, 3)}",
-        "DIVISION_BY_ZERO");
+    DazScript_Test("quoted param preserves comma",
+        "{@string('a,b,c')}",
+        "a,b,c");
 
-    DazScript_Test("do can inspect stored error alias",
-        "{@do({@set($x, {@div(1, 0)})}, {@type($x)})}",
-        "alias:error");
+    DazScript_Test("quoted param preserves parens and comma",
+        "{@string('a (b), c')}",
+        "a (b), c");
 
-    DazScript_Test("do in while body",
-        "{@set($i, 0)}{@while({$i>lt(3)}, {@do({@set($out, {$i})}, {@set($i, {$i>increment})}, {$out})})}",
-        "012");
+    DazScript_Test("param quoted empty string",
+        "{@string('')}",
+        "");
 
-    DazScript_Test("all alias for and",
-        "{@all(TRUE, yes, 1)>bool}",
+    DazScript_Test("param quoted spaces only",
+        "{@string('   ')}",
+        "   ");
+}
+
+void DazScript_TestStringProperties()
+{
+    string sText = "hello";
+    string sEmpty = "";
+
+    DazScript_Test("property chain whitespace",
+        "{ sText > upper > lower > capitalize }",
+        "Hello");
+
+    DazScript_Test("string trim property",
+        "{@string('  hello  ')>trim}",
+        "hello");
+
+    DazScript_Test("string append quoted leading data",
+        "{sText>append(' world')}",
+        "hello world");
+
+    DazScript_Test("string prepend quoted trailing data",
+        "{sText>prepend('say ')}",
+        "say hello");
+
+    DazScript_Test("string substring",
+        "{sText>substring(1, 3)}",
+        "ell");
+
+    DazScript_Test("string left",
+        "{sText>left(2)}",
+        "he");
+
+    DazScript_Test("string right",
+        "{sText>right(2)}",
+        "lo");
+
+    DazScript_Test("string contains",
+        "{sText>contains('ell')>bool}",
         "TRUE");
 
-    DazScript_Test("any alias for or",
-        "{@any(FALSE, 0, yes)>bool}",
+    DazScript_Test("string startswith",
+        "{sText>startswith('he')>bool}",
         "TRUE");
+
+    DazScript_Test("string endswith",
+        "{sText>endswith('lo')>bool}",
+        "TRUE");
+
+    DazScript_Test("string empty",
+        "{sEmpty>empty>bool}",
+        "TRUE");
+
+    DazScript_Test("string notempty",
+        "{sText>notempty>bool}",
+        "TRUE");
+
+    DazScript_Test("padleft with quoted pad char",
+        "{sText>padleft(7, '.')}",
+        "..hello");
+
+    DazScript_Test("padright with quoted pad char",
+        "{sText>padright(7, '.')}",
+        "hello..");
+}
+
+void DazScript_TestParserErrors()
+{
+    string m = "5";
+
+    DazScript_Test("parser allows quoted closing brace",
+        "{@string('}')}",
+        "}");
+
+    DazScript_Test("parser allows quoted property delimiter",
+        "{m>append('>tail')}",
+        "5>tail");
+
+    DazScript_TestContains("parser error trailing property call text",
+        "{m>string>eq(5)aa}",
+        "PARSE_ERROR:TRAILING_TEXT_AFTER_PROPERTY_CALL:IN_eq");
+
+    DazScript_TestContains("parser error trailing property call context",
+        "{m>string>eq(5)aa}",
+        "NEAR:eq(5)[a]a");
+
+    DazScript_TestContains("parser error unterminated property call",
+        "{m>string>eq(}",
+        "PARSE_ERROR:UNTERMINATED_PROPERTY_CALL:IN_eq");
+
+    DazScript_TestContains("parser error trailing text after quoted arg",
+        "{@string('hello'wat)}",
+        "PARSE_ERROR:TRAILING_TEXT_AFTER_QUOTED_ARGUMENT:IN_string");
+
+    DazScript_TestContains("parser error unterminated template expression",
+        "Hello {@string('unterminated)}",
+        "PARSE_ERROR:UNTERMINATED_TEMPLATE_EXPR:IN_template");
+
+    DazScript_TestContains("parser error preserved through function call",
+        "{@fn(#echo, $x, {$x})}{#echo('hello'wat)}",
+        "PARSE_ERROR:TRAILING_TEXT_AFTER_QUOTED_ARGUMENT:IN_#echo");
+
+    DazScript_TestNotContains("parser error not wrapped as invalid property chain",
+        "{m>string>eq(5)aa}",
+        "INVALID_PROPERTY_CHAIN");
+
+    DazScript_TestContains("parser error trailing comma meta arg",
+        "{@add(1, 2,)}",
+        "PARSE_ERROR:TRAILING_COMMA_IN_ARGUMENT_LIST:IN_add");
+
+    DazScript_TestContains("parser error trailing comma property arg",
+        "{@int(5)>clamp(0, 10,)}",
+        "PARSE_ERROR:TRAILING_COMMA_IN_ARGUMENT_LIST:IN_clamp");
+
+    DazScript_TestContains("parser error trailing comma function arg",
+        "{@fn(#echo, $x, {$x})}{#echo(test,)}",
+        "PARSE_ERROR:TRAILING_COMMA_IN_ARGUMENT_LIST:IN_#echo");
+
+    DazScript_TestContains("parser error preserved through function body",
+        "{@fn(#bad, $x, 'Hello {$x')}",
+        "PARSE_ERROR:UNTERMINATED_TEMPLATE_EXPR:IN_function_body");
+
+    DazScript_TestNotContains("parser error function body not invalid body",
+        "{@fn(#bad, $x, 'Hello {$x')}",
+        "INVALID_FUNCTION_BODY");
 }
 
 void DazScript_TestParserEvil()
@@ -1476,4 +987,509 @@ void DazScript_TestParserEvil()
     DazScript_Test("evil comma inside nested expression arg",
         "{@string('a,b')>append(c)}",
         "a,bc");
+}
+
+void DazScript_TestMetaVars()
+{
+    DazScript_Test("set alias with whitespace",
+        "{ @set( $x, 123 ) }{ $x }",
+        "123");
+
+    DazScript_Test("set quoted alias preserves spaces",
+        "{@set($x, '  padded  ')}{$x}",
+        "  padded  ");
+
+    DazScript_Test("alias increment",
+        "{@set($x, 5)}{$x>incr}",
+        "6");
+
+    DazScript_Test("alias decrement",
+        "{@set($x, 5)}{$x>decr}",
+        "4");
+
+    DazScript_Test("exists alias true",
+        "{@set($x, 123)}{@exists($x)>bool}",
+        "TRUE");
+
+    DazScript_Test("unset alias",
+        "{@set($x, 123)}{@unset($x)}{@exists($x)>bool}",
+        "FALSE");
+
+    DazScript_Test("type int alias",
+        "{@set($x, 123)}{@type($x)}",
+        "alias:int");
+
+    DazScript_Test("type float alias",
+        "{@set($x, 12.5)}{@type($x)}",
+        "alias:float");
+
+    DazScript_Test("type string alias",
+        "{@set($x, abc)}{@type($x)}",
+        "alias:string");
+
+    DazScript_Test("cast alias to string",
+        "{@set($x, 123)}{@cast($x, string)}{@type($x)}",
+        "alias:string");
+
+    DazScript_Test("cast alias string to json type",
+        "{@set($x, '{{\"hp\":42}}')}{@cast($x, json)}{@type($x)}",
+        "alias:json");
+
+    DazScript_Test("cast alias string to json access",
+        "{@set($x, '{{\"hp\":42}}')}{@cast($x, json)}{$x>get(hp)}",
+        "42");
+
+    DazScript_Test("cast alias shorthand j to json",
+        "{@set($x, '{{\"hp\":42}}')}{@cast($x, j)}{$x>get(hp)}",
+        "42");
+
+    DazScript_Test("cast alias int to json root type",
+        "{@set($x, 5)}{@cast($x, json)}{$x>type}",
+        "int");
+
+    DazScript_TestContains("cast alias invalid json string",
+        "{@set($x, '{{bad}}')}{@cast($x, json)}",
+        "INVALID_JSON:{bad}");
+
+    DazScript_Test("plural full sentence plural",
+        "{@set($count,2)}{$count>plural( 'There is {$count} player online.', 'There are {$count} players online.')}",
+        "There are 2 players online.");
+
+    DazScript_Test("plural full sentence singular",
+        "{@set($count,1)}{$count>plural( 'There is {$count} player online.', 'There are {$count} players online.' )}",
+        "There is 1 player online.");
+
+    DazScript_Test("plural suffix singular",
+        "{@int(1)>plural(s)}",
+        "");
+
+    DazScript_Test("plural suffix plural",
+        "{@int(2)>plural(s)}",
+        "s");
+
+    DazScript_Test("then true branch",
+        "{@int(1)>then(yes, no)}",
+        "yes");
+
+    DazScript_Test("then false branch",
+        "{@int(0)>then(yes, no)}",
+        "no");
+
+    DazScript_Test("let scoped alias",
+        "{@let($x, 123, {$x})}",
+        "123");
+
+    DazScript_Test("let alias does not leak",
+        "{@let($x, 123, {$x})}{@exists($x)>bool}",
+        "123FALSE");
+
+    DazScript_Test("let shadows outer alias",
+        "{@set($x, outer)}{@let($x, inner, {$x})}:{$x}",
+        "inner:outer");
+
+    DazScript_Test("let sequential bindings",
+        "{@let($a, 2, $b, {$a>incr}, '{$a},{$b}')}",
+        "2,3");
+
+    DazScript_Test("let inner set remains scoped",
+        "{@set($x, outer)}{@let($x, inner, {@set($x, changed)}{$x})}:{$x}",
+        "changed:outer");
+
+    DazScript_TestContains("let requires alias syntax",
+        "{@let(x, 1, body)}",
+        "LET_ALIAS_IS_NON_ALIAS:x");
+
+    DazScript_TestContains("let requires odd argument count",
+        "{@let($x, 1, $y, 2)}",
+        "LET_EXPECTS_BINDINGS_PLUS_BODY");
+
+    DazScript_Test("try primary success",
+        "{@try(ok, fallback)}",
+        "ok");
+
+    DazScript_Test("try catches missing var",
+        "{@try({missingVar}, fallback)}",
+        "fallback");
+
+    DazScript_Test("try catches bad property chain",
+        "{@try({@int(5)>nosuchproperty}, fallback)}",
+        "fallback");
+
+    DazScript_Test("try variadic fallback",
+        "{@try({missingVar}, {@int(5)>bad}, final)}",
+        "final");
+
+    DazScript_TestContains("try all branches failed returns last error",
+        "{@try({missingVar}, {@int(5)>bad})}",
+        "INVALID_PROPERTY_CHAIN");
+
+    DazScript_Test("type alias from error",
+        "{@set($x, {@div(1, 0)})}{@type($x)}",
+        "alias:error");
+}
+
+void DazScript_TestFunctionParams()
+{
+    DazScript_Test("function trims unquoted args",
+        "{@fn(#pair, $a, $b, {$a}:{$b})}{#pair( left , right )}",
+        "left:right");
+
+    DazScript_Test("function preserves quoted arg spaces",
+        "{@fn(#wrap, $x, [{$x}])}{#wrap( ' x ' )}",
+        "[ x ]");
+
+    DazScript_Test("function body property chain",
+        "{@fn(#lower, $x, {$x>lower})}{#lower(HeLLo)}",
+        "hello");
+
+    DazScript_Test("function nested expression arg",
+        "{@fn(#show, $x, value={$x})}{#show({@add(2, 3)})}",
+        "value=5");
+
+    DazScript_Test("function can use alias from caller stack",
+        "{@set($prefix, Hello)}{@fn(#greet, $name, {$prefix} {$name})}{#greet(Daz)}",
+        "Hello Daz");
+
+    DazScript_Test("function quoted numeric arg remains string",
+        "{@fn(#showtype, $x, {@type($x)}|{$x})}{#showtype('12.50')}",
+        "alias:string|12.50");
+
+    DazScript_Test("function unquoted numeric arg remains float",
+        "{@fn(#showtype, $x, {@type($x)}|{$x>fixed(1)})}{#showtype(12.50)}",
+        "alias:float|12.5");
+}
+
+void DazScript_TestLazy()
+{
+    string sOut = "";
+
+    DazScript_Test("if lazy false branch",
+        "{@if(TRUE, ok, {@out(sOut,bad)})}|{sOut}",
+        "ok|");
+
+    sOut = "";
+    DazScript_Test("or lazy unused branch",
+        "{@or(TRUE, {@out(sOut,bad)})>bool}|{sOut}",
+        "TRUE|");
+
+    sOut = "";
+    DazScript_Test("and lazy unused branch",
+        "{@and(FALSE, {@out(sOut,bad)})>bool}|{sOut}",
+        "FALSE|");
+
+    sOut = "";
+    DazScript_Test("try lazy fallback skipped on success",
+        "{@try(ok, {@out(sOut,bad)})}|{sOut}",
+        "ok|");
+
+    sOut = "";
+    DazScript_Test("try fallback evaluated on failure",
+        "{@try({missingVar}, {@out(sOut,changed)}fallback)}|{sOut}",
+        "fallback|changed");
+}
+
+void DazScript_TestControlFlow()
+{
+    DazScript_Test("switch matched case",
+        "{@switch(b, a, no, b, yes, fallback)}",
+        "yes");
+
+    DazScript_Test("switch default case",
+        "{@switch(c, a, no, b, no, fallback)}",
+        "fallback");
+
+    DazScript_Test("switch no match and no default",
+        "{@switch(c, a, no, b, no)}",
+        "");
+
+    DazScript_Test("while accumulates body output",
+        "{@set($i,0)}{@while({$i>lt(3)}, {@set($i, {$i>incr})}{$i})}",
+        "123");
+
+    DazScript_Test("do returns last value",
+        "{@do(1, 2, 3)}",
+        "3");
+
+    DazScript_Test("seq returns last value",
+        "{@seq(1, 2, 3)}",
+        "3");
+
+    DazScript_Test("do sequences set",
+        "{@do({@set($x, 1)}, {@set($x, {@add({$x}, 1)})}, {$x})}",
+        "2");
+
+    DazScript_Test("do preserves int return",
+        "{@add({@do({@set($x, 1)}, 2)}, 3)}",
+        "5");
+
+    DazScript_TestContains("do stops on error",
+        "{@do(1, {@div(1, 0)}, 3)}",
+        "DIVISION_BY_ZERO");
+
+    DazScript_Test("do can inspect stored error alias",
+        "{@do({@set($x, {@div(1, 0)})}, {@type($x)})}",
+        "alias:error");
+
+    DazScript_Test("do in while body",
+        "{@set($i, 0)}{@while({$i>lt(3)}, {@do({@set($out, {$i})}, {@set($i, {$i>increment})}, {$out})})}",
+        "012");
+
+    DazScript_Test("all alias for and",
+        "{@all(TRUE, yes, 1)>bool}",
+        "TRUE");
+
+    DazScript_Test("any alias for or",
+        "{@any(FALSE, 0, yes)>bool}",
+        "TRUE");
+}
+
+void DazScript_TestMath()
+{
+    DazScript_Test("math sub int",
+        "{@sub(10, 3)}",
+        "7");
+
+    DazScript_Test("math mul int",
+        "{@mul(4, 3)}",
+        "12");
+
+    DazScript_Test("math div float",
+        "{@div(7, 2)>fixed(1)}",
+        "3.5");
+
+    DazScript_Test("math idiv int",
+        "{@idiv(7, 2)}",
+        "3");
+
+    DazScript_Test("math mod",
+        "{@mod(7, 4)}",
+        "3");
+
+    DazScript_Test("math clamp meta int",
+        "{@clamp(150, 0, 100)}",
+        "100");
+
+    DazScript_Test("math clamp meta float",
+        "{@clamp(12.5, 0.0, 10.0)>fixed(1)}",
+        "10.0");
+
+    DazScript_Test("random equal bounds deterministic",
+        "{@random(5, 5)}",
+        "5");
+
+    DazScript_Test("int abs",
+        "{@int(-5)>abs}",
+        "5");
+
+    DazScript_Test("int even false",
+        "{@int(5)>even>bool}",
+        "FALSE");
+
+    DazScript_Test("int odd true",
+        "{@int(5)>odd>bool}",
+        "TRUE");
+
+    DazScript_Test("float floor",
+        "{@float(12.8)>floor}",
+        "12");
+
+    DazScript_Test("float ceil",
+        "{@float(12.1)>ceil}",
+        "13");
+}
+
+void DazScript_TestOut()
+{
+    string sOut = "";
+    int nOut = 0;
+    float fOut = 0.0;
+    json jOut = JsonParse("{}");
+
+    Interpret("{@out(sOut,done)}");
+    DazScript_TestStateString("out string", sOut, "done");
+
+    Interpret("{@out(nOut,42)}");
+    DazScript_TestStateInt("out int", nOut, 42);
+
+    Interpret("{@out(fOut,12.5)}");
+    DazScript_TestStateFloat("out float", fOut, 12.5, 0.001);
+
+    Interpret("{@out(jOut, '{{\"hp\":42}}')}");
+    DazScript_TestStateJson("out json object from string", jOut, "{\"hp\":42}");
+
+    Interpret("{@out(jOut, '[1,2,3]')}");
+    DazScript_TestStateJson("out json array from string", jOut, "[1,2,3]");
+
+    Interpret("{@out(jOut, {@json('{{\"name\":\"Daz\"}}')})}");
+    DazScript_TestStateJson("out json from json primitive", jOut, "{\"name\":\"Daz\"}");
+
+    Interpret("{@out(jOut, 42)}");
+    DazScript_TestStateJson("out json from int", jOut, "42");
+
+    Interpret("{@out(jOut, true)}");
+    DazScript_TestStateJson("out json from bool true", jOut, "1");
+
+    Interpret("{@out(jOut, false)}");
+    DazScript_TestStateJson("out json from bool false", jOut, "0");
+
+    Interpret("{@out(jOut, 'true')}");
+    DazScript_TestStateJson("out json from quoted bool true", jOut, "true");
+
+    Interpret("{@out(jOut, 'false')}");
+    DazScript_TestStateJson("out json from quoted bool false", jOut, "false");
+
+    DazScript_TestContains("out json invalid string error",
+        "{@out(jOut, '{{bad}}')}",
+        "TYPE_MISMATCH:OUT_NOT_JSON");
+}
+
+void DazScript_TestSymbolTypes()
+{
+    json jStack = JsonObject();
+
+    JsonObjectSetInplace(jStack, "$err", MakeStackAliasEntryFromValue(GetErrorValue("BOOM")));
+
+    DazScript_TestStateString("symbol type error alias",
+        GetSymbolType(jStack, "$err"),
+        "alias:error");
+
+    DazScript_TestStateInt("symbol exists error alias",
+        SymbolExists(jStack, "$err"),
+        TRUE);
+
+    struct Value strErrorAlias = ResolveAliasValue(jStack, "$err");
+
+    DazScript_TestStateInt("resolve error alias is error",
+        IsErrorValue(strErrorAlias),
+        TRUE);
+
+    DazScript_TestStateString("resolve error alias message",
+        strErrorAlias.sErrorMessage,
+        "BOOM");
+
+    json jBadAlias = JsonObject();
+    JsonObjectSetIntInplace(jBadAlias, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INVALID);
+    JsonObjectSetStringInplace(jBadAlias, DAZSCRIPT_ALIAS_VALUE, "not an error");
+    JsonObjectSetIntInplace(jBadAlias, DAZSCRIPT_ALIAS_ERROR, FALSE);
+    JsonObjectSetInplace(jStack, "$bad", jBadAlias);
+
+    DazScript_TestStateString("symbol type non-error invalid alias",
+        GetSymbolType(jStack, "$bad"),
+        "invalid:alias");
+
+    DazScript_TestStateInt("symbol exists non-error invalid alias false",
+        SymbolExists(jStack, "$bad"),
+        FALSE);
+
+    struct Value strBadAlias = ResolveAliasValue(jStack, "$bad");
+
+    DazScript_TestStateInt("resolve non-error invalid alias is error",
+        IsErrorValue(strBadAlias),
+        TRUE);
+
+    DazScript_TestStateString("resolve non-error invalid alias message",
+        strBadAlias.sErrorMessage,
+        "INVALID_ALIAS_TYPE:$bad");
+
+    json jMalformedAlias = JsonObject();
+    JsonObjectSetStringInplace(jMalformedAlias, DAZSCRIPT_ALIAS_VALUE, "missing type");
+    JsonObjectSetInplace(jStack, "$malformed", jMalformedAlias);
+
+    DazScript_TestStateString("symbol type malformed alias",
+        GetSymbolType(jStack, "$malformed"),
+        "invalid:alias");
+
+    DazScript_TestStateInt("symbol exists malformed alias false",
+        SymbolExists(jStack, "$malformed"),
+        FALSE);
+
+    json jMalformedFunction = JsonObject();
+    JsonObjectSetInplace(jStack, "#badfn", jMalformedFunction);
+
+    DazScript_TestStateString("symbol type malformed function",
+        GetSymbolType(jStack, "#badfn"),
+        "invalid:function");
+
+    DazScript_TestStateInt("symbol exists malformed function false",
+        SymbolExists(jStack, "#badfn"),
+        FALSE);
+
+    json jMalformedStackVar = JsonObject();
+    JsonObjectSetInplace(jStack, "badStack", jMalformedStackVar);
+
+    DazScript_TestStateString("symbol type malformed stack var",
+        GetSymbolType(jStack, "badStack"),
+        "invalid:stack");
+
+    DazScript_TestStateInt("symbol exists malformed stack var false",
+        SymbolExists(jStack, "badStack"),
+        FALSE);
+
+    json jMadeFromInvalid = MakeStackAliasEntryFromValue(GetInvalidValue());
+
+    DazScript_TestStateString("invalid value becomes error alias",
+        GetAliasEntryType(jMadeFromInvalid),
+        "alias:error");
+}
+
+void DazScript_TestErrorHandling()
+{
+    string m = "hello";
+
+    DazScript_TestContains("unknown meta error",
+        "{@doesnotexist()}",
+        "UNKNOWN_META:doesnotexist");
+
+    DazScript_TestContains("unknown property error includes property name",
+        "{m>string>doesnotexist}",
+        "UNKNOWN_PROPERTY:doesnotexist");
+
+    DazScript_TestContains("arity error too few args",
+        "{@add(1)}",
+        "ARITY:EXPECTED_2_ARGUMENTS");
+
+    DazScript_TestContains("arity error too many args",
+        "{@clamp(1, 2, 3, 4)}",
+        "ARITY:EXPECTED_3_ARGUMENTS");
+
+    DazScript_TestContains("type mismatch for int arg",
+        "{@int(5)>clamp(a, 10)}",
+        "TYPE_MISMATCH:ARG1_NOT_INT");
+
+    DazScript_TestContains("division by zero error",
+        "{@div(5, 0)}",
+        "DIVISION_BY_ZERO");
+
+    DazScript_TestContains("invalid cast type error",
+        "{@set($x, 1)}{@cast($x, banana)}",
+        "INVALID_CAST_TYPE:banana");
+
+    DazScript_TestContains("set requires alias syntax",
+        "{@set(x, 1)}",
+        "SET_ALIAS_IS_NON_ALIAS:x");
+
+    DazScript_TestContains("function arity error",
+        "{@fn(#one, $x, {$x})}{#one(a, b)}",
+        "FUNCTION_ARITY:#one");
+}
+
+void main()
+{
+    DazScript_TestSmoke();
+    DazScript_TestPrimitives();
+    DazScript_TestJson();
+    DazScript_TestParserWhitespace();
+    DazScript_TestStringProperties();
+    DazScript_TestMetaVars();
+    DazScript_TestFunctionParams();
+    DazScript_TestLazy();
+    DazScript_TestControlFlow();
+    DazScript_TestMath();
+    DazScript_TestOut();
+    DazScript_TestSymbolTypes();
+    DazScript_TestParserErrors();
+    DazScript_TestErrorHandling();
+    DazScript_TestParserEvil();
+
+    PrintString("DazScript tests complete: " + IntToString(g_nPassed) + " passed, " + IntToString(g_nFailed) + " failed.");
 }

@@ -968,13 +968,45 @@ void DazScript_TestParserEvil()
         "{@or(TRUE, {@string(bad)wat})>bool}",
         "TRUE");
 
-    DazScript_TestContains("evil trailing property delimiter is not silent",
+    DazScript_TestContains("evil trailing property delimiter is parse error",
         "{m>string>}",
-        "UNKNOWN_PROPERTY:");
+        "PARSE_ERROR:EMPTY_PROPERTY_SEGMENT");
 
-    DazScript_TestContains("evil double property delimiter is not silent",
+    DazScript_TestContains("evil double property delimiter is parse error",
         "{m>string>>upper}",
-        "UNKNOWN_PROPERTY:");
+        "PARSE_ERROR:EMPTY_PROPERTY_SEGMENT");
+
+    DazScript_TestContains("evil empty template expression is parse error",
+        "{}",
+        "PARSE_ERROR:EMPTY_TEMPLATE_EXPR");
+
+    DazScript_TestContains("evil empty base expression is parse error",
+        "{>upper}",
+        "PARSE_ERROR:EMPTY_BASE_EXPR");
+
+    DazScript_TestContains("evil empty meta name is parse error",
+        "{@}",
+        "PARSE_ERROR:EMPTY_META_NAME");
+
+    DazScript_TestContains("evil empty meta call name is parse error",
+        "{@()}",
+        "PARSE_ERROR:EMPTY_META_NAME");
+
+    DazScript_TestContains("evil empty function name is parse error",
+        "{#}",
+        "PARSE_ERROR:EMPTY_FUNCTION_NAME");
+
+    DazScript_TestContains("evil empty function call name is parse error",
+        "{#()}",
+        "PARSE_ERROR:EMPTY_FUNCTION_NAME");
+
+    DazScript_TestContains("evil empty alias name is parse error",
+        "{$}",
+        "PARSE_ERROR:EMPTY_ALIAS_NAME");
+
+    DazScript_TestContains("evil unexpected closing paren in base is parse error",
+        "{m)}",
+        "PARSE_ERROR:UNEXPECTED_CLOSING_PAREN");
 
     DazScript_TestNotContains("evil property parse error not invalid chain",
         "{m>string>append(x)wat}",

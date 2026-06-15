@@ -192,6 +192,7 @@ json SplitTopLevelToken(string sString, string sToken, int bIncludeEmpty = TRUE)
 int FindMatchingTemplateExprEnd(string sString, int nOpenAt);
 int FindPropertyCallStart(string sPropertySegment);
 int FindMatchingPropertyCallParen(string sString, int nOpenAt);
+json ValidateParserSyntax(string sSource);
 
 string GetParserContext(string sSource, int nAt);
 json MakeParserError(string sCode, int nAt, string sSource);
@@ -1114,6 +1115,26 @@ int FindMatchingPropertyCallParen(string sString, int nOpenAt)
     return -1;
 }
 
+json ValidateParserSyntax(string sSource)
+{
+    struct Parser str = ParserBegin(sSource);
+    while (!ParserAtEnd(str))
+    {
+        str = ParserAdvance(str);
+        if (str.bError)
+            return MakeParserError(str.sErrorCode, str.nErrorAt, sSource);
+    }
+
+    if (str.bInQuotes)
+        return MakeParserError("UNTERMINATED_QUOTE", str.nLength, sSource);
+    if (str.nBraceDepth > 0)
+        return MakeParserError("UNTERMINATED_BRACE", str.nLength, sSource);
+    if (str.nParenDepth > 0)
+        return MakeParserError("UNTERMINATED_PAREN", str.nLength, sSource);
+
+    return JSON_NULL;
+}
+
 string GetParserContext(string sSource, int nAt)
 {
     int nLength = GetStringLength(sSource);
@@ -1230,7 +1251,11 @@ json CompileTemplate(string sString)
         if (nStart > nLiteralStart)
             JsonArrayInsertLiteralNodeInplace(jTemplate, GetSubString(sString, nLiteralStart, nStart - nLiteralStart));
 
-        JsonArrayInsertExprNodeInplace(jTemplate, GetSubString(sString, nStart + 1, nEnd - nStart - 1));
+        json jExpr = CompileExpression(GetSubString(sString, nStart + 1, nEnd - nStart - 1));
+        if (IsParserError(jExpr))
+            return jExpr;
+
+        JsonArrayInsertInplace(jTemplate, jExpr);
 
         nIndex = nEnd + 1;
         nLiteralStart = nIndex;
@@ -1277,7 +1302,10 @@ void JsonArrayInsertForceStringNodeInplace(json jTemplate, json jInnerTemplate)
 
 json CompileExpression(string sExpr)
 {
+    string sOriginalExpr = sExpr;
     sExpr = trim(sExpr);
+    if (sExpr == "")
+        return MakeParserError("EMPTY_TEMPLATE_EXPR", 0, sOriginalExpr);
     int nPropertyPosition = FindTopLevelToken(sExpr, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL);
     string sBase, sPropertyPath;
 
@@ -1287,6 +1315,10 @@ json CompileExpression(string sExpr)
     {
         sBase = trim(GetStringLeft(sExpr, nPropertyPosition));
         sPropertyPath = trim(GetSubString(sExpr, nPropertyPosition + 1, GetStringLength(sExpr) - nPropertyPosition - 1));
+        if (sBase == "")
+            return MakeParserError("EMPTY_BASE_EXPR", 0, sExpr);
+        if (sPropertyPath == "")
+            return MakeParserError("EMPTY_PROPERTY_SEGMENT", nPropertyPosition + 1, sExpr);
     }
 
     int nKind = DAZSCRIPT_EXPR_VAR;
@@ -1296,7 +1328,11 @@ json CompileExpression(string sExpr)
     if (sPrefix == DAZSCRIPT_META_SYMBOL)
     {
         nKind = DAZSCRIPT_EXPR_META;
-        json jBase = CompilePropertySegment(GetSubString(sBase, 1, GetStringLength(sBase) - 1));
+        string sMetaBase = trim(GetSubString(sBase, 1, GetStringLength(sBase) - 1));
+        if (sMetaBase == "" || GetStringLeft(sMetaBase, 1) == "(")
+            return MakeParserError("EMPTY_META_NAME", 1, sExpr);
+
+        json jBase = CompilePropertySegment(sMetaBase);
         sBaseName = JsonArrayGetString(jBase, DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY);
         sBaseParameters = JsonArrayGetString(jBase, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETERS);
         jBaseCompiledParameters = JsonArrayGet(jBase, DAZSCRIPT_PROPERTY_SEGMENT_COMPILED_PARAMETERS);
@@ -1305,20 +1341,50 @@ json CompileExpression(string sExpr)
     {
         nKind = DAZSCRIPT_EXPR_ALIAS;
         sBaseName = sBase;
+
+        json jAliasSyntaxError = ValidateParserSyntax(sBaseName);
+        if (IsParserError(jAliasSyntaxError))
+            return jAliasSyntaxError;
+
+        if (sBaseName == DAZSCRIPT_ALIAS_SYMBOL)
+            return MakeParserError("EMPTY_ALIAS_NAME", 1, sExpr);
     }
     else if (sPrefix == DAZSCRIPT_FUNCTION_SYMBOL)
     {
         nKind = DAZSCRIPT_EXPR_FUNCTION;
+        string sFunctionBase = trim(GetSubString(sBase, 1, GetStringLength(sBase) - 1));
+        if (sFunctionBase == "" || GetStringLeft(sFunctionBase, 1) == "(")
+            return MakeParserError("EMPTY_FUNCTION_NAME", 1, sExpr);
+
         json jBase = CompilePropertySegment(sBase);
         sBaseName = JsonArrayGetString(jBase, DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY);
         sBaseParameters = JsonArrayGetString(jBase, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETERS);
         jBaseCompiledParameters = JsonArrayGet(jBase, DAZSCRIPT_PROPERTY_SEGMENT_COMPILED_PARAMETERS);
     }
+    else
+    {
+        json jBaseSyntaxError = ValidateParserSyntax(sBaseName);
+        if (IsParserError(jBaseSyntaxError))
+            return jBaseSyntaxError;
+    }
+
+    if (sBaseName == "")
+    {
+        if (nKind == DAZSCRIPT_EXPR_META)
+            return MakeParserError("EMPTY_META_NAME", 1, sExpr);
+        if (nKind == DAZSCRIPT_EXPR_FUNCTION)
+            return MakeParserError("EMPTY_FUNCTION_NAME", 1, sExpr);
+        return MakeParserError("EMPTY_BASE_EXPR", 0, sExpr);
+    }
 
     json jChain = JsonArray();
 
     if (sPropertyPath != "")
+    {
         jChain = CompilePropertyChain(sPropertyPath);
+        if (IsParserError(jChain))
+            return jChain;
+    }
 
     json jExpr = JsonArray();
     JsonArrayInsertIntInplace(jExpr, DAZSCRIPT_NODE_EXPR);
@@ -1334,9 +1400,14 @@ json CompileExpression(string sExpr)
 
 json CompilePropertyChain(string sPropertyPath)
 {
+    string sOriginalPath = sPropertyPath;
     sPropertyPath = trim(sPropertyPath);
+
+    if (sPropertyPath == "")
+        return MakeParserError("EMPTY_PROPERTY_SEGMENT", 0, sOriginalPath);
+
     json jCached = GetCachedJson(DAZSCRIPT_PROPERTY_CHAIN_CACHE_PREFIX, sPropertyPath);
-    if (JsonGetType(jCached) == JSON_TYPE_ARRAY)
+    if (JsonGetType(jCached) == JSON_TYPE_ARRAY || IsParserError(jCached))
         return jCached;
 
     json jRawSegments = SplitTopLevelToken(sPropertyPath, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL, TRUE);
@@ -1354,17 +1425,36 @@ json CompilePropertyChain(string sPropertyPath)
 
 json CompilePropertySegment(string sPropertySegment)
 {
+    string sOriginalSegment = sPropertySegment;
     sPropertySegment = trim(sPropertySegment);
     int nLength = GetStringLength(sPropertySegment);
+
+    if (sPropertySegment == "")
+    {
+        json jError = MakeParserError("EMPTY_PROPERTY_SEGMENT", 0, sOriginalSegment);
+        return MakeParserErrorPropertySegment("", "", jError);
+    }
+
     int nParameterStart = FindPropertyCallStart(sPropertySegment);
 
     string sProperty, sParameters;
     if (nParameterStart == -1)
+    {
+        json jSyntaxError = ValidateParserSyntax(sPropertySegment);
+        if (IsParserError(jSyntaxError))
+            return MakeParserErrorPropertySegment(sPropertySegment, "", jSyntaxError);
         sProperty = sPropertySegment;
+    }
     else
     {
         sProperty = trim(GetStringLeft(sPropertySegment, nParameterStart));
         int nParameterEnd = FindMatchingPropertyCallParen(sPropertySegment, nParameterStart);
+
+        if (sProperty == "")
+        {
+            json jError = MakeParserError("EMPTY_PROPERTY_NAME", nParameterStart, sPropertySegment);
+            return MakeParserErrorPropertySegment("", "", jError);
+        }
 
         if (nParameterEnd <= -2)
         {
@@ -1387,6 +1477,12 @@ json CompilePropertySegment(string sPropertySegment)
             json jError = MakeParserError("TRAILING_TEXT_AFTER_PROPERTY_CALL", nParameterEnd + 1, sPropertySegment);
             return MakeParserErrorPropertySegment(sProperty, sParameters, jError);
         }
+    }
+
+    if (sProperty == "")
+    {
+        json jError = MakeParserError("EMPTY_PROPERTY_NAME", 0, sPropertySegment);
+        return MakeParserErrorPropertySegment("", sParameters, jError);
     }
 
     json jParameterEntries = ParseParameterEntries(sParameters);

@@ -32,6 +32,7 @@ int IsStringSuffix(string sValue, string sSuffix);
 int IsObjectIDString(string sValue);
 string RepeatText(string sText, int nCount);
 string ObjectIDToString(object oObject);
+string EscapeString(string sString);
 
 string ltrim(string sString)
 {
@@ -265,4 +266,23 @@ string ObjectIDToString(object oObject)
     if (!GetIsObjectValid(oObject))
         return STRING_OBJECT_INVALID;
     return "0x" + ObjectToString(oObject);
+}
+
+string EscapeString(string sString)
+{
+    string sRetVal = "";
+    int nStart, nLength = GetStringLength(sString);
+    for (nStart = 0; nStart < nLength; nStart++)
+    {
+        string sCharacter = GetSubString(sString, nStart, 1);
+        if (sCharacter == "\\")
+            sRetVal += "\\\\";
+        else if (sCharacter == "\"")
+            sRetVal += "\\\"";
+        else if (sCharacter == "\n")
+            sRetVal += "\\n";
+        else
+            sRetVal += sCharacter;
+    }
+    return sRetVal;
 }

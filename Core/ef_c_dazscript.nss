@@ -15,7 +15,7 @@ const string DAZSCRIPT_SCRIPT_NAME                          = "ef_c_dazscript";
 const int DAZSCRIPT_ENABLE_PERSISTENT_CACHE                 = FALSE;
 const int DAZSCRIPT_PERSISTENT_CACHE_VERSION                = 1;
 
-const int DAZSCRIPT_TRACE_EVENT_WIDTH                       = 30;
+const int DAZSCRIPT_TRACE_EVENT_WIDTH                       = 40;
 const int DAZSCRIPT_TRACE_MAX_LENGTH                        = 160;
 const string DAZSCRIPT_TRACE_DEPTH_KEY                      = "DazScriptTraceDepth";
 const string DAZSCRIPT_TRACE_INDENT_KEY                     = "DazScriptTraceIndent";
@@ -268,6 +268,7 @@ void TraceEnter(string sEvent, string sDetail = "");
 void TraceExit(string sEvent, string sDetail = "");
 string TraceValue(struct Value strValue);
 string TraceExprKind(int nKind);
+string TraceQuoted(string sText);
 
 int IsStackVar(string sVarName);
 int IsSymbol(string sVarName, string sSymbol);
@@ -1617,11 +1618,11 @@ struct Value EvalCompiledParameter(struct PropertyChain strPC, int nIndex)
         return GetErrorValue("PARAM_INDEX_OUT_OF_RANGE");
 
     int bTraceEnabled = IsTraceEnabled();
-    if (bTraceEnabled) { TraceEnter("arg.enter", strPC.sCurrentProperty + "[" + IntToString(nIndex) + "]" + " raw=\"" + GetRawParameterText(strPC, nIndex) + "\""); }
+    if (bTraceEnabled) { TraceEnter("arg.enter", strPC.sCurrentProperty + "[" + IntToString(nIndex + 1) + "]" + " raw=" + TraceQuoted(GetRawParameterText(strPC, nIndex))); }
 
     struct Value strValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), strPC.jStack);
 
-    if (bTraceEnabled) { TraceExit("arg.exit", strPC.sCurrentProperty + "[" + IntToString(nIndex) + "]" + " => " + TraceValue(strValue)); }
+    if (bTraceEnabled) { TraceExit("arg.exit", strPC.sCurrentProperty + "[" + IntToString(nIndex + 1) + "]" + " => " + TraceValue(strValue)); }
 
     return strValue;
 }
@@ -1841,7 +1842,7 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
     string sPropertyPath = JsonArrayGetString(jExpr, DAZSCRIPT_EXPR_PROPERTY_PATH);
     json jBaseCompiledParameters = JsonArrayGet(jExpr, DAZSCRIPT_EXPR_BASE_COMPILED_PARAMETERS);
 
-    if (bTraceEnabled) { Trace("expression", "kind=" + TraceExprKind(nKind) + "; base=" + sBaseName + "; params=\"" + sBaseParameters + "\"" + "; chain=\"" + sPropertyPath + "\""); }
+    if (bTraceEnabled) { TraceEnter("expr.enter", "kind=" + TraceExprKind(nKind) + "; base=" + sBaseName + "; params=" + TraceQuoted(sBaseParameters) + "; chain=" + TraceQuoted(sPropertyPath)); }
 
     struct Value strValue;
 
@@ -1854,15 +1855,28 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
     else if (nKind == DAZSCRIPT_EXPR_FUNCTION)
         strValue = ResolveFunctionValue(jStack, sBaseName, sBaseParameters, jBaseCompiledParameters);
 
-    if (bTraceEnabled) { Trace("base.value", sBaseName + " => " + TraceValue(strValue)); }
+    int bHasPropertyChain = (JsonGetLength(jChain) > 0);
+    int bTraceBaseValue = bTraceEnabled;
+
+    if ((nKind == DAZSCRIPT_EXPR_META || nKind == DAZSCRIPT_EXPR_FUNCTION) && !bHasPropertyChain)
+        bTraceBaseValue = FALSE;
+
+    if (bTraceBaseValue) { Trace("base.value", sBaseName + " => " + TraceValue(strValue)); }
 
     if (IsErrorValue(strValue))
+    {
+        if (bTraceEnabled) { TraceExit("expr.exit", TraceValue(strValue)); }
         return strValue;
+    }
 
     if (IsInvalidValue(strValue))
-        return GetErrorValue("INVALID_EXPR:" + sBaseName);
+    {
+        strValue = GetErrorValue("INVALID_EXPR:" + sBaseName);
+        if (bTraceEnabled) { TraceExit("expr.exit", TraceValue(strValue)); }
+        return strValue;
+    }
 
-    if (JsonGetLength(jChain) > 0)
+    if (bHasPropertyChain)
     {
         struct PropertyChain strPC;
         strPC.jStack = jStack;
@@ -1870,23 +1884,33 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
         strPC.sFullPropertyPath = sPropertyPath;
         strPC.strValue = strValue;
 
+        if (bTraceEnabled) { TraceEnter("chain.enter", "base=" + sBaseName + "; chain=" + TraceQuoted(sPropertyPath) + "; input=" + TraceValue(strValue)); }
+
         strPC = EvalCompiledPropertyChain(strPC, jChain);
 
         if (IsErrorValue(strPC.strValue))
         {
             if (GetStringLeft(strPC.strValue.sErrorMessage, 12) == "PARSE_ERROR:")
-                return strPC.strValue;
-            return GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty + " -> " + strPC.strValue.sErrorMessage);
+                strValue = strPC.strValue;
+            else
+                strValue = GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty + " -> " + strPC.strValue.sErrorMessage);
+
+            if (bTraceEnabled) { TraceExit("chain.exit", "base=" + sBaseName + "; chain=" + TraceQuoted(sPropertyPath) + "; result=" + TraceValue(strValue)); TraceExit("expr.exit", TraceValue(strValue)); }
+            return strValue;
         }
 
         if (IsInvalidValue(strPC.strValue))
-            return GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty);
-
-        if (bTraceEnabled) { Trace("chain.value", sBaseName + ">" + sPropertyPath + " => " + TraceValue(strPC.strValue)); }
+        {
+            strValue = GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty);
+            if (bTraceEnabled) { TraceExit("chain.exit", "base=" + sBaseName + "; chain=" + TraceQuoted(sPropertyPath) + "; result=" + TraceValue(strValue)); TraceExit("expr.exit", TraceValue(strValue)); }
+            return strValue;
+        }
 
         strValue = strPC.strValue;
+        if (bTraceEnabled) { TraceExit("chain.exit", "base=" + sBaseName + "; chain=" + TraceQuoted(sPropertyPath) + "; result=" + TraceValue(strValue)); }
     }
 
+    if (bTraceEnabled) { TraceExit("expr.exit", TraceValue(strValue)); }
     return strValue;
 }
 
@@ -1954,7 +1978,7 @@ struct Value ResolveAliasValue(json jStack, string sAliasName)
 struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParameters, json jBaseCompiledParameters)
 {
     int bTraceEnabled = IsTraceEnabled();
-    if (bTraceEnabled) { TraceEnter("meta.enter", sMetaName + "(\"" + sBaseParameters + "\")"); }
+    if (bTraceEnabled) { TraceEnter("meta.enter", "base=" + sMetaName + "; params=" + TraceQuoted(sBaseParameters)); }
 
     struct PropertyChain strMeta;
     strMeta.jStack = jStack;
@@ -2004,7 +2028,7 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
 struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBaseParameters, json jBaseCompiledParameters)
 {
     int bTraceEnabled = IsTraceEnabled();
-    if (bTraceEnabled) { TraceEnter("fn.enter", sFunctionName + "(\"" + sBaseParameters + "\")"); }
+    if (bTraceEnabled) { TraceEnter("fn.enter", "base=" + sFunctionName + "; params=" + TraceQuoted(sBaseParameters)); }
 
     struct Value strReturnValue = GetInvalidValue();
 
@@ -2053,11 +2077,11 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
                         {
                             string sArgName = JsonArrayGetString(jArgNames, nIndex);
 
-                            if (bTraceEnabled) { TraceEnter("arg.enter", sFunctionName + "[" + IntToString(nIndex) + "]" + " raw=\"" + GetRawParameterText(strFunction, nIndex) + "\""); }
+                            if (bTraceEnabled) { TraceEnter("arg.enter", sFunctionName + "[" + IntToString(nIndex + 1) + "]" + " raw=" + TraceQuoted(GetRawParameterText(strFunction, nIndex))); }
 
                             struct Value strArgValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), jStack);
 
-                            if (bTraceEnabled) { TraceExit("arg.exit", sFunctionName + "[" + IntToString(nIndex) + "]" + " => " + TraceValue(strArgValue)); }
+                            if (bTraceEnabled) { TraceExit("arg.exit", sFunctionName + "[" + IntToString(nIndex + 1) + "]" + " => " + TraceValue(strArgValue)); }
 
                             if (IsErrorValue(strArgValue))
                             {
@@ -2100,7 +2124,7 @@ struct PropertyChain EvalCompiledPropertyChain(struct PropertyChain strPC, json 
     {
         strPC = ApplyCompiledPropertySegment(strPC, JsonArrayGet(jSegments, nSegment));
 
-        if (bTraceEnabled) { TraceEnter("prop.enter", IntToString(nSegment) + "; property=" + strPC.sCurrentProperty + "; params=\"" + strPC.sCurrentParameters + "\"" + "; input=" + TraceValue(strPC.strValue)); }
+        if (bTraceEnabled) { TraceEnter("prop.enter", "step=" + IntToString(nSegment) + "; property=" + strPC.sCurrentProperty + "; params=" + TraceQuoted(strPC.sCurrentParameters) + "; input=" + TraceValue(strPC.strValue)); }
 
         strPC = GetPropertyValueByType(strPC);
 
@@ -2892,12 +2916,12 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             }
 
             int nIteration = nIterations;
-            if (bTraceEnabled) TraceEnter("while.iter", IntToString(nIteration));
+            if (bTraceEnabled) TraceEnter("while.iter.start", "iteration=" + IntToString(nIteration));
 
             nIterations++;
             struct Value strBodyResult = EvalCompiledParameter(strPC, 1);
 
-            if (bTraceEnabled) { TraceExit("while.iter.exit", IntToString(nIteration) + " => " + TraceValue(strBodyResult)); }
+            if (bTraceEnabled) { TraceExit("while.iter.exit", "iteration=" + IntToString(nIteration) + "; result=" + TraceValue(strBodyResult)); }
 
             if (IsErrorValue(strBodyResult))
                 return strBodyResult;
@@ -3577,7 +3601,7 @@ void TraceExit(string sEvent, string sDetail = "")
 string TraceValue(struct Value strValue)
 {
     if (IsErrorValue(strValue))
-        return "ERROR " + strValue.sErrorMessage;
+        return "error " + strValue.sErrorMessage;
 
     string sType = AuxTypeToString(strValue.nAuxType, TRUE);
     string sText = ValueToText(strValue);
@@ -3585,7 +3609,10 @@ string TraceValue(struct Value strValue)
     if (GetStringLength(sText) > DAZSCRIPT_TRACE_MAX_LENGTH)
         sText = GetStringLeft(sText, DAZSCRIPT_TRACE_MAX_LENGTH) + "...";
 
-    return sType + " \"" + sText + "\"";
+    if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
+        return sType + " \"" + EscapeString(sText) + "\"";
+
+    return sType + " " + sText;
 }
 
 string TraceExprKind(int nKind)
@@ -3599,6 +3626,13 @@ string TraceExprKind(int nKind)
     }
 
     return "unknown";
+}
+
+string TraceQuoted(string sText)
+{
+    if (GetStringLength(sText) > DAZSCRIPT_TRACE_MAX_LENGTH)
+        sText = GetStringLeft(sText, DAZSCRIPT_TRACE_MAX_LENGTH) + "...";
+    return "\"" + EscapeString(sText) + "\"";
 }
 
 int IsStackVar(string sVarName)

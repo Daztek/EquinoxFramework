@@ -1031,8 +1031,7 @@ int FindTopLevelToken(string sString, string sToken)
 json SplitTopLevelToken(string sString, string sToken, int bIncludeEmpty = TRUE)
 {
     json jParts = JsonArray();
-    int nTokenLength = GetStringLength(sToken);
-    int nStart = 0;
+    int nStart, nTokenLength = GetStringLength(sToken);
 
     if (nTokenLength == 0)
     {
@@ -1248,7 +1247,6 @@ json CompileForcedStringTemplate(string sValue)
     json jInner = CompileTemplate(sValue);
     if (IsParserError(jInner))
         return jInner;
-
     json jTemplate = JsonArray();
     JsonArrayInsertForceStringNodeInplace(jTemplate, jInner);
     return jTemplate;
@@ -1258,7 +1256,6 @@ void JsonArrayInsertLiteralNodeInplace(json jTemplate, string sLiteral)
 {
     if (sLiteral == "")
         return;
-
     json jNode = JsonArray();
     JsonArrayInsertIntInplace(jNode, DAZSCRIPT_NODE_LITERAL);
     JsonArrayInsertStringInplace(jNode, sLiteral);
@@ -1281,7 +1278,6 @@ void JsonArrayInsertForceStringNodeInplace(json jTemplate, json jInnerTemplate)
 json CompileExpression(string sExpr)
 {
     sExpr = trim(sExpr);
-
     int nPropertyPosition = FindTopLevelToken(sExpr, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL);
     string sBase, sPropertyPath;
 
@@ -1339,7 +1335,6 @@ json CompileExpression(string sExpr)
 json CompilePropertyChain(string sPropertyPath)
 {
     sPropertyPath = trim(sPropertyPath);
-
     json jCached = GetCachedJson(DAZSCRIPT_PROPERTY_CHAIN_CACHE_PREFIX, sPropertyPath);
     if (JsonGetType(jCached) == JSON_TYPE_ARRAY)
         return jCached;
@@ -1360,7 +1355,6 @@ json CompilePropertyChain(string sPropertyPath)
 json CompilePropertySegment(string sPropertySegment)
 {
     sPropertySegment = trim(sPropertySegment);
-
     int nLength = GetStringLength(sPropertySegment);
     int nParameterStart = FindPropertyCallStart(sPropertySegment);
 
@@ -1411,7 +1405,6 @@ json ParseParameterEntries(string sParameters)
 {
     if (sParameters == "")
         return JsonArray();
-
     json jEntries = GetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters);
     if (JsonGetType(jEntries) == JSON_TYPE_ARRAY || IsParserError(jEntries))
         return jEntries;
@@ -2033,25 +2026,19 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
     struct Value strReturnValue = GetInvalidValue();
 
     if (!JsonObjectContainsKey(jStack, sFunctionName))
-    {
         strReturnValue = GetErrorValue("UNKNOWN_FUNCTION:" + sFunctionName);
-    }
     else
     {
         json jFunction = JsonObjectGet(jStack, sFunctionName);
         if (!IsFunctionEntry(jFunction))
-        {
             strReturnValue = GetErrorValue("INVALID_FUNCTION:" + sFunctionName);
-        }
         else
         {
             json jArgNames = JsonObjectGet(jFunction, DAZSCRIPT_FUNCTION_ARGS);
             json jBody = JsonObjectGet(jFunction, DAZSCRIPT_FUNCTION_BODY_COMPILED);
 
             if (JsonGetType(jBody) != JSON_TYPE_ARRAY)
-            {
                 strReturnValue = GetErrorValue("INVALID_FUNCTION_BODY:" + sFunctionName);
-            }
             else
             {
                 struct PropertyChain strFunction;
@@ -2066,9 +2053,7 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
                 {
                     json jCompiledParameters = GetCompiledParameters(strFunction);
                     if (JsonGetLength(jCompiledParameters) != JsonGetLength(jArgNames))
-                    {
                         strReturnValue = GetErrorValue("FUNCTION_ARITY:" + sFunctionName);
-                    }
                     else
                     {
                         json jFrame = JsonCopyObject(jStack);
@@ -2124,7 +2109,7 @@ struct PropertyChain EvalCompiledPropertyChain(struct PropertyChain strPC, json 
     {
         strPC = ApplyCompiledPropertySegment(strPC, JsonArrayGet(jSegments, nSegment));
 
-        if (bTraceEnabled) { TraceEnter("prop.enter", "step=" + IntToString(nSegment) + "; property=" + strPC.sCurrentProperty + "; params=" + TraceQuoted(strPC.sCurrentParameters) + "; input=" + TraceValue(strPC.strValue)); }
+        if (bTraceEnabled) { TraceEnter("prop.enter", "segment=" + IntToString(nSegment + 1) + "; property=" + strPC.sCurrentProperty + "; params=" + TraceQuoted(strPC.sCurrentParameters) + "; input=" + TraceValue(strPC.strValue)); }
 
         strPC = GetPropertyValueByType(strPC);
 
@@ -2256,10 +2241,10 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC)
             return ReturnPropertyChainWithValue(strPC, EvalCompiledParameter(strPC, nValue != 1));
     }
 
-    if (sProperty == "increment" || sProperty == "incr")
+    if (sProperty == "incr")
         return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue + 1));
 
-    if (sProperty == "decrement" || sProperty == "decr")
+    if (sProperty == "decr")
         return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue - 1));
 
     if (sProperty == "even" || sProperty == "odd")
@@ -2377,7 +2362,7 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
         return ReturnPropertyChainWithValue(strPC, GetValueFromInt(IsStringSuffix(sValue, GetValueAsText(strArgs.strArg0))));
     }
 
-    if (sProperty == "substr" || sProperty == "substring")
+    if (sProperty == "substring")
     {
         struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
@@ -2601,7 +2586,7 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
         return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nType == JSON_TYPE_INTEGER || nType == JSON_TYPE_FLOAT));
     }
 
-    if (sProperty == "isbool" || sProperty == "isboolean")
+    if (sProperty == "isbool")
         return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_BOOL));
 
     if (sProperty == "scalar")
@@ -2785,10 +2770,10 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
     if (sProperty == "hex")
         return ReturnPropertyChainWithValue(strPC, FormatValueAsHex(strPC.strValue));
 
-    if (sProperty == "bool" || sProperty == "boolean")
+    if (sProperty == "bool")
         return ReturnPropertyChainWithValue(strPC, FormatValueAsBoolean(strPC.strValue));
 
-    if (sProperty == "default" || sProperty == "fallback")
+    if (sProperty == "default")
     {
         struct Value strError = CheckArity(strPC, 1, 1);
         if (IsErrorValue(strError))
@@ -3084,7 +3069,7 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         return strLastError;
     }
 
-    if (sMetaName == "do" || sMetaName == "seq")
+    if (sMetaName == "do")
     {
         int nCount = GetParameterCount(strPC);
         if (nCount < 1)
@@ -3145,8 +3130,11 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
         string sAlias = GetRawParameterText(strPC, 0);
         if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("SET_ALIAS_IS_NON_ALIAS:" + sAlias);
+        struct Value strValue = EvalCompiledParameter(strPC, 1);
+        if (IsErrorValue(strValue))
+            return strValue;
 
-        JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(EvalCompiledParameter(strPC, 1)));
+        JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(strValue));
         return GetValueFromString();
     }
 
@@ -3270,7 +3258,7 @@ struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaNam
 
 struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
 {
-    if (sMetaName == "sendmessagetopc" || sMetaName == "tell")
+    if (sMetaName == "tellpc")
     {
         struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_OBJECT, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
@@ -3284,7 +3272,7 @@ struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
         return GetValueFromString();
     }
 
-    if (sMetaName == "print" || sMetaName == "log")
+    if (sMetaName == "print")
     {
         struct Arguments strArgs = EvalOneArg(strPC);
         if (IsErrorValue(strArgs.strError))

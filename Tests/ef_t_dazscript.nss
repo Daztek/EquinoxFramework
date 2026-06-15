@@ -39,6 +39,7 @@ void DazScript_TestErrorHandling();
 int g_nPassed = 0;
 int g_nFailed = 0;
 int g_bVerbosePasses = FALSE;
+object g_oCreature = OBJECT_INVALID;
 
 void DazScript_ResetInstructionCounter()
 {
@@ -47,6 +48,7 @@ void DazScript_ResetInstructionCounter()
 
 void DazScript_PrintPass(string sName)
 {
+
     if (g_bVerbosePasses)
         PrintString("[PASS] " + sName);
 }
@@ -121,7 +123,7 @@ void DazScript_TestSmoke()
     float fNum = 12.5;
     string sText = "hello";
     string sEmpty = "";
-    object oCreature = GetObjectByTag("BT_GUARD");
+    object oCreature = g_oCreature;
 
     DazScript_Test("literal braces",
         "Hello {{oCreature}}",
@@ -133,7 +135,7 @@ void DazScript_TestSmoke()
 
     DazScript_Test("object tag",
         "{oCreature>tag}",
-        "BT_GUARD");
+        "DAZSCRIPT_CREATURE");
 
     DazScript_Test("basic int",
         "{nNum>int}",
@@ -218,11 +220,17 @@ void DazScript_TestSmoke()
     DazScript_Test("type alias",
         "{@set($x, 123)}{@type($x)}",
         "alias:int");
+
+    string sValue = "one";
+    DazScript_Test("cache stack value first run", "{sValue}", "one");
+
+    sValue = "two";
+    DazScript_Test("cache stack value second run", "{sValue}", "two");
 }
 
 void DazScript_TestPrimitives()
 {
-    object oCreature = GetObjectByTag("BT_GUARD");
+    object oCreature = g_oCreature;
 
     DazScript_Test("primitive int from string trims",
         "{@int('  42  ')}",
@@ -258,7 +266,7 @@ void DazScript_TestPrimitives()
 
     DazScript_Test("primitive object pass-through",
         "{@object({oCreature})>tag}",
-        "BT_GUARD");
+        "DAZSCRIPT_CREATURE");
 
     DazScript_TestContains("primitive object rejects normal string",
         "{@object(not_an_object)}",
@@ -593,10 +601,6 @@ void DazScript_TestJson()
         "{@json('true')>isbool>bool}",
         "TRUE");
 
-    DazScript_Test("json isboolean true",
-        "{@json('false')>isboolean>bool}",
-        "TRUE");
-
     DazScript_Test("json scalar string true",
         "{@json('\"x\"')>scalar>bool}",
         "TRUE");
@@ -886,6 +890,22 @@ void DazScript_TestParserErrors()
     DazScript_TestNotContains("parser error function body not invalid body",
         "{@fn(#bad, $x, 'Hello {$x')}",
         "INVALID_FUNCTION_BODY");
+
+    DazScript_TestContains("parser eof context unterminated meta call",
+        "{@string(}",
+        "PARSE_ERROR:UNTERMINATED_PROPERTY_CALL:IN_string");
+
+    DazScript_TestContains("parser eof context shows eof for meta call",
+        "{@string(}",
+        "NEAR:string([<eof>]");
+
+    DazScript_TestContains("parser eof context unterminated property call",
+        "{m>string>eq(}",
+        "PARSE_ERROR:UNTERMINATED_PROPERTY_CALL:IN_eq");
+
+    DazScript_TestContains("parser eof context shows eof for property call",
+        "{m>string>eq(}",
+        "NEAR:eq([<eof>]");
 }
 
 void DazScript_TestParserEvil()
@@ -1123,9 +1143,17 @@ void DazScript_TestMetaVars()
         "{@try({missingVar}, {@int(5)>bad})}",
         "INVALID_PROPERTY_CHAIN");
 
-    DazScript_Test("type alias from error",
-        "{@set($x, {@div(1, 0)})}{@type($x)}",
-        "alias:error");
+    DazScript_TestContains("set returns rhs error",
+        "{@set($x, {@div(1, 0)})}",
+        "DIVISION_BY_ZERO");
+
+    DazScript_Test("set error does not create alias",
+        "{@try({@set($x, {@div(1, 0)})}, caught)}:{@exists($x)>bool}",
+        "caught:FALSE");
+
+    DazScript_Test("set error leaves existing alias unchanged",
+        "{@set($x, ok)}{@try({@set($x, {@div(1, 0)})}, caught)}:{$x}",
+        "caught:ok");
 }
 
 void DazScript_TestFunctionParams()
@@ -1210,10 +1238,6 @@ void DazScript_TestControlFlow()
         "{@do(1, 2, 3)}",
         "3");
 
-    DazScript_Test("seq returns last value",
-        "{@seq(1, 2, 3)}",
-        "3");
-
     DazScript_Test("do sequences set",
         "{@do({@set($x, 1)}, {@set($x, {@add({$x}, 1)})}, {$x})}",
         "2");
@@ -1226,12 +1250,8 @@ void DazScript_TestControlFlow()
         "{@do(1, {@div(1, 0)}, 3)}",
         "DIVISION_BY_ZERO");
 
-    DazScript_Test("do can inspect stored error alias",
-        "{@do({@set($x, {@div(1, 0)})}, {@type($x)})}",
-        "alias:error");
-
     DazScript_Test("do in while body",
-        "{@set($i, 0)}{@while({$i>lt(3)}, {@do({@set($out, {$i})}, {@set($i, {$i>increment})}, {$out})})}",
+        "{@set($i, 0)}{@while({$i>lt(3)}, {@do({@set($out, {$i})}, {@set($i, {$i>incr})}, {$out})})}",
         "012");
 
     DazScript_Test("all alias for and",
@@ -1241,6 +1261,28 @@ void DazScript_TestControlFlow()
     DazScript_Test("any alias for or",
         "{@any(FALSE, 0, yes)>bool}",
         "TRUE");
+
+    DazScript_TestContains("while default iteration limit errors",
+        "{@while(TRUE, x)}",
+        "WHILE_ITERATION_LIMIT");
+
+    DazScript_TestContains("while explicit iteration limit errors",
+        "{@set($i, 0)}{@while({$i>lt(5)}, {@set($i, {$i>incr})}, 2)}",
+        "WHILE_ITERATION_LIMIT");
+
+    DazScript_Test("while completes before explicit limit",
+        "{@set($i, 0)}{@while({$i>lt(3)}, {@set($i, {$i>incr})}{$i}, 5)}",
+        "123");
+
+    string sWhileOut = "";
+
+    DazScript_TestContains("while zero limit errors immediately",
+        "{@while(TRUE, {@out(sWhileOut, bad)}, 0)}",
+        "WHILE_ITERATION_LIMIT");
+
+    DazScript_TestStateString("while zero limit skips body",
+        sWhileOut,
+        "");
 }
 
 void DazScript_TestMath()
@@ -1475,6 +1517,8 @@ void DazScript_TestErrorHandling()
 
 void main()
 {
+    g_oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_commale", GetStartingLocation(), FALSE, "DAZSCRIPT_CREATURE");
+
     DazScript_TestSmoke();
     DazScript_TestPrimitives();
     DazScript_TestJson();
@@ -1490,6 +1534,8 @@ void main()
     DazScript_TestParserErrors();
     DazScript_TestErrorHandling();
     DazScript_TestParserEvil();
+
+    DestroyObject(g_oCreature);
 
     PrintString("DazScript tests complete: " + IntToString(g_nPassed) + " passed, " + IntToString(g_nFailed) + " failed.");
 }

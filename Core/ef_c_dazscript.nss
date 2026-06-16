@@ -8,6 +8,7 @@
 #include "ef_i_string"
 #include "ef_i_dataobject"
 #include "ef_i_util"
+#include "ef_i_sqlite"
 #include "nwnx_util"
 #include "nwnx_vm"
 
@@ -16,7 +17,7 @@ const int DAZSCRIPT_ENABLE_PERSISTENT_CACHE                 = FALSE;
 const int DAZSCRIPT_PERSISTENT_CACHE_VERSION                = 1;
 
 const int DAZSCRIPT_TRACE_EVENT_WIDTH                       = 40;
-const int DAZSCRIPT_TRACE_MAX_LENGTH                        = 160;
+const int DAZSCRIPT_TRACE_MAX_LENGTH                        = 64;
 const string DAZSCRIPT_TRACE_DEPTH_KEY                      = "DazScriptTraceDepth";
 const string DAZSCRIPT_TRACE_INDENT_KEY                     = "DazScriptTraceIndent";
 
@@ -78,6 +79,9 @@ const string DAZSCRIPT_FUNCTION_BODY_COMPILED               = "body_compiled";
 const int DAZSCRIPT_WHILE_DEFAULT_ITERATION_LIMIT           = 50;
 const int DAZSCRIPT_WHILE_MAX_ITERATION_LIMIT               = 250;
 
+const int DAZSCRIPT_SQL_ROWS_DEFAULT_LIMIT                  = 50;
+const int DAZSCRIPT_SQL_ROWS_MAX_LIMIT                      = 250;
+
 struct Parser
 {
     string sSource;
@@ -103,6 +107,7 @@ struct Value
     float fValue;
     string sValue;
     object oValue;
+    sqlquery sqlValue;
     json jValue;
 
     int bError;
@@ -155,6 +160,7 @@ struct Value GetValueFromInt(int nValue = 0);
 struct Value GetValueFromFloat(float fValue = 0.0f);
 struct Value GetValueFromString(string sValue = "");
 struct Value GetValueFromObject(object oValue = OBJECT_INVALID);
+struct Value GetValueFromSqlQuery(sqlquery sqlValue);
 struct Value GetValueFromJson(json jValue = JSON_NULL);
 int GetCastAuxTypeFromName(string sCast);
 string GetValueAsCastString(struct Value strValue);
@@ -177,6 +183,7 @@ struct Value FormatValueAsBoolean(struct Value strValue);
 struct Value ConvertJsonToValue(json jValue);
 struct Value GetValueFromNamedColor(string sValue, string sColor);
 struct Value GetValueFromHexColor(string sValue, string sColor);
+struct Value GetValueFromSqlColumn(sqlquery sqlQuery, int nIndex, int nAuxType);
 
 int IsParserQuote(string sCharacter);
 int IsParserEscapedCharacter(string sString, int nIndex, int nLength);
@@ -246,6 +253,7 @@ struct PropertyChain GetIntProperty(struct PropertyChain strPC);
 struct PropertyChain GetFloatProperty(struct PropertyChain strPC);
 struct PropertyChain GetStringProperty(struct PropertyChain strPC);
 struct PropertyChain GetObjectProperty(struct PropertyChain strPC);
+struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC);
 struct PropertyChain GetJsonProperty(struct PropertyChain strPC);
 struct PropertyChain GetSharedProperty(struct PropertyChain strPC);
 
@@ -257,6 +265,17 @@ struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaNam
 struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName);
+struct Value HandleMetaSqlQuery(struct PropertyChain strPC, string sMetaName);
+
+struct Value CheckSqlQueryError(sqlquery sqlQuery);
+struct Value CheckSqlStateIs(sqlquery sqlQuery, int nState);
+struct Value CheckSqlStateIsNot(sqlquery sqlQuery, int nState);
+int IsValidSqlAuxType(int nAuxType);
+int GetSqlAuxTypeFromShortType(string sChar);
+struct Value ValidateSqlRowSpec(string sSpec, int nColumnCount, string sErrorPrefix);
+struct Value SqlRowSetJsonValueInplace(json jObject, string sKey, struct Value strValue);
+struct Value SqlRowSetColumnInplace(json jRow, sqlquery sqlQuery, int nIndex, string sName, int nAuxType);
+struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, string sSpec);
 
 int IsTraceEnabled();
 void PushTrace();
@@ -283,7 +302,6 @@ string GetSymbolType(json jStack, string sName);
 int SymbolExists(json jStack, string sName);
 
 string InferDebugValueType(string sValue);
-string TruncateDebugValue(string sValue);
 string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "");
 string InspectObject(object oValue);
 
@@ -431,7 +449,8 @@ int IsKnownAuxType(int nAuxType)
 int IsKnownStackAuxType(int nAuxType)
 {
     return nAuxType == NWNX_VM_AUXTYPE_INT || nAuxType == NWNX_VM_AUXTYPE_FLOAT || nAuxType == NWNX_VM_AUXTYPE_STRING ||
-           nAuxType == NWNX_VM_AUXTYPE_OBJECT || nAuxType == NWNX_VM_AUXTYPE_JSON || nAuxType == NWNX_VM_AUXTYPE_VOID;
+           nAuxType == NWNX_VM_AUXTYPE_OBJECT || nAuxType == NWNX_VM_AUXTYPE_SQLQUERY || nAuxType == NWNX_VM_AUXTYPE_JSON ||
+           nAuxType == NWNX_VM_AUXTYPE_VOID;
 }
 
 int ValueNeedsDefault(struct Value strValue)
@@ -486,6 +505,7 @@ struct Value GetValueFromStackLocation(int nAuxType, int nStackLocation)
         case NWNX_VM_AUXTYPE_FLOAT: str.fValue = NWNX_VM_GetStackFloatValue(nStackLocation); break;
         case NWNX_VM_AUXTYPE_STRING: str.sValue = NWNX_VM_GetStackStringValue(nStackLocation); break;
         case NWNX_VM_AUXTYPE_OBJECT: str.oValue = NWNX_VM_GetStackObjectValue(nStackLocation); break;
+        case NWNX_VM_AUXTYPE_SQLQUERY: str.sqlValue = NWNX_VM_GetStackSqlQueryValue(nStackLocation); break;
         case NWNX_VM_AUXTYPE_JSON: str.jValue = NWNX_VM_GetStackJsonValue(nStackLocation); break;
     }
     return str;
@@ -540,6 +560,14 @@ struct Value GetValueFromObject(object oValue = OBJECT_INVALID)
     struct Value str;
     str.nAuxType = NWNX_VM_AUXTYPE_OBJECT;
     str.oValue = oValue;
+    return str;
+}
+
+struct Value GetValueFromSqlQuery(sqlquery sqlValue)
+{
+    struct Value str;
+    str.nAuxType = NWNX_VM_AUXTYPE_SQLQUERY;
+    str.sqlValue = sqlValue;
     return str;
 }
 
@@ -758,6 +786,7 @@ string ValueToText(struct Value strValue)
         case NWNX_VM_AUXTYPE_INT:       return IntToString(strValue.nValue);
         case NWNX_VM_AUXTYPE_FLOAT:     return FloatToString(strValue.fValue, 0, 9);
         case NWNX_VM_AUXTYPE_OBJECT:    return ObjectIDToString(strValue.oValue);
+        case NWNX_VM_AUXTYPE_SQLQUERY:  return "<SQL QUERY=\"" + Truncate(SqlGetQuery(strValue.sqlValue), 64) + "\"; STATE=" + SqlStateToString(SqlGetState(strValue.sqlValue)) + ">";
         case NWNX_VM_AUXTYPE_JSON:      return JsonDump(strValue.jValue);
     }
     return "[UNHANDLED_AUXTYPE:" + AuxTypeToString(strValue.nAuxType) + "]";
@@ -891,6 +920,34 @@ struct Value GetValueFromHexColor(string sValue, string sColor)
         return GetValueFromString(ColorString(sValue, nRed, nGreen, nBlue));
     }
     return GetErrorValue("INVALID_HEX_COLOR:" + sColor);
+}
+
+struct Value GetValueFromSqlColumn(sqlquery sqlQuery, int nIndex, int nAuxType)
+{
+    int nColumnCount = SqlGetColumnCount(sqlQuery);
+    if (nIndex < 0 || nIndex >= nColumnCount)
+        return GetErrorValue("COLUMN_INDEX_OUT_OF_RANGE:" + IntToString(nIndex));
+
+    struct Value strError = CheckSqlQueryError(sqlQuery);
+    if (IsErrorValue(strError))
+        return strError;
+
+    struct Value strValue;
+    switch (nAuxType)
+    {
+        case NWNX_VM_AUXTYPE_INT: strValue = GetValueFromInt(SqlGetInt(sqlQuery, nIndex)); break;
+        case NWNX_VM_AUXTYPE_FLOAT: strValue = GetValueFromFloat(SqlGetFloat(sqlQuery, nIndex)); break;
+        case NWNX_VM_AUXTYPE_STRING: strValue = GetValueFromString(SqlGetString(sqlQuery, nIndex)); break;
+        case NWNX_VM_AUXTYPE_OBJECT: strValue = GetValueFromObject(SqlGetObjectRef(sqlQuery, nIndex)); break;
+        case NWNX_VM_AUXTYPE_JSON: strValue = GetValueFromJson(SqlGetJson(sqlQuery, nIndex)); break;
+        default: return GetErrorValue("INVALID_SQL_COLUMN_AUXTYPE:" + IntToString(nAuxType));
+    }
+
+    strError = CheckSqlQueryError(sqlQuery);
+    if (IsErrorValue(strError))
+        return strError;
+
+    return strValue;
 }
 
 int IsParserQuote(string sCharacter)
@@ -2106,6 +2163,9 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
             strReturnValue = HandleMetaObject(strMeta, sMetaName);
 
         if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaSqlQuery(strMeta, sMetaName);
+
+        if (IsInvalidValue(strReturnValue))
             strReturnValue = GetErrorValue("UNKNOWN_META:" + sMetaName);
     }
 
@@ -2237,6 +2297,7 @@ struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC)
         case NWNX_VM_AUXTYPE_FLOAT:     strPC = GetFloatProperty(strPC); break;
         case NWNX_VM_AUXTYPE_STRING:    strPC = GetStringProperty(strPC); break;
         case NWNX_VM_AUXTYPE_OBJECT:    strPC = GetObjectProperty(strPC); break;
+        case NWNX_VM_AUXTYPE_SQLQUERY:  strPC = GetSqlQueryProperty(strPC); break;
         case NWNX_VM_AUXTYPE_JSON:      strPC = GetJsonProperty(strPC); break;
         default: strPC.strValue = GetInvalidValue(); break;
     }
@@ -2633,6 +2694,282 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
             return ReturnPropertyChainWithValue(strPC, GetValueFromJson(GetLocalJson(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
         else
             return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_LOCALVAR_TYPE:" + sType));
+    }
+
+    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
+}
+
+struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC)
+{
+    string sProperty = strPC.sCurrentProperty;
+    sqlquery sqlValue = strPC.strValue.sqlValue;
+
+    if (sProperty == "query")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(SqlGetQuery(sqlValue)));
+
+    if (sProperty == "state")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(SqlGetState(sqlValue)));
+
+    if (sProperty == "statestr")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(SqlStateToString(SqlGetState(sqlValue))));
+
+    if (sProperty == "error")
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(SqlGetError(sqlValue)));
+
+    if (sProperty == "columncount")
+    {
+        struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(SqlGetColumnCount(sqlValue)));
+    }
+
+    if (sProperty == "columnname")
+    {
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        int nIndex = GetValueAsInt(strArgs.strArg0);
+        if (nIndex < 0 || nIndex >= SqlGetColumnCount(sqlValue))
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("COLUMN_INDEX_OUT_OF_RANGE:" + IntToString(nIndex)));
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(SqlGetColumnName(sqlValue, nIndex)));
+    }
+
+    if (sProperty == "columns")
+    {
+        struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        json jColumns = JsonArray();
+        int nIndex, nNumColumns = SqlGetColumnCount(sqlValue);
+        for (nIndex = 0; nIndex < nNumColumns; nIndex++)
+        {
+            JsonArrayInsertStringInplace(jColumns, SqlGetColumnName(sqlValue, nIndex));
+        }
+        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(jColumns));
+    }
+
+    if (sProperty == "bind" || sProperty == "bindi" || sProperty == "bindf" || sProperty == "binds" || sProperty == "bindo" || sProperty == "bindj")
+    {
+        int nValueArgType = DAZSCRIPT_ARG_ANY;
+        if (sProperty == "bindi") nValueArgType = DAZSCRIPT_ARG_INT;
+        else if (sProperty == "bindf") nValueArgType = DAZSCRIPT_ARG_NUMERIC;
+        else if (sProperty == "bindo") nValueArgType = DAZSCRIPT_ARG_OBJECT;
+        else if (sProperty == "bindj") nValueArgType = DAZSCRIPT_ARG_JSON;
+        else if (sProperty == "binds") nValueArgType = DAZSCRIPT_ARG_ANY;
+
+        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_STRING, nValueArgType);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        string sBind = GetValueAsTrimmedString(strArgs.strArg0);
+        if (sBind == "")
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("EMPTY_BIND_NAME"));
+
+        if (GetStringLeft(sBind, 1) != "@")
+            sBind = "@" + sBind;
+
+        if (sProperty == "bindi")
+            SqlBindInt(sqlValue, sBind, GetValueAsInt(strArgs.strArg1));
+        else if (sProperty == "bindf")
+            SqlBindFloat(sqlValue, sBind, GetValueAsFloat(strArgs.strArg1));
+        else if (sProperty == "binds")
+            SqlBindString(sqlValue, sBind, GetValueAsText(strArgs.strArg1));
+        else if (sProperty == "bindo")
+            SqlBindObjectRef(sqlValue, sBind, GetValueAsObject(strArgs.strArg1));
+        else if (sProperty == "bindj")
+            SqlBindJson(sqlValue, sBind, strArgs.strArg1.jValue);
+        else
+        {
+            switch (strArgs.strArg1.nAuxType)
+            {
+                case NWNX_VM_AUXTYPE_INT: SqlBindInt(sqlValue, sBind, strArgs.strArg1.nValue); break;
+                case NWNX_VM_AUXTYPE_FLOAT: SqlBindFloat(sqlValue, sBind, strArgs.strArg1.fValue); break;
+                case NWNX_VM_AUXTYPE_OBJECT: SqlBindObjectRef(sqlValue, sBind, strArgs.strArg1.oValue); break;
+                case NWNX_VM_AUXTYPE_JSON: SqlBindJson(sqlValue, sBind, strArgs.strArg1.jValue); break;
+                default: SqlBindString(sqlValue, sBind, GetValueAsText(strArgs.strArg1));
+            }
+        }
+
+        strError = CheckSqlQueryError(sqlValue);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        return ReturnPropertyChainWithValue(strPC, GetValueFromSqlQuery(sqlValue));
+    }
+
+    if (sProperty == "exec")
+    {
+        struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        if (SqlGetColumnCount(sqlValue) > 0)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_EXEC_REQUIRES_NO_COLUMNS"));
+
+        SqlStep(sqlValue);
+        strError = CheckSqlQueryError(sqlValue);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString());
+    }
+
+    if (sProperty == "reset")
+    {
+        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_ANY);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        int bClearBinds = FALSE;
+        if (strArgs.nCount == 1)
+            bClearBinds = ValueToBoolish(strArgs.strArg0);
+
+        strError = CheckSqlQueryError(sqlValue);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        SqlResetQuery(sqlValue, bClearBinds);
+        return ReturnPropertyChainWithValue(strPC, GetValueFromSqlQuery(sqlValue));
+    }
+
+    if (sProperty == "scalar")
+    {
+        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_ANY);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+
+        struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        string sType = GetValueAsTrimmedString(strArgs.strArg0);
+        int nAuxType = GetCastAuxTypeFromName(sType);
+
+        if (!IsValidSqlAuxType(nAuxType))
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_SCALAR_AUXTYPE:" + sType));
+
+        if (SqlGetColumnCount(sqlValue) < 1)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_NO_COLUMNS"));
+
+        int bStepped = SqlStep(sqlValue);
+        strError = CheckSqlQueryError(sqlValue);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        if (!bStepped)
+        {
+            if (strArgs.nCount == 2)
+                return ReturnPropertyChainWithValue(strPC, CastValueToAuxType(strArgs.strArg1, nAuxType));
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_NO_ROW_DATA"));
+        }
+
+        return ReturnPropertyChainWithValue(strPC, GetValueFromSqlColumn(sqlValue, 0, nAuxType));
+    }
+
+    if (sProperty == "row" || sProperty == "rows")
+    {
+        int bRows = (sProperty == "rows");
+        struct Arguments strArgs = EvalArgs(strPC, 0, 2, DAZSCRIPT_ARG_ANY, DAZSCRIPT_ARG_ANY);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        int nColumnCount = SqlGetColumnCount(sqlValue);
+        strError = CheckSqlQueryError(sqlValue);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+        if (nColumnCount < 1)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_NO_COLUMNS"));
+
+        string sSpec = "";
+        int nLimit = 1;
+        if (bRows)
+            nLimit = DAZSCRIPT_SQL_ROWS_DEFAULT_LIMIT;
+
+        if (strArgs.nCount == 1)
+        {
+            if (strArgs.strArg0.nAuxType == NWNX_VM_AUXTYPE_STRING)
+                sSpec = GetValueAsTrimmedString(strArgs.strArg0);
+            else if (bRows && IsValueIntParameter(strArgs.strArg0))
+                nLimit = GetValueAsInt(strArgs.strArg0);
+            else
+                return ReturnPropertyChainWithValue(strPC, GetErrorValue(bRows ? "INVALID_ROWS_ARGUMENT_1" : "INVALID_ROW_ARGUMENT_1"));
+        }
+
+        if (strArgs.nCount == 2)
+        {
+            if (!bRows)
+                return ReturnPropertyChainWithValue(strPC, GetErrorValue("ROW_TOO_MANY_ARGUMENTS"));
+            if (strArgs.strArg0.nAuxType != NWNX_VM_AUXTYPE_STRING)
+                return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_ROWS_SPEC"));
+            if (!IsValueIntParameter(strArgs.strArg1))
+                return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_ROWS_LIMIT"));
+
+            sSpec = GetValueAsTrimmedString(strArgs.strArg0);
+            nLimit = GetValueAsInt(strArgs.strArg1);
+        }
+
+        if (nLimit < 1)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_ROWS_LIMIT_MUST_BE_POSITIVE"));
+        if (nLimit > DAZSCRIPT_SQL_ROWS_MAX_LIMIT)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_ROWS_LIMIT_TOO_HIGH"));
+
+        strError = ValidateSqlRowSpec(sSpec, nColumnCount, "INVALID_ROW_AUXTYPE:");
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        if (bRows)
+        {
+            json jRows = JsonArray();
+
+            int nRows = 0;
+            while (nRows < nLimit)
+            {
+                int bStepped = SqlStep(sqlValue);
+                strError = CheckSqlQueryError(sqlValue);
+                if (IsErrorValue(strError))
+                    return ReturnPropertyChainWithValue(strPC, strError);
+
+                if (!bStepped)
+                    break;
+
+                struct Value strRow = GetSqlCurrentRowAsJson(sqlValue, sSpec);
+                if (IsErrorValue(strRow))
+                    return ReturnPropertyChainWithValue(strPC, strRow);
+
+                JsonArrayInsertInplace(jRows, strRow.jValue);
+                nRows++;
+            }
+
+            return ReturnPropertyChainWithValue(strPC, GetValueFromJson(jRows));
+        }
+
+        int bStepped = SqlStep(sqlValue);
+
+        strError = CheckSqlQueryError(sqlValue);
+        if (IsErrorValue(strError))
+            return ReturnPropertyChainWithValue(strPC, strError);
+
+        if (!bStepped)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_NO_ROW_DATA"));
+
+        struct Value strRow = GetSqlCurrentRowAsJson(sqlValue, sSpec);
+        return ReturnPropertyChainWithValue(strPC, strRow);
     }
 
     return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
@@ -3344,7 +3681,7 @@ struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaNam
             "; value_type=" + sValueType +
             "; truthy=" + (ValueToBoolish(strValue) ? "TRUE" : "FALSE") +
             "; length=" + IntToString(GetStringLength(sValue)) +
-            "; value=\"" + TruncateDebugValue(sValue) + "\"";
+            "; value=\"" + Truncate(sValue, 128) + "\"";
 
         return GetValueFromString(sDebug);
     }
@@ -3610,6 +3947,197 @@ struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName)
     return GetInvalidValue();
 }
 
+struct Value HandleMetaSqlQuery(struct PropertyChain strPC, string sMetaName)
+{
+    if (sMetaName == "sqlobject")
+    {
+        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_OBJECT, DAZSCRIPT_ARG_STRING);
+        if (IsErrorValue(strArgs.strError))
+            return strArgs.strError;
+
+        object oObject = GetValueAsObject(strArgs.strArg0);
+        if (!GetIsObjectValid(oObject))
+            return GetErrorValue("INVALID_OBJECT:ARG1");
+
+        string sQuery = GetValueAsTrimmedString(strArgs.strArg1);
+        if (sQuery == "")
+            return GetErrorValue("EMPTY_SQL_QUERY");
+
+        sqlquery sqlQuery = SqlPrepareQueryObject(oObject, sQuery);
+        struct Value strError = CheckSqlQueryError(sqlQuery);
+        if (IsErrorValue(strError))
+            return strError;
+
+        return GetValueFromSqlQuery(sqlQuery);
+    }
+
+    if (sMetaName == "sqlcampaign")
+    {
+        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_STRING);
+        if (IsErrorValue(strArgs.strError))
+            return strArgs.strError;
+
+        string sDatabase = GetValueAsTrimmedString(strArgs.strArg0);
+        if (sDatabase == "")
+            return GetErrorValue("EMPTY_DATABASE_NAME");
+
+        string sQuery = GetValueAsTrimmedString(strArgs.strArg1);
+        if (sQuery == "")
+            return GetErrorValue("EMPTY_SQL_QUERY");
+
+        sqlquery sqlQuery = SqlPrepareQueryCampaign(sDatabase, sQuery);
+        struct Value strError = CheckSqlQueryError(sqlQuery);
+        if (IsErrorValue(strError))
+            return strError;
+
+        return GetValueFromSqlQuery(sqlQuery);
+    }
+
+    if (sMetaName == "sqlmodule")
+    {
+        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_STRING);
+        if (IsErrorValue(strArgs.strError))
+            return strArgs.strError;
+
+        string sQuery = GetValueAsTrimmedString(strArgs.strArg0);
+        if (sQuery == "")
+            return GetErrorValue("EMPTY_SQL_QUERY");
+
+        sqlquery sqlQuery = SqlPrepareQueryObject(GetModule(), sQuery);
+        struct Value strError = CheckSqlQueryError(sqlQuery);
+        if (IsErrorValue(strError))
+            return strError;
+
+        return GetValueFromSqlQuery(sqlQuery);
+    }
+
+    return GetInvalidValue();
+}
+
+struct Value CheckSqlQueryError(sqlquery sqlQuery)
+{
+    string sError = SqlGetError(sqlQuery);
+    if (sError != "")
+        return GetErrorValue("SQLERROR:" + sError);
+    return GetInvalidValue();
+}
+
+struct Value CheckSqlStateIs(sqlquery sqlQuery, int nState)
+{
+    int nCurrentState = SqlGetState(sqlQuery);
+    if (nCurrentState != nState)
+        return GetErrorValue("INVALID_SQLQUERY_STATE:EXPECTED_" + SqlStateToString(nState) + "_GOT_" + SqlStateToString(nCurrentState));
+    return GetInvalidValue();
+}
+
+struct Value CheckSqlStateIsNot(sqlquery sqlQuery, int nState)
+{
+    int nCurrentState = SqlGetState(sqlQuery);
+    if (nCurrentState == nState)
+        return GetErrorValue("INVALID_SQLQUERY_STATE:QUERY_MUST_NOT_BE_" + SqlStateToString(nState));
+    return GetInvalidValue();
+}
+
+int IsValidSqlAuxType(int nAuxType)
+{
+    switch (nAuxType)
+    {
+        case NWNX_VM_AUXTYPE_INT:
+        case NWNX_VM_AUXTYPE_FLOAT:
+        case NWNX_VM_AUXTYPE_STRING:
+        case NWNX_VM_AUXTYPE_OBJECT:
+        case NWNX_VM_AUXTYPE_JSON:
+            return TRUE;
+    }
+    return FALSE;
+}
+
+int GetSqlAuxTypeFromShortType(string sChar)
+{
+    if (sChar == "i") return NWNX_VM_AUXTYPE_INT;
+    if (sChar == "f") return NWNX_VM_AUXTYPE_FLOAT;
+    if (sChar == "s") return NWNX_VM_AUXTYPE_STRING;
+    if (sChar == "j") return NWNX_VM_AUXTYPE_JSON;
+    if (sChar == "o") return NWNX_VM_AUXTYPE_OBJECT;
+    return NWNX_VM_AUXTYPE_INVALID;
+}
+
+struct Value ValidateSqlRowSpec(string sSpec, int nColumnCount, string sErrorPrefix)
+{
+    if (sSpec == "")
+        return GetInvalidValue();
+
+    if (GetStringLength(sSpec) != nColumnCount)
+        return GetErrorValue("SQL_ROW_SPEC_COLUMN_COUNT_MISMATCH");
+
+    int nIndex;
+    for (nIndex = 0; nIndex < nColumnCount; nIndex++)
+    {
+        string sCharacter = GetSubString(sSpec, nIndex, 1);
+        int nAuxType = GetSqlAuxTypeFromShortType(sCharacter);
+        if (!IsValidSqlAuxType(nAuxType))
+            return GetErrorValue(sErrorPrefix + sCharacter);
+    }
+
+    return GetInvalidValue();
+}
+
+struct Value SqlRowSetJsonValueInplace(json jObject, string sKey, struct Value strValue)
+{
+    if (IsErrorValue(strValue))
+        return strValue;
+    switch (strValue.nAuxType)
+    {
+        case NWNX_VM_AUXTYPE_INT: JsonObjectSetIntInplace(jObject, sKey, strValue.nValue); break;
+        case NWNX_VM_AUXTYPE_FLOAT: JsonObjectSetFloatInplace(jObject, sKey, strValue.fValue); break;
+        case NWNX_VM_AUXTYPE_STRING: JsonObjectSetStringInplace(jObject, sKey, strValue.sValue); break;
+        case NWNX_VM_AUXTYPE_OBJECT: JsonObjectSetStringInplace(jObject, sKey, ObjectIDToString(strValue.oValue)); break;
+        case NWNX_VM_AUXTYPE_JSON: JsonObjectSetInplace(jObject, sKey, strValue.jValue); break;
+        default: return GetErrorValue("INVALID_JSON_OBJECT_VALUE_AUXTYPE:" + IntToString(strValue.nAuxType));
+    }
+    return GetInvalidValue();
+}
+
+struct Value SqlRowSetColumnInplace(json jRow, sqlquery sqlQuery, int nIndex, string sName, int nAuxType)
+{
+    if (sName == "")
+        sName = "col" + IntToString(nIndex);
+    if (!IsValidSqlAuxType(nAuxType))
+        return GetErrorValue("INVALID_ROW_AUXTYPE:" + IntToString(nAuxType));
+    struct Value strValue = GetValueFromSqlColumn(sqlQuery, nIndex, nAuxType);
+    if (IsErrorValue(strValue))
+        return strValue;
+    return SqlRowSetJsonValueInplace(jRow, sName, strValue);
+}
+
+struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, string sSpec)
+{
+    int nColumnCount = SqlGetColumnCount(sqlQuery);
+
+    struct Value strError = CheckSqlQueryError(sqlQuery);
+    if (IsErrorValue(strError))
+        return strError;
+    if (nColumnCount < 1)
+        return GetErrorValue("SQL_NO_COLUMNS");
+
+    json jRow = JsonObject();
+    int nIndex, bHasSpec = (sSpec != "");
+    for (nIndex = 0; nIndex < nColumnCount; nIndex++)
+    {
+        string sName = SqlGetColumnName(sqlQuery, nIndex);
+
+        int nAuxType = NWNX_VM_AUXTYPE_STRING;
+        if (bHasSpec)
+            nAuxType = GetSqlAuxTypeFromShortType(GetSubString(sSpec, nIndex, 1));
+
+        strError = SqlRowSetColumnInplace(jRow, sqlQuery, nIndex, sName, nAuxType);
+        if (IsErrorValue(strError))
+            return strError;
+    }
+
+    return GetValueFromJson(jRow);
+}
+
 int IsTraceEnabled()
 {
     return GetLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_DEPTH_KEY) > 0;
@@ -3858,13 +4386,6 @@ string InferDebugValueType(string sValue)
         return "object-ish";
 
     return "string";
-}
-
-string TruncateDebugValue(string sValue)
-{
-    if (GetStringLength(sValue) <= 256)
-        return sValue;
-    return GetStringLeft(sValue, 256) + "...";
 }
 
 string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "")

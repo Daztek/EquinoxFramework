@@ -33,6 +33,7 @@ int IsObjectIDString(string sValue);
 string RepeatText(string sText, int nCount);
 string ObjectIDToString(object oObject);
 string EscapeString(string sString);
+string Truncate(string sValue, int nLength);
 
 string ltrim(string sString)
 {
@@ -285,4 +286,11 @@ string EscapeString(string sString)
             sRetVal += sCharacter;
     }
     return sRetVal;
+}
+
+string Truncate(string sValue, int nLength)
+{
+    if (GetStringLength(sValue) <= nLength)
+        return sValue;
+    return GetStringLeft(sValue, nLength) + "...";
 }

@@ -117,6 +117,65 @@ void DazScript_TestStateJson(string sName, json jActual, string sExpectedDump)
     DazScript_RecordResult(sName, sActual == sExpectedDump, "", "expected:", sExpectedDump, sActual);
 }
 
+void DazScript_SetupSqlTests()
+{
+    sqlquery q;
+
+    q = SqlPrepareQueryModule("DROP TABLE IF EXISTS test_players;");
+    SqlStep(q);
+
+    q = SqlPrepareQueryModule(
+        "CREATE TABLE test_players (" +
+        "id INTEGER PRIMARY KEY," +
+        "name TEXT," +
+        "level INTEGER," +
+        "xp INTEGER," +
+        "gold INTEGER," +
+        "rating REAL," +
+        "payload TEXT," +
+        "owner INTEGER" +
+        ");");
+    SqlStep(q);
+
+    q = SqlPrepareQueryModule(
+        "INSERT INTO test_players (id, name, level, xp, gold, rating, payload, owner) " +
+        "VALUES (@id, @name, @level, @xp, @gold, @rating, @payload, @owner);");
+
+    SqlBindInt(q, "@id", 1);
+    SqlBindString(q, "@name", "Test Player 1");
+    SqlBindInt(q, "@level", 3);
+    SqlBindInt(q, "@xp", 1000);
+    SqlBindInt(q, "@gold", 125);
+    SqlBindFloat(q, "@rating", 1.5);
+    SqlBindJson(q, "@payload", JsonParse("{\"class\":\"fighter\",\"active\":true}"));
+    SqlBindObjectRef(q, "@owner", g_oCreature);
+    SqlStep(q);
+
+    SqlResetQuery(q, TRUE);
+
+    SqlBindInt(q, "@id", 2);
+    SqlBindString(q, "@name", "Test Player 2");
+    SqlBindInt(q, "@level", 6);
+    SqlBindInt(q, "@xp", 2500);
+    SqlBindInt(q, "@gold", 475);
+    SqlBindFloat(q, "@rating", 2.5);
+    SqlBindJson(q, "@payload", JsonParse("{\"class\":\"wizard\",\"active\":false}"));
+    SqlBindObjectRef(q, "@owner", g_oCreature);
+    SqlStep(q);
+
+    SqlResetQuery(q, TRUE);
+
+    SqlBindInt(q, "@id", 3);
+    SqlBindString(q, "@name", "Test Player 3");
+    SqlBindInt(q, "@level", 6);
+    SqlBindInt(q, "@xp", 6250);
+    SqlBindInt(q, "@gold", 475);
+    SqlBindFloat(q, "@rating", 3.75);
+    SqlBindJson(q, "@payload", JsonParse("{\"class\":\"rogue\",\"active\":true}"));
+    SqlBindObjectRef(q, "@owner", g_oCreature);
+    SqlStep(q);
+}
+
 void DazScript_TestSmoke()
 {
     int nNum = 5;
@@ -1547,9 +1606,148 @@ void DazScript_TestErrorHandling()
         "FUNCTION_ARITY:#one");
 }
 
+void DazScript_TestSql()
+{
+    DazScript_SetupSqlTests();
+
+    DazScript_Test("sql module scalar int",
+        "{@sqlmodule('SELECT COUNT(*) FROM test_players;')>scalar(i)}",
+        "3");
+
+    DazScript_Test("sql module scalar string",
+        "{@sqlmodule('SELECT name FROM test_players WHERE id = @id;')>bind(id,2)>scalar(s)}",
+        "Test Player 2");
+
+    DazScript_Test("sql bind with explicit at prefix",
+        "{@sqlmodule('SELECT name FROM test_players WHERE id = @id;')>bind('@id',3)>scalar(s)}",
+        "Test Player 3");
+
+    DazScript_Test("sql scalar float",
+        "{@sqlmodule('SELECT rating FROM test_players WHERE id = 2;')>scalar(f)>fixed(1)}",
+        "2.5");
+
+    DazScript_Test("sql scalar default on no row",
+        "{@sqlmodule('SELECT name FROM test_players WHERE id = 999;')>scalar(s,'missing')}",
+        "missing");
+
+    DazScript_TestContains("sql scalar no row strict",
+        "{@sqlmodule('SELECT name FROM test_players WHERE id = 999;')>scalar(s)}",
+        "SQL_NO_ROW_DATA");
+
+    DazScript_TestContains("sql scalar invalid type",
+        "{@sqlmodule('SELECT name FROM test_players WHERE id = 1;')>scalar(x)}",
+        "INVALID_SCALAR_AUXTYPE:x");
+
+    DazScript_TestContains("sql scalar no columns",
+        "{@sqlmodule('UPDATE test_players SET gold = gold WHERE id = 1;')>scalar(s)}",
+        "SQL_NO_COLUMNS");
+
+    DazScript_Test("sql exec update is quiet",
+        "{@sqlmodule('UPDATE test_players SET gold = 500 WHERE id = @id;')>bind(id,1)>exec}",
+        "");
+
+    DazScript_Test("sql exec updated row visible",
+        "{@sqlmodule('SELECT gold FROM test_players WHERE id = 1;')>scalar(i)}",
+        "500");
+
+    DazScript_TestContains("sql exec rejects result columns",
+        "{@sqlmodule('SELECT id FROM test_players;')>exec}",
+        "SQL_EXEC_REQUIRES_NO_COLUMNS");
+
+    DazScript_Test("sql columncount",
+        "{@sqlmodule('SELECT id, name FROM test_players;')>columncount}",
+        "2");
+
+    DazScript_Test("sql columnname",
+        "{@sqlmodule('SELECT id, name AS player_name FROM test_players;')>columnname(1)}",
+        "player_name");
+
+    DazScript_Test("sql columns",
+        "{@sqlmodule('SELECT id, name AS player_name FROM test_players;')>columns}",
+        "[\"id\",\"player_name\"]");
+
+    DazScript_Test("sql row default id string",
+        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 2;')>row>get(id)}",
+        "2");
+
+    DazScript_Test("sql row default name string",
+        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 2;')>row>get(name)}",
+        "Test Player 2");
+
+    DazScript_Test("sql row typed compact id",
+        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 2;')>row(is)>get(id)}",
+        "2");
+
+    DazScript_Test("sql row typed compact name",
+        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 2;')>row(is)>get(name)}",
+        "Test Player 2");
+
+    DazScript_Test("sql row typed json get class",
+        "{@sqlmodule('SELECT payload FROM test_players WHERE id = 1;')>row(j)>get(payload)>get(class)}",
+        "fighter");
+
+    DazScript_Test("sql row typed float",
+        "{@sqlmodule('SELECT rating FROM test_players WHERE id = 1;')>row(f)>get(rating)>fixed(1)}",
+        "1.5");
+
+    DazScript_TestContains("sql row no row strict",
+        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 999;')>row(is)}",
+        "SQL_NO_ROW_DATA");
+
+    DazScript_TestContains("sql row spec mismatch",
+        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 1;')>row(i)}",
+        "SQL_ROW_SPEC_COLUMN_COUNT_MISMATCH");
+
+    DazScript_TestContains("sql row invalid spec char",
+        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 1;')>row(ix)}",
+        "INVALID_ROW_AUXTYPE:x");
+
+    DazScript_Test("sql rows typed limit at get",
+        "{@sqlmodule('SELECT id, name FROM test_players ORDER BY id;')>rows(is,2)>at(1)>get(name)}",
+        "Test Player 2");
+
+    DazScript_Test("sql rows limit as first arg",
+        "{@sqlmodule('SELECT id, name FROM test_players ORDER BY id;')>rows(2)>at(1)>get(name)}",
+        "Test Player 2");
+
+    DazScript_Test("sql rows empty result is empty array",
+        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 999;')>rows(is)>length}",
+        "0");
+
+    DazScript_TestContains("sql rows limit zero",
+        "{@sqlmodule('SELECT id, name FROM test_players;')>rows(is,0)}",
+        "SQL_ROWS_LIMIT_MUST_BE_POSITIVE");
+
+    DazScript_TestContains("sql rows limit too high",
+        "{@sqlmodule('SELECT id, name FROM test_players;')>rows(is,999999)}",
+        "SQL_ROWS_LIMIT_TOO_HIGH");
+
+    DazScript_TestContains("sql rows invalid first arg",
+        "{@sqlmodule('SELECT id, name FROM test_players;')>rows(1.5)}",
+        "INVALID_ROWS_ARGUMENT");
+
+    DazScript_Test("sql rows compose with json at get",
+        "{@sqlmodule('SELECT id, name FROM test_players ORDER BY id;')>rows(is,3)>at(2)>get(name)}",
+        "Test Player 3");
+
+    DazScript_Test("sql nested scalar in chain arg",
+        "{@sqlmodule('SELECT id, name FROM test_players ORDER BY id;')>rows(is)>at({@sub({@sqlmodule('SELECT COUNT(*) FROM test_players;')>scalar(i)},1)})>get(name)}",
+        "Test Player 3");
+
+    DazScript_TestContains("sql empty query",
+        "{@sqlmodule('')}",
+        "EMPTY_SQL_QUERY");
+
+    DazScript_TestContains("sql empty bind name",
+        "{@sqlmodule('SELECT id FROM test_players WHERE id = @id;')>bind('',1)>scalar(i)}",
+        "EMPTY_BIND_NAME");
+}
+
 void main()
 {
     g_oCreature = CreateObject(OBJECT_TYPE_CREATURE, "nw_commale", GetStartingLocation(), FALSE, "DAZSCRIPT_CREATURE");
+
+    DazScript_SetupSqlTests();
 
     DazScript_TestSmoke();
     DazScript_TestPrimitives();
@@ -1566,6 +1764,7 @@ void main()
     DazScript_TestParserErrors();
     DazScript_TestErrorHandling();
     DazScript_TestParserEvil();
+    DazScript_TestSql();
 
     DestroyObject(g_oCreature);
 

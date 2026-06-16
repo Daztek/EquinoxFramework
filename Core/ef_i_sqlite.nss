@@ -7,9 +7,14 @@
 
 #include "ef_i_string"
 #include "nwnx_nwsqliteext"
+#include "nwnx_sqlquery"
 
-const int SQL_ENABLE_MERSENNE_TWISTER = TRUE;
-const string EF_DATABASE_NAME = "EFDB";
+const int SQL_ENABLE_MERSENNE_TWISTER   = TRUE;
+
+const int SQLQUERY_STATE_EMPTY          = NWNX_SQLQUERY_STATE_EMPTY;
+const int SQLQUERY_STATE_PREPARED       = NWNX_SQLQUERY_STATE_NEW;
+const int SQLQUERY_STATE_ROW            = NWNX_SQLQUERY_STATE_ROW;
+const int SQLQUERY_STATE_DONE           = NWNX_SQLQUERY_STATE_DONE;
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName);
 int SqlGetTableExistsObject(object oObject, string sTableName);
@@ -36,6 +41,9 @@ void SqlBindVectorAsFloats(sqlquery sqlQuery, string sParamPrefix, vector vVecto
 vector SqlGetVectorFromFloats(sqlquery sqlQuery, int nIndexX, int nIndexY, int nIndexZ);
 location SqlGetLocation(sqlquery sqlQuery, int nIndexArea, int nIndexX, int nIndexY, int nIndexZ, int nIndexFacing);
 string SqlEscapeWildcard(string sInput, string sWildcard, string sEscape);
+string SqlGetQuery(sqlquery sqlQuery);
+int SqlGetState(sqlquery sqlQuery);
+string SqlStateToString(int nState);
 
 int SqlGetTableExistsCampaign(string sDatabase, string sTableName)
 {
@@ -214,4 +222,26 @@ string SqlEscapeWildcard(string sInput, string sWildcard, string sEscape)
             sResult += sCharacter;
     }
     return sResult;
+}
+
+string SqlGetQuery(sqlquery sqlQuery)
+{
+    return NWNX_SqlQuery_GetQuery(sqlQuery);
+}
+
+int SqlGetState(sqlquery sqlQuery)
+{
+    return NWNX_SqlQuery_GetState(sqlQuery);
+}
+
+string SqlStateToString(int nState)
+{
+    switch (nState)
+    {
+        case SQLQUERY_STATE_EMPTY: return "EMPTY";
+        case SQLQUERY_STATE_PREPARED: return "PREPARED";
+        case SQLQUERY_STATE_ROW: return "ROW";
+        case SQLQUERY_STATE_DONE: return "DONE";
+    }
+    return "INVALID";
 }

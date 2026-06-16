@@ -16,7 +16,7 @@ const string PROFILER_START_INSTRUCTIONS                = "StartInstructions";
 const string PROFILER_START_MICROSECONDS                = "StartMicroseconds";
 
 const int PROFILER_MICROSECONDS_IN_SECOND               = 1000000;
-const int PROFILER_INSTRUCTION_OVERHEAD                 = 17;
+const int PROFILER_INSTRUCTION_OVERHEAD                 = 20;
 const int PROFILER_MICROSECOND_OVERHEAD                 = 1;
 
 void Profiler_Start(string sIdentifier = "");

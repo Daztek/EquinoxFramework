@@ -20,6 +20,8 @@ void DazScript_TestStateJson(string sName, json jActual, string sExpectedDump);
 void DazScript_TestSmoke();
 void DazScript_TestPrimitives();
 void DazScript_TestJson();
+void DazScript_TestForeach();
+void DazScript_TestMapFilterReduceJoin();
 
 void DazScript_TestParserWhitespace();
 void DazScript_TestStringProperties();
@@ -783,6 +785,179 @@ void DazScript_TestJson()
     DazScript_Test("json unquoted true casts to json int",
         "{@json(true)>type}",
         "int");
+}
+
+void DazScript_TestForeach()
+{
+    DazScript_Test("foreach array values",
+        "{@foreach({@json('[\"a\",\"b\",\"c\"]')}, $v, '{$v}')}",
+        "abc");
+
+    DazScript_Test("foreach array index and value",
+        "{@foreach({@json('[\"a\",\"b\"]')}, $i, $v, '{$i}:{$v};')}",
+        "0:a;1:b;");
+
+    DazScript_Test("foreach empty array returns empty string",
+        "{@foreach({@json('[]')}, $v, bad)}",
+        "");
+
+    DazScript_Test("foreach stringified json array",
+        "{@foreach('[1,2,3]', $v, '{$v}')}",
+        "123");
+
+    DazScript_Test("foreach object value only",
+        "{@foreach({@json('{{\"x\":42}}')}, $v, '{$v}')}",
+        "42");
+
+    DazScript_Test("foreach object key and value",
+        "{@foreach({@json('{{\"hp\":42}}')}, $key, $value, '{$key}={$value};')}",
+        "hp=42;");
+
+    DazScript_Test("foreach object key property chain",
+        "{@foreach({@json('{{\"name\":\"Daz\"}}')}, $key, $value, '{$key>capitalize}={$value};')}",
+        "Name=Daz;");
+
+    DazScript_Test("foreach row json direct access",
+        "{@foreach({@json('[{{\"id\":1,\"name\":\"Ann\"}},{{\"id\":2,\"name\":\"Bob\"}}]')}, $row, '{$row>get(id)}:{$row>get(name)};')}",
+        "1:Ann;2:Bob;");
+
+    DazScript_Test("foreach nested same-quote parser",
+        "{@foreach({@json('[{{\"id\":1}},{{\"id\":2}}]')}, $row, '{@foreach({$row}, $key, $value, '{$key}={$value};')}\n')}",
+        "id=1;\nid=2;\n");
+
+    DazScript_Test("foreach nested output can be chained",
+        "{@foreach({@json('[{{\"x\":1}}]')}, $row, '{@foreach({$row}, $key, $value, ' {$key} = {$value} ')>trim}')}",
+        "x = 1");
+
+    DazScript_Test("foreach alias type follows json scalar",
+        "{@foreach({@json('[\"s\",7]')}, $v, '{@type($v)};')}",
+        "alias:string;alias:int;");
+
+    DazScript_Test("foreach alias does not leak",
+        "{@foreach({@json('[1]')}, $v, '{$v}')}{@exists($v)>bool}",
+        "1FALSE");
+
+    DazScript_Test("foreach nested alias shadow does not leak",
+        "{@foreach({@json('[1,2]')}, $v, '{@foreach({@json('[\"a\",\"b\"]')}, $v, '{$v}')}:{$v};')}",
+        "ab:1;ab:2;");
+
+    DazScript_TestContains("foreach rejects scalar json",
+        "{@foreach({@json('7')}, $v, '{$v}')}",
+        "FOREACH_JSON_NOT_ARRAY_OR_OBJECT");
+
+    DazScript_TestContains("foreach requires value alias",
+        "{@foreach({@json('[1]')}, v, '{$v}')}",
+        "FOREACH_VALUE_ALIAS_IS_NON_ALIAS:v");
+
+    DazScript_TestContains("foreach requires key alias",
+        "{@foreach({@json('{{\"x\":1}}')}, key, $value, '{$value}')}",
+        "FOREACH_KEY_ALIAS_IS_NON_ALIAS:key");
+}
+
+void DazScript_TestMapFilterReduceJoin()
+{
+    DazScript_Test("map array doubles ints",
+        "{@map({@json('[1,2,3]')}, $v, {@mul({$v}, 2)})>raw}",
+        "[2,4,6]");
+
+    DazScript_Test("map array index and value",
+        "{@map({@json('[\"a\",\"b\"]')}, $i, $v, '{$i}:{$v}')>raw}",
+        "[\"0:a\",\"1:b\"]");
+
+    DazScript_Test("map preserves string results as json strings",
+        "{@map({@json('[1,2]')}, $v, 'item {$v}')>raw}",
+        "[\"item 1\",\"item 2\"]");
+
+    DazScript_Test("map preserves object results as json objects",
+        "{@map({@json('[{{\"x\":1}},{{\"x\":2}}]')}, $row, {$row})>length}",
+        "2");
+
+    DazScript_Test("map empty array returns empty array",
+        "{@map({@json('[]')}, $v, bad)>raw}",
+        "[]");
+
+    DazScript_Test("filter keeps values with true predicate",
+        "{@filter({@json('[1,2,3,4,5]')}, $v, {$v>gt(2)})>raw}",
+        "[3,4,5]");
+
+    DazScript_Test("filter preserves original values",
+        "{@filter({@json('[{{\"name\":\"Ann\",\"gold\":100}},{{\"name\":\"Bob\",\"gold\":600}}]')}, $row, {$row>get(gold)>lt(500)})>at(0)>get(name)}",
+        "Ann");
+
+    DazScript_Test("filter index alias",
+        "{@filter({@json('[\"a\",\"b\",\"c\",\"d\"]')}, $i, $v, {$i>odd})>raw}",
+        "[\"b\",\"d\"]");
+
+    DazScript_Test("filter empty array returns empty array",
+        "{@filter({@json('[]')}, $v, bad)>raw}",
+        "[]");
+
+    DazScript_Test("reduce sums ints",
+        "{@reduce({@json('[1,2,3,4]')}, 0, $sum, $v, {@add({$sum}, {$v})})}",
+        "10");
+
+    DazScript_Test("reduce concatenates strings",
+        "{@reduce({@json('[\"a\",\"b\",\"c\"]')}, '', $out, $v, '{$out}{$v}')}",
+        "abc");
+
+    DazScript_Test("reduce index alias",
+        "{@reduce({@json('[10,20,30]')}, 0, $sum, $i, $v, {@add({$sum}, {$i})})}",
+        "3");
+
+    DazScript_Test("reduce empty array returns initial value",
+        "{@reduce({@json('[]')}, 42, $sum, $v, {@add({$sum}, {$v})})}",
+        "42");
+
+    DazScript_Test("join default separator",
+        "{@json('[\"a\",\"b\",\"c\"]')>join}",
+        "abc");
+
+    DazScript_Test("join custom separator",
+        "{@json('[\"a\",\"b\",\"c\"]')>join(', ')}",
+        "a, b, c");
+
+    DazScript_Test("join newline separator",
+        "{@json('[\"a\",\"b\"]')>join('\n')}",
+        "a\nb");
+
+    DazScript_Test("join empty array returns empty string",
+        "{@json('[]')>join(', ')}",
+        "");
+
+    DazScript_Test("map filter reduce join sql composition",
+        "{@set($rows,{@sqlmodule('SELECT name, gold FROM test_players ORDER BY id;')>rows(si)})}" +
+        "{@set($rich,{@filter({$rows}, $row, {$row>get(gold)>gte(400)})})}" +
+        "{@map({$rich}, $row, '{$row>get(name)}={$row>get(gold)}')>join('|')} " +
+        "total={@reduce({$rich}, 0, $sum, $row, {@add({$sum}, {$row>get(gold)})})}",
+        "Test Player 2=475|Test Player 3=475 total=950");
+
+    DazScript_TestContains("map rejects scalar json",
+        "{@map({@json('7')}, $v, {$v})}",
+        "MAP_JSON_NOT_ARRAY");
+
+    DazScript_TestContains("map requires value alias",
+        "{@map({@json('[1]')}, v, {$v})}",
+        "MAP_VALUE_ALIAS_IS_NON_ALIAS:v");
+
+    DazScript_TestContains("filter rejects scalar json",
+        "{@filter({@json('7')}, $v, {$v})}",
+        "FILTER_JSON_NOT_ARRAY");
+
+    DazScript_TestContains("filter requires value alias",
+        "{@filter({@json('[1]')}, v, {$v})}",
+        "FILTER_VALUE_ALIAS_IS_NON_ALIAS:v");
+
+    DazScript_TestContains("reduce rejects scalar json",
+        "{@reduce({@json('7')}, 0, $sum, $v, {$sum})}",
+        "REDUCE_JSON_NOT_ARRAY");
+
+    DazScript_TestContains("reduce requires accumulator alias",
+        "{@reduce({@json('[1]')}, 0, sum, $v, {$v})}",
+        "REDUCE_ACCUMULATOR_ALIAS_IS_NON_ALIAS:sum");
+
+    DazScript_TestContains("join rejects object",
+        "{@json('{{\"x\":1}}')>join(',')}",
+        "JSON_NOT_ARRAY");
 }
 
 void DazScript_TestParserWhitespace()
@@ -1741,6 +1916,16 @@ void DazScript_TestSql()
     DazScript_TestContains("sql empty bind name",
         "{@sqlmodule('SELECT id FROM test_players WHERE id = @id;')>bind('',1)>scalar(i)}",
         "EMPTY_BIND_NAME");
+
+    DazScript_Test("sql rows foreach formatter",
+        "{@set($rows,{@sqlmodule('SELECT id, name, xp FROM test_players ORDER BY id;')>rows(isi)})}" +
+        "{@foreach({$rows}, $row," +
+            "'{@foreach({$row},$key,$value," +
+                "'{$key>capitalize} = {@if({@type($value)>eq(alias:string)},'\"{$value}\"',{$value})}; ')>trim}\n'" +
+        ")}",
+        "Id = 1; Name = \"Test Player 1\"; Xp = 1000;\n" +
+        "Id = 2; Name = \"Test Player 2\"; Xp = 2500;\n" +
+        "Id = 3; Name = \"Test Player 3\"; Xp = 6250;\n");
 }
 
 void main()
@@ -1752,6 +1937,8 @@ void main()
     DazScript_TestSmoke();
     DazScript_TestPrimitives();
     DazScript_TestJson();
+    DazScript_TestForeach();
+    DazScript_TestMapFilterReduceJoin();
     DazScript_TestParserWhitespace();
     DazScript_TestStringProperties();
     DazScript_TestMetaVars();

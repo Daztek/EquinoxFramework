@@ -21,7 +21,7 @@ void DazScript_TestSmoke();
 void DazScript_TestPrimitives();
 void DazScript_TestJson();
 void DazScript_TestForeach();
-void DazScript_TestMapFilterReduceJoin();
+void DazScript_TestMoreJsonLikeCollectionOrAggregate();
 
 void DazScript_TestParserWhitespace();
 void DazScript_TestStringProperties();
@@ -783,6 +783,34 @@ void DazScript_TestJson()
     DazScript_Test("json unquoted true casts to json int",
         "{@json(true)>type}",
         "int");
+
+    DazScript_Test("array sort asc",
+        "{@json('[3,1,2]')>sort>join(',')}",
+        "1,2,3");
+
+    DazScript_Test("array sort desc",
+        "{@json('[3,1,2]')>sort(desc)>join(',')}",
+        "3,2,1");
+
+    DazScript_Test("array reverse",
+        "{@json('[1,2,3]')>reverse>join(',')}",
+        "3,2,1");
+
+    DazScript_Test("array unique preserves order",
+        "{@json('[2,1,2,3,1]')>unique>join(',')}",
+        "2,1,3");
+
+    DazScript_Test("array coalesce",
+        "{@json('[null,null,\"fallback\"]')>coalesce}",
+        "fallback");
+
+    DazScript_Test("array coalesce keeps zero",
+        "{@json('[null,0,\"fallback\"]')>coalesce}",
+        "0");
+
+    DazScript_TestContains("array sort bad direction",
+        "{@json('[1,2,3]')>sort(sideways)}",
+        "SORT_DIRECTION_INVALID:sideways");
 }
 
 void DazScript_TestForeach()
@@ -850,9 +878,13 @@ void DazScript_TestForeach()
     DazScript_TestContains("foreach requires key alias",
         "{@foreach({@json('{{\"x\":1}}')}, key, $value, '{$value}')}",
         "FOREACH_KEY_ALIAS_IS_NON_ALIAS:key");
+
+    DazScript_TestContains("foreach usage error",
+        "{@foreach({@json('[1]')}, $v)}",
+        "FOREACH_USAGE:@foreach(collection,$value,body) OR @foreach(collection,$key,$value,body)");
 }
 
-void DazScript_TestMapFilterReduceJoin()
+void DazScript_TestMoreJsonLikeCollectionOrAggregate()
 {
     DazScript_Test("map array doubles ints",
         "{@map({@json('[1,2,3]')}, $v, {@mul({$v}, 2)})>raw}",
@@ -906,6 +938,58 @@ void DazScript_TestMapFilterReduceJoin()
         "{@reduce({@json('[]')}, 42, $sum, $v, {@add({$sum}, {$v})})}",
         "42");
 
+    DazScript_Test("sum numeric array",
+        "{@sum({@json('[1,2,3,4]')})}",
+        "10");
+
+    DazScript_Test("sum selector",
+        "{@sum({@json('[{{\"gold\":100}},{{\"gold\":250}}]')}, $row, {$row>get(gold)})}",
+        "350");
+
+    DazScript_Test("sum index alias",
+        "{@sum({@json('[10,20,30]')}, $i, $v, {$i})}",
+        "3");
+
+    DazScript_Test("sum float array",
+        "{@sum({@json('[1.5,2.5]')})>fixed(1)}",
+        "4.0");
+
+    DazScript_Test("avg numeric array",
+        "{@avg({@json('[2,4,6]')})>fixed(1)}",
+        "4.0");
+
+    DazScript_Test("avg selector",
+        "{@avg({@json('[{{\"gold\":100}},{{\"gold\":300}}]')}, $row, {$row>get(gold)})>fixed(1)}",
+        "200.0");
+
+    DazScript_Test("count array",
+        "{@count({@json('[1,2,3]')})}",
+        "3");
+
+    DazScript_Test("count predicate",
+        "{@count({@json('[1,2,3,4,5]')}, $v, {$v>gt(2)})}",
+        "3");
+
+    DazScript_Test("count index alias",
+        "{@count({@json('[\"a\",\"b\",\"c\",\"d\"]')}, $i, $v, {$i>odd})}",
+        "2");
+
+    DazScript_TestContains("sum rejects non numeric",
+        "{@sum({@json('[1,\"x\"]')})}",
+        "SUM_VALUE_NOT_NUMERIC");
+
+    DazScript_TestContains("avg empty array errors",
+        "{@avg({@json('[]')})}",
+        "AVG_EMPTY_ARRAY");
+
+    DazScript_TestContains("count rejects scalar json",
+        "{@count({@json('7')})}",
+        "COUNT_JSON_NOT_ARRAY");
+
+    DazScript_TestContains("sum requires value alias",
+        "{@sum({@json('[1]')}, v, {$v})}",
+        "SUM_VALUE_ALIAS_IS_NON_ALIAS:v");
+
     DazScript_Test("join default separator",
         "{@json('[\"a\",\"b\",\"c\"]')>join}",
         "abc");
@@ -937,6 +1021,10 @@ void DazScript_TestMapFilterReduceJoin()
         "{@map({@json('[1]')}, v, {$v})}",
         "MAP_VALUE_ALIAS_IS_NON_ALIAS:v");
 
+    DazScript_TestContains("map usage error",
+        "{@map({@json('[1]')}, $v)}",
+        "MAP_USAGE:@map(array,$value,body) OR @map(array,$index,$value,body)");
+
     DazScript_TestContains("filter rejects scalar json",
         "{@filter({@json('7')}, $v, {$v})}",
         "FILTER_JSON_NOT_ARRAY");
@@ -944,6 +1032,10 @@ void DazScript_TestMapFilterReduceJoin()
     DazScript_TestContains("filter requires value alias",
         "{@filter({@json('[1]')}, v, {$v})}",
         "FILTER_VALUE_ALIAS_IS_NON_ALIAS:v");
+
+    DazScript_TestContains("filter usage error",
+        "{@filter({@json('[1]')}, $v)}",
+        "FILTER_USAGE:@filter(array,$value,predicate) OR @filter(array,$index,$value,predicate)");
 
     DazScript_TestContains("reduce rejects scalar json",
         "{@reduce({@json('7')}, 0, $sum, $v, {$sum})}",
@@ -953,9 +1045,65 @@ void DazScript_TestMapFilterReduceJoin()
         "{@reduce({@json('[1]')}, 0, sum, $v, {$v})}",
         "REDUCE_ACCUMULATOR_ALIAS_IS_NON_ALIAS:sum");
 
+    DazScript_TestContains("reduce usage error",
+        "{@reduce({@json('[1]')}, 0, $sum, $v)}",
+        "REDUCE_USAGE:@reduce(array,initial,$acc,$value,body) OR @reduce(array,initial,$acc,$index,$value,body)");
+
     DazScript_TestContains("join rejects object",
         "{@json('{{\"x\":1}}')>join(',')}",
         "JSON_NOT_ARRAY");
+
+    DazScript_Test("sortby int asc",
+        "{@sortby({@json('[3,1,2]')},$v,{$v})>join(',')}",
+        "1,2,3");
+
+    DazScript_Test("sortby int desc",
+        "{@sortby({@json('[3,1,2]')},$v,{$v},desc)>join(',')}",
+        "3,2,1");
+
+    DazScript_Test("sortby index alias",
+        "{@sortby({@json('[3,1,2]')},$i,$v,{$i},desc)>join(',')}",
+        "2,1,3");
+
+    DazScript_Test("sortby object int key",
+        "{@map({@sortby({@json('[{{\"n\":\"b\",\"g\":2}},{{\"n\":\"a\",\"g\":1}}]')},$row,{$row>get(g)})},$row,{$row>get(n)})>join(',')}",
+        "a,b");
+
+    DazScript_Test("sortby object string key",
+        "{@map({@sortby({@json('[{{\"n\":\"b\"}},{{\"n\":\"a\"}}]')},$row,{$row>get(n)})},$row,{$row>get(n)})>join(',')}",
+        "a,b");
+
+    DazScript_TestContains("sortby usage",
+        "{@sortby({@json('[1,2,3]')})}",
+        "SORTBY_USAGE");
+
+    DazScript_TestContains("sortby duplicate alias",
+        "{@sortby({@json('[1,2,3]')},$x,$x,{$x})}",
+        "SORTBY_DUPLICATE_ALIAS:$x");
+
+    DazScript_TestContains("sortby bad direction",
+        "{@sortby({@json('[1,2,3]')},$v,{$v},sideways)}",
+        "SORTBY_DIRECTION_INVALID:sideways");
+
+    DazScript_Test("sortby stable equal keys",
+        "{@map({@sortby({@json('[{{\"n\":\"a\",\"g\":1}},{{\"n\":\"b\",\"g\":1}},{{\"n\":\"c\",\"g\":2}}]')},$row,{$row>get(g)})},$row,{$row>get(n)})>join(',')}",
+        "a,b,c");
+
+    DazScript_TestContains("sortby mixed key types",
+        "{@sortby({@json('[1,\"2\"]')},$v,{$v})}",
+        "SORTBY_MIXED_KEY_TYPES");
+
+    DazScript_Test("sortby raw alias key desc",
+        "{@sortby({@json('[3,1,2]')},$v,$v,desc)>join(',')}",
+        "3,2,1");
+
+    DazScript_Test("sortby raw alias key asc",
+        "{@sortby({@json('[3,1,2]')},$v,$v,asc)>join(',')}",
+        "1,2,3");
+
+    DazScript_Test("sortby index alias still works",
+        "{@sortby({@json('[3,1,2]')},$i,$v,{$i},desc)>join(',')}",
+        "2,1,3");
 }
 
 void DazScript_TestParserWhitespace()
@@ -2010,7 +2158,7 @@ void main()
     DazScript_TestPrimitives();
     DazScript_TestJson();
     DazScript_TestForeach();
-    DazScript_TestMapFilterReduceJoin();
+    DazScript_TestMoreJsonLikeCollectionOrAggregate();
     DazScript_TestParserWhitespace();
     DazScript_TestStringProperties();
     DazScript_TestMetaVars();

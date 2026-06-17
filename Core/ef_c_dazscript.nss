@@ -263,6 +263,8 @@ struct PropertyChain GetSharedProperty(struct PropertyChain strPC);
 struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName);
+struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName);
+struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaName);
 struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName);
@@ -280,6 +282,12 @@ struct Value SqlRowSetJsonValueInplace(json jObject, string sKey, struct Value s
 struct Value SqlRowSetColumnInplace(json jRow, sqlquery sqlQuery, int nIndex, string sName, int nAuxType);
 struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, string sSpec);
 struct Value JsonArrayInsertValueInplace(json jArray, struct Value strValue);
+
+int IsSortDirectionLiteral(string sRaw);
+int SortKeyKind(struct Value strValue);
+int SortCharRank(string sChar);
+int CompareSortStrings(string sLeft, string sRight);
+int CompareSortKeys(struct Value strLeft, struct Value strRight, int nKeyKind);
 
 int IsTraceEnabled();
 void PushTrace();
@@ -2214,6 +2222,12 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
             strReturnValue = HandleMetaControlFlow(strMeta, sMetaName);
 
         if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaCollection(strMeta, sMetaName);
+
+        if (IsInvalidValue(strReturnValue))
+            strReturnValue = HandleMetaAggregate(strMeta, sMetaName);
+
+        if (IsInvalidValue(strReturnValue))
             strReturnValue = HandleMetaVariable(strMeta, sMetaName);
 
         if (IsInvalidValue(strReturnValue))
@@ -3203,7 +3217,15 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
     }
 
     if (sProperty == "raw" || sProperty == "dump")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(JsonDump(jValue)));
+    {
+        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_INT);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        int nIndent = -1;
+        if (strArgs.nCount == 1)
+            nIndent = min(-1, GetValueAsInt(strArgs.strArg0, -1));
+        return ReturnPropertyChainWithValue(strPC, GetValueFromString(JsonDump(jValue, nIndent)));
+    }
 
     if (sProperty == "join")
     {
@@ -3233,6 +3255,58 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
 
         return ReturnPropertyChainWithValue(strPC, GetValueFromString(sResult));
     }
+
+    if (sProperty == "sort")
+    {
+        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_ANY);
+        if (IsErrorValue(strArgs.strError))
+            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+
+        int nTransform = JSON_ARRAY_SORT_ASCENDING;
+        if (strArgs.nCount == 1)
+        {
+            string sDirection = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
+            if (sDirection == "" || sDirection == "asc" || sDirection == "ascending")
+                nTransform = JSON_ARRAY_SORT_ASCENDING;
+            else if (sDirection == "desc" || sDirection == "descending")
+                nTransform = JSON_ARRAY_SORT_DESCENDING;
+            else
+                return ReturnPropertyChainWithValue(strPC, GetErrorValue("SORT_DIRECTION_INVALID:" + sDirection));
+        }
+
+        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(JsonArrayTransform(jValue, nTransform)));
+    }
+
+    if (sProperty == "shuffle")
+    {
+        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_SHUFFLE)));
+    }
+
+    if (sProperty == "reverse")
+    {
+        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_REVERSE)));
+    }
+
+    if (sProperty == "unique")
+    {
+        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_UNIQUE)));
+    }
+
+    if (sProperty == "coalesce")
+    {
+        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+        return ReturnPropertyChainWithValue(strPC, ConvertJsonToValue(JsonArrayTransform(jValue, JSON_ARRAY_COALESCE)));
+    }
+
 
     return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
 }
@@ -3624,15 +3698,23 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         return strResult;
     }
 
+    return GetInvalidValue();
+}
+
+struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
+{
     // @foreach(collection, $value, body)
     // @foreach(collection, $key, $value, body)
     if (sMetaName == "foreach")
     {
-        struct Value strError = CheckArity(strPC, 3, 4);
+        struct Value strError = CheckParameterParserError(strPC);
         if (IsErrorValue(strError))
             return strError;
 
         int nCount = GetParameterCount(strPC);
+        if (nCount != 3 && nCount != 4)
+            return GetErrorValue("FOREACH_USAGE:@foreach(collection,$value,body) OR @foreach(collection,$key,$value,body)");
+
         int bHasKeyAlias = nCount == 4;
         string sKeyAlias = bHasKeyAlias ? GetRawParameterText(strPC, 1) : "";
         string sValueAlias = GetRawParameterText(strPC, bHasKeyAlias ? 2 : 1);
@@ -3642,6 +3724,8 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             return GetErrorValue("FOREACH_KEY_ALIAS_IS_NON_ALIAS:" + sKeyAlias);
         if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("FOREACH_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
+        if (bHasKeyAlias && sKeyAlias == sValueAlias)
+            return GetErrorValue("FOREACH_DUPLICATE_ALIAS:" + sKeyAlias);
 
         struct Value strCollection = EvalCompiledParameter(strPC, 0);
         if (IsErrorValue(strCollection))
@@ -3715,10 +3799,14 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
     //@map(array, $index, $value, body)
     if (sMetaName == "map")
     {
-        struct Value strError = CheckArity(strPC, 3, 4);
+        struct Value strError = CheckParameterParserError(strPC);
         if (IsErrorValue(strError))
             return strError;
+
         int nCount = GetParameterCount(strPC);
+        if (nCount != 3 && nCount != 4)
+            return GetErrorValue("MAP_USAGE:@map(array,$value,body) OR @map(array,$index,$value,body)");
+
         int bHasIndexAlias = nCount == 4;
 
         string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 1) : "";
@@ -3729,6 +3817,8 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             return GetErrorValue("MAP_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
         if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("MAP_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
+        if (bHasIndexAlias && sIndexAlias == sValueAlias)
+            return GetErrorValue("MAP_VALUE_DUPLICATE_ALIAS:" + sIndexAlias);
 
         struct Value strCollection = EvalCompiledParameter(strPC, 0);
         if (IsErrorValue(strCollection))
@@ -3773,11 +3863,14 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
     // @filter(array, $index, $value, predicate)
     if (sMetaName == "filter")
     {
-        struct Value strError = CheckArity(strPC, 3, 4);
+        struct Value strError = CheckParameterParserError(strPC);
         if (IsErrorValue(strError))
             return strError;
 
         int nCount = GetParameterCount(strPC);
+        if (nCount != 3 && nCount != 4)
+            return GetErrorValue("FILTER_USAGE:@filter(array,$value,predicate) OR @filter(array,$index,$value,predicate)");
+
         int bHasIndexAlias = nCount == 4;
         string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 1) : "";
         string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1);
@@ -3787,6 +3880,8 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             return GetErrorValue("FILTER_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
         if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("FILTER_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
+        if (bHasIndexAlias && sIndexAlias == sValueAlias)
+            return GetErrorValue("FILTER_DUPLICATE_ALIAS:" + sIndexAlias);
 
         struct Value strCollection = EvalCompiledParameter(strPC, 0);
         if (IsErrorValue(strCollection))
@@ -3828,15 +3923,178 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         return GetValueFromJson(jResult);
     }
 
+    // @sortby(array, $value, key)
+    // @sortby(array, $value, key, asc|desc)
+    // @sortby(array, $index, $value, key)
+    // @sortby(array, $index, $value, key, asc|desc)
+    if (sMetaName == "sortby")
+    {
+        struct Value strError = CheckParameterParserError(strPC);
+        if (IsErrorValue(strError))
+            return strError;
+        int nCount = GetParameterCount(strPC);
+        if (nCount != 3 && nCount != 4 && nCount != 5)
+            return GetErrorValue("SORTBY_USAGE:@sortby(array,$value,key[,asc|desc]) OR @sortby(array,$index,$value,key[,asc|desc])");
+
+        int bHasIndexAlias = FALSE;
+        int bHasDirection = FALSE;
+        if (nCount == 4)
+        {
+            string sThirdArg = GetRawParameterText(strPC, 2);
+            string sLastArg = GetRawParameterText(strPC, 3);
+
+            if (IsSortDirectionLiteral(sLastArg) || !IsSymbol(sThirdArg, DAZSCRIPT_ALIAS_SYMBOL))
+                bHasDirection = TRUE;
+            else
+                bHasIndexAlias = TRUE;
+        }
+        else if (nCount == 5)
+        {
+            bHasIndexAlias = TRUE;
+            bHasDirection = TRUE;
+        }
+
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 1) : "";
+        string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1);
+        int nKeyIndex = bHasIndexAlias ? 3 : 2;
+        int nDirectionIndex = bHasDirection ? nCount - 1 : -1;
+
+        if (bHasIndexAlias && !IsSymbol(sIndexAlias, DAZSCRIPT_ALIAS_SYMBOL))
+            return GetErrorValue("SORTBY_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
+        if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
+            return GetErrorValue("SORTBY_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
+        if (bHasIndexAlias && sIndexAlias == sValueAlias)
+            return GetErrorValue("SORTBY_DUPLICATE_ALIAS:" + sIndexAlias);
+
+        int bDescending = FALSE;
+        if (bHasDirection)
+        {
+            struct Value strDirection = EvalCompiledParameter(strPC, nDirectionIndex);
+            if (IsErrorValue(strDirection))
+                return strDirection;
+            string sDirection = GetStringLowerCase(GetValueAsTrimmedString(strDirection));
+            if (sDirection == "" || sDirection == "asc" || sDirection == "ascending")
+                bDescending = FALSE;
+            else if (sDirection == "desc" || sDirection == "descending")
+                bDescending = TRUE;
+            else
+                return GetErrorValue("SORTBY_DIRECTION_INVALID:" + sDirection);
+        }
+
+        struct Value strCollection = EvalCompiledParameter(strPC, 0);
+        if (IsErrorValue(strCollection))
+            return strCollection;
+        strCollection = CastValueToJson(strCollection);
+        if (IsErrorValue(strCollection))
+            return strCollection;
+
+        json jCollection = strCollection.jValue;
+        if (JsonGetType(jCollection) != JSON_TYPE_ARRAY)
+            return GetErrorValue("SORTBY_JSON_NOT_ARRAY");
+
+        json jKey = JsonArrayGet(GetCompiledParameters(strPC), nKeyIndex);
+        string sKeyRaw = GetRawParameterText(strPC, nKeyIndex);
+        int bKeyIsRawAlias = IsSymbol(sKeyRaw, DAZSCRIPT_ALIAS_SYMBOL);
+        json jFrame = JsonCopyObject(strPC.jStack), jDecorated = JsonArray();
+        int nIndex, nLength = JsonGetLength(jCollection), nKeyKind = 0;
+        for (nIndex = 0; nIndex < nLength; nIndex++)
+        {
+            if (bHasIndexAlias)
+                JsonObjectSetInplace(jFrame, sIndexAlias, MakeStackAliasEntryFromValue(GetValueFromInt(nIndex)));
+
+            json jItem = JsonArrayGet(jCollection, nIndex);
+
+            struct Value strItem = ConvertJsonToValue(jItem);
+            if (IsErrorValue(strItem))
+                return strItem;
+
+            JsonObjectSetInplace(jFrame, sValueAlias, MakeStackAliasEntryFromValue(strItem));
+
+            struct Value strKey;
+            if (bKeyIsRawAlias)
+                strKey = ResolveAliasValue(jFrame, sKeyRaw);
+            else
+                strKey = EvalTemplate(jKey, jFrame);
+            if (IsErrorValue(strKey))
+                return strKey;
+
+            int nThisKeyKind = SortKeyKind(strKey);
+            if (!nThisKeyKind)
+                return GetErrorValue("SORTBY_KEY_NOT_COMPARABLE:" + TraceValue(strKey));
+
+            if (!nKeyKind)
+                nKeyKind = nThisKeyKind;
+            else if (nKeyKind != nThisKeyKind)
+                return GetErrorValue("SORTBY_MIXED_KEY_TYPES:" + TraceValue(strKey));
+
+            json jEntry = JsonObject();
+            JsonObjectSetIntInplace(jEntry, "index", nIndex);
+
+            strError = SqlRowSetJsonValueInplace(jEntry, "key", strKey);
+            if (IsErrorValue(strError))
+                return strError;
+
+            JsonObjectSetInplace(jEntry, "value", jItem);
+            JsonArrayInsertInplace(jDecorated, jEntry);
+        }
+
+        json jUsed = JsonObject();
+        json jResult = JsonArray();
+
+        int nOut;
+        for (nOut = 0; nOut < nLength; nOut++)
+        {
+            int nBest = -1;
+            struct Value strBestKey;
+
+            int nCandidate;
+            for (nCandidate = 0; nCandidate < nLength; nCandidate++)
+            {
+                string sCandidateKey = IntToString(nCandidate);
+                if (JsonObjectContainsKey(jUsed, sCandidateKey))
+                    continue;
+
+                json jCandidateEntry = JsonArrayGet(jDecorated, nCandidate);
+                struct Value strCandidateKey = ConvertJsonToValue(JsonObjectGet(jCandidateEntry, "key"));
+                if (IsErrorValue(strCandidateKey))
+                    return strCandidateKey;
+
+                if (nBest == -1)
+                {
+                    nBest = nCandidate;
+                    strBestKey = strCandidateKey;
+                    continue;
+                }
+
+                int nCompare = CompareSortKeys(strCandidateKey, strBestKey, nKeyKind);
+
+                if ((!bDescending && nCompare < 0) || (bDescending && nCompare > 0))
+                {
+                    nBest = nCandidate;
+                    strBestKey = strCandidateKey;
+                }
+            }
+
+            JsonObjectSetIntInplace(jUsed, IntToString(nBest), TRUE);
+            json jBestEntry = JsonArrayGet(jDecorated, nBest);
+            JsonArrayInsertInplace(jResult, JsonObjectGet(jBestEntry, "value"));
+        }
+
+        return GetValueFromJson(jResult);
+    }
+
     // @reduce(array, initial, $acc, $value, body)
     // @reduce(array, initial, $acc, $index, $value, body)
     if (sMetaName == "reduce")
     {
-        struct Value strError = CheckArity(strPC, 5, 6);
+        struct Value strError = CheckParameterParserError(strPC);
         if (IsErrorValue(strError))
             return strError;
 
         int nCount = GetParameterCount(strPC);
+        if (nCount != 5 && nCount != 6)
+            return GetErrorValue("REDUCE_USAGE:@reduce(array,initial,$acc,$value,body) OR @reduce(array,initial,$acc,$index,$value,body)");
+
         int bHasIndexAlias = nCount == 6;
         string sAccumulatorAlias = GetRawParameterText(strPC, 2);
         string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 3) : "";
@@ -3849,6 +4107,12 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             return GetErrorValue("REDUCE_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
         if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("REDUCE_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
+        if (sAccumulatorAlias == sValueAlias)
+            return GetErrorValue("REDUCE_DUPLICATE_ALIAS:" + sAccumulatorAlias);
+        if (bHasIndexAlias && sAccumulatorAlias == sIndexAlias)
+            return GetErrorValue("REDUCE_DUPLICATE_ALIAS:" + sAccumulatorAlias);
+        if (bHasIndexAlias && sIndexAlias == sValueAlias)
+            return GetErrorValue("REDUCE_DUPLICATE_ALIAS:" + sIndexAlias);
 
         struct Value strCollection = EvalCompiledParameter(strPC, 0);
         if (IsErrorValue(strCollection))
@@ -3888,6 +4152,173 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         }
 
         return strAccumulator;
+    }
+
+    return GetInvalidValue();
+}
+
+struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
+{
+    // @count(array)
+    // @count(array, $value, predicate)
+    // @count(array, $index, $value, predicate)
+    if (sMetaName == "count")
+    {
+        struct Value strError = CheckArity(strPC, 1, 4);
+        if (IsErrorValue(strError))
+            return strError;
+
+        int nCount = GetParameterCount(strPC);
+        if (nCount != 1 && nCount != 3 && nCount != 4)
+            return GetErrorValue("COUNT_USAGE:@count(array) OR @count(array,$value,predicate) OR @count(array,$index,$value,predicate)");
+
+        struct Value strCollection = EvalCompiledParameter(strPC, 0);
+        if (IsErrorValue(strCollection))
+            return strCollection;
+        strCollection = CastValueToJson(strCollection);
+        if (IsErrorValue(strCollection))
+            return strCollection;
+        json jCollection = strCollection.jValue;
+
+        if (JsonGetType(jCollection) != JSON_TYPE_ARRAY)
+            return GetErrorValue("COUNT_JSON_NOT_ARRAY");
+
+        int nIndex, nLength = JsonGetLength(jCollection);
+        if (nCount == 1)
+            return GetValueFromInt(nLength);
+
+        int bHasIndexAlias = nCount == 4;
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 1) : "";
+        string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1);
+        int nPredicateIndex = bHasIndexAlias ? 3 : 2;
+
+        if (bHasIndexAlias && !IsSymbol(sIndexAlias, DAZSCRIPT_ALIAS_SYMBOL))
+            return GetErrorValue("COUNT_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
+        if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
+            return GetErrorValue("COUNT_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
+        if (bHasIndexAlias && sIndexAlias == sValueAlias)
+            return GetErrorValue("COUNT_DUPLICATE_ALIAS:" + sIndexAlias);
+
+        json jPredicate = JsonArrayGet(GetCompiledParameters(strPC), nPredicateIndex);
+        json jFrame = JsonCopyObject(strPC.jStack);
+        int nMatched = 0;
+
+        for (nIndex = 0; nIndex < nLength; nIndex++)
+        {
+            if (bHasIndexAlias)
+                JsonObjectSetInplace(jFrame, sIndexAlias, MakeStackAliasEntryFromValue(GetValueFromInt(nIndex)));
+
+            struct Value strItem = ConvertJsonToValue(JsonArrayGet(jCollection, nIndex));
+            if (IsErrorValue(strItem))
+                return strItem;
+
+            JsonObjectSetInplace(jFrame, sValueAlias, MakeStackAliasEntryFromValue(strItem));
+
+            struct Value strPredicate = EvalTemplate(jPredicate, jFrame);
+            if (IsErrorValue(strPredicate))
+                return strPredicate;
+
+            if (ValueToBoolish(strPredicate))
+                nMatched++;
+        }
+
+        return GetValueFromInt(nMatched);
+    }
+
+    // @sum(array)
+    // @sum(array, $value, selector)
+    // @sum(array, $index, $value, selector)
+    // @avg(array)
+    // @avg(array, $value, selector)
+    // @avg(array, $index, $value, selector)
+    if (sMetaName == "sum" || sMetaName == "avg")
+    {
+        struct Value strError = CheckArity(strPC, 1, 4);
+        if (IsErrorValue(strError))
+            return strError;
+
+        int nCount = GetParameterCount(strPC);
+        if (nCount != 1 && nCount != 3 && nCount != 4)
+            return GetErrorValue(GetStringUpperCase(sMetaName) + "_USAGE:@" + sMetaName + "(array) OR @" + sMetaName + "(array,$value,selector) OR @" + sMetaName + "(array,$index,$value,selector)");
+
+        struct Value strCollection = EvalCompiledParameter(strPC, 0);
+        if (IsErrorValue(strCollection))
+            return strCollection;
+        strCollection = CastValueToJson(strCollection);
+        if (IsErrorValue(strCollection))
+            return strCollection;
+        json jCollection = strCollection.jValue;
+
+        if (JsonGetType(jCollection) != JSON_TYPE_ARRAY)
+            return GetErrorValue(GetStringUpperCase(sMetaName) + "_JSON_NOT_ARRAY");
+
+        int bHasSelector = nCount != 1;
+        int bHasIndexAlias = nCount == 4;
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 1) : "";
+        string sValueAlias = bHasSelector ? GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1) : "";
+        int nSelectorIndex = bHasIndexAlias ? 3 : 2;
+
+        if (bHasSelector)
+        {
+            if (bHasIndexAlias && !IsSymbol(sIndexAlias, DAZSCRIPT_ALIAS_SYMBOL))
+                return GetErrorValue(GetStringUpperCase(sMetaName) + "_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
+            if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
+                return GetErrorValue(GetStringUpperCase(sMetaName) + "_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
+            if (bHasIndexAlias && sIndexAlias == sValueAlias)
+                return GetErrorValue(GetStringUpperCase(sMetaName) + "_DUPLICATE_ALIAS:" + sIndexAlias);
+        }
+
+        json jSelector = bHasSelector ? JsonArrayGet(GetCompiledParameters(strPC), nSelectorIndex) : JSON_NULL;
+        json jFrame = JsonCopyObject(strPC.jStack);
+
+        int nIndex, nLength = JsonGetLength(jCollection);
+        if (sMetaName == "avg" && nLength == 0)
+            return GetErrorValue("AVG_EMPTY_ARRAY");
+
+        int bAllInt = TRUE;
+        int nIntTotal = 0;
+        float fTotal = 0.0;
+
+        for (nIndex = 0; nIndex < nLength; nIndex++)
+        {
+            struct Value strValue = ConvertJsonToValue(JsonArrayGet(jCollection, nIndex));
+            if (IsErrorValue(strValue))
+                return strValue;
+
+            if (bHasSelector)
+            {
+                if (bHasIndexAlias)
+                    JsonObjectSetInplace(jFrame, sIndexAlias, MakeStackAliasEntryFromValue(GetValueFromInt(nIndex)));
+
+                JsonObjectSetInplace(jFrame, sValueAlias, MakeStackAliasEntryFromValue(strValue));
+
+                strValue = EvalTemplate(jSelector, jFrame);
+                if (IsErrorValue(strValue))
+                    return strValue;
+            }
+
+            if (!IsValueNumericParameter(strValue))
+                return GetErrorValue(GetStringUpperCase(sMetaName) + "_VALUE_NOT_NUMERIC:" + TraceValue(strValue));
+
+            if (IsValueIntParameter(strValue))
+            {
+                int nValue = GetValueAsInt(strValue);
+                nIntTotal += nValue;
+                fTotal += IntToFloat(nValue);
+            }
+            else
+            {
+                bAllInt = FALSE;
+                fTotal += GetValueAsFloat(strValue);
+            }
+        }
+
+        if (sMetaName == "avg")
+            return GetValueFromFloat(fTotal / IntToFloat(nLength));
+
+        if (bAllInt)
+            return GetValueFromInt(nIntTotal);
+        return GetValueFromFloat(fTotal);
     }
 
     return GetInvalidValue();
@@ -4522,6 +4953,81 @@ struct Value JsonArrayInsertValueInplace(json jArray, struct Value strValue)
         default: return GetErrorValue("INVALID_JSON_ARRAY_VALUE_AUXTYPE:" + IntToString(strValue.nAuxType));
     }
     return GetInvalidValue();
+}
+
+int IsSortDirectionLiteral(string sRaw)
+{
+    sRaw = GetStringLowerCase(trim(sRaw));
+    if ((GetStringLeft(sRaw, 1) == "'" && GetStringRight(sRaw, 1) == "'") ||
+        (GetStringLeft(sRaw, 1) == "\"" && GetStringRight(sRaw, 1) == "\""))
+    {
+        sRaw = GetSubString(sRaw, 1, GetStringLength(sRaw) - 2);
+        sRaw = trim(sRaw);
+    }
+
+    return sRaw == "asc"|| sRaw == "ascending" || sRaw == "desc" || sRaw == "descending";
+}
+
+int SortKeyKind(struct Value strValue)
+{
+    if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT || strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
+        return 1;
+    if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
+        return 2;
+    return 0;
+}
+
+int SortCharRank(string sChar)
+{
+    string sOrder = " 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-.,:;!?/'\"()[]{}";
+    int nRank = FindSubString(sOrder, sChar, 0);
+    if (nRank == -1)
+        return 999;
+    return nRank;
+}
+
+int CompareSortStrings(string sLeft, string sRight)
+{
+    string sLeftCmp = GetStringLowerCase(sLeft), sRightCmp = GetStringLowerCase(sRight);
+    int nLeftLength = GetStringLength(sLeftCmp), nRightLength = GetStringLength(sRightCmp);
+    int nIndex, nLength = nLeftLength < nRightLength ? nLeftLength : nRightLength;
+
+    for (nIndex = 0; nIndex < nLength; nIndex++)
+    {
+        int nLeftRank = SortCharRank(GetSubString(sLeftCmp, nIndex, 1));
+        int nRightRank = SortCharRank(GetSubString(sRightCmp, nIndex, 1));
+
+        if (nLeftRank < nRightRank)
+            return -1;
+        if (nLeftRank > nRightRank)
+            return 1;
+    }
+
+    if (nLeftLength < nRightLength)
+        return -1;
+    if (nLeftLength > nRightLength)
+        return 1;
+    return 0;
+}
+
+int CompareSortKeys(struct Value strLeft, struct Value strRight, int nKeyKind)
+{
+    if (nKeyKind == 1)
+    {
+        float fLeft = GetValueAsFloat(strLeft), fRight = GetValueAsFloat(strRight);
+        float fDiff = fLeft - fRight;
+
+        if (fDiff < -FLOAT_EPSILON)
+            return -1;
+        if (fDiff > FLOAT_EPSILON)
+            return 1;
+
+        return 0;
+    }
+
+    if (nKeyKind == 2)
+        return CompareSortStrings(GetValueAsText(strLeft), GetValueAsText(strRight));
+    return 0;
 }
 
 int IsTraceEnabled()

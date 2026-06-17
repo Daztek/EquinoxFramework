@@ -139,6 +139,7 @@ struct Arguments
 
 string FormatString(string sString, int nDepthOverride = 0);
 string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL);
+struct Value Eval(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL);
 
 string MakeCacheKey(string sPrefix, string sString);
 json GetCachedJson(string sPrefix, string sInput);
@@ -171,9 +172,11 @@ string GetValueAsTrimmedString(struct Value strValue, string sDefault = "");
 int IsValueIntParameter(struct Value strValue);
 int IsValueNumericParameter(struct Value strValue);
 int IsValueObjectParameter(struct Value strValue);
+int IsValueJsonParameter(struct Value strValue);
 int GetValueAsInt(struct Value strValue, int nDefault = 0);
 float GetValueAsFloat(struct Value strValue, float fDefault = 0.0);
 object GetValueAsObject(struct Value strValue, object oDefault = OBJECT_INVALID);
+json GetValueAsJson(struct Value strValue, json jDefault = JSON_NULL);
 struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct Value strValue);
 string ValueToText(struct Value strValue);
 int ValueToBoolish(struct Value strValue);
@@ -313,11 +316,14 @@ string FormatString(string sString, int nDepthOverride = 0)
 
 string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL)
 {
-    if (sString == "")
-        return "";
+    struct Value strEval = Eval(sString, bTraceEnabled, 1 + nDepthOverride, jStack);
+    return ValueToText(strEval);
+}
 
-    if (FindSubString(sString, "{", 0) == -1 && FindSubString(sString, "}", 0) == -1)
-        return sString;
+struct Value Eval(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL)
+{
+    if (sString == "" || (FindSubString(sString, "{", 0) == -1 && FindSubString(sString, "}", 0) == -1))
+        return GetValueFromString(sString);
 
     int bPushedTrace = FALSE;
     if (bTraceEnabled)
@@ -326,7 +332,7 @@ string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride =
         bPushedTrace = TRUE;
     }
 
-    if (IsTraceEnabled()) { Trace("interpret", sString); }
+    if (IsTraceEnabled()) { Trace("eval.input", sString); }
 
     json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sString);
     if (!JsonGetType(jTemplate))
@@ -338,12 +344,12 @@ string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride =
     if (!JsonGetType(jStack))
         jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
 
-    sString = ValueToText(EvalTemplate(jTemplate, jStack));
+    struct Value strEval = EvalTemplate(jTemplate, jStack);
 
     if (bPushedTrace)
         PopTrace();
 
-    return sString;
+    return strEval;
 }
 
 void DazScript_Init()
@@ -722,6 +728,14 @@ int IsValueObjectParameter(struct Value strValue)
     return IsObjectIDString(GetValueAsTrimmedString(strValue));
 }
 
+int IsValueJsonParameter(struct Value strValue)
+{
+    if (IsErrorValue(strValue))
+        return FALSE;
+
+    return !IsErrorValue(CastValueToJson(strValue));
+}
+
 int GetValueAsInt(struct Value strValue, int nDefault = 0)
 {
     if (!IsValueIntParameter(strValue))
@@ -752,6 +766,15 @@ object GetValueAsObject(struct Value strValue, object oDefault = OBJECT_INVALID)
     if (oValue == OBJECT_INVALID)
         return oDefault;
     return oValue;
+}
+
+json GetValueAsJson(struct Value strValue, json jDefault = JSON_NULL)
+{
+    struct Value strJson = CastValueToJson(strValue);
+    if (IsErrorValue(strJson))
+        return jDefault;
+
+    return strJson.jValue;
 }
 
 struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct Value strValue)
@@ -1842,7 +1865,7 @@ int IsValueArgType(struct Value strValue, int nArgType)
         case DAZSCRIPT_ARG_NUMERIC: return IsValueNumericParameter(strValue);
         case DAZSCRIPT_ARG_OBJECT:  return IsValueObjectParameter(strValue);
         case DAZSCRIPT_ARG_STRING:  return strValue.nAuxType == NWNX_VM_AUXTYPE_STRING;
-        case DAZSCRIPT_ARG_JSON:    return strValue.nAuxType == NWNX_VM_AUXTYPE_JSON;
+        case DAZSCRIPT_ARG_JSON:    return IsValueJsonParameter(strValue);
     }
     return FALSE;
 }
@@ -2626,6 +2649,17 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
             return ReturnPropertyChainWithValue(strPC, GetValueFromString(sOther + sValue));
     }
 
+    if (sProperty == "render")
+    {
+        json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sValue);
+        if (!JsonGetType(jTemplate))
+        {
+            jTemplate = CompileTemplate(sValue);
+            SetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sValue, jTemplate);
+        }
+        return ReturnPropertyChainWithValue(strPC, EvalTemplate(jTemplate, strPC.jStack));
+    }
+
     return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
 }
 
@@ -2830,7 +2864,7 @@ struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC)
         else if (sProperty == "bindo")
             SqlBindObjectRef(sqlValue, sBind, GetValueAsObject(strArgs.strArg1));
         else if (sProperty == "bindj")
-            SqlBindJson(sqlValue, sBind, strArgs.strArg1.jValue);
+            SqlBindJson(sqlValue, sBind, GetValueAsJson(strArgs.strArg1));
         else
         {
             switch (strArgs.strArg1.nAuxType)

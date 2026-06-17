@@ -29,6 +29,7 @@ void DazScript_TestParserErrors();
 void DazScript_TestParserEvil();
 
 void DazScript_TestMetaVars();
+void DazScript_TestRender();
 void DazScript_TestFunctionParams();
 void DazScript_TestLazy();
 void DazScript_TestControlFlow();
@@ -123,11 +124,8 @@ void DazScript_SetupSqlTests()
 {
     sqlquery q;
 
-    q = SqlPrepareQueryModule("DROP TABLE IF EXISTS test_players;");
-    SqlStep(q);
-
     q = SqlPrepareQueryModule(
-        "CREATE TABLE test_players (" +
+        "CREATE TABLE IF NOT EXISTS test_players (" +
         "id INTEGER PRIMARY KEY," +
         "name TEXT," +
         "level INTEGER," +
@@ -140,7 +138,7 @@ void DazScript_SetupSqlTests()
     SqlStep(q);
 
     q = SqlPrepareQueryModule(
-        "INSERT INTO test_players (id, name, level, xp, gold, rating, payload, owner) " +
+        "REPLACE INTO test_players (id, name, level, xp, gold, rating, payload, owner) " +
         "VALUES (@id, @name, @level, @xp, @gold, @rating, @payload, @owner);");
 
     SqlBindInt(q, "@id", 1);
@@ -1422,6 +1420,70 @@ void DazScript_TestMetaVars()
         "caught:ok");
 }
 
+void DazScript_TestRender()
+{
+    string sName = "Daz";
+    string sTemplate = "Hello {sName}";
+
+    DazScript_Test("render basic stack var",
+        "{sTemplate>render}",
+        "Hello Daz");
+
+    string sNested = "{sTemplate>render}!";
+    DazScript_Test("render nested partial",
+        "{sNested>render}",
+        "Hello Daz!");
+
+    string sInt = "{@add(2, 3)}";
+    DazScript_Test("render preserves typed int result",
+        "{@add({sInt>render}, 10)}",
+        "15");
+
+    string sPlain = "plain text";
+    DazScript_Test("render plain string",
+        "{sPlain>render}",
+        "plain text");
+
+    string sBad = "{$row>get(gol)}";
+    DazScript_TestContains("render missing key bubbles context",
+        "{@map({@json('[{{\"gold\":5}}]')}, $row, {sBad>render})}",
+        "JSON_MISSING_KEY:gol");
+
+    string sBroken = "{$row>get(gold)";
+    DazScript_TestContains("render parse error bubbles",
+        "{@map({@json('[{{\"gold\":5}}]')}, $row, {sBroken>render})}",
+        "PARSE_ERROR:UNTERMINATED_TEMPLATE_EXPR");
+
+    string sGold = "{$row>get(gold)}";
+    string sLine = "{@let($gold,{sGold>render},Gold={$gold})}";
+
+    DazScript_Test("render inside map preserves row alias",
+        "{@map({@json('[{{\"gold\":5}},{{\"gold\":7}}]')}, $row, {sLine>render})>join('|')}",
+        "Gold=5|Gold=7");
+
+    string sGoldLet = "{@let($gold,5,Gold={$gold})}";
+    DazScript_Test("render let alias does not leak",
+        "{sGoldLet>render}{@exists($gold)>bool}",
+        "Gold=5FALSE");
+
+    string sUnusedBad = "{@string(bad)wat}";
+    DazScript_Test("render lazy unselected branch ignored",
+        "{@if(TRUE, ok, {sUnusedBad>render})}",
+        "ok");
+
+    string sPluralOne = "{@string(bad)wat}";
+    string sPluralMany = "many";
+
+    DazScript_Test("render plural lazy selected branch only",
+        "{@int(2)>plural({sPluralOne>render}, {sPluralMany>render})}",
+        "many");
+
+    string sObj = "{@json('{{\"name\":\"Daz\"}}')}";
+    DazScript_Test("render preserves json result",
+        "{sObj>render>get(name)}",
+        "Daz");
+}
+
 void DazScript_TestFunctionParams()
 {
     DazScript_Test("function trims unquoted args",
@@ -1926,6 +1988,16 @@ void DazScript_TestSql()
         "Id = 1; Name = \"Test Player 1\"; Xp = 1000;\n" +
         "Id = 2; Name = \"Test Player 2\"; Xp = 2500;\n" +
         "Id = 3; Name = \"Test Player 3\"; Xp = 6250;\n");
+
+    string sQuery = "SELECT json_extract(@payload, '$.class');";
+
+    DazScript_Test("sql bind json from json value",
+        "{@sqlmodule({sQuery})>bindj(payload,{@json('{{\"class\":\"fighter\"}}')})>scalar(s)}",
+        "fighter");
+
+    DazScript_Test("sql bind json from json string",
+        "{@sqlmodule({sQuery})>bindj(payload,'{{\"class\":\"wizard\"}}')>scalar(s)}",
+        "wizard");
 }
 
 void main()
@@ -1942,6 +2014,7 @@ void main()
     DazScript_TestParserWhitespace();
     DazScript_TestStringProperties();
     DazScript_TestMetaVars();
+    DazScript_TestRender();
     DazScript_TestFunctionParams();
     DazScript_TestLazy();
     DazScript_TestControlFlow();

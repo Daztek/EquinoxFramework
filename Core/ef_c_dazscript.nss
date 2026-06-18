@@ -116,7 +116,7 @@ struct Value
     string sErrorMessage;
 };
 
-struct PropertyChain
+struct ChainContext
 {
     json jStack;
     string sBaseVarName;
@@ -146,12 +146,22 @@ struct Value Eval(string sString, int bTraceEnabled = FALSE, int nDepthOverride 
 string MakeCacheKey(string sPrefix, string sString);
 json GetCachedJson(string sPrefix, string sInput);
 void SetCachedJson(string sPrefix, string sInput, json jValue);
-string GetAliasStoredValueAsString(json jEntry);
-json MakeStackAliasEntryFromValue(struct Value strValue);
-json MakeParameterEntry(string sText, int bWasQuoted);
 
-int IsKnownAuxType(int nAuxType);
-int IsKnownStackAuxType(int nAuxType);
+int IsTraceEnabled();
+void PushTrace();
+void PopTrace();
+void PushTraceIndent();
+void PopTraceIndent();
+string GetTraceIndent();
+void Trace(string sEvent, string sDetail = "");
+void TraceEnter(string sEvent, string sDetail = "");
+void TraceExit(string sEvent, string sDetail = "");
+string TraceValue(struct Value strValue);
+string TraceExprKind(int nKind);
+string TraceQuoted(string sText);
+
+int IsAliasValueAuxType(int nAuxType);
+int IsStackEntryAuxType(int nAuxType);
 int ValueNeedsDefault(struct Value strValue);
 int IsInvalidValue(struct Value strValue);
 int IsErrorValue(struct Value strValue);
@@ -169,8 +179,8 @@ int GetCastAuxTypeFromName(string sCast);
 string GetValueAsCastString(struct Value strValue);
 struct Value CastValueToJson(struct Value strValue);
 struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType);
-string GetValueAsText(struct Value strValue, string sDefault = "");
-string GetValueAsTrimmedString(struct Value strValue, string sDefault = "");
+string GetValueText(struct Value strValue, string sErrorFallback = "");
+string GetTrimmedValueText(struct Value strValue, string sErrorFallback = "");
 int IsValueIntParameter(struct Value strValue);
 int IsValueNumericParameter(struct Value strValue);
 int IsValueObjectParameter(struct Value strValue);
@@ -179,17 +189,15 @@ int GetValueAsInt(struct Value strValue, int nDefault = 0);
 float GetValueAsFloat(struct Value strValue, float fDefault = 0.0);
 object GetValueAsObject(struct Value strValue, object oDefault = OBJECT_INVALID);
 json GetValueAsJson(struct Value strValue, json jDefault = JSON_NULL);
-struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct Value strValue);
-string ValueToText(struct Value strValue);
-int ValueToBoolish(struct Value strValue);
-struct Value EncodeValueAsJson(struct Value strValue);
+string FormatValueForDisplay(struct Value strValue);
+int IsValueTruthy(struct Value strValue);
+struct Value ValueToJsonValue(struct Value strValue);
 struct Value FormatValueAsFixed(struct Value strValue, int nPrecision);
 struct Value FormatValueAsHex(struct Value strValue);
 struct Value FormatValueAsBoolean(struct Value strValue);
 struct Value ConvertJsonToValue(json jValue);
 struct Value GetValueFromNamedColor(string sValue, string sColor);
 struct Value GetValueFromHexColor(string sValue, string sColor);
-struct Value GetValueFromSqlColumn(sqlquery sqlQuery, int nIndex, int nAuxType);
 
 int IsParserQuote(string sCharacter);
 int IsParserEscapedCharacter(string sString, int nIndex, int nLength);
@@ -213,35 +221,35 @@ json MakeParserErrorPropertySegment(string sProperty, string sParameters, json j
 json CacheParameterParserError(string sParameters, string sCode, int nAt);
 int IsParserError(json jValue);
 struct Value GetValueFromParserError(json jError, string sWhere = "");
-struct Value CheckParameterParserError(struct PropertyChain strPC);
+struct Value CheckParameterParserError(struct ChainContext strCtx);
 
 json CompileTemplate(string sString);
 json CompileForcedStringTemplate(string sValue);
 void JsonArrayInsertLiteralNodeInplace(json jTemplate, string sLiteral);
 void JsonArrayInsertForceStringNodeInplace(json jTemplate, json jInnerTemplate);
-
 json CompileExpression(string sExpr);
 json CompilePropertyChain(string sPropertyPath);
 json CompilePropertySegment(string sPropertySegment);
+json MakeParameterEntry(string sText, int bWasQuoted);
 json ParseParameterEntries(string sParameters);
 json CompileParsedParameters(string sParameters, json jParameterEntries);
 json CompileParameters(string sParameters);
 
-json GetCompiledParameters(struct PropertyChain strPC);
-json GetParameterEntries(struct PropertyChain strPC);
-string GetRawParameterText(struct PropertyChain strPC, int nIndex, string sDefault = "");
-int GetRawParameterWasQuoted(struct PropertyChain strPC, int nIndex);
-int GetParameterCount(struct PropertyChain strPC);
-struct Value EvalCompiledParameter(struct PropertyChain strPC, int nIndex);
-struct Value EvalJsonArrayParameter(struct PropertyChain strPC, int nIndex, string sErrorCode);
+json GetCompiledParameters(struct ChainContext strCtx);
+json GetParameterEntries(struct ChainContext strCtx);
+string GetRawParameterText(struct ChainContext strCtx, int nIndex, string sDefault = "");
+int GetRawParameterWasQuoted(struct ChainContext strCtx, int nIndex);
+int GetParameterCount(struct ChainContext strCtx);
+struct Value EvalCompiledParameter(struct ChainContext strCtx, int nIndex);
+struct Value EvalJsonArrayParameter(struct ChainContext strCtx, int nIndex, string sErrorCode);
 string GetArgTypeName(int nArgType);
 int IsValueArgType(struct Value strValue, int nArgType);
-struct Value CheckArity(struct PropertyChain strPC, int nMin, int nMax);
-struct Value EvalTypedParameter(struct PropertyChain strPC, int nIndex, int nArgType);
-struct Arguments EvalArgs(struct PropertyChain strPC, int nMin, int nMax, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY, int nType3 = DAZSCRIPT_ARG_ANY, int nType4 = DAZSCRIPT_ARG_ANY);
-struct Arguments EvalOneArg(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY);
-struct Arguments EvalTwoArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY);
-struct Arguments EvalThreeArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY);
+struct Value CheckArity(struct ChainContext strCtx, int nMin, int nMax);
+struct Value EvalTypedParameter(struct ChainContext strCtx, int nIndex, int nArgType);
+struct Arguments EvalArgs(struct ChainContext strCtx, int nMin, int nMax, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY, int nType3 = DAZSCRIPT_ARG_ANY, int nType4 = DAZSCRIPT_ARG_ANY);
+struct Arguments EvalOneArg(struct ChainContext strCtx, int nType0 = DAZSCRIPT_ARG_ANY);
+struct Arguments EvalTwoArgs(struct ChainContext strCtx, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY);
+struct Arguments EvalThreeArgs(struct ChainContext strCtx, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY);
 
 struct Value EvalTemplate(json jTemplate, json jStack);
 struct Value EvalTemplateToString(json jTemplate, json jStack);
@@ -250,30 +258,30 @@ struct Value GetStackValue(json jStack, string sVarName);
 struct Value ResolveAliasValue(json jStack, string sAliasName);
 struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParameters, json jBaseCompiledParameters);
 struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBaseParameters, json jBaseCompiledParameters);
-struct PropertyChain ApplyCompiledPropertySegment(struct PropertyChain strPC, json jSegment);
-struct PropertyChain EvalCompiledPropertyChain(struct PropertyChain strPC, json jSegments);
-struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC);
+struct ChainContext ApplyCompiledPropertySegment(struct ChainContext strCtx, json jSegment);
+struct ChainContext EvalCompiledPropertyChain(struct ChainContext strCtx, json jSegments);
+struct ChainContext ResolveCurrentPropertyByValueType(struct ChainContext strCtx);
+struct ChainContext SetChainContextValue(struct ChainContext strCtx, struct Value strValue);
 
-struct PropertyChain ReturnPropertyChainWithValue(struct PropertyChain strPC, struct Value strValue);
-struct PropertyChain GetIntProperty(struct PropertyChain strPC);
-struct PropertyChain GetFloatProperty(struct PropertyChain strPC);
-struct PropertyChain GetStringProperty(struct PropertyChain strPC);
-struct PropertyChain GetObjectProperty(struct PropertyChain strPC);
-struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC);
-struct PropertyChain GetJsonProperty(struct PropertyChain strPC);
-struct PropertyChain GetSharedProperty(struct PropertyChain strPC);
+struct ChainContext ResolveIntProperty(struct ChainContext strCtx);
+struct ChainContext ResolveFloatProperty(struct ChainContext strCtx);
+struct ChainContext ResolveStringProperty(struct ChainContext strCtx);
+struct ChainContext ResolveObjectProperty(struct ChainContext strCtx);
+struct ChainContext ResolveSqlQueryProperty(struct ChainContext strCtx);
+struct ChainContext ResolveJsonProperty(struct ChainContext strCtx);
+struct ChainContext ResolveSharedProperty(struct ChainContext strCtx);
 
-struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName);
-struct Value HandleMetaSqlQuery(struct PropertyChain strPC, string sMetaName);
+struct Value HandleMetaPrimitive(struct ChainContext strCtx, string sMetaName);
+struct Value HandleMetaFunction(struct ChainContext strCtx, string sMetaName);
+struct Value HandleMetaControlFlow(struct ChainContext strCtx, string sMetaName);
+struct Value HandleMetaCollection(struct ChainContext strCtx, string sMetaName);
+struct Value HandleMetaAggregate(struct ChainContext strCtx, string sMetaName);
+struct Value HandleMetaVariable(struct ChainContext strCtx, string sMetaName);
+struct Value HandleMetaIntrospection(struct ChainContext strCtx, string sMetaName);
+struct Value HandleMetaOutput(struct ChainContext strCtx, string sMetaName);
+struct Value HandleMetaMath(struct ChainContext strCtx, string sMetaName);
+struct Value HandleMetaObject(struct ChainContext strCtx, string sMetaName);
+struct Value HandleMetaSqlQuery(struct ChainContext strCtx, string sMetaName);
 
 struct Value CheckSqlQueryError(sqlquery sqlQuery);
 struct Value CheckSqlStateIs(sqlquery sqlQuery, int nState);
@@ -283,28 +291,15 @@ int GetSqlAuxTypeFromShortType(string sChar);
 struct Value ValidateSqlRowSpec(string sSpec, int nColumnCount, string sErrorPrefix);
 struct Value SqlRowSetColumnInplace(json jRow, sqlquery sqlQuery, int nIndex, string sName, int nAuxType);
 struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, string sSpec);
+struct Value GetValueFromSqlColumn(sqlquery sqlQuery, int nIndex, int nAuxType);
 
 struct Value ValidateLoopAliases(string sMetaName, int bHasIndexAlias, string sIndexAlias, string sValueAlias);
 struct Value BindArrayLoopAliasesInplace(json jFrame, json jCollection, int nIndex, int bHasIndexAlias, string sIndexAlias, string sValueAlias);
-
 int IsSortDirectionLiteral(string sRaw);
 int SortKeyKind(struct Value strValue);
 int SortCharRank(string sChar);
 int CompareSortStrings(string sLeft, string sRight);
 int CompareSortKeys(struct Value strLeft, struct Value strRight, int nKeyKind);
-
-int IsTraceEnabled();
-void PushTrace();
-void PopTrace();
-void PushTraceIndent();
-void PopTraceIndent();
-string GetTraceIndent();
-void Trace(string sEvent, string sDetail = "");
-void TraceEnter(string sEvent, string sDetail = "");
-void TraceExit(string sEvent, string sDetail = "");
-string TraceValue(struct Value strValue);
-string TraceExprKind(int nKind);
-string TraceQuoted(string sText);
 
 int IsStackVar(string sVarName);
 int IsSymbol(string sVarName, string sSymbol);
@@ -316,6 +311,9 @@ string GetAliasEntryType(json jEntry);
 string GetStackEntryType(json jEntry);
 string GetSymbolType(json jStack, string sName);
 int SymbolExists(json jStack, string sName);
+string GetAliasStoredValueAsString(json jEntry);
+json MakeStackAliasEntryFromValue(struct Value strValue);
+struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct Value strValue);
 
 string InferDebugValueType(string sValue);
 string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "");
@@ -329,7 +327,7 @@ string FormatString(string sString, int nDepthOverride = 0)
 string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL)
 {
     struct Value strEval = Eval(sString, bTraceEnabled, 1 + nDepthOverride, jStack);
-    return ValueToText(strEval);
+    return FormatValueForDisplay(strEval);
 }
 
 struct Value Eval(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL)
@@ -404,68 +402,122 @@ void SetCachedJson(string sPrefix, string sInput, json jValue)
     SetLocalJson(GetDataObject(DAZSCRIPT_SCRIPT_NAME), MakeCacheKey(sPrefix, sInput), jValue);
 }
 
-string GetAliasStoredValueAsString(json jEntry)
+int IsTraceEnabled()
 {
-    json jValue = JsonObjectGet(jEntry, DAZSCRIPT_ALIAS_VALUE);
-    switch (JsonGetType(jValue))
-    {
-        case JSON_TYPE_STRING: return JsonGetString(jValue);
-        case JSON_TYPE_INTEGER: return IntToString(JsonGetInt(jValue));
-        case JSON_TYPE_FLOAT: return FloatToString(JsonGetFloat(jValue), 0, 9);
-    }
-    return JsonDump(jValue);
+    return GetLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_DEPTH_KEY) > 0;
 }
 
-json MakeStackAliasEntryFromValue(struct Value strValue)
+void PushTrace()
 {
-    json jEntry = JsonObject();
+    IncrementLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_DEPTH_KEY);
+}
 
+void PopTrace()
+{
+    object oDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
+    int nDepth = GetLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY) - 1;
+    if (nDepth <= 0)
+    {
+        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY);
+        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
+    }
+    else
+    {
+        SetLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY, nDepth);
+    }
+}
+
+void PushTraceIndent()
+{
+    IncrementLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_INDENT_KEY);
+}
+
+void PopTraceIndent()
+{
+    object oDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
+    int nDepth = GetLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY) - 1;
+    if (nDepth <= 0)
+        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
+    else
+        SetLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY, nDepth);
+}
+
+string GetTraceIndent()
+{
+    int nDepth = GetLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_INDENT_KEY);
+    string sIndent = "";
+    while (nDepth > 0)
+    {
+        sIndent += "  ";
+        nDepth--;
+    }
+    return sIndent;
+}
+
+void Trace(string sEvent, string sDetail = "")
+{
+    string sLine = "[TRACE] " + RightPadString(GetTraceIndent() + sEvent, DAZSCRIPT_TRACE_EVENT_WIDTH, " ");
+    if (sDetail != "")
+        sLine += " | " + sDetail;
+    PrintString(sLine);
+}
+
+void TraceEnter(string sEvent, string sDetail = "")
+{
+    Trace(sEvent, sDetail);
+    PushTraceIndent();
+}
+
+void TraceExit(string sEvent, string sDetail = "")
+{
+    PopTraceIndent();
+    Trace(sEvent, sDetail);
+}
+
+string TraceValue(struct Value strValue)
+{
     if (IsErrorValue(strValue))
-    {
-        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INVALID);
-        JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.sErrorMessage);
-        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_ERROR, TRUE);
-        return jEntry;
-    }
+        return "error " + strValue.sErrorMessage;
 
-    if (!IsKnownAuxType(strValue.nAuxType))
-    {
-        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INVALID);
-        JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, "INVALID_ALIAS_VALUE");
-        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_ERROR, TRUE);
-        return jEntry;
-    }
+    string sType = AuxTypeToString(strValue.nAuxType, TRUE);
+    string sText = FormatValueForDisplay(strValue);
 
-    JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, strValue.nAuxType);
-    JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_ERROR, FALSE);
+    if (GetStringLength(sText) > DAZSCRIPT_TRACE_MAX_LENGTH)
+        sText = GetStringLeft(sText, DAZSCRIPT_TRACE_MAX_LENGTH) + "...";
 
-    switch (strValue.nAuxType)
-    {
-        case NWNX_VM_AUXTYPE_INT:       JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.nValue); break;
-        case NWNX_VM_AUXTYPE_FLOAT:     JsonObjectSetFloatInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.fValue); break;
-        case NWNX_VM_AUXTYPE_STRING:    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.sValue); break;
-        case NWNX_VM_AUXTYPE_OBJECT:    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, ObjectIDToString(strValue.oValue));  break;
-        case NWNX_VM_AUXTYPE_JSON:      JsonObjectSetInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.jValue); break;
-        default:                        JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, ValueToText(strValue)); break;
-    }
-    return jEntry;
+    if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
+        return sType + " \"" + EscapeString(sText) + "\"";
+
+    return sType + " " + sText;
 }
 
-json MakeParameterEntry(string sText, int bWasQuoted)
+string TraceExprKind(int nKind)
 {
-    json jEntry = JsonObject();
-    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_PARAMETER_TEXT, sText);
-    JsonObjectSetIntInplace(jEntry, DAZSCRIPT_PARAMETER_WAS_QUOTED, bWasQuoted);
-    return jEntry;
+    switch (nKind)
+    {
+        case DAZSCRIPT_EXPR_VAR:      return "var";
+        case DAZSCRIPT_EXPR_ALIAS:    return "alias";
+        case DAZSCRIPT_EXPR_META:     return "meta";
+        case DAZSCRIPT_EXPR_FUNCTION: return "function";
+    }
+
+    return "unknown";
 }
 
-int IsKnownAuxType(int nAuxType)
+string TraceQuoted(string sText)
+{
+    if (GetStringLength(sText) > DAZSCRIPT_TRACE_MAX_LENGTH)
+        sText = GetStringLeft(sText, DAZSCRIPT_TRACE_MAX_LENGTH) + "...";
+    return "\"" + EscapeString(sText) + "\"";
+}
+
+int IsAliasValueAuxType(int nAuxType)
 {
     return nAuxType == NWNX_VM_AUXTYPE_INT || nAuxType == NWNX_VM_AUXTYPE_FLOAT || nAuxType == NWNX_VM_AUXTYPE_STRING ||
            nAuxType == NWNX_VM_AUXTYPE_OBJECT || nAuxType == NWNX_VM_AUXTYPE_JSON;
 }
 
-int IsKnownStackAuxType(int nAuxType)
+int IsStackEntryAuxType(int nAuxType)
 {
     return nAuxType == NWNX_VM_AUXTYPE_INT || nAuxType == NWNX_VM_AUXTYPE_FLOAT || nAuxType == NWNX_VM_AUXTYPE_STRING ||
            nAuxType == NWNX_VM_AUXTYPE_OBJECT || nAuxType == NWNX_VM_AUXTYPE_SQLQUERY || nAuxType == NWNX_VM_AUXTYPE_JSON ||
@@ -618,7 +670,7 @@ string GetValueAsCastString(struct Value strValue)
         return GetAliasStoredValueAsString(jEntry);
     }
 
-    return ValueToText(strValue);
+    return FormatValueForDisplay(strValue);
 }
 
 struct Value CastValueToJson(struct Value strValue)
@@ -701,16 +753,16 @@ struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType)
     return GetErrorValue("INVALID_CAST_AUXTYPE:" + IntToString(nTargetAuxType));
 }
 
-string GetValueAsText(struct Value strValue, string sDefault = "")
+string GetValueText(struct Value strValue, string sErrorFallback = "")
 {
     if (IsErrorValue(strValue))
-        return sDefault;
-    return ValueToText(strValue);
+        return sErrorFallback ;
+    return FormatValueForDisplay(strValue);
 }
 
-string GetValueAsTrimmedString(struct Value strValue, string sDefault = "")
+string GetTrimmedValueText(struct Value strValue, string sErrorFallback = "")
 {
-    return trim(GetValueAsText(strValue, sDefault));
+    return trim(GetValueText(strValue, sErrorFallback ));
 }
 
 int IsValueIntParameter(struct Value strValue)
@@ -719,7 +771,7 @@ int IsValueIntParameter(struct Value strValue)
         return FALSE;
     if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
         return TRUE;
-    return IsInteger(GetValueAsTrimmedString(strValue));
+    return IsInteger(GetTrimmedValueText(strValue));
 }
 
 int IsValueNumericParameter(struct Value strValue)
@@ -728,7 +780,7 @@ int IsValueNumericParameter(struct Value strValue)
         return FALSE;
     if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT || strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
         return TRUE;
-    return IsNumeric(GetValueAsTrimmedString(strValue));
+    return IsNumeric(GetTrimmedValueText(strValue));
 }
 
 int IsValueObjectParameter(struct Value strValue)
@@ -737,7 +789,7 @@ int IsValueObjectParameter(struct Value strValue)
         return FALSE;
     if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
         return TRUE;
-    return IsObjectIDString(GetValueAsTrimmedString(strValue));
+    return IsObjectIDString(GetTrimmedValueText(strValue));
 }
 
 int IsValueJsonParameter(struct Value strValue)
@@ -754,7 +806,7 @@ int GetValueAsInt(struct Value strValue, int nDefault = 0)
         return nDefault;
     if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
         return strValue.nValue;
-    return StringToInt(GetValueAsTrimmedString(strValue));
+    return StringToInt(GetTrimmedValueText(strValue));
 }
 
 float GetValueAsFloat(struct Value strValue, float fDefault = 0.0)
@@ -765,7 +817,7 @@ float GetValueAsFloat(struct Value strValue, float fDefault = 0.0)
         return IntToFloat(strValue.nValue);
     if (strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
         return strValue.fValue;
-    return StringToFloat(GetValueAsTrimmedString(strValue));
+    return StringToFloat(GetTrimmedValueText(strValue));
 }
 
 object GetValueAsObject(struct Value strValue, object oDefault = OBJECT_INVALID)
@@ -774,7 +826,7 @@ object GetValueAsObject(struct Value strValue, object oDefault = OBJECT_INVALID)
         return oDefault;
     if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
         return strValue.oValue;
-    object oValue = StringToObject(GetValueAsTrimmedString(strValue));
+    object oValue = StringToObject(GetTrimmedValueText(strValue));
     if (oValue == OBJECT_INVALID)
         return oDefault;
     return oValue;
@@ -789,29 +841,7 @@ json GetValueAsJson(struct Value strValue, json jDefault = JSON_NULL)
     return strJson.jValue;
 }
 
-struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct Value strValue)
-{
-    struct Value strOutValue = CastValueToAuxType(strValue, nAuxType);
-    if (IsErrorValue(strOutValue))
-        return GetErrorValue("TYPE_MISMATCH:OUT_NOT_" + GetStringUpperCase(AuxTypeToString(nAuxType, TRUE)));
-
-    if (nAuxType == NWNX_VM_AUXTYPE_INT)
-        NWNX_VM_SetStackIntegerValue(nStackLocation, strOutValue.nValue);
-    else if (nAuxType == NWNX_VM_AUXTYPE_FLOAT)
-        NWNX_VM_SetStackFloatValue(nStackLocation, strOutValue.fValue);
-    else if (nAuxType == NWNX_VM_AUXTYPE_OBJECT)
-        NWNX_VM_SetStackObjectValue(nStackLocation, strOutValue.oValue);
-    else if (nAuxType == NWNX_VM_AUXTYPE_STRING)
-        NWNX_VM_SetStackStringValue(nStackLocation, strOutValue.sValue);
-    else if (nAuxType == NWNX_VM_AUXTYPE_JSON)
-        NWNX_VM_SetStackJsonValue(nStackLocation, strOutValue.jValue);
-    else
-        return GetErrorValue("TYPE_MISMATCH:OUT_UNSUPPORTED_TYPE");
-
-    return GetValueFromString();
-}
-
-string ValueToText(struct Value strValue)
+string FormatValueForDisplay(struct Value strValue)
 {
     if (IsErrorValue(strValue))
         return "[" + strValue.sErrorMessage + "]";
@@ -828,7 +858,7 @@ string ValueToText(struct Value strValue)
     return "[UNHANDLED_AUXTYPE:" + AuxTypeToString(strValue.nAuxType) + "]";
 }
 
-int ValueToBoolish(struct Value strValue)
+int IsValueTruthy(struct Value strValue)
 {
     switch (strValue.nAuxType)
     {
@@ -858,7 +888,7 @@ int ValueToBoolish(struct Value strValue)
     return FALSE;
 }
 
-struct Value EncodeValueAsJson(struct Value strValue)
+struct Value ValueToJsonValue(struct Value strValue)
 {
     if (IsErrorValue(strValue))
         return strValue;
@@ -892,7 +922,7 @@ struct Value FormatValueAsHex(struct Value strValue)
 
 struct Value FormatValueAsBoolean(struct Value strValue)
 {
-    return GetValueFromString(ValueToBoolish(strValue) ? "TRUE" : "FALSE");
+    return GetValueFromString(IsValueTruthy(strValue) ? "TRUE" : "FALSE");
 }
 
 struct Value ConvertJsonToValue(json jValue)
@@ -973,34 +1003,6 @@ struct Value GetValueFromHexColor(string sValue, string sColor)
         return GetValueFromString(ColorString(sValue, nRed, nGreen, nBlue));
     }
     return GetErrorValue("INVALID_HEX_COLOR:" + sColor);
-}
-
-struct Value GetValueFromSqlColumn(sqlquery sqlQuery, int nIndex, int nAuxType)
-{
-    int nColumnCount = SqlGetColumnCount(sqlQuery);
-    if (nIndex < 0 || nIndex >= nColumnCount)
-        return GetErrorValue("COLUMN_INDEX_OUT_OF_RANGE:" + IntToString(nIndex));
-
-    struct Value strError = CheckSqlQueryError(sqlQuery);
-    if (IsErrorValue(strError))
-        return strError;
-
-    struct Value strValue;
-    switch (nAuxType)
-    {
-        case NWNX_VM_AUXTYPE_INT: strValue = GetValueFromInt(SqlGetInt(sqlQuery, nIndex)); break;
-        case NWNX_VM_AUXTYPE_FLOAT: strValue = GetValueFromFloat(SqlGetFloat(sqlQuery, nIndex)); break;
-        case NWNX_VM_AUXTYPE_STRING: strValue = GetValueFromString(SqlGetString(sqlQuery, nIndex)); break;
-        case NWNX_VM_AUXTYPE_OBJECT: strValue = GetValueFromObject(SqlGetObjectRef(sqlQuery, nIndex)); break;
-        case NWNX_VM_AUXTYPE_JSON: strValue = GetValueFromJson(SqlGetJson(sqlQuery, nIndex)); break;
-        default: return GetErrorValue("INVALID_SQL_COLUMN_AUXTYPE:" + IntToString(nAuxType));
-    }
-
-    strError = CheckSqlQueryError(sqlQuery);
-    if (IsErrorValue(strError))
-        return strError;
-
-    return strValue;
 }
 
 int IsParserQuote(string sCharacter)
@@ -1309,11 +1311,11 @@ struct Value GetValueFromParserError(json jError, string sWhere = "")
     return GetErrorValue(sMessage);
 }
 
-struct Value CheckParameterParserError(struct PropertyChain strPC)
+struct Value CheckParameterParserError(struct ChainContext strCtx)
 {
-    json jCompiledParameters = GetCompiledParameters(strPC);
+    json jCompiledParameters = GetCompiledParameters(strCtx);
     if (IsParserError(jCompiledParameters))
-        return GetValueFromParserError(jCompiledParameters, strPC.sCurrentProperty);
+        return GetValueFromParserError(jCompiledParameters, strCtx.sCurrentProperty);
     return GetInvalidValue();
 }
 
@@ -1602,6 +1604,14 @@ json CompilePropertySegment(string sPropertySegment)
     return jSegment;
 }
 
+json MakeParameterEntry(string sText, int bWasQuoted)
+{
+    json jEntry = JsonObject();
+    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_PARAMETER_TEXT, sText);
+    JsonObjectSetIntInplace(jEntry, DAZSCRIPT_PARAMETER_WAS_QUOTED, bWasQuoted);
+    return jEntry;
+}
+
 json ParseParameterEntries(string sParameters)
 {
     if (sParameters == "")
@@ -1805,67 +1815,67 @@ json CompileParameters(string sParameters)
     return CompileParsedParameters(sParameters, jParameterEntries);
 }
 
-json GetCompiledParameters(struct PropertyChain strPC)
+json GetCompiledParameters(struct ChainContext strCtx)
 {
-    json jCompiledParameters = strPC.jCurrentParameters;
+    json jCompiledParameters = strCtx.jCurrentParameters;
     if (JsonGetType(jCompiledParameters) == JSON_TYPE_ARRAY || IsParserError(jCompiledParameters))
         return jCompiledParameters;
-    return CompileParameters(strPC.sCurrentParameters);
+    return CompileParameters(strCtx.sCurrentParameters);
 }
 
-json GetParameterEntries(struct PropertyChain strPC)
+json GetParameterEntries(struct ChainContext strCtx)
 {
-    json jParameterEntries = strPC.jCurrentParameterEntries;
+    json jParameterEntries = strCtx.jCurrentParameterEntries;
     if (JsonGetType(jParameterEntries) == JSON_TYPE_ARRAY || IsParserError(jParameterEntries))
         return jParameterEntries;
-    return ParseParameterEntries(strPC.sCurrentParameters);
+    return ParseParameterEntries(strCtx.sCurrentParameters);
 }
 
-string GetRawParameterText(struct PropertyChain strPC, int nIndex, string sDefault = "")
+string GetRawParameterText(struct ChainContext strCtx, int nIndex, string sDefault = "")
 {
-    json jParameterEntries = GetParameterEntries(strPC);
+    json jParameterEntries = GetParameterEntries(strCtx);
     if (nIndex < 0 || nIndex >= JsonGetLength(jParameterEntries))
         return sDefault;
     return JsonObjectGetString(JsonArrayGet(jParameterEntries, nIndex), DAZSCRIPT_PARAMETER_TEXT);
 }
 
-int GetRawParameterWasQuoted(struct PropertyChain strPC, int nIndex)
+int GetRawParameterWasQuoted(struct ChainContext strCtx, int nIndex)
 {
-    json jParameterEntries = GetParameterEntries(strPC);
+    json jParameterEntries = GetParameterEntries(strCtx);
     if (nIndex < 0 || nIndex >= JsonGetLength(jParameterEntries))
         return FALSE;
     return JsonObjectGetInt(JsonArrayGet(jParameterEntries, nIndex), DAZSCRIPT_PARAMETER_WAS_QUOTED);
 }
 
-int GetParameterCount(struct PropertyChain strPC)
+int GetParameterCount(struct ChainContext strCtx)
 {
-    json jCompiledParameters = GetCompiledParameters(strPC);
+    json jCompiledParameters = GetCompiledParameters(strCtx);
     if (IsParserError(jCompiledParameters))
         return -1;
     return JsonGetLength(jCompiledParameters);
 }
 
-struct Value EvalCompiledParameter(struct PropertyChain strPC, int nIndex)
+struct Value EvalCompiledParameter(struct ChainContext strCtx, int nIndex)
 {
-    json jCompiledParameters = GetCompiledParameters(strPC);
+    json jCompiledParameters = GetCompiledParameters(strCtx);
     if (IsParserError(jCompiledParameters))
-        return GetValueFromParserError(jCompiledParameters, strPC.sCurrentProperty);
+        return GetValueFromParserError(jCompiledParameters, strCtx.sCurrentProperty);
     if (nIndex < 0 || nIndex >= JsonGetLength(jCompiledParameters))
         return GetErrorValue("PARAM_INDEX_OUT_OF_RANGE");
 
     int bTraceEnabled = IsTraceEnabled();
-    if (bTraceEnabled) { TraceEnter("arg.enter", strPC.sCurrentProperty + "[" + IntToString(nIndex + 1) + "]" + " raw=" + TraceQuoted(GetRawParameterText(strPC, nIndex))); }
+    if (bTraceEnabled) { TraceEnter("arg.enter", strCtx.sCurrentProperty + "[" + IntToString(nIndex + 1) + "]" + " raw=" + TraceQuoted(GetRawParameterText(strCtx, nIndex))); }
 
-    struct Value strValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), strPC.jStack);
+    struct Value strValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), strCtx.jStack);
 
-    if (bTraceEnabled) { TraceExit("arg.exit", strPC.sCurrentProperty + "[" + IntToString(nIndex + 1) + "]" + " => " + TraceValue(strValue)); }
+    if (bTraceEnabled) { TraceExit("arg.exit", strCtx.sCurrentProperty + "[" + IntToString(nIndex + 1) + "]" + " => " + TraceValue(strValue)); }
 
     return strValue;
 }
 
-struct Value EvalJsonArrayParameter(struct PropertyChain strPC, int nIndex, string sErrorCode)
+struct Value EvalJsonArrayParameter(struct ChainContext strCtx, int nIndex, string sErrorCode)
 {
-    struct Value strValue = EvalCompiledParameter(strPC, nIndex);
+    struct Value strValue = EvalCompiledParameter(strCtx, nIndex);
     if (IsErrorValue(strValue))
         return strValue;
 
@@ -1910,13 +1920,13 @@ int IsValueArgType(struct Value strValue, int nArgType)
     return FALSE;
 }
 
-struct Value CheckArity(struct PropertyChain strPC, int nMin, int nMax)
+struct Value CheckArity(struct ChainContext strCtx, int nMin, int nMax)
 {
-    struct Value strParseError = CheckParameterParserError(strPC);
+    struct Value strParseError = CheckParameterParserError(strCtx);
     if (IsErrorValue(strParseError))
         return strParseError;
 
-    int nCount = GetParameterCount(strPC);
+    int nCount = GetParameterCount(strCtx);
     if (nCount < nMin)
     {
         if (nMin == nMax)
@@ -1934,9 +1944,9 @@ struct Value CheckArity(struct PropertyChain strPC, int nMin, int nMax)
     return strValue;
 }
 
-struct Value EvalTypedParameter(struct PropertyChain strPC, int nIndex, int nArgType)
+struct Value EvalTypedParameter(struct ChainContext strCtx, int nIndex, int nArgType)
 {
-    struct Value strArg = EvalCompiledParameter(strPC, nIndex);
+    struct Value strArg = EvalCompiledParameter(strCtx, nIndex);
     if (IsErrorValue(strArg))
         return strArg;
     if (!IsValueArgType(strArg, nArgType))
@@ -1944,18 +1954,18 @@ struct Value EvalTypedParameter(struct PropertyChain strPC, int nIndex, int nArg
     return strArg;
 }
 
-struct Arguments EvalArgs(struct PropertyChain strPC, int nMin, int nMax, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY, int nType3 = DAZSCRIPT_ARG_ANY, int nType4 = DAZSCRIPT_ARG_ANY)
+struct Arguments EvalArgs(struct ChainContext strCtx, int nMin, int nMax, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY, int nType3 = DAZSCRIPT_ARG_ANY, int nType4 = DAZSCRIPT_ARG_ANY)
 {
     struct Arguments strArgs;
-    strArgs.nCount = GetParameterCount(strPC);
-    strArgs.strError = CheckArity(strPC, nMin, nMax);
+    strArgs.nCount = GetParameterCount(strCtx);
+    strArgs.strError = CheckArity(strCtx, nMin, nMax);
 
     if (IsErrorValue(strArgs.strError))
         return strArgs;
 
     if (strArgs.nCount > 0)
     {
-        strArgs.strArg0 = EvalTypedParameter(strPC, 0, nType0);
+        strArgs.strArg0 = EvalTypedParameter(strCtx, 0, nType0);
         if (IsErrorValue(strArgs.strArg0))
         {
             strArgs.strError = strArgs.strArg0;
@@ -1965,7 +1975,7 @@ struct Arguments EvalArgs(struct PropertyChain strPC, int nMin, int nMax, int nT
 
     if (strArgs.nCount > 1)
     {
-        strArgs.strArg1 = EvalTypedParameter(strPC, 1, nType1);
+        strArgs.strArg1 = EvalTypedParameter(strCtx, 1, nType1);
         if (IsErrorValue(strArgs.strArg1))
         {
             strArgs.strError = strArgs.strArg1;
@@ -1975,7 +1985,7 @@ struct Arguments EvalArgs(struct PropertyChain strPC, int nMin, int nMax, int nT
 
     if (strArgs.nCount > 2)
     {
-        strArgs.strArg2 = EvalTypedParameter(strPC, 2, nType2);
+        strArgs.strArg2 = EvalTypedParameter(strCtx, 2, nType2);
         if (IsErrorValue(strArgs.strArg2))
         {
             strArgs.strError = strArgs.strArg2;
@@ -1985,7 +1995,7 @@ struct Arguments EvalArgs(struct PropertyChain strPC, int nMin, int nMax, int nT
 
     if (strArgs.nCount > 3)
     {
-        strArgs.strArg3 = EvalTypedParameter(strPC, 3, nType3);
+        strArgs.strArg3 = EvalTypedParameter(strCtx, 3, nType3);
         if (IsErrorValue(strArgs.strArg3))
         {
             strArgs.strError = strArgs.strArg3;
@@ -1995,7 +2005,7 @@ struct Arguments EvalArgs(struct PropertyChain strPC, int nMin, int nMax, int nT
 
     if (strArgs.nCount > 4)
     {
-        strArgs.strArg4 = EvalTypedParameter(strPC, 4, nType4);
+        strArgs.strArg4 = EvalTypedParameter(strCtx, 4, nType4);
         if (IsErrorValue(strArgs.strArg4))
         {
             strArgs.strError = strArgs.strArg4;
@@ -2006,19 +2016,19 @@ struct Arguments EvalArgs(struct PropertyChain strPC, int nMin, int nMax, int nT
     return strArgs;
 }
 
-struct Arguments EvalOneArg(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY)
+struct Arguments EvalOneArg(struct ChainContext strCtx, int nType0 = DAZSCRIPT_ARG_ANY)
 {
-    return EvalArgs(strPC, 1, 1, nType0);
+    return EvalArgs(strCtx, 1, 1, nType0);
 }
 
-struct Arguments EvalTwoArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY)
+struct Arguments EvalTwoArgs(struct ChainContext strCtx, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY)
 {
-    return EvalArgs(strPC, 2, 2, nType0, nType1);
+    return EvalArgs(strCtx, 2, 2, nType0, nType1);
 }
 
-struct Arguments EvalThreeArgs(struct PropertyChain strPC, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY)
+struct Arguments EvalThreeArgs(struct ChainContext strCtx, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY)
 {
-    return EvalArgs(strPC, 3, 3, nType0, nType1, nType2);
+    return EvalArgs(strCtx, 3, 3, nType0, nType1, nType2);
 }
 
 struct Value EvalTemplate(json jTemplate, json jStack)
@@ -2066,7 +2076,7 @@ struct Value EvalTemplateToString(json jTemplate, json jStack)
             struct Value strExpressionValue = EvalCompiledExpressionToValue(jNode, jStack);
             if (IsErrorValue(strExpressionValue))
                 return strExpressionValue;
-            sResult += ValueToText(strExpressionValue);
+            sResult += FormatValueForDisplay(strExpressionValue);
         }
         else if (nNodeType == DAZSCRIPT_NODE_FORCE_STRING)
         {
@@ -2130,35 +2140,35 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
 
     if (bHasPropertyChain)
     {
-        struct PropertyChain strPC;
-        strPC.jStack = jStack;
-        strPC.sBaseVarName = sBaseName;
-        strPC.sFullPropertyPath = sPropertyPath;
-        strPC.strValue = strValue;
+        struct ChainContext strCtx;
+        strCtx.jStack = jStack;
+        strCtx.sBaseVarName = sBaseName;
+        strCtx.sFullPropertyPath = sPropertyPath;
+        strCtx.strValue = strValue;
 
         if (bTraceEnabled) { TraceEnter("chain.enter", "base=" + sBaseName + "; chain=" + TraceQuoted(sPropertyPath) + "; input=" + TraceValue(strValue)); }
 
-        strPC = EvalCompiledPropertyChain(strPC, jChain);
+        strCtx = EvalCompiledPropertyChain(strCtx, jChain);
 
-        if (IsErrorValue(strPC.strValue))
+        if (IsErrorValue(strCtx.strValue))
         {
-            if (GetStringLeft(strPC.strValue.sErrorMessage, 12) == "PARSE_ERROR:")
-                strValue = strPC.strValue;
+            if (GetStringLeft(strCtx.strValue.sErrorMessage, 12) == "PARSE_ERROR:")
+                strValue = strCtx.strValue;
             else
-                strValue = GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty + " -> " + strPC.strValue.sErrorMessage);
+                strValue = GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strCtx.sCurrentProperty + " -> " + strCtx.strValue.sErrorMessage);
 
             if (bTraceEnabled) { TraceExit("chain.exit", "base=" + sBaseName + "; chain=" + TraceQuoted(sPropertyPath) + "; result=" + TraceValue(strValue)); TraceExit("expr.exit", TraceValue(strValue)); }
             return strValue;
         }
 
-        if (IsInvalidValue(strPC.strValue))
+        if (IsInvalidValue(strCtx.strValue))
         {
-            strValue = GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strPC.sCurrentProperty);
+            strValue = GetErrorValue("INVALID_PROPERTY_CHAIN:" + sBaseName + ">" + sPropertyPath + " -> FAILED@" + strCtx.sCurrentProperty);
             if (bTraceEnabled) { TraceExit("chain.exit", "base=" + sBaseName + "; chain=" + TraceQuoted(sPropertyPath) + "; result=" + TraceValue(strValue)); TraceExit("expr.exit", TraceValue(strValue)); }
             return strValue;
         }
 
-        strValue = strPC.strValue;
+        strValue = strCtx.strValue;
         if (bTraceEnabled) { TraceExit("chain.exit", "base=" + sBaseName + "; chain=" + TraceQuoted(sPropertyPath) + "; result=" + TraceValue(strValue)); }
     }
 
@@ -2193,7 +2203,7 @@ struct Value ResolveAliasValue(json jStack, string sAliasName)
     if (IsErrorAliasEntry(jEntry))
         return GetErrorValue(GetAliasStoredValueAsString(jEntry));
     int nAuxType = JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE);
-    if (!IsKnownAuxType(nAuxType))
+    if (!IsAliasValueAuxType(nAuxType))
         return GetErrorValue("INVALID_ALIAS_TYPE:" + sAliasName);
 
     json jValue = JsonObjectGet(jEntry, DAZSCRIPT_ALIAS_VALUE);
@@ -2232,7 +2242,7 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, string sBaseParamet
     int bTraceEnabled = IsTraceEnabled();
     if (bTraceEnabled) { TraceEnter("meta.enter", "base=" + sMetaName + "; params=" + TraceQuoted(sBaseParameters)); }
 
-    struct PropertyChain strMeta;
+    struct ChainContext strMeta;
     strMeta.jStack = jStack;
     strMeta.sCurrentProperty = sMetaName;
     strMeta.sCurrentParameters = sBaseParameters;
@@ -2309,7 +2319,7 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
                 strReturnValue = GetErrorValue("INVALID_FUNCTION_BODY:" + sFunctionName);
             else
             {
-                struct PropertyChain strFunction;
+                struct ChainContext strFunction;
                 strFunction.jStack = jStack;
                 strFunction.sCurrentProperty = sFunctionName;
                 strFunction.sCurrentParameters = sBaseParameters;
@@ -2360,339 +2370,339 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
     return strReturnValue;
 }
 
-struct PropertyChain ApplyCompiledPropertySegment(struct PropertyChain strPC, json jSegment)
+struct ChainContext ApplyCompiledPropertySegment(struct ChainContext strCtx, json jSegment)
 {
-    strPC.sCurrentProperty = JsonArrayGetString(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY);
-    strPC.sCurrentParameters = JsonArrayGetString(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETERS);
-    strPC.jCurrentParameters = JsonArrayGet(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_COMPILED_PARAMETERS);
-    strPC.jCurrentParameterEntries = JsonArrayGet(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETER_ENTRIES);
-    return strPC;
+    strCtx.sCurrentProperty = JsonArrayGetString(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY);
+    strCtx.sCurrentParameters = JsonArrayGetString(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETERS);
+    strCtx.jCurrentParameters = JsonArrayGet(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_COMPILED_PARAMETERS);
+    strCtx.jCurrentParameterEntries = JsonArrayGet(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETER_ENTRIES);
+    return strCtx;
 }
 
-struct PropertyChain EvalCompiledPropertyChain(struct PropertyChain strPC, json jSegments)
+struct ChainContext EvalCompiledPropertyChain(struct ChainContext strCtx, json jSegments)
 {
     int bTraceEnabled = IsTraceEnabled();
     int nSegment, nNumSegments = JsonGetLength(jSegments);
     for (nSegment = 0; nSegment < nNumSegments; nSegment++)
     {
-        strPC = ApplyCompiledPropertySegment(strPC, JsonArrayGet(jSegments, nSegment));
+        strCtx = ApplyCompiledPropertySegment(strCtx, JsonArrayGet(jSegments, nSegment));
 
-        if (bTraceEnabled) { TraceEnter("prop.enter", "segment=" + IntToString(nSegment + 1) + "; property=" + strPC.sCurrentProperty + "; params=" + TraceQuoted(strPC.sCurrentParameters) + "; input=" + TraceValue(strPC.strValue)); }
+        if (bTraceEnabled) { TraceEnter("prop.enter", "segment=" + IntToString(nSegment + 1) + "; property=" + strCtx.sCurrentProperty + "; params=" + TraceQuoted(strCtx.sCurrentParameters) + "; input=" + TraceValue(strCtx.strValue)); }
 
-        strPC = GetPropertyValueByType(strPC);
+        strCtx = ResolveCurrentPropertyByValueType(strCtx);
 
-        if (IsInvalidValue(strPC.strValue))
-            strPC.strValue = GetErrorValue("UNKNOWN_PROPERTY:" + strPC.sCurrentProperty);
+        if (IsInvalidValue(strCtx.strValue))
+            strCtx.strValue = GetErrorValue("UNKNOWN_PROPERTY:" + strCtx.sCurrentProperty);
 
-        if (bTraceEnabled) { TraceExit("prop.exit", strPC.sCurrentProperty + " => " + TraceValue(strPC.strValue)); }
+        if (bTraceEnabled) { TraceExit("prop.exit", strCtx.sCurrentProperty + " => " + TraceValue(strCtx.strValue)); }
 
-        if (IsErrorValue(strPC.strValue))
+        if (IsErrorValue(strCtx.strValue))
             break;
     }
-    return strPC;
+    return strCtx;
 }
 
-struct PropertyChain GetPropertyValueByType(struct PropertyChain strPC)
+struct ChainContext ResolveCurrentPropertyByValueType(struct ChainContext strCtx)
 {
-    struct Value strParseError = CheckParameterParserError(strPC);
+    struct Value strParseError = CheckParameterParserError(strCtx);
     if (IsErrorValue(strParseError))
     {
-        strPC.strValue = strParseError;
-        return strPC;
+        strCtx.strValue = strParseError;
+        return strCtx;
     }
 
-    struct PropertyChain strOriginal = strPC;
+    struct ChainContext strOriginal = strCtx;
 
-    switch (strPC.strValue.nAuxType)
+    switch (strCtx.strValue.nAuxType)
     {
-        case NWNX_VM_AUXTYPE_INT:       strPC = GetIntProperty(strPC); break;
-        case NWNX_VM_AUXTYPE_FLOAT:     strPC = GetFloatProperty(strPC); break;
-        case NWNX_VM_AUXTYPE_STRING:    strPC = GetStringProperty(strPC); break;
-        case NWNX_VM_AUXTYPE_OBJECT:    strPC = GetObjectProperty(strPC); break;
-        case NWNX_VM_AUXTYPE_SQLQUERY:  strPC = GetSqlQueryProperty(strPC); break;
-        case NWNX_VM_AUXTYPE_JSON:      strPC = GetJsonProperty(strPC); break;
-        default: strPC.strValue = GetInvalidValue(); break;
+        case NWNX_VM_AUXTYPE_INT:       strCtx = ResolveIntProperty(strCtx); break;
+        case NWNX_VM_AUXTYPE_FLOAT:     strCtx = ResolveFloatProperty(strCtx); break;
+        case NWNX_VM_AUXTYPE_STRING:    strCtx = ResolveStringProperty(strCtx); break;
+        case NWNX_VM_AUXTYPE_OBJECT:    strCtx = ResolveObjectProperty(strCtx); break;
+        case NWNX_VM_AUXTYPE_SQLQUERY:  strCtx = ResolveSqlQueryProperty(strCtx); break;
+        case NWNX_VM_AUXTYPE_JSON:      strCtx = ResolveJsonProperty(strCtx); break;
+        default: strCtx.strValue = GetInvalidValue(); break;
     }
 
-    if (IsErrorValue(strPC.strValue))
-        return strPC;
+    if (IsErrorValue(strCtx.strValue))
+        return strCtx;
 
-    if (IsInvalidValue(strPC.strValue))
-        strPC = GetSharedProperty(strOriginal);
+    if (IsInvalidValue(strCtx.strValue))
+        strCtx = ResolveSharedProperty(strOriginal);
 
-    return strPC;
+    return strCtx;
 }
 
-struct PropertyChain ReturnPropertyChainWithValue(struct PropertyChain strPC, struct Value strValue)
+struct ChainContext SetChainContextValue(struct ChainContext strCtx, struct Value strValue)
 {
-    strPC.strValue = strValue;
-    return strPC;
+    strCtx.strValue = strValue;
+    return strCtx;
 }
 
-struct PropertyChain GetIntProperty(struct PropertyChain strPC)
+struct ChainContext ResolveIntProperty(struct ChainContext strCtx)
 {
-    string sProperty = strPC.sCurrentProperty;
-    int nValue = strPC.strValue.nValue;
+    string sProperty = strCtx.sCurrentProperty;
+    int nValue = strCtx.strValue.nValue;
 
     if (sProperty == "abs")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(abs(nValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(abs(nValue)));
 
     if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalOneArg(strCtx, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         int nCompare = GetValueAsInt(strArgs.strArg0);
-        if (sProperty == "eq")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue == nCompare));
-        if (sProperty == "neq") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue != nCompare));
-        if (sProperty == "gt")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue > nCompare));
-        if (sProperty == "gte") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue >= nCompare));
-        if (sProperty == "lt")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue < nCompare));
-        if (sProperty == "lte") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue <= nCompare));
+        if (sProperty == "eq")  return SetChainContextValue(strCtx, GetValueFromInt(nValue == nCompare));
+        if (sProperty == "neq") return SetChainContextValue(strCtx, GetValueFromInt(nValue != nCompare));
+        if (sProperty == "gt")  return SetChainContextValue(strCtx, GetValueFromInt(nValue > nCompare));
+        if (sProperty == "gte") return SetChainContextValue(strCtx, GetValueFromInt(nValue >= nCompare));
+        if (sProperty == "lt")  return SetChainContextValue(strCtx, GetValueFromInt(nValue < nCompare));
+        if (sProperty == "lte") return SetChainContextValue(strCtx, GetValueFromInt(nValue <= nCompare));
     }
 
     if (sProperty == "min" || sProperty == "max")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalOneArg(strCtx, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         int nOther = GetValueAsInt(strArgs.strArg0);
         if (sProperty == "min")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue < nOther ? nValue : nOther));
+            return SetChainContextValue(strCtx, GetValueFromInt(nValue < nOther ? nValue : nOther));
         else
-            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue > nOther ? nValue : nOther));
+            return SetChainContextValue(strCtx, GetValueFromInt(nValue > nOther ? nValue : nOther));
     }
 
     if (sProperty == "clamp")
     {
-        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(clamp(nValue, GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1))));
+            return SetChainContextValue(strCtx, strArgs.strError);
+        return SetChainContextValue(strCtx, GetValueFromInt(clamp(nValue, GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1))));
     }
 
     if (sProperty == "mod")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalOneArg(strCtx, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         int nDivisor = GetValueAsInt(strArgs.strArg0);
         if (nDivisor != 0)
-            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue % nDivisor));
+            return SetChainContextValue(strCtx, GetValueFromInt(nValue % nDivisor));
         else
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("DIVISION_BY_ZERO"));
+            return SetChainContextValue(strCtx, GetErrorValue("DIVISION_BY_ZERO"));
     }
 
     if (sProperty == "then")
     {
-        struct Value strError = CheckArity(strPC, 2, 2);
+        struct Value strError = CheckArity(strCtx, 2, 2);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
-        return ReturnPropertyChainWithValue(strPC, EvalCompiledParameter(strPC, nValue != 0 ? 0 : 1));
+            return SetChainContextValue(strCtx, strError);
+        return SetChainContextValue(strCtx, EvalCompiledParameter(strCtx, nValue != 0 ? 0 : 1));
     }
 
     if (sProperty == "plural")
     {
-        struct Value strError = CheckArity(strPC, 1, 2);
+        struct Value strError = CheckArity(strCtx, 1, 2);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
-        if (GetParameterCount(strPC) == 1)
+            return SetChainContextValue(strCtx, strError);
+        if (GetParameterCount(strCtx) == 1)
         {
             if (nValue == 1)
-                return ReturnPropertyChainWithValue(strPC, GetValueFromString());
+                return SetChainContextValue(strCtx, GetValueFromString());
             else
-                return ReturnPropertyChainWithValue(strPC, EvalCompiledParameter(strPC, 0));
+                return SetChainContextValue(strCtx, EvalCompiledParameter(strCtx, 0));
         }
         else
-            return ReturnPropertyChainWithValue(strPC, EvalCompiledParameter(strPC, nValue != 1));
+            return SetChainContextValue(strCtx, EvalCompiledParameter(strCtx, nValue != 1));
     }
 
     if (sProperty == "incr")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue + 1));
+        return SetChainContextValue(strCtx, GetValueFromInt(nValue + 1));
 
     if (sProperty == "decr")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue - 1));
+        return SetChainContextValue(strCtx, GetValueFromInt(nValue - 1));
 
     if (sProperty == "even" || sProperty == "odd")
     {
         if (sProperty == "even")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue % 2 == 0));
+            return SetChainContextValue(strCtx, GetValueFromInt(nValue % 2 == 0));
         else
-            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nValue % 2 != 0));
+            return SetChainContextValue(strCtx, GetValueFromInt(nValue % 2 != 0));
     }
 
-    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
+    return SetChainContextValue(strCtx, GetInvalidValue());
 }
 
-struct PropertyChain GetFloatProperty(struct PropertyChain strPC)
+struct ChainContext ResolveFloatProperty(struct ChainContext strCtx)
 {
-    string sProperty = strPC.sCurrentProperty;
-    float fValue = strPC.strValue.fValue;
+    string sProperty = strCtx.sCurrentProperty;
+    float fValue = strCtx.strValue.fValue;
 
-    if (sProperty == "fabs")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(fabs(fValue)));
+    if (sProperty == "abs")
+        return SetChainContextValue(strCtx, GetValueFromFloat(fabs(fValue)));
 
     if (sProperty == "floor")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(floor(fValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(floor(fValue)));
 
     if (sProperty == "ceil")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(ceil(fValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(ceil(fValue)));
 
     if (sProperty == "round")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(round(fValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(round(fValue)));
 
     if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_NUMERIC);
+        struct Arguments strArgs = EvalOneArg(strCtx, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         float fCompare = GetValueAsFloat(strArgs.strArg0);
         float fDiff = fValue - fCompare;
-        if (sProperty == "eq")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fabs(fDiff) < FLOAT_EPSILON));
-        if (sProperty == "neq") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fabs(fDiff) >= FLOAT_EPSILON));
-        if (sProperty == "gt")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fDiff > FLOAT_EPSILON));
-        if (sProperty == "gte") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fDiff >= -FLOAT_EPSILON));
-        if (sProperty == "lt")  return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fDiff < -FLOAT_EPSILON));
-        if (sProperty == "lte") return ReturnPropertyChainWithValue(strPC, GetValueFromInt(fDiff <= FLOAT_EPSILON));
+        if (sProperty == "eq")  return SetChainContextValue(strCtx, GetValueFromInt(fabs(fDiff) < FLOAT_EPSILON));
+        if (sProperty == "neq") return SetChainContextValue(strCtx, GetValueFromInt(fabs(fDiff) >= FLOAT_EPSILON));
+        if (sProperty == "gt")  return SetChainContextValue(strCtx, GetValueFromInt(fDiff > FLOAT_EPSILON));
+        if (sProperty == "gte") return SetChainContextValue(strCtx, GetValueFromInt(fDiff >= -FLOAT_EPSILON));
+        if (sProperty == "lt")  return SetChainContextValue(strCtx, GetValueFromInt(fDiff < -FLOAT_EPSILON));
+        if (sProperty == "lte") return SetChainContextValue(strCtx, GetValueFromInt(fDiff <= FLOAT_EPSILON));
     }
 
     if (sProperty == "min" || sProperty == "max")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_NUMERIC);
+        struct Arguments strArgs = EvalOneArg(strCtx, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         float fOther = GetValueAsFloat(strArgs.strArg0);
         if (sProperty == "min")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(fValue < fOther ? fValue : fOther));
+            return SetChainContextValue(strCtx, GetValueFromFloat(fValue < fOther ? fValue : fOther));
         else
-            return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(fValue > fOther ? fValue : fOther));
+            return SetChainContextValue(strCtx, GetValueFromFloat(fValue > fOther ? fValue : fOther));
     }
 
     if (sProperty == "clamp")
     {
-        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
+        struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
-        return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(clampf(fValue, GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1))));
+            return SetChainContextValue(strCtx, strArgs.strError);
+        return SetChainContextValue(strCtx, GetValueFromFloat(clampf(fValue, GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1))));
     }
 
-    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
+    return SetChainContextValue(strCtx, GetInvalidValue());
 }
 
-struct PropertyChain GetStringProperty(struct PropertyChain strPC)
+struct ChainContext ResolveStringProperty(struct ChainContext strCtx)
 {
-    string sProperty = strPC.sCurrentProperty;
-    string sValue = strPC.strValue.sValue;
+    string sProperty = strCtx.sCurrentProperty;
+    string sValue = strCtx.strValue.sValue;
 
     if (sProperty == "length")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetStringLength(sValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(GetStringLength(sValue)));
 
     if (sProperty == "upper")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetStringUpperCase(sValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(GetStringUpperCase(sValue)));
 
     if (sProperty == "lower")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetStringLowerCase(sValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(GetStringLowerCase(sValue)));
 
     if (sProperty == "trim")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(trim(sValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(trim(sValue)));
 
     if (sProperty == "empty")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(sValue == ""));
+        return SetChainContextValue(strCtx, GetValueFromInt(sValue == ""));
 
     if (sProperty == "notempty")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(sValue != ""));
+        return SetChainContextValue(strCtx, GetValueFromInt(sValue != ""));
 
     if (sProperty == "contains")
     {
-        struct Arguments strArgs = EvalOneArg(strPC);
+        struct Arguments strArgs = EvalOneArg(strCtx);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(FindSubString(sValue, GetValueAsText(strArgs.strArg0), 0) != -1));
+            return SetChainContextValue(strCtx, strArgs.strError);
+        return SetChainContextValue(strCtx, GetValueFromInt(FindSubString(sValue, GetValueText(strArgs.strArg0), 0) != -1));
     }
 
     if (sProperty == "startswith")
     {
-        struct Arguments strArgs = EvalOneArg(strPC);
+        struct Arguments strArgs = EvalOneArg(strCtx);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(IsStringPrefix(sValue, GetValueAsText(strArgs.strArg0))));
+            return SetChainContextValue(strCtx, strArgs.strError);
+        return SetChainContextValue(strCtx, GetValueFromInt(IsStringPrefix(sValue, GetValueText(strArgs.strArg0))));
     }
 
     if (sProperty == "endswith")
     {
-        struct Arguments strArgs = EvalOneArg(strPC);
+        struct Arguments strArgs = EvalOneArg(strCtx);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(IsStringSuffix(sValue, GetValueAsText(strArgs.strArg0))));
+            return SetChainContextValue(strCtx, strArgs.strError);
+        return SetChainContextValue(strCtx, GetValueFromInt(IsStringSuffix(sValue, GetValueText(strArgs.strArg0))));
     }
 
     if (sProperty == "substring")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalArgs(strCtx, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         int nStart = GetValueAsInt(strArgs.strArg0);
         int nCount = GetStringLength(sValue) - nStart;
         if (strArgs.nCount == 2)
             nCount = GetValueAsInt(strArgs.strArg1);
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetSubString(sValue, nStart, nCount)));
+        return SetChainContextValue(strCtx, GetValueFromString(GetSubString(sValue, nStart, nCount)));
     }
 
     if (sProperty == "left" || sProperty == "right")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalOneArg(strCtx, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         int nLength = GetValueAsInt(strArgs.strArg0);
         if (sProperty == "left")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetStringLeft(sValue, nLength)));
+            return SetChainContextValue(strCtx, GetValueFromString(GetStringLeft(sValue, nLength)));
         else
-            return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetStringRight(sValue, nLength)));
+            return SetChainContextValue(strCtx, GetValueFromString(GetStringRight(sValue, nLength)));
     }
 
     if (sProperty == "replace")
     {
-        struct Arguments strArgs = EvalTwoArgs(strPC);
+        struct Arguments strArgs = EvalTwoArgs(strCtx);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
-        string sSearch = NWNX_Util_RegExpEscape(GetValueAsText(strArgs.strArg0));
-        string sReplace = GetValueAsText(strArgs.strArg1);
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(RegExpReplace(sSearch, sValue, sReplace)));
+        string sSearch = NWNX_Util_RegExpEscape(GetValueText(strArgs.strArg0));
+        string sReplace = GetValueText(strArgs.strArg1);
+        return SetChainContextValue(strCtx, GetValueFromString(RegExpReplace(sSearch, sValue, sReplace)));
     }
 
     if (sProperty == "eq" || sProperty == "neq")
     {
-        struct Arguments strArgs = EvalOneArg(strPC);
+        struct Arguments strArgs = EvalOneArg(strCtx);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
-        string sCompare = GetValueAsText(strArgs.strArg0);
+        string sCompare = GetValueText(strArgs.strArg0);
         int nResult = sProperty == "eq" ? sValue == sCompare : sValue != sCompare;
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nResult));
+        return SetChainContextValue(strCtx, GetValueFromInt(nResult));
     }
 
     if (sProperty == "capitalize")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(CapitalizeWord(sValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(CapitalizeWord(sValue)));
 
     if (sProperty == "append" || sProperty == "prepend")
     {
-        struct Arguments strArgs = EvalOneArg(strPC);
+        struct Arguments strArgs = EvalOneArg(strCtx);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
-        string sOther = GetValueAsText(strArgs.strArg0);
+        string sOther = GetValueText(strArgs.strArg0);
         if (sProperty == "append")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromString(sValue + sOther));
+            return SetChainContextValue(strCtx, GetValueFromString(sValue + sOther));
         else
-            return ReturnPropertyChainWithValue(strPC, GetValueFromString(sOther + sValue));
+            return SetChainContextValue(strCtx, GetValueFromString(sOther + sValue));
     }
 
     if (sProperty == "render")
@@ -2703,85 +2713,85 @@ struct PropertyChain GetStringProperty(struct PropertyChain strPC)
             jTemplate = CompileTemplate(sValue);
             SetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sValue, jTemplate);
         }
-        return ReturnPropertyChainWithValue(strPC, EvalTemplate(jTemplate, strPC.jStack));
+        return SetChainContextValue(strCtx, EvalTemplate(jTemplate, strCtx.jStack));
     }
 
-    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
+    return SetChainContextValue(strCtx, GetInvalidValue());
 }
 
-struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
+struct ChainContext ResolveObjectProperty(struct ChainContext strCtx)
 {
-    string sProperty = strPC.sCurrentProperty;
-    object oValue = strPC.strValue.oValue;
+    string sProperty = strCtx.sCurrentProperty;
+    object oValue = strCtx.strValue.oValue;
 
     if (!GetIsObjectValid(oValue) && sProperty != "valid")
-        return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_OBJECT:SELF"));
+        return SetChainContextValue(strCtx, GetErrorValue("INVALID_OBJECT:SELF"));
 
     if (sProperty == "name")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetName(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(GetName(oValue)));
 
     if (sProperty == "tag")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetTag(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(GetTag(oValue)));
 
     if (sProperty == "resref")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetResRef(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(GetResRef(oValue)));
 
     if (sProperty == "type")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetObjectTypeName(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(GetObjectTypeName(oValue)));
 
     if (sProperty == "area")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromObject(GetArea(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromObject(GetArea(oValue)));
 
     if (sProperty == "valid")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetIsObjectValid(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(GetIsObjectValid(oValue)));
 
     if (sProperty == "inspect")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(InspectObject(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(InspectObject(oValue)));
 
     if (sProperty == "ispc")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetIsPlayer(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(GetIsPlayer(oValue)));
 
     if (sProperty == "isdm")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetIsDM(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(GetIsDM(oValue)));
 
     if (sProperty == "isplayerdm")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetIsPlayerDM(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(GetIsPlayerDM(oValue)));
 
     if (sProperty == "dead")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetIsDead(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(GetIsDead(oValue)));
 
     if (sProperty == "hp")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetCurrentHitPoints(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(GetCurrentHitPoints(oValue)));
 
     if (sProperty == "maxhp")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetMaxHitPoints(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(GetMaxHitPoints(oValue)));
 
     if (sProperty == "distance")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_OBJECT);
+        struct Arguments strArgs = EvalOneArg(strCtx, DAZSCRIPT_ARG_OBJECT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         object oOther = GetValueAsObject(strArgs.strArg0);
         if (!GetIsObjectValid(oOther))
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_OBJECT:ARG1"));
+            return SetChainContextValue(strCtx, GetErrorValue("INVALID_OBJECT:ARG1"));
         else
-            return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(GetDistanceBetween(oValue, oOther)));
+            return SetChainContextValue(strCtx, GetValueFromFloat(GetDistanceBetween(oValue, oOther)));
     }
 
     if (sProperty == "x" || sProperty == "y" || sProperty == "z")
     {
         vector vPosition = GetPosition(oValue);
-        if (sProperty == "x")   return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(vPosition.x));
-        if (sProperty == "y")   return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(vPosition.y));
-        if (sProperty == "z")   return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(vPosition.z));
+        if (sProperty == "x")   return SetChainContextValue(strCtx, GetValueFromFloat(vPosition.x));
+        if (sProperty == "y")   return SetChainContextValue(strCtx, GetValueFromFloat(vPosition.y));
+        if (sProperty == "z")   return SetChainContextValue(strCtx, GetValueFromFloat(vPosition.z));
     }
 
     if (sProperty == "position")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalArgs(strCtx, 0, 1, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         int nPrecision = 2;
         if (strArgs.nCount == 1)
@@ -2789,85 +2799,85 @@ struct PropertyChain GetObjectProperty(struct PropertyChain strPC)
         nPrecision = clamp(nPrecision, 0, 9);
 
         vector vPosition = GetPosition(oValue);
-        string sX = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.x), nPrecision));
-        string sY = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.y), nPrecision));
-        string sZ = ValueToText(FormatValueAsFixed(GetValueFromFloat(vPosition.z), nPrecision));
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString("[" + sX + "," + sY + "," + sZ + "]"));
+        string sX = FormatValueForDisplay(FormatValueAsFixed(GetValueFromFloat(vPosition.x), nPrecision));
+        string sY = FormatValueForDisplay(FormatValueAsFixed(GetValueFromFloat(vPosition.y), nPrecision));
+        string sZ = FormatValueForDisplay(FormatValueAsFixed(GetValueFromFloat(vPosition.z), nPrecision));
+        return SetChainContextValue(strCtx, GetValueFromString("[" + sX + "," + sY + "," + sZ + "]"));
     }
 
     if (sProperty == "facing")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(GetFacing(oValue)));
+        return SetChainContextValue(strCtx, GetValueFromFloat(GetFacing(oValue)));
 
     if (sProperty == "localvar")
     {
-        struct Arguments strArgs = EvalTwoArgs(strPC);
+        struct Arguments strArgs = EvalTwoArgs(strCtx);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
-        string sType = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
+        string sType = GetStringLowerCase(GetTrimmedValueText(strArgs.strArg0));
         if (sType == "i")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromInt(GetLocalInt(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
+            return SetChainContextValue(strCtx, GetValueFromInt(GetLocalInt(oValue, GetTrimmedValueText(strArgs.strArg1))));
         else if (sType == "f")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromFloat(GetLocalFloat(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
+            return SetChainContextValue(strCtx, GetValueFromFloat(GetLocalFloat(oValue, GetTrimmedValueText(strArgs.strArg1))));
         else if (sType == "s")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromString(GetLocalString(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
+            return SetChainContextValue(strCtx, GetValueFromString(GetLocalString(oValue, GetTrimmedValueText(strArgs.strArg1))));
         else if (sType == "o")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromObject(GetLocalObject(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
+            return SetChainContextValue(strCtx, GetValueFromObject(GetLocalObject(oValue, GetTrimmedValueText(strArgs.strArg1))));
         else if (sType == "j")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromJson(GetLocalJson(oValue, GetValueAsTrimmedString(strArgs.strArg1))));
+            return SetChainContextValue(strCtx, GetValueFromJson(GetLocalJson(oValue, GetTrimmedValueText(strArgs.strArg1))));
         else
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_LOCALVAR_TYPE:" + sType));
+            return SetChainContextValue(strCtx, GetErrorValue("INVALID_LOCALVAR_TYPE:" + sType));
     }
 
-    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
+    return SetChainContextValue(strCtx, GetInvalidValue());
 }
 
-struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC)
+struct ChainContext ResolveSqlQueryProperty(struct ChainContext strCtx)
 {
-    string sProperty = strPC.sCurrentProperty;
-    sqlquery sqlValue = strPC.strValue.sqlValue;
+    string sProperty = strCtx.sCurrentProperty;
+    sqlquery sqlValue = strCtx.strValue.sqlValue;
 
     if (sProperty == "query")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(SqlGetQuery(sqlValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(SqlGetQuery(sqlValue)));
 
     if (sProperty == "state")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(SqlGetState(sqlValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(SqlGetState(sqlValue)));
 
     if (sProperty == "statestr")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(SqlStateToString(SqlGetState(sqlValue))));
+        return SetChainContextValue(strCtx, GetValueFromString(SqlStateToString(SqlGetState(sqlValue))));
 
     if (sProperty == "error")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(SqlGetError(sqlValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(SqlGetError(sqlValue)));
 
     if (sProperty == "columncount")
     {
         struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(SqlGetColumnCount(sqlValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(SqlGetColumnCount(sqlValue)));
     }
 
     if (sProperty == "columnname")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalOneArg(strCtx, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
         struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
         int nIndex = GetValueAsInt(strArgs.strArg0);
         if (nIndex < 0 || nIndex >= SqlGetColumnCount(sqlValue))
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("COLUMN_INDEX_OUT_OF_RANGE:" + IntToString(nIndex)));
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(SqlGetColumnName(sqlValue, nIndex)));
+            return SetChainContextValue(strCtx, GetErrorValue("COLUMN_INDEX_OUT_OF_RANGE:" + IntToString(nIndex)));
+        return SetChainContextValue(strCtx, GetValueFromString(SqlGetColumnName(sqlValue, nIndex)));
     }
 
     if (sProperty == "columns")
     {
         struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
         json jColumns = JsonArray();
         int nIndex, nNumColumns = SqlGetColumnCount(sqlValue);
@@ -2875,7 +2885,7 @@ struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC)
         {
             JsonArrayInsertStringInplace(jColumns, SqlGetColumnName(sqlValue, nIndex));
         }
-        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(jColumns));
+        return SetChainContextValue(strCtx, GetValueFromJson(jColumns));
     }
 
     if (sProperty == "bind" || sProperty == "bindi" || sProperty == "bindf" || sProperty == "binds" || sProperty == "bindo" || sProperty == "bindj")
@@ -2887,16 +2897,16 @@ struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC)
         else if (sProperty == "bindj") nValueArgType = DAZSCRIPT_ARG_JSON;
         else if (sProperty == "binds") nValueArgType = DAZSCRIPT_ARG_ANY;
 
-        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_STRING, nValueArgType);
+        struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_STRING, nValueArgType);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
         struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
-        string sBind = GetValueAsTrimmedString(strArgs.strArg0);
+        string sBind = GetTrimmedValueText(strArgs.strArg0);
         if (sBind == "")
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("EMPTY_BIND_NAME"));
+            return SetChainContextValue(strCtx, GetErrorValue("EMPTY_BIND_NAME"));
 
         if (GetStringLeft(sBind, 1) != "@")
             sBind = "@" + sBind;
@@ -2906,7 +2916,7 @@ struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC)
         else if (sProperty == "bindf")
             SqlBindFloat(sqlValue, sBind, GetValueAsFloat(strArgs.strArg1));
         else if (sProperty == "binds")
-            SqlBindString(sqlValue, sBind, GetValueAsText(strArgs.strArg1));
+            SqlBindString(sqlValue, sBind, GetValueText(strArgs.strArg1));
         else if (sProperty == "bindo")
             SqlBindObjectRef(sqlValue, sBind, GetValueAsObject(strArgs.strArg1));
         else if (sProperty == "bindj")
@@ -2919,105 +2929,105 @@ struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC)
                 case NWNX_VM_AUXTYPE_FLOAT: SqlBindFloat(sqlValue, sBind, strArgs.strArg1.fValue); break;
                 case NWNX_VM_AUXTYPE_OBJECT: SqlBindObjectRef(sqlValue, sBind, strArgs.strArg1.oValue); break;
                 case NWNX_VM_AUXTYPE_JSON: SqlBindJson(sqlValue, sBind, strArgs.strArg1.jValue); break;
-                default: SqlBindString(sqlValue, sBind, GetValueAsText(strArgs.strArg1));
+                default: SqlBindString(sqlValue, sBind, GetValueText(strArgs.strArg1));
             }
         }
 
         strError = CheckSqlQueryError(sqlValue);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
-        return ReturnPropertyChainWithValue(strPC, GetValueFromSqlQuery(sqlValue));
+        return SetChainContextValue(strCtx, GetValueFromSqlQuery(sqlValue));
     }
 
     if (sProperty == "exec")
     {
         struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
         if (SqlGetColumnCount(sqlValue) > 0)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_EXEC_REQUIRES_NO_COLUMNS"));
+            return SetChainContextValue(strCtx, GetErrorValue("SQL_EXEC_REQUIRES_NO_COLUMNS"));
 
         SqlStep(sqlValue);
         strError = CheckSqlQueryError(sqlValue);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString());
+        return SetChainContextValue(strCtx, GetValueFromString());
     }
 
     if (sProperty == "reset")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_ANY);
+        struct Arguments strArgs = EvalArgs(strCtx, 0, 1, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
         struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
         int bClearBinds = FALSE;
         if (strArgs.nCount == 1)
-            bClearBinds = ValueToBoolish(strArgs.strArg0);
+            bClearBinds = IsValueTruthy(strArgs.strArg0);
 
         strError = CheckSqlQueryError(sqlValue);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
         SqlResetQuery(sqlValue, bClearBinds);
-        return ReturnPropertyChainWithValue(strPC, GetValueFromSqlQuery(sqlValue));
+        return SetChainContextValue(strCtx, GetValueFromSqlQuery(sqlValue));
     }
 
     if (sProperty == "scalar")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_ANY);
+        struct Arguments strArgs = EvalArgs(strCtx, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
-        string sType = GetValueAsTrimmedString(strArgs.strArg0);
+        string sType = GetTrimmedValueText(strArgs.strArg0);
         int nAuxType = GetCastAuxTypeFromName(sType);
 
         if (!IsValidSqlAuxType(nAuxType))
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_SCALAR_AUXTYPE:" + sType));
+            return SetChainContextValue(strCtx, GetErrorValue("INVALID_SCALAR_AUXTYPE:" + sType));
 
         if (SqlGetColumnCount(sqlValue) < 1)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_NO_COLUMNS"));
+            return SetChainContextValue(strCtx, GetErrorValue("SQL_NO_COLUMNS"));
 
         int bStepped = SqlStep(sqlValue);
         strError = CheckSqlQueryError(sqlValue);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
         if (!bStepped)
         {
             if (strArgs.nCount == 2)
-                return ReturnPropertyChainWithValue(strPC, CastValueToAuxType(strArgs.strArg1, nAuxType));
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_NO_ROW_DATA"));
+                return SetChainContextValue(strCtx, CastValueToAuxType(strArgs.strArg1, nAuxType));
+            return SetChainContextValue(strCtx, GetErrorValue("SQL_NO_ROW_DATA"));
         }
 
-        return ReturnPropertyChainWithValue(strPC, GetValueFromSqlColumn(sqlValue, 0, nAuxType));
+        return SetChainContextValue(strCtx, GetValueFromSqlColumn(sqlValue, 0, nAuxType));
     }
 
     if (sProperty == "row" || sProperty == "rows")
     {
         int bRows = (sProperty == "rows");
-        struct Arguments strArgs = EvalArgs(strPC, 0, 2, DAZSCRIPT_ARG_ANY, DAZSCRIPT_ARG_ANY);
+        struct Arguments strArgs = EvalArgs(strCtx, 0, 2, DAZSCRIPT_ARG_ANY, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
         struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
         int nColumnCount = SqlGetColumnCount(sqlValue);
         strError = CheckSqlQueryError(sqlValue);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
         if (nColumnCount < 1)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_NO_COLUMNS"));
+            return SetChainContextValue(strCtx, GetErrorValue("SQL_NO_COLUMNS"));
 
         string sSpec = "";
         int nLimit = 1;
@@ -3027,34 +3037,34 @@ struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC)
         if (strArgs.nCount == 1)
         {
             if (strArgs.strArg0.nAuxType == NWNX_VM_AUXTYPE_STRING)
-                sSpec = GetValueAsTrimmedString(strArgs.strArg0);
+                sSpec = GetTrimmedValueText(strArgs.strArg0);
             else if (bRows && IsValueIntParameter(strArgs.strArg0))
                 nLimit = GetValueAsInt(strArgs.strArg0);
             else
-                return ReturnPropertyChainWithValue(strPC, GetErrorValue(bRows ? "INVALID_ROWS_ARGUMENT_1" : "INVALID_ROW_ARGUMENT_1"));
+                return SetChainContextValue(strCtx, GetErrorValue(bRows ? "INVALID_ROWS_ARGUMENT_1" : "INVALID_ROW_ARGUMENT_1"));
         }
 
         if (strArgs.nCount == 2)
         {
             if (!bRows)
-                return ReturnPropertyChainWithValue(strPC, GetErrorValue("ROW_TOO_MANY_ARGUMENTS"));
+                return SetChainContextValue(strCtx, GetErrorValue("ROW_TOO_MANY_ARGUMENTS"));
             if (strArgs.strArg0.nAuxType != NWNX_VM_AUXTYPE_STRING)
-                return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_ROWS_SPEC"));
+                return SetChainContextValue(strCtx, GetErrorValue("INVALID_ROWS_SPEC"));
             if (!IsValueIntParameter(strArgs.strArg1))
-                return ReturnPropertyChainWithValue(strPC, GetErrorValue("INVALID_ROWS_LIMIT"));
+                return SetChainContextValue(strCtx, GetErrorValue("INVALID_ROWS_LIMIT"));
 
-            sSpec = GetValueAsTrimmedString(strArgs.strArg0);
+            sSpec = GetTrimmedValueText(strArgs.strArg0);
             nLimit = GetValueAsInt(strArgs.strArg1);
         }
 
         if (nLimit < 1)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_ROWS_LIMIT_MUST_BE_POSITIVE"));
+            return SetChainContextValue(strCtx, GetErrorValue("SQL_ROWS_LIMIT_MUST_BE_POSITIVE"));
         if (nLimit > DAZSCRIPT_SQL_ROWS_MAX_LIMIT)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_ROWS_LIMIT_TOO_HIGH"));
+            return SetChainContextValue(strCtx, GetErrorValue("SQL_ROWS_LIMIT_TOO_HIGH"));
 
         strError = ValidateSqlRowSpec(sSpec, nColumnCount, "INVALID_ROW_AUXTYPE:");
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
         if (bRows)
         {
@@ -3066,95 +3076,95 @@ struct PropertyChain GetSqlQueryProperty(struct PropertyChain strPC)
                 int bStepped = SqlStep(sqlValue);
                 strError = CheckSqlQueryError(sqlValue);
                 if (IsErrorValue(strError))
-                    return ReturnPropertyChainWithValue(strPC, strError);
+                    return SetChainContextValue(strCtx, strError);
 
                 if (!bStepped)
                     break;
 
                 struct Value strRow = GetSqlCurrentRowAsJson(sqlValue, sSpec);
                 if (IsErrorValue(strRow))
-                    return ReturnPropertyChainWithValue(strPC, strRow);
+                    return SetChainContextValue(strCtx, strRow);
 
                 JsonArrayInsertInplace(jRows, strRow.jValue);
                 nRows++;
             }
 
-            return ReturnPropertyChainWithValue(strPC, GetValueFromJson(jRows));
+            return SetChainContextValue(strCtx, GetValueFromJson(jRows));
         }
 
         int bStepped = SqlStep(sqlValue);
 
         strError = CheckSqlQueryError(sqlValue);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
+            return SetChainContextValue(strCtx, strError);
 
         if (!bStepped)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("SQL_NO_ROW_DATA"));
+            return SetChainContextValue(strCtx, GetErrorValue("SQL_NO_ROW_DATA"));
 
-        return ReturnPropertyChainWithValue(strPC, GetSqlCurrentRowAsJson(sqlValue, sSpec));
+        return SetChainContextValue(strCtx, GetSqlCurrentRowAsJson(sqlValue, sSpec));
     }
 
-    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
+    return SetChainContextValue(strCtx, GetInvalidValue());
 }
 
-struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
+struct ChainContext ResolveJsonProperty(struct ChainContext strCtx)
 {
-    string sProperty = strPC.sCurrentProperty;
-    json jValue = strPC.strValue.jValue;
+    string sProperty = strCtx.sCurrentProperty;
+    json jValue = strCtx.strValue.jValue;
 
     if (sProperty == "type")
     {
         switch (JsonGetType(jValue))
         {
-            case JSON_TYPE_NULL:    return ReturnPropertyChainWithValue(strPC, GetValueFromString("null"));
-            case JSON_TYPE_OBJECT:  return ReturnPropertyChainWithValue(strPC, GetValueFromString("object"));
-            case JSON_TYPE_ARRAY:   return ReturnPropertyChainWithValue(strPC, GetValueFromString("array"));
-            case JSON_TYPE_STRING:  return ReturnPropertyChainWithValue(strPC, GetValueFromString("string"));
-            case JSON_TYPE_INTEGER: return ReturnPropertyChainWithValue(strPC, GetValueFromString("int"));
-            case JSON_TYPE_FLOAT:   return ReturnPropertyChainWithValue(strPC, GetValueFromString("float"));
-            case JSON_TYPE_BOOL:    return ReturnPropertyChainWithValue(strPC, GetValueFromString("bool"));
-            default:                return ReturnPropertyChainWithValue(strPC, GetValueFromString("invalid"));
+            case JSON_TYPE_NULL:    return SetChainContextValue(strCtx, GetValueFromString("null"));
+            case JSON_TYPE_OBJECT:  return SetChainContextValue(strCtx, GetValueFromString("object"));
+            case JSON_TYPE_ARRAY:   return SetChainContextValue(strCtx, GetValueFromString("array"));
+            case JSON_TYPE_STRING:  return SetChainContextValue(strCtx, GetValueFromString("string"));
+            case JSON_TYPE_INTEGER: return SetChainContextValue(strCtx, GetValueFromString("int"));
+            case JSON_TYPE_FLOAT:   return SetChainContextValue(strCtx, GetValueFromString("float"));
+            case JSON_TYPE_BOOL:    return SetChainContextValue(strCtx, GetValueFromString("bool"));
+            default:                return SetChainContextValue(strCtx, GetValueFromString("invalid"));
         }
     }
 
     if (sProperty == "isnull")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_NULL));
+        return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_NULL));
 
     if (sProperty == "isobject")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_OBJECT));
+        return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_OBJECT));
 
     if (sProperty == "isarray")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_ARRAY));
+        return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_ARRAY));
 
     if (sProperty == "isstring")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_STRING));
+        return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_STRING));
 
     if (sProperty == "isint" || sProperty == "isinteger")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_INTEGER));
+        return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_INTEGER));
 
     if (sProperty == "isfloat")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_FLOAT));
+        return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_FLOAT));
 
     if (sProperty == "isnumber")
     {
         int nType = JsonGetType(jValue);
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(nType == JSON_TYPE_INTEGER || nType == JSON_TYPE_FLOAT));
+        return SetChainContextValue(strCtx, GetValueFromInt(nType == JSON_TYPE_INTEGER || nType == JSON_TYPE_FLOAT));
     }
 
     if (sProperty == "isbool")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_BOOL));
+        return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_BOOL));
 
     if (sProperty == "scalar")
     {
         int nType = JsonGetType(jValue);
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(
+        return SetChainContextValue(strCtx, GetValueFromInt(
             nType == JSON_TYPE_NULL || nType == JSON_TYPE_STRING ||
             nType == JSON_TYPE_INTEGER || nType == JSON_TYPE_FLOAT ||
             nType == JSON_TYPE_BOOL));
     }
 
     if (sProperty == "length")
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonGetLength(jValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(JsonGetLength(jValue)));
 
     if (sProperty == "empty" || sProperty == "notempty")
     {
@@ -3170,106 +3180,106 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
         if (sProperty == "notempty")
             bEmpty = !bEmpty;
 
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(bEmpty));
+        return SetChainContextValue(strCtx, GetValueFromInt(bEmpty));
     }
 
     if (sProperty == "has")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_STRING);
+        struct Arguments strArgs = EvalOneArg(strCtx, DAZSCRIPT_ARG_STRING);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
         if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_OBJECT"));
-        return ReturnPropertyChainWithValue(strPC, GetValueFromInt(JsonObjectContainsKey(jValue, GetValueAsText(strArgs.strArg0))));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_OBJECT"));
+        return SetChainContextValue(strCtx, GetValueFromInt(JsonObjectContainsKey(jValue, GetValueText(strArgs.strArg0))));
     }
 
     if (sProperty == "get")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_ANY);
+        struct Arguments strArgs = EvalArgs(strCtx, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
         if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_OBJECT"));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_OBJECT"));
 
-        string sKey = GetValueAsText(strArgs.strArg0);
+        string sKey = GetValueText(strArgs.strArg0);
         if (JsonObjectContainsKey(jValue, sKey))
-            return ReturnPropertyChainWithValue(strPC, ConvertJsonToValue(JsonObjectGet(jValue, sKey)));
+            return SetChainContextValue(strCtx, ConvertJsonToValue(JsonObjectGet(jValue, sKey)));
         else if (strArgs.nCount == 2)
-            return ReturnPropertyChainWithValue(strPC, strArgs.strArg1);
+            return SetChainContextValue(strCtx, strArgs.strArg1);
         else
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_MISSING_KEY:" + sKey));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_MISSING_KEY:" + sKey));
     }
 
     if (sProperty == "at")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
+        struct Arguments strArgs = EvalArgs(strCtx, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
 
         int nIndex = GetValueAsInt(strArgs.strArg0), nLength = JsonGetLength(jValue);
         if (nIndex < 0)
             nIndex = nLength + nIndex;
 
         if (nIndex >= 0 && nIndex < nLength)
-            return ReturnPropertyChainWithValue(strPC, ConvertJsonToValue(JsonArrayGet(jValue, nIndex)));
+            return SetChainContextValue(strCtx, ConvertJsonToValue(JsonArrayGet(jValue, nIndex)));
         else if (strArgs.nCount == 2)
-            return ReturnPropertyChainWithValue(strPC, strArgs.strArg1);
+            return SetChainContextValue(strCtx, strArgs.strArg1);
         else
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_INDEX_OUT_OF_RANGE:" + IntToString(nIndex)));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_INDEX_OUT_OF_RANGE:" + IntToString(nIndex)));
     }
 
     if (sProperty == "first" || sProperty == "last")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_ANY);
+        struct Arguments strArgs = EvalArgs(strCtx, 0, 1, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
 
         int nLength = JsonGetLength(jValue);
         if (nLength <= 0)
         {
             if (strArgs.nCount == 1)
-                return ReturnPropertyChainWithValue(strPC, strArgs.strArg0);
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_INDEX_OUT_OF_RANGE:0"));
+                return SetChainContextValue(strCtx, strArgs.strArg0);
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_INDEX_OUT_OF_RANGE:0"));
         }
 
         int nIndex = sProperty == "first" ? 0 : nLength - 1;
-        return ReturnPropertyChainWithValue(strPC, ConvertJsonToValue(JsonArrayGet(jValue, nIndex)));
+        return SetChainContextValue(strCtx, ConvertJsonToValue(JsonArrayGet(jValue, nIndex)));
     }
 
     if (sProperty == "keys")
     {
         if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_OBJECT"));
-        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(JsonObjectKeys(jValue)));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_OBJECT"));
+        return SetChainContextValue(strCtx, GetValueFromJson(JsonObjectKeys(jValue)));
     }
 
     if (sProperty == "raw" || sProperty == "dump")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalArgs(strCtx, 0, 1, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
         int nIndent = -1;
         if (strArgs.nCount == 1)
             nIndent = max(-1, GetValueAsInt(strArgs.strArg0, -1));
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(JsonDump(jValue, nIndent)));
+        return SetChainContextValue(strCtx, GetValueFromString(JsonDump(jValue, nIndent)));
     }
 
     if (sProperty == "join")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_ANY);
+        struct Arguments strArgs = EvalArgs(strCtx, 0, 1, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
 
         string sSeparator = "";
         if (strArgs.nCount == 1)
-            sSeparator = GetValueAsText(strArgs.strArg0);
+            sSeparator = GetValueText(strArgs.strArg0);
 
         string sResult = "";
         int nIndex, nLength = JsonGetLength(jValue);
@@ -3280,162 +3290,162 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
 
             struct Value strItem = ConvertJsonToValue(JsonArrayGet(jValue, nIndex));
             if (IsErrorValue(strItem))
-                return ReturnPropertyChainWithValue(strPC, strItem);
+                return SetChainContextValue(strCtx, strItem);
 
-            sResult += ValueToText(strItem);
+            sResult += FormatValueForDisplay(strItem);
         }
 
-        return ReturnPropertyChainWithValue(strPC, GetValueFromString(sResult));
+        return SetChainContextValue(strCtx, GetValueFromString(sResult));
     }
 
     if (sProperty == "sort")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_ANY);
+        struct Arguments strArgs = EvalArgs(strCtx, 0, 1, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
 
         int nTransform = JSON_ARRAY_SORT_ASCENDING;
         if (strArgs.nCount == 1)
         {
-            string sDirection = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
+            string sDirection = GetStringLowerCase(GetTrimmedValueText(strArgs.strArg0));
             if (sDirection == "" || sDirection == "asc" || sDirection == "ascending")
                 nTransform = JSON_ARRAY_SORT_ASCENDING;
             else if (sDirection == "desc" || sDirection == "descending")
                 nTransform = JSON_ARRAY_SORT_DESCENDING;
             else
-                return ReturnPropertyChainWithValue(strPC, GetErrorValue("SORT_DIRECTION_INVALID:" + sDirection));
+                return SetChainContextValue(strCtx, GetErrorValue("SORT_DIRECTION_INVALID:" + sDirection));
         }
 
-        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(JsonArrayTransform(jValue, nTransform)));
+        return SetChainContextValue(strCtx, GetValueFromJson(JsonArrayTransform(jValue, nTransform)));
     }
 
     if (sProperty == "shuffle")
     {
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
-        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_SHUFFLE)));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
+        return SetChainContextValue(strCtx, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_SHUFFLE)));
     }
 
     if (sProperty == "reverse")
     {
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
-        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_REVERSE)));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
+        return SetChainContextValue(strCtx, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_REVERSE)));
     }
 
     if (sProperty == "unique")
     {
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
-        return ReturnPropertyChainWithValue(strPC, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_UNIQUE)));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
+        return SetChainContextValue(strCtx, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_UNIQUE)));
     }
 
     if (sProperty == "coalesce")
     {
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return ReturnPropertyChainWithValue(strPC, GetErrorValue("JSON_NOT_ARRAY"));
-        return ReturnPropertyChainWithValue(strPC, ConvertJsonToValue(JsonArrayTransform(jValue, JSON_ARRAY_COALESCE)));
+            return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
+        return SetChainContextValue(strCtx, ConvertJsonToValue(JsonArrayTransform(jValue, JSON_ARRAY_COALESCE)));
     }
 
 
-    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
+    return SetChainContextValue(strCtx, GetInvalidValue());
 }
 
-struct PropertyChain GetSharedProperty(struct PropertyChain strPC)
+struct ChainContext ResolveSharedProperty(struct ChainContext strCtx)
 {
-    string sProperty = strPC.sCurrentProperty;
+    string sProperty = strCtx.sCurrentProperty;
 
     if (sProperty == "color")
     {
-        int nNumParameters = GetParameterCount(strPC);
+        int nNumParameters = GetParameterCount(strCtx);
         if (nNumParameters == 1)
         {
-            struct Arguments strArgs = EvalOneArg(strPC);
+            struct Arguments strArgs = EvalOneArg(strCtx);
             if (IsErrorValue(strArgs.strError))
-                return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+                return SetChainContextValue(strCtx, strArgs.strError);
 
-            string sValue = ValueToText(strPC.strValue);
-            string sColor = GetStringLowerCase(GetValueAsTrimmedString(strArgs.strArg0));
+            string sValue = FormatValueForDisplay(strCtx.strValue);
+            string sColor = GetStringLowerCase(GetTrimmedValueText(strArgs.strArg0));
             if (GetStringLeft(sColor, 1) == "#")
-                return ReturnPropertyChainWithValue(strPC, GetValueFromHexColor(sValue, sColor));
+                return SetChainContextValue(strCtx, GetValueFromHexColor(sValue, sColor));
             else
-                return ReturnPropertyChainWithValue(strPC, GetValueFromNamedColor(sValue, sColor));
+                return SetChainContextValue(strCtx, GetValueFromNamedColor(sValue, sColor));
         }
 
         if (nNumParameters == 3)
         {
-            struct Arguments strArgs = EvalThreeArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+            struct Arguments strArgs = EvalThreeArgs(strCtx, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
             if (IsErrorValue(strArgs.strError))
-                return ReturnPropertyChainWithValue(strPC, strArgs.strError);
-            return ReturnPropertyChainWithValue(strPC, GetValueFromString(ColorString(ValueToText(strPC.strValue), GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2))));
+                return SetChainContextValue(strCtx, strArgs.strError);
+            return SetChainContextValue(strCtx, GetValueFromString(ColorString(FormatValueForDisplay(strCtx.strValue), GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2))));
         }
-        return ReturnPropertyChainWithValue(strPC, GetErrorValue("ARITY:EXPECTED_1_OR_3_ARGUMENTS"));
+        return SetChainContextValue(strCtx, GetErrorValue("ARITY:EXPECTED_1_OR_3_ARGUMENTS"));
     }
 
     if (sProperty == "padleft" || sProperty == "padright")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
+        struct Arguments strArgs = EvalArgs(strCtx, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         int nLength = GetValueAsInt(strArgs.strArg0);
         string sPadding = " ";
         if (strArgs.nCount >= 2)
-            sPadding = GetValueAsText(strArgs.strArg1, " ");
+            sPadding = GetValueText(strArgs.strArg1, " ");
         if (sProperty == "padleft")
-            return ReturnPropertyChainWithValue(strPC, GetValueFromString(LeftPadString(ValueToText(strPC.strValue), nLength, sPadding)));
+            return SetChainContextValue(strCtx, GetValueFromString(LeftPadString(FormatValueForDisplay(strCtx.strValue), nLength, sPadding)));
         else
-            return ReturnPropertyChainWithValue(strPC, GetValueFromString(RightPadString(ValueToText(strPC.strValue), nLength, sPadding)));
+            return SetChainContextValue(strCtx, GetValueFromString(RightPadString(FormatValueForDisplay(strCtx.strValue), nLength, sPadding)));
     }
 
     if (sProperty == "int")
-        return ReturnPropertyChainWithValue(strPC, CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_INT));
+        return SetChainContextValue(strCtx, CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_INT));
 
     if (sProperty == "float")
-        return ReturnPropertyChainWithValue(strPC, CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_FLOAT));
+        return SetChainContextValue(strCtx, CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_FLOAT));
 
     if (sProperty == "string")
-        return ReturnPropertyChainWithValue(strPC, CastValueToAuxType(strPC.strValue, NWNX_VM_AUXTYPE_STRING));
+        return SetChainContextValue(strCtx, CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_STRING));
 
     if (sProperty == "fixed")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 0, 1, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalArgs(strCtx, 0, 1, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
-            return ReturnPropertyChainWithValue(strPC, strArgs.strError);
+            return SetChainContextValue(strCtx, strArgs.strError);
 
         int nPrecision = 2;
         if (strArgs.nCount == 1)
             nPrecision = GetValueAsInt(strArgs.strArg0, 2);
-        return ReturnPropertyChainWithValue(strPC, FormatValueAsFixed(strPC.strValue, nPrecision));
+        return SetChainContextValue(strCtx, FormatValueAsFixed(strCtx.strValue, nPrecision));
     }
 
     if (sProperty == "hex")
-        return ReturnPropertyChainWithValue(strPC, FormatValueAsHex(strPC.strValue));
+        return SetChainContextValue(strCtx, FormatValueAsHex(strCtx.strValue));
 
     if (sProperty == "bool")
-        return ReturnPropertyChainWithValue(strPC, FormatValueAsBoolean(strPC.strValue));
+        return SetChainContextValue(strCtx, FormatValueAsBoolean(strCtx.strValue));
 
     if (sProperty == "default")
     {
-        struct Value strError = CheckArity(strPC, 1, 1);
+        struct Value strError = CheckArity(strCtx, 1, 1);
         if (IsErrorValue(strError))
-            return ReturnPropertyChainWithValue(strPC, strError);
-        if (ValueNeedsDefault(strPC.strValue))
-            return ReturnPropertyChainWithValue(strPC, EvalCompiledParameter(strPC, 0));
+            return SetChainContextValue(strCtx, strError);
+        if (ValueNeedsDefault(strCtx.strValue))
+            return SetChainContextValue(strCtx, EvalCompiledParameter(strCtx, 0));
         else
-            return ReturnPropertyChainWithValue(strPC, strPC.strValue);
+            return SetChainContextValue(strCtx, strCtx.strValue);
     }
 
-    return ReturnPropertyChainWithValue(strPC, GetInvalidValue());
+    return SetChainContextValue(strCtx, GetInvalidValue());
 }
 
-struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaPrimitive(struct ChainContext strCtx, string sMetaName)
 {
     if (sMetaName == "int" || sMetaName == "float" || sMetaName == "string" || sMetaName == "object" || sMetaName == "json")
     {
-        struct Arguments strArgs = EvalOneArg(strPC);
+        struct Arguments strArgs = EvalOneArg(strCtx);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
         return CastValueToAuxType(strArgs.strArg0, GetCastAuxTypeFromName(sMetaName));
@@ -3444,15 +3454,15 @@ struct Value HandleMetaPrimitive(struct PropertyChain strPC, string sMetaName)
     return GetInvalidValue();
 }
 
-struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaFunction(struct ChainContext strCtx, string sMetaName)
 {
     if (sMetaName == "fn")
     {
-        int nParameterCount = GetParameterCount(strPC);
+        int nParameterCount = GetParameterCount(strCtx);
         if (nParameterCount < 2)
             return GetErrorValue("FN_USAGE:@fn(#name, $arg..., body)");
 
-        string sFunctionName = GetStringLowerCase(GetRawParameterText(strPC, 0));
+        string sFunctionName = GetStringLowerCase(GetRawParameterText(strCtx, 0));
         if (!IsSymbol(sFunctionName, DAZSCRIPT_FUNCTION_SYMBOL))
             return GetErrorValue("INVALID_FUNCTION_NAME:" + sFunctionName);
 
@@ -3460,7 +3470,7 @@ struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName)
         int nIndex, nLast = nParameterCount - 1;
         for (nIndex = 1; nIndex < nLast; nIndex++)
         {
-            string sAlias = GetRawParameterText(strPC, nIndex);
+            string sAlias = GetRawParameterText(strCtx, nIndex);
             if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
                 return GetErrorValue("FUNCTION_PARAMETER_IS_NON_ALIAS:" + sAlias);
             if (JsonArrayContainsString(jArgs, sAlias))
@@ -3469,7 +3479,7 @@ struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName)
             JsonArrayInsertStringInplace(jArgs, sAlias);
         }
 
-        string sBody = GetRawParameterText(strPC, nLast);
+        string sBody = GetRawParameterText(strCtx, nLast);
         json jCompiledBody = CompileTemplate(sBody);
 
         if (IsParserError(jCompiledBody))
@@ -3481,7 +3491,7 @@ struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName)
         JsonObjectSetInplace(jFunction, DAZSCRIPT_FUNCTION_ARGS, jArgs);
         JsonObjectSetStringInplace(jFunction, DAZSCRIPT_FUNCTION_BODY, sBody);
         JsonObjectSetInplace(jFunction, DAZSCRIPT_FUNCTION_BODY_COMPILED, jCompiledBody);
-        JsonObjectSetInplace(strPC.jStack, sFunctionName, jFunction);
+        JsonObjectSetInplace(strCtx.jStack, sFunctionName, jFunction);
 
         return GetValueFromString();
     }
@@ -3489,34 +3499,34 @@ struct Value HandleMetaFunction(struct PropertyChain strPC, string sMetaName)
     return GetInvalidValue();
 }
 
-struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaControlFlow(struct ChainContext strCtx, string sMetaName)
 {
     if (sMetaName == "if")
     {
-        struct Value strError = CheckArity(strPC, 3, 3);
+        struct Value strError = CheckArity(strCtx, 3, 3);
         if (IsErrorValue(strError))
             return strError;
-        struct Value strCondition = EvalCompiledParameter(strPC, 0);
+        struct Value strCondition = EvalCompiledParameter(strCtx, 0);
         if (IsErrorValue(strCondition))
             return strCondition;
 
-        int nBranch = ValueToBoolish(strCondition) ? 1 : 2;
+        int nBranch = IsValueTruthy(strCondition) ? 1 : 2;
 
         if (IsTraceEnabled()) { Trace("if.branch", nBranch == 1 ? "then[1]" : "else[2]"); }
 
-        return EvalCompiledParameter(strPC, nBranch);
+        return EvalCompiledParameter(strCtx, nBranch);
     }
 
     if (sMetaName == "while")
     {
-        struct Value strError = CheckArity(strPC, 2, 3);
+        struct Value strError = CheckArity(strCtx, 2, 3);
         if (IsErrorValue(strError))
             return strError;
 
         int nIterations = 0, nLimit = DAZSCRIPT_WHILE_DEFAULT_ITERATION_LIMIT;
-        if (GetParameterCount(strPC) == 3)
+        if (GetParameterCount(strCtx) == 3)
         {
-            struct Value strLimit = EvalTypedParameter(strPC, 2, DAZSCRIPT_ARG_INT);
+            struct Value strLimit = EvalTypedParameter(strCtx, 2, DAZSCRIPT_ARG_INT);
             if (IsErrorValue(strLimit))
                 return strLimit;
             nLimit = clamp(GetValueAsInt(strLimit), 0, DAZSCRIPT_WHILE_MAX_ITERATION_LIMIT);
@@ -3527,11 +3537,11 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         string sAccumulator;
         while (TRUE)
         {
-            struct Value strConditionResult = EvalCompiledParameter(strPC, 0);
+            struct Value strConditionResult = EvalCompiledParameter(strCtx, 0);
             if (IsErrorValue(strConditionResult))
                 return strConditionResult;
 
-            if (!ValueToBoolish(strConditionResult))
+            if (!IsValueTruthy(strConditionResult))
             {
                 if (bTraceEnabled) { Trace("while.exit", "iterations=" + IntToString(nIterations) + "; reason=condition_false"); }
                 break;
@@ -3548,14 +3558,14 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             if (bTraceEnabled) TraceEnter("while.iter.start", "iteration=" + IntToString(nIteration));
 
             nIterations++;
-            struct Value strBodyResult = EvalCompiledParameter(strPC, 1);
+            struct Value strBodyResult = EvalCompiledParameter(strCtx, 1);
 
             if (bTraceEnabled) { TraceExit("while.iter.exit", "iteration=" + IntToString(nIteration) + "; result=" + TraceValue(strBodyResult)); }
 
             if (IsErrorValue(strBodyResult))
                 return strBodyResult;
 
-            sAccumulator += ValueToText(strBodyResult);
+            sAccumulator += FormatValueForDisplay(strBodyResult);
         }
 
         return GetValueFromString(sAccumulator);
@@ -3563,38 +3573,38 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "pick")
     {
-        struct Value strError = CheckArity(strPC, 1, -1);
+        struct Value strError = CheckArity(strCtx, 1, -1);
         if (IsErrorValue(strError))
             return strError;
 
-        int nNumParameters = GetParameterCount(strPC);
+        int nNumParameters = GetParameterCount(strCtx);
         int nIndex = Random(nNumParameters);
-        return EvalCompiledParameter(strPC, nIndex);
+        return EvalCompiledParameter(strCtx, nIndex);
     }
 
     if (sMetaName == "not")
     {
-        struct Arguments strArgs = EvalOneArg(strPC);
+        struct Arguments strArgs = EvalOneArg(strCtx);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
-        return GetValueFromInt(!ValueToBoolish(strArgs.strArg0));
+        return GetValueFromInt(!IsValueTruthy(strArgs.strArg0));
     }
 
     if (sMetaName == "and" || sMetaName == "all")
     {
-        struct Value strError = CheckArity(strPC, 1, -1);
+        struct Value strError = CheckArity(strCtx, 1, -1);
         if (IsErrorValue(strError))
             return strError;
 
-        int nIndex, nCount = GetParameterCount(strPC), bResult = TRUE;
+        int nIndex, nCount = GetParameterCount(strCtx), bResult = TRUE;
         for (nIndex = 0; nIndex < nCount; nIndex++)
         {
-            struct Value strParameter = EvalCompiledParameter(strPC, nIndex);
+            struct Value strParameter = EvalCompiledParameter(strCtx, nIndex);
             if (IsErrorValue(strParameter))
                 return strParameter;
 
-            if (!ValueToBoolish(strParameter))
+            if (!IsValueTruthy(strParameter))
             {
                 bResult = FALSE;
                 break;
@@ -3606,18 +3616,18 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "or" || sMetaName == "any")
     {
-        struct Value strError = CheckArity(strPC, 1, -1);
+        struct Value strError = CheckArity(strCtx, 1, -1);
         if (IsErrorValue(strError))
             return strError;
 
-        int nIndex, nCount = GetParameterCount(strPC), bResult = FALSE;
+        int nIndex, nCount = GetParameterCount(strCtx), bResult = FALSE;
         for (nIndex = 0; nIndex < nCount; nIndex++)
         {
-            struct Value strParameter = EvalCompiledParameter(strPC, nIndex);
+            struct Value strParameter = EvalCompiledParameter(strCtx, nIndex);
             if (IsErrorValue(strParameter))
                 return strParameter;
 
-            if (ValueToBoolish(strParameter))
+            if (IsValueTruthy(strParameter))
             {
                 bResult = TRUE;
                 break;
@@ -3629,16 +3639,16 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "switch")
     {
-        struct Value strError = CheckArity(strPC, 3, -1);
+        struct Value strError = CheckArity(strCtx, 3, -1);
         if (IsErrorValue(strError))
             return strError;
 
-        int nCount = GetParameterCount(strPC);
-        struct Value strSelectorValue = EvalCompiledParameter(strPC, 0);
+        int nCount = GetParameterCount(strCtx);
+        struct Value strSelectorValue = EvalCompiledParameter(strCtx, 0);
         if (IsErrorValue(strSelectorValue))
             return strSelectorValue;
 
-        string sSelector = ValueToText(strSelectorValue);
+        string sSelector = FormatValueForDisplay(strSelectorValue);
         int nDefaultIndex = -1;
 
         if (nCount % 2 == 0)
@@ -3647,34 +3657,34 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         int nIndex, nEnd = nDefaultIndex == -1 ? nCount : nDefaultIndex;
         for (nIndex = 1; nIndex + 1 < nEnd; nIndex += 2)
         {
-            struct Value strCaseValue = EvalCompiledParameter(strPC, nIndex);
+            struct Value strCaseValue = EvalCompiledParameter(strCtx, nIndex);
             if (IsErrorValue(strCaseValue))
                 return strCaseValue;
 
-            string sCase = ValueToText(strCaseValue);
+            string sCase = FormatValueForDisplay(strCaseValue);
             if (sSelector == sCase)
-                return EvalCompiledParameter(strPC, nIndex + 1);
+                return EvalCompiledParameter(strCtx, nIndex + 1);
         }
 
         if (nDefaultIndex != -1)
-            return EvalCompiledParameter(strPC, nDefaultIndex);
+            return EvalCompiledParameter(strCtx, nDefaultIndex);
 
         return GetValueFromString();
     }
 
     if (sMetaName == "foreachpc")
     {
-        struct Value strError = CheckArity(strPC, 2, 2);
+        struct Value strError = CheckArity(strCtx, 2, 2);
         if (IsErrorValue(strError))
             return strError;
 
-        string sAlias = GetRawParameterText(strPC, 0);
+        string sAlias = GetRawParameterText(strCtx, 0);
         if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("FOREACHPC_ALIAS_IS_NON_ALIAS:" + sAlias);
 
-        json jCompiledParameters = GetCompiledParameters(strPC);
+        json jCompiledParameters = GetCompiledParameters(strCtx);
         json jBody = JsonArrayGet(jCompiledParameters, 1);
-        json jFrame = JsonCopyObject(strPC.jStack);
+        json jFrame = JsonCopyObject(strCtx.jStack);
         string sAccumulator = "";
 
         object oPC = GetFirstPC();
@@ -3686,7 +3696,7 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
             if (IsErrorValue(strBodyResult))
                 return strBodyResult;
 
-            sAccumulator += ValueToText(strBodyResult);
+            sAccumulator += FormatValueForDisplay(strBodyResult);
             oPC = GetNextPC();
         }
 
@@ -3695,16 +3705,16 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "try")
     {
-        struct Value strError = CheckArity(strPC, 2, -1);
+        struct Value strError = CheckArity(strCtx, 2, -1);
         if (IsErrorValue(strError))
             return strError;
 
-        int nIndex, nCount = GetParameterCount(strPC);
+        int nIndex, nCount = GetParameterCount(strCtx);
         struct Value strLastError = GetInvalidValue();
 
         for (nIndex = 0; nIndex < nCount; nIndex++)
         {
-            struct Value strCandidate = EvalCompiledParameter(strPC, nIndex);
+            struct Value strCandidate = EvalCompiledParameter(strCtx, nIndex);
             if (!IsErrorValue(strCandidate))
                 return strCandidate;
             strLastError = strCandidate;
@@ -3715,7 +3725,7 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "do")
     {
-        int nCount = GetParameterCount(strPC);
+        int nCount = GetParameterCount(strCtx);
         if (nCount < 1)
             return GetErrorValue("ARITY:EXPECTED_AT_LEAST_1_ARGUMENT");
 
@@ -3723,7 +3733,7 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
         struct Value strResult = GetValueFromString();
         for (nIndex = 0; nIndex < nCount; nIndex++)
         {
-            strResult = EvalCompiledParameter(strPC, nIndex);
+            strResult = EvalCompiledParameter(strCtx, nIndex);
             if (IsErrorValue(strResult))
                 return strResult;
         }
@@ -3733,19 +3743,19 @@ struct Value HandleMetaControlFlow(struct PropertyChain strPC, string sMetaName)
     return GetInvalidValue();
 }
 
-struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaCollection(struct ChainContext strCtx, string sMetaName)
 {
     // @foreach(collection, $value, body)
     // @foreach(collection, $key, $value, body)
     if (sMetaName == "foreach")
     {
-        int nCount = GetParameterCount(strPC);
+        int nCount = GetParameterCount(strCtx);
         if (nCount != 3 && nCount != 4)
             return GetErrorValue("FOREACH_USAGE:@foreach(collection,$value,body) OR @foreach(collection,$key,$value,body)");
 
         int bHasKeyAlias = nCount == 4;
-        string sKeyAlias = bHasKeyAlias ? GetRawParameterText(strPC, 1) : "";
-        string sValueAlias = GetRawParameterText(strPC, bHasKeyAlias ? 2 : 1);
+        string sKeyAlias = bHasKeyAlias ? GetRawParameterText(strCtx, 1) : "";
+        string sValueAlias = GetRawParameterText(strCtx, bHasKeyAlias ? 2 : 1);
         int nBodyIndex = bHasKeyAlias ? 3 : 2;
 
         if (bHasKeyAlias && !IsSymbol(sKeyAlias, DAZSCRIPT_ALIAS_SYMBOL))
@@ -3755,7 +3765,7 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
         if (bHasKeyAlias && sKeyAlias == sValueAlias)
             return GetErrorValue("FOREACH_DUPLICATE_ALIAS:" + sKeyAlias);
 
-        struct Value strCollection = EvalCompiledParameter(strPC, 0);
+        struct Value strCollection = EvalCompiledParameter(strCtx, 0);
         if (IsErrorValue(strCollection))
             return strCollection;
         strCollection = CastValueToJson(strCollection);
@@ -3768,8 +3778,8 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
         if (nJsonType != JSON_TYPE_ARRAY && nJsonType != JSON_TYPE_OBJECT)
             return GetErrorValue("FOREACH_JSON_NOT_ARRAY_OR_OBJECT");
 
-        json jBody = JsonArrayGet(GetCompiledParameters(strPC), nBodyIndex);
-        json jFrame = JsonCopyObject(strPC.jStack);
+        json jBody = JsonArrayGet(GetCompiledParameters(strCtx), nBodyIndex);
+        json jFrame = JsonCopyObject(strCtx.jStack);
 
         string sAccumulator = "";
         int nIndex, nLength;
@@ -3791,7 +3801,7 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
                 if (IsErrorValue(strBodyResult))
                     return strBodyResult;
 
-                sAccumulator += ValueToText(strBodyResult);
+                sAccumulator += FormatValueForDisplay(strBodyResult);
             }
         }
         else
@@ -3816,7 +3826,7 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
                 if (IsErrorValue(strBodyResult))
                     return strBodyResult;
 
-                sAccumulator += ValueToText(strBodyResult);
+                sAccumulator += FormatValueForDisplay(strBodyResult);
             }
         }
 
@@ -3827,25 +3837,25 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     //@map(array, $index, $value, body)
     if (sMetaName == "map")
     {
-        int nCount = GetParameterCount(strPC);
+        int nCount = GetParameterCount(strCtx);
         if (nCount != 3 && nCount != 4)
             return GetErrorValue("MAP_USAGE:@map(array,$value,body) OR @map(array,$index,$value,body)");
 
         int bHasIndexAlias = nCount == 4;
 
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 1) : "";
-        string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1);
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strCtx, 1) : "";
+        string sValueAlias = GetRawParameterText(strCtx, bHasIndexAlias ? 2 : 1);
         int nBodyIndex = bHasIndexAlias ? 3 : 2;
 
         struct Value strValidate = ValidateLoopAliases(sMetaName, bHasIndexAlias, sIndexAlias, sValueAlias);
         if (IsErrorValue(strValidate))
             return strValidate;
-        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "MAP_JSON_NOT_ARRAY");
+        struct Value strCollection = EvalJsonArrayParameter(strCtx, 0, "MAP_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
 
-        json jBody = JsonArrayGet(GetCompiledParameters(strPC), nBodyIndex);
-        json jFrame = JsonCopyObject(strPC.jStack);
+        json jBody = JsonArrayGet(GetCompiledParameters(strCtx), nBodyIndex);
+        json jFrame = JsonCopyObject(strCtx.jStack);
         json jResult = JsonArray();
 
         int nIndex, nLength = JsonGetLength(strCollection.jValue);
@@ -3859,7 +3869,7 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
             if (IsErrorValue(strMapped))
                 return strMapped;
 
-            struct Value strResult = EncodeValueAsJson(strMapped);
+            struct Value strResult = ValueToJsonValue(strMapped);
             if (IsErrorValue(strResult))
                 return strResult;
             JsonArrayInsertInplace(jResult, strResult.jValue);
@@ -3871,16 +3881,16 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     // @each(array, body)
     if (sMetaName == "each")
     {
-        int nCount = GetParameterCount(strPC);
+        int nCount = GetParameterCount(strCtx);
         if (nCount != 2)
-            return GetErrorValue("EACH_USAGE:@each(array,body))");
+            return GetErrorValue("EACH_USAGE:@each(array,body)");
 
-        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "EACH_JSON_NOT_ARRAY");
+        struct Value strCollection = EvalJsonArrayParameter(strCtx, 0, "EACH_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
 
-        json jBody = JsonArrayGet(GetCompiledParameters(strPC), 1);
-        json jFrame = JsonCopyObject(strPC.jStack);
+        json jBody = JsonArrayGet(GetCompiledParameters(strCtx), 1);
+        json jFrame = JsonCopyObject(strCtx.jStack);
         json jResult = JsonArray();
 
         int nIndex, nLength = JsonGetLength(strCollection.jValue);
@@ -3896,7 +3906,7 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
             if (IsErrorValue(strEach))
                 return strEach;
 
-            struct Value strResult = EncodeValueAsJson(strEach);
+            struct Value strResult = ValueToJsonValue(strEach);
             if (IsErrorValue(strResult))
                 return strResult;
             JsonArrayInsertInplace(jResult, strResult.jValue);
@@ -3909,24 +3919,24 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     // @filter(array, $index, $value, predicate)
     if (sMetaName == "filter")
     {
-        int nCount = GetParameterCount(strPC);
+        int nCount = GetParameterCount(strCtx);
         if (nCount != 3 && nCount != 4)
             return GetErrorValue("FILTER_USAGE:@filter(array,$value,predicate) OR @filter(array,$index,$value,predicate)");
 
         int bHasIndexAlias = nCount == 4;
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 1) : "";
-        string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1);
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strCtx, 1) : "";
+        string sValueAlias = GetRawParameterText(strCtx, bHasIndexAlias ? 2 : 1);
         int nPredicateIndex = bHasIndexAlias ? 3 : 2;
 
         struct Value strValidate = ValidateLoopAliases(sMetaName, bHasIndexAlias, sIndexAlias, sValueAlias);
         if (IsErrorValue(strValidate))
             return strValidate;
-        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "FILTER_JSON_NOT_ARRAY");
+        struct Value strCollection = EvalJsonArrayParameter(strCtx, 0, "FILTER_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
 
-        json jPredicate = JsonArrayGet(GetCompiledParameters(strPC), nPredicateIndex);
-        json jFrame = JsonCopyObject(strPC.jStack);
+        json jPredicate = JsonArrayGet(GetCompiledParameters(strCtx), nPredicateIndex);
+        json jFrame = JsonCopyObject(strCtx.jStack);
         json jResult = JsonArray();
 
         int nIndex, nLength = JsonGetLength(strCollection.jValue);
@@ -3939,7 +3949,7 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
             if (IsErrorValue(strPredicate))
                 return strPredicate;
 
-            if (ValueToBoolish(strPredicate))
+            if (IsValueTruthy(strPredicate))
                 JsonArrayInsertInplace(jResult, JsonArrayGet(strCollection.jValue, nIndex));
         }
 
@@ -3952,7 +3962,7 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     // @sortby(array, $index, $value, key, asc|desc)
     if (sMetaName == "sortby")
     {
-        int nCount = GetParameterCount(strPC);
+        int nCount = GetParameterCount(strCtx);
         if (nCount != 3 && nCount != 4 && nCount != 5)
             return GetErrorValue("SORTBY_USAGE:@sortby(array,$value,key[,asc|desc]) OR @sortby(array,$index,$value,key[,asc|desc])");
 
@@ -3960,8 +3970,8 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
         int bHasDirection = FALSE;
         if (nCount == 4)
         {
-            string sThirdArg = GetRawParameterText(strPC, 2);
-            string sLastArg = GetRawParameterText(strPC, 3);
+            string sThirdArg = GetRawParameterText(strCtx, 2);
+            string sLastArg = GetRawParameterText(strCtx, 3);
 
             if (IsSortDirectionLiteral(sLastArg) || !IsSymbol(sThirdArg, DAZSCRIPT_ALIAS_SYMBOL))
                 bHasDirection = TRUE;
@@ -3974,8 +3984,8 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
             bHasDirection = TRUE;
         }
 
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 1) : "";
-        string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1);
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strCtx, 1) : "";
+        string sValueAlias = GetRawParameterText(strCtx, bHasIndexAlias ? 2 : 1);
         int nKeyIndex = bHasIndexAlias ? 3 : 2;
         int nDirectionIndex = bHasDirection ? nCount - 1 : -1;
 
@@ -3986,10 +3996,10 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
         int bDescending = FALSE;
         if (bHasDirection)
         {
-            struct Value strDirection = EvalCompiledParameter(strPC, nDirectionIndex);
+            struct Value strDirection = EvalCompiledParameter(strCtx, nDirectionIndex);
             if (IsErrorValue(strDirection))
                 return strDirection;
-            string sDirection = GetStringLowerCase(GetValueAsTrimmedString(strDirection));
+            string sDirection = GetStringLowerCase(GetTrimmedValueText(strDirection));
             if (sDirection == "" || sDirection == "asc" || sDirection == "ascending")
                 bDescending = FALSE;
             else if (sDirection == "desc" || sDirection == "descending")
@@ -3998,14 +4008,14 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
                 return GetErrorValue("SORTBY_DIRECTION_INVALID:" + sDirection);
         }
 
-        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "SORTBY_JSON_NOT_ARRAY");
+        struct Value strCollection = EvalJsonArrayParameter(strCtx, 0, "SORTBY_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
 
-        json jKey = JsonArrayGet(GetCompiledParameters(strPC), nKeyIndex);
-        string sKeyRaw = GetRawParameterText(strPC, nKeyIndex);
+        json jKey = JsonArrayGet(GetCompiledParameters(strCtx), nKeyIndex);
+        string sKeyRaw = GetRawParameterText(strCtx, nKeyIndex);
         int bKeyIsRawAlias = IsSymbol(sKeyRaw, DAZSCRIPT_ALIAS_SYMBOL);
-        json jFrame = JsonCopyObject(strPC.jStack), jDecorated = JsonArray();
+        json jFrame = JsonCopyObject(strCtx.jStack), jDecorated = JsonArray();
         int nIndex, nLength = JsonGetLength(strCollection.jValue), nKeyKind = 0;
         for (nIndex = 0; nIndex < nLength; nIndex++)
         {
@@ -4030,7 +4040,7 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
             else if (nKeyKind != nThisKeyKind)
                 return GetErrorValue("SORTBY_MIXED_KEY_TYPES:" + TraceValue(strKey));
 
-            strKey = EncodeValueAsJson(strKey);
+            strKey = ValueToJsonValue(strKey);
             if (IsErrorValue(strKey))
                 return strKey;
 
@@ -4090,14 +4100,14 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     // @reduce(array, initial, $acc, $index, $value, body)
     if (sMetaName == "reduce")
     {
-        int nCount = GetParameterCount(strPC);
+        int nCount = GetParameterCount(strCtx);
         if (nCount != 5 && nCount != 6)
             return GetErrorValue("REDUCE_USAGE:@reduce(array,initial,$acc,$value,body) OR @reduce(array,initial,$acc,$index,$value,body)");
 
         int bHasIndexAlias = nCount == 6;
-        string sAccumulatorAlias = GetRawParameterText(strPC, 2);
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 3) : "";
-        string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 4 : 3);
+        string sAccumulatorAlias = GetRawParameterText(strCtx, 2);
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strCtx, 3) : "";
+        string sValueAlias = GetRawParameterText(strCtx, bHasIndexAlias ? 4 : 3);
         int nBodyIndex = bHasIndexAlias ? 5 : 4;
 
         if (!IsSymbol(sAccumulatorAlias, DAZSCRIPT_ALIAS_SYMBOL))
@@ -4113,16 +4123,16 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
         if (bHasIndexAlias && sIndexAlias == sValueAlias)
             return GetErrorValue("REDUCE_DUPLICATE_ALIAS:" + sIndexAlias);
 
-        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "REDUCE_JSON_NOT_ARRAY");
+        struct Value strCollection = EvalJsonArrayParameter(strCtx, 0, "REDUCE_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
 
-        struct Value strAccumulator = EvalCompiledParameter(strPC, 1);
+        struct Value strAccumulator = EvalCompiledParameter(strCtx, 1);
         if (IsErrorValue(strAccumulator))
             return strAccumulator;
 
-        json jBody = JsonArrayGet(GetCompiledParameters(strPC), nBodyIndex);
-        json jFrame = JsonCopyObject(strPC.jStack);
+        json jBody = JsonArrayGet(GetCompiledParameters(strCtx), nBodyIndex);
+        json jFrame = JsonCopyObject(strCtx.jStack);
 
         int nIndex, nLength = JsonGetLength(strCollection.jValue);
         for (nIndex = 0; nIndex < nLength; nIndex++)
@@ -4142,18 +4152,18 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     return GetInvalidValue();
 }
 
-struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaAggregate(struct ChainContext strCtx, string sMetaName)
 {
     // @count(array)
     // @count(array, $value, predicate)
     // @count(array, $index, $value, predicate)
     if (sMetaName == "count")
     {
-        int nCount = GetParameterCount(strPC);
+        int nCount = GetParameterCount(strCtx);
         if (nCount != 1 && nCount != 3 && nCount != 4)
             return GetErrorValue("COUNT_USAGE:@count(array) OR @count(array,$value,predicate) OR @count(array,$index,$value,predicate)");
 
-        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "COUNT_JSON_NOT_ARRAY");
+        struct Value strCollection = EvalJsonArrayParameter(strCtx, 0, "COUNT_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
 
@@ -4162,16 +4172,16 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
             return GetValueFromInt(nLength);
 
         int bHasIndexAlias = nCount == 4;
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 1) : "";
-        string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1);
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strCtx, 1) : "";
+        string sValueAlias = GetRawParameterText(strCtx, bHasIndexAlias ? 2 : 1);
         int nPredicateIndex = bHasIndexAlias ? 3 : 2;
 
         struct Value strValidate = ValidateLoopAliases(sMetaName, bHasIndexAlias, sIndexAlias, sValueAlias);
         if (IsErrorValue(strValidate))
             return strValidate;
 
-        json jPredicate = JsonArrayGet(GetCompiledParameters(strPC), nPredicateIndex);
-        json jFrame = JsonCopyObject(strPC.jStack);
+        json jPredicate = JsonArrayGet(GetCompiledParameters(strCtx), nPredicateIndex);
+        json jFrame = JsonCopyObject(strCtx.jStack);
         int nMatched = 0;
 
         for (nIndex = 0; nIndex < nLength; nIndex++)
@@ -4182,7 +4192,7 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
             struct Value strPredicate = EvalTemplate(jPredicate, jFrame);
             if (IsErrorValue(strPredicate))
                 return strPredicate;
-            if (ValueToBoolish(strPredicate))
+            if (IsValueTruthy(strPredicate))
                 nMatched++;
         }
 
@@ -4197,18 +4207,18 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
     // @avg(array, $index, $value, selector)
     if (sMetaName == "sum" || sMetaName == "avg")
     {
-        int nCount = GetParameterCount(strPC);
+        int nCount = GetParameterCount(strCtx);
         if (nCount != 1 && nCount != 3 && nCount != 4)
             return GetErrorValue(GetStringUpperCase(sMetaName) + "_USAGE:@" + sMetaName + "(array) OR @" + sMetaName + "(array,$value,selector) OR @" + sMetaName + "(array,$index,$value,selector)");
 
-        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, GetStringUpperCase(sMetaName) + "_JSON_NOT_ARRAY");
+        struct Value strCollection = EvalJsonArrayParameter(strCtx, 0, GetStringUpperCase(sMetaName) + "_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
 
         int bHasSelector = nCount != 1;
         int bHasIndexAlias = nCount == 4;
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strPC, 1) : "";
-        string sValueAlias = bHasSelector ? GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1) : "";
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strCtx, 1) : "";
+        string sValueAlias = bHasSelector ? GetRawParameterText(strCtx, bHasIndexAlias ? 2 : 1) : "";
         int nSelectorIndex = bHasIndexAlias ? 3 : 2;
 
         if (bHasSelector)
@@ -4218,8 +4228,8 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
                 return strValidate;
         }
 
-        json jSelector = bHasSelector ? JsonArrayGet(GetCompiledParameters(strPC), nSelectorIndex) : JSON_NULL;
-        json jFrame = JsonCopyObject(strPC.jStack);
+        json jSelector = bHasSelector ? JsonArrayGet(GetCompiledParameters(strCtx), nSelectorIndex) : JSON_NULL;
+        json jFrame = JsonCopyObject(strCtx.jStack);
 
         int nIndex, nLength = JsonGetLength(strCollection.jValue);
         if (sMetaName == "avg" && nLength == 0)
@@ -4274,25 +4284,25 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
     return GetInvalidValue();
 }
 
-struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaVariable(struct ChainContext strCtx, string sMetaName)
 {
     if (sMetaName == "let")
     {
-        struct Value strError = CheckArity(strPC, 3, -1);
+        struct Value strError = CheckArity(strCtx, 3, -1);
         if (IsErrorValue(strError))
             return strError;
 
-        int nCount = GetParameterCount(strPC);
+        int nCount = GetParameterCount(strCtx);
         if (nCount % 2 != 1)
             return GetErrorValue("LET_EXPECTS_BINDINGS_PLUS_BODY");
 
-        json jCompiledParameters = GetCompiledParameters(strPC);
-        json jFrame = JsonCopyObject(strPC.jStack);
+        json jCompiledParameters = GetCompiledParameters(strCtx);
+        json jFrame = JsonCopyObject(strCtx.jStack);
 
         int nIndex;
         for (nIndex = 0; nIndex < nCount - 1; nIndex += 2)
         {
-            string sAlias = GetRawParameterText(strPC, nIndex);
+            string sAlias = GetRawParameterText(strCtx, nIndex);
             if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
                 return GetErrorValue("LET_ALIAS_IS_NON_ALIAS:" + sAlias);
 
@@ -4308,55 +4318,55 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "set")
     {
-        struct Value strError = CheckArity(strPC, 2, 2);
+        struct Value strError = CheckArity(strCtx, 2, 2);
         if (IsErrorValue(strError))
             return strError;
 
-        string sAlias = GetRawParameterText(strPC, 0);
+        string sAlias = GetRawParameterText(strCtx, 0);
         if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("SET_ALIAS_IS_NON_ALIAS:" + sAlias);
-        struct Value strValue = EvalCompiledParameter(strPC, 1);
+        struct Value strValue = EvalCompiledParameter(strCtx, 1);
         if (IsErrorValue(strValue))
             return strValue;
 
-        JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(strValue));
+        JsonObjectSetInplace(strCtx.jStack, sAlias, MakeStackAliasEntryFromValue(strValue));
         return GetValueFromString();
     }
 
     if (sMetaName == "unset")
     {
-        struct Value strError = CheckArity(strPC, 1, 1);
+        struct Value strError = CheckArity(strCtx, 1, 1);
         if (IsErrorValue(strError))
             return strError;
 
-        string sAlias = GetRawParameterText(strPC, 0);
+        string sAlias = GetRawParameterText(strCtx, 0);
         if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("UNSET_ALIAS_IS_NON_ALIAS:" + sAlias);
 
-        JsonObjectDelInplace(strPC.jStack, sAlias);
+        JsonObjectDelInplace(strCtx.jStack, sAlias);
         return GetValueFromString();
     }
 
     if (sMetaName == "cast")
     {
-        struct Value strError = CheckArity(strPC, 2, 2);
+        struct Value strError = CheckArity(strCtx, 2, 2);
         if (IsErrorValue(strError))
             return strError;
 
-        string sAlias = GetRawParameterText(strPC, 0);
+        string sAlias = GetRawParameterText(strCtx, 0);
         if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("CAST_ALIAS_IS_NON_ALIAS:" + sAlias);
 
-        if (!JsonObjectContainsKey(strPC.jStack, sAlias))
+        if (!JsonObjectContainsKey(strCtx.jStack, sAlias))
             return GetErrorValue("UNKNOWN_ALIAS:" + sAlias);
 
-        string sCast = GetRawParameterText(strPC, 1);
+        string sCast = GetRawParameterText(strCtx, 1);
         int nTargetAuxType = GetCastAuxTypeFromName(sCast);
 
         if (nTargetAuxType == NWNX_VM_AUXTYPE_INVALID)
             return GetErrorValue("INVALID_CAST_TYPE:" + sCast);
 
-        struct Value strCurrentValue = ResolveAliasValue(strPC.jStack, sAlias);
+        struct Value strCurrentValue = ResolveAliasValue(strCtx.jStack, sAlias);
         if (IsErrorValue(strCurrentValue))
             return strCurrentValue;
 
@@ -4364,27 +4374,27 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
         if (IsErrorValue(strCastedValue))
             return strCastedValue;
 
-        JsonObjectSetInplace(strPC.jStack, sAlias, MakeStackAliasEntryFromValue(strCastedValue));
+        JsonObjectSetInplace(strCtx.jStack, sAlias, MakeStackAliasEntryFromValue(strCastedValue));
         return GetValueFromString();
     }
 
     if (sMetaName == "out")
     {
-        struct Value strError = CheckArity(strPC, 2, 2);
+        struct Value strError = CheckArity(strCtx, 2, 2);
         if (IsErrorValue(strError))
             return strError;
 
-        string sVarName = GetRawParameterText(strPC, 0);
+        string sVarName = GetRawParameterText(strCtx, 0);
         if (!IsStackVar(sVarName))
             return GetErrorValue("OUT_ARGUMENT_IS_NON_STACKVAR:" + sVarName);
-        if (!JsonObjectContainsKey(strPC.jStack, sVarName))
+        if (!JsonObjectContainsKey(strCtx.jStack, sVarName))
             return GetErrorValue("UNKNOWN_STACK_VAR:" + sVarName);
 
-        struct Value strValue = EvalCompiledParameter(strPC, 1);
+        struct Value strValue = EvalCompiledParameter(strCtx, 1);
         if (IsErrorValue(strValue))
             return strValue;
 
-        json jStackVar = JsonObjectGet(strPC.jStack, sVarName);
+        json jStackVar = JsonObjectGet(strCtx.jStack, sVarName);
         int nAuxType = JsonObjectGetInt(jStackVar, NWNX_VM_TYPE_KEY);
         int nStackLocation = JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY);
 
@@ -4393,22 +4403,22 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "with")
     {
-        struct Value strError = CheckArity(strPC, 2, 2);
+        struct Value strError = CheckArity(strCtx, 2, 2);
         if (IsErrorValue(strError))
             return strError;
 
-        json jCompiledParameters = GetCompiledParameters(strPC);
+        json jCompiledParameters = GetCompiledParameters(strCtx);
 
-        string sRaw = GetRawParameterText(strPC, 0);
+        string sRaw = GetRawParameterText(strCtx, 0);
         struct Value strValue;
-        if (!GetRawParameterWasQuoted(strPC, 0) && IsSymbol(sRaw, DAZSCRIPT_ALIAS_SYMBOL))
-            strValue = ResolveAliasValue(strPC.jStack, sRaw);
+        if (!GetRawParameterWasQuoted(strCtx, 0) && IsSymbol(sRaw, DAZSCRIPT_ALIAS_SYMBOL))
+            strValue = ResolveAliasValue(strCtx.jStack, sRaw);
         else
-            strValue = EvalCompiledParameter(strPC, 0);
+            strValue = EvalCompiledParameter(strCtx, 0);
         if (IsErrorValue(strValue))
             return strValue;
 
-        json jFrame = JsonCopyObject(strPC.jStack);
+        json jFrame = JsonCopyObject(strCtx.jStack);
         JsonObjectSetInplace(jFrame, DAZSCRIPT_THIS_ALIAS, MakeStackAliasEntryFromValue(strValue));
         return EvalTemplate(JsonArrayGet(jCompiledParameters, 1), jFrame);
     }
@@ -4416,44 +4426,44 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
     return GetInvalidValue();
 }
 
-struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaIntrospection(struct ChainContext strCtx, string sMetaName)
 {
     if (sMetaName == "exists")
     {
-        struct Value strError = CheckArity(strPC, 1, 1);
+        struct Value strError = CheckArity(strCtx, 1, 1);
         if (IsErrorValue(strError))
             return strError;
-        return GetValueFromInt(SymbolExists(strPC.jStack, GetRawParameterText(strPC, 0)));
+        return GetValueFromInt(SymbolExists(strCtx.jStack, GetRawParameterText(strCtx, 0)));
     }
 
     if (sMetaName == "type")
     {
-        struct Value strError = CheckArity(strPC, 1, 1);
+        struct Value strError = CheckArity(strCtx, 1, 1);
         if (IsErrorValue(strError))
             return strError;
-        return GetValueFromString(GetSymbolType(strPC.jStack, GetRawParameterText(strPC, 0)));
+        return GetValueFromString(GetSymbolType(strCtx.jStack, GetRawParameterText(strCtx, 0)));
     }
 
     if (sMetaName == "debug")
     {
-        struct Value strError = CheckArity(strPC, 1, 1);
+        struct Value strError = CheckArity(strCtx, 1, 1);
         if (IsErrorValue(strError))
             return strError;
 
-        string sExpr = GetRawParameterText(strPC, 0);
-        struct Value strValue = EvalCompiledParameter(strPC, 0);
+        string sExpr = GetRawParameterText(strCtx, 0);
+        struct Value strValue = EvalCompiledParameter(strCtx, 0);
         if (IsErrorValue(strValue))
             return strValue;
 
-        string sValue = ValueToText(strValue);
-        string sSymbolType = GetSymbolType(strPC.jStack, sExpr);
+        string sValue = FormatValueForDisplay(strValue);
+        string sSymbolType = GetSymbolType(strCtx.jStack, sExpr);
         string sValueType = InferDebugValueType(sValue);
 
         string sDebug =
             "expr=\"" + sExpr + "\"" +
             "; symbol_type=" + sSymbolType +
             "; value_type=" + sValueType +
-            "; truthy=" + (ValueToBoolish(strValue) ? "TRUE" : "FALSE") +
+            "; truthy=" + (IsValueTruthy(strValue) ? "TRUE" : "FALSE") +
             "; length=" + IntToString(GetStringLength(sValue)) +
             "; value=\"" + Truncate(sValue, 128) + "\"";
 
@@ -4463,11 +4473,11 @@ struct Value HandleMetaIntrospection(struct PropertyChain strPC, string sMetaNam
     return GetInvalidValue();
 }
 
-struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaOutput(struct ChainContext strCtx, string sMetaName)
 {
     if (sMetaName == "tellpc")
     {
-        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_OBJECT, DAZSCRIPT_ARG_ANY);
+        struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_OBJECT, DAZSCRIPT_ARG_ANY);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
@@ -4475,17 +4485,17 @@ struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
         if (!GetIsObjectValid(oPC))
             return GetErrorValue("INVALID_OBJECT:ARG1");
 
-        SendMessageToPC(oPC, GetValueAsText(strArgs.strArg1));
+        SendMessageToPC(oPC, GetValueText(strArgs.strArg1));
         return GetValueFromString();
     }
 
     if (sMetaName == "print")
     {
-        struct Arguments strArgs = EvalOneArg(strPC);
+        struct Arguments strArgs = EvalOneArg(strCtx);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
-        PrintString(GetValueAsText(strArgs.strArg0));
+        PrintString(GetValueText(strArgs.strArg0));
         return GetValueFromString();
     }
 
@@ -4493,7 +4503,7 @@ struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
     {
         PushTrace();
 
-        struct Arguments strArgs = EvalOneArg(strPC);
+        struct Arguments strArgs = EvalOneArg(strCtx);
 
         if (IsErrorValue(strArgs.strError))
         {
@@ -4512,11 +4522,11 @@ struct Value HandleMetaOutput(struct PropertyChain strPC, string sMetaName)
     return GetInvalidValue();
 }
 
-struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaMath(struct ChainContext strCtx, string sMetaName)
 {
     if (sMetaName == "add" || sMetaName == "sub" || sMetaName == "mul")
     {
-        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
+        struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
@@ -4550,7 +4560,7 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
     {
         if (sMetaName == "div")
         {
-            struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
+            struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
             if (IsErrorValue(strArgs.strError))
                 return strArgs.strError;
 
@@ -4564,7 +4574,7 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
         }
         else
         {
-            struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+            struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
             if (IsErrorValue(strArgs.strError))
                 return strArgs.strError;
 
@@ -4580,17 +4590,17 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "min" || sMetaName == "max")
     {
-        struct Value strError = CheckArity(strPC, 1, -1);
+        struct Value strError = CheckArity(strCtx, 1, -1);
         if (IsErrorValue(strError))
             return strError;
 
-        int nIndex, nNumParameters = GetParameterCount(strPC);
+        int nIndex, nNumParameters = GetParameterCount(strCtx);
         int bAllInt = TRUE, nIntResult = 0;
         float fResult = 0.0;
 
         for (nIndex = 0; nIndex < nNumParameters; nIndex++)
         {
-            struct Value strArg = EvalCompiledParameter(strPC, nIndex);
+            struct Value strArg = EvalCompiledParameter(strCtx, nIndex);
             if (IsErrorValue(strArg))
                  return strArg;
             if (!IsValueNumericParameter(strArg))
@@ -4639,7 +4649,7 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "clamp")
     {
-        struct Arguments strArgs = EvalThreeArgs(strPC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
+        struct Arguments strArgs = EvalThreeArgs(strCtx, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
         if (IsValueIntParameter(strArgs.strArg0) && IsValueIntParameter(strArgs.strArg1) && IsValueIntParameter(strArgs.strArg2))
@@ -4649,7 +4659,7 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "mod")
     {
-        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
@@ -4663,7 +4673,7 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "random")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalArgs(strCtx, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
@@ -4687,7 +4697,7 @@ struct Value HandleMetaMath(struct PropertyChain strPC, string sMetaName)
     return GetInvalidValue();
 }
 
-struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaObject(struct ChainContext strCtx, string sMetaName)
 {
     if (sMetaName == "firstpc" || sMetaName == "nextpc")
     {
@@ -4704,11 +4714,11 @@ struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "objectbytag")
     {
-        struct Arguments strArgs = EvalArgs(strPC, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_INT);
+        struct Arguments strArgs = EvalArgs(strCtx, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
-        string sTag = GetValueAsText(strArgs.strArg0);
+        string sTag = GetValueText(strArgs.strArg0);
         int nNth = 0;
         if (strArgs.nCount >= 2)
             nNth = GetValueAsInt(strArgs.strArg1);
@@ -4721,11 +4731,11 @@ struct Value HandleMetaObject(struct PropertyChain strPC, string sMetaName)
     return GetInvalidValue();
 }
 
-struct Value HandleMetaSqlQuery(struct PropertyChain strPC, string sMetaName)
+struct Value HandleMetaSqlQuery(struct ChainContext strCtx, string sMetaName)
 {
     if (sMetaName == "sqlobject")
     {
-        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_OBJECT, DAZSCRIPT_ARG_STRING);
+        struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_OBJECT, DAZSCRIPT_ARG_STRING);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
@@ -4733,7 +4743,7 @@ struct Value HandleMetaSqlQuery(struct PropertyChain strPC, string sMetaName)
         if (!GetIsObjectValid(oObject))
             return GetErrorValue("INVALID_OBJECT:ARG1");
 
-        string sQuery = GetValueAsTrimmedString(strArgs.strArg1);
+        string sQuery = GetTrimmedValueText(strArgs.strArg1);
         if (sQuery == "")
             return GetErrorValue("EMPTY_SQL_QUERY");
 
@@ -4747,15 +4757,15 @@ struct Value HandleMetaSqlQuery(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "sqlcampaign")
     {
-        struct Arguments strArgs = EvalTwoArgs(strPC, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_STRING);
+        struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_STRING);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
-        string sDatabase = GetValueAsTrimmedString(strArgs.strArg0);
+        string sDatabase = GetTrimmedValueText(strArgs.strArg0);
         if (sDatabase == "")
             return GetErrorValue("EMPTY_DATABASE_NAME");
 
-        string sQuery = GetValueAsTrimmedString(strArgs.strArg1);
+        string sQuery = GetTrimmedValueText(strArgs.strArg1);
         if (sQuery == "")
             return GetErrorValue("EMPTY_SQL_QUERY");
 
@@ -4769,11 +4779,11 @@ struct Value HandleMetaSqlQuery(struct PropertyChain strPC, string sMetaName)
 
     if (sMetaName == "sqlmodule")
     {
-        struct Arguments strArgs = EvalOneArg(strPC, DAZSCRIPT_ARG_STRING);
+        struct Arguments strArgs = EvalOneArg(strCtx, DAZSCRIPT_ARG_STRING);
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
 
-        string sQuery = GetValueAsTrimmedString(strArgs.strArg0);
+        string sQuery = GetTrimmedValueText(strArgs.strArg0);
         if (sQuery == "")
             return GetErrorValue("EMPTY_SQL_QUERY");
 
@@ -4865,7 +4875,7 @@ struct Value SqlRowSetColumnInplace(json jRow, sqlquery sqlQuery, int nIndex, st
     struct Value strValue = GetValueFromSqlColumn(sqlQuery, nIndex, nAuxType);
     if (IsErrorValue(strValue))
         return strValue;
-    strValue = EncodeValueAsJson(strValue);
+    strValue = ValueToJsonValue(strValue);
     if (IsErrorValue(strValue))
         return strValue;
     JsonObjectSetInplace(jRow,  sName,  strValue.jValue);
@@ -4897,6 +4907,34 @@ struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, string sSpec)
     }
 
     return GetValueFromJson(jRow);
+}
+
+struct Value GetValueFromSqlColumn(sqlquery sqlQuery, int nIndex, int nAuxType)
+{
+    int nColumnCount = SqlGetColumnCount(sqlQuery);
+    if (nIndex < 0 || nIndex >= nColumnCount)
+        return GetErrorValue("COLUMN_INDEX_OUT_OF_RANGE:" + IntToString(nIndex));
+
+    struct Value strError = CheckSqlQueryError(sqlQuery);
+    if (IsErrorValue(strError))
+        return strError;
+
+    struct Value strValue;
+    switch (nAuxType)
+    {
+        case NWNX_VM_AUXTYPE_INT: strValue = GetValueFromInt(SqlGetInt(sqlQuery, nIndex)); break;
+        case NWNX_VM_AUXTYPE_FLOAT: strValue = GetValueFromFloat(SqlGetFloat(sqlQuery, nIndex)); break;
+        case NWNX_VM_AUXTYPE_STRING: strValue = GetValueFromString(SqlGetString(sqlQuery, nIndex)); break;
+        case NWNX_VM_AUXTYPE_OBJECT: strValue = GetValueFromObject(SqlGetObjectRef(sqlQuery, nIndex)); break;
+        case NWNX_VM_AUXTYPE_JSON: strValue = GetValueFromJson(SqlGetJson(sqlQuery, nIndex)); break;
+        default: return GetErrorValue("INVALID_SQL_COLUMN_AUXTYPE:" + IntToString(nAuxType));
+    }
+
+    strError = CheckSqlQueryError(sqlQuery);
+    if (IsErrorValue(strError))
+        return strError;
+
+    return strValue;
 }
 
 struct Value ValidateLoopAliases(string sMetaName, int bHasIndexAlias, string sIndexAlias, string sValueAlias)
@@ -4993,117 +5031,8 @@ int CompareSortKeys(struct Value strLeft, struct Value strRight, int nKeyKind)
     }
 
     if (nKeyKind == 2)
-        return CompareSortStrings(GetValueAsText(strLeft), GetValueAsText(strRight));
+        return CompareSortStrings(GetValueText(strLeft), GetValueText(strRight));
     return 0;
-}
-
-int IsTraceEnabled()
-{
-    return GetLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_DEPTH_KEY) > 0;
-}
-
-void PushTrace()
-{
-    IncrementLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_DEPTH_KEY);
-}
-
-void PopTrace()
-{
-    object oDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
-    int nDepth = GetLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY) - 1;
-    if (nDepth <= 0)
-    {
-        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY);
-        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
-    }
-    else
-    {
-        SetLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY, nDepth);
-    }
-}
-
-void PushTraceIndent()
-{
-    IncrementLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_INDENT_KEY);
-}
-
-void PopTraceIndent()
-{
-    object oDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
-    int nDepth = GetLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY) - 1;
-    if (nDepth <= 0)
-        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
-    else
-        SetLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY, nDepth);
-}
-
-string GetTraceIndent()
-{
-    int nDepth = GetLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_INDENT_KEY);
-    string sIndent = "";
-    while (nDepth > 0)
-    {
-        sIndent += "  ";
-        nDepth--;
-    }
-    return sIndent;
-}
-
-void Trace(string sEvent, string sDetail = "")
-{
-    string sLine = "[TRACE] " + RightPadString(GetTraceIndent() + sEvent, DAZSCRIPT_TRACE_EVENT_WIDTH, " ");
-    if (sDetail != "")
-        sLine += " | " + sDetail;
-    PrintString(sLine);
-}
-
-void TraceEnter(string sEvent, string sDetail = "")
-{
-    Trace(sEvent, sDetail);
-    PushTraceIndent();
-}
-
-void TraceExit(string sEvent, string sDetail = "")
-{
-    PopTraceIndent();
-    Trace(sEvent, sDetail);
-}
-
-string TraceValue(struct Value strValue)
-{
-    if (IsErrorValue(strValue))
-        return "error " + strValue.sErrorMessage;
-
-    string sType = AuxTypeToString(strValue.nAuxType, TRUE);
-    string sText = ValueToText(strValue);
-
-    if (GetStringLength(sText) > DAZSCRIPT_TRACE_MAX_LENGTH)
-        sText = GetStringLeft(sText, DAZSCRIPT_TRACE_MAX_LENGTH) + "...";
-
-    if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
-        return sType + " \"" + EscapeString(sText) + "\"";
-
-    return sType + " " + sText;
-}
-
-string TraceExprKind(int nKind)
-{
-    switch (nKind)
-    {
-        case DAZSCRIPT_EXPR_VAR:      return "var";
-        case DAZSCRIPT_EXPR_ALIAS:    return "alias";
-        case DAZSCRIPT_EXPR_META:     return "meta";
-        case DAZSCRIPT_EXPR_FUNCTION: return "function";
-    }
-
-    return "unknown";
-}
-
-string TraceQuoted(string sText)
-{
-    if (GetStringLength(sText) > DAZSCRIPT_TRACE_MAX_LENGTH)
-        sText = GetStringLeft(sText, DAZSCRIPT_TRACE_MAX_LENGTH) + "...";
-    return "\"" + EscapeString(sText) + "\"";
 }
 
 int IsStackVar(string sVarName)
@@ -5159,7 +5088,7 @@ int IsStackEntry(json jEntry)
     if (!JsonObjectContainsKey(jEntry, NWNX_VM_TYPE_KEY))
         return FALSE;
     int nAuxType = JsonObjectGetInt(jEntry, NWNX_VM_TYPE_KEY);
-    if (!IsKnownStackAuxType(nAuxType))
+    if (!IsStackEntryAuxType(nAuxType))
         return FALSE;
     if (nAuxType != NWNX_VM_AUXTYPE_VOID && !JsonObjectContainsKey(jEntry, NWNX_VM_STACK_LOCATION_KEY))
         return FALSE;
@@ -5173,7 +5102,7 @@ string GetAliasEntryType(json jEntry)
     if (IsErrorAliasEntry(jEntry))
         return "alias:error";
     int nAuxType = JsonObjectGetInt(jEntry, DAZSCRIPT_ALIAS_TYPE);
-    if (!IsKnownAuxType(nAuxType))
+    if (!IsAliasValueAuxType(nAuxType))
         return "invalid:alias";
     return "alias:" + AuxTypeToString(nAuxType, TRUE);
 }
@@ -5225,6 +5154,75 @@ int SymbolExists(json jStack, string sName)
     return TRUE;
 }
 
+string GetAliasStoredValueAsString(json jEntry)
+{
+    json jValue = JsonObjectGet(jEntry, DAZSCRIPT_ALIAS_VALUE);
+    switch (JsonGetType(jValue))
+    {
+        case JSON_TYPE_STRING: return JsonGetString(jValue);
+        case JSON_TYPE_INTEGER: return IntToString(JsonGetInt(jValue));
+        case JSON_TYPE_FLOAT: return FloatToString(JsonGetFloat(jValue), 0, 9);
+    }
+    return JsonDump(jValue);
+}
+
+json MakeStackAliasEntryFromValue(struct Value strValue)
+{
+    json jEntry = JsonObject();
+
+    if (IsErrorValue(strValue))
+    {
+        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INVALID);
+        JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.sErrorMessage);
+        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_ERROR, TRUE);
+        return jEntry;
+    }
+
+    if (!IsAliasValueAuxType(strValue.nAuxType))
+    {
+        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, NWNX_VM_AUXTYPE_INVALID);
+        JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, "INVALID_ALIAS_VALUE");
+        JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_ERROR, TRUE);
+        return jEntry;
+    }
+
+    JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_TYPE, strValue.nAuxType);
+    JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_ERROR, FALSE);
+
+    switch (strValue.nAuxType)
+    {
+        case NWNX_VM_AUXTYPE_INT:       JsonObjectSetIntInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.nValue); break;
+        case NWNX_VM_AUXTYPE_FLOAT:     JsonObjectSetFloatInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.fValue); break;
+        case NWNX_VM_AUXTYPE_STRING:    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.sValue); break;
+        case NWNX_VM_AUXTYPE_OBJECT:    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, ObjectIDToString(strValue.oValue));  break;
+        case NWNX_VM_AUXTYPE_JSON:      JsonObjectSetInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, strValue.jValue); break;
+        default:                        JsonObjectSetStringInplace(jEntry, DAZSCRIPT_ALIAS_VALUE, FormatValueForDisplay(strValue)); break;
+    }
+    return jEntry;
+}
+
+struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct Value strValue)
+{
+    struct Value strOutValue = CastValueToAuxType(strValue, nAuxType);
+    if (IsErrorValue(strOutValue))
+        return GetErrorValue("TYPE_MISMATCH:OUT_NOT_" + GetStringUpperCase(AuxTypeToString(nAuxType, TRUE)));
+
+    if (nAuxType == NWNX_VM_AUXTYPE_INT)
+        NWNX_VM_SetStackIntegerValue(nStackLocation, strOutValue.nValue);
+    else if (nAuxType == NWNX_VM_AUXTYPE_FLOAT)
+        NWNX_VM_SetStackFloatValue(nStackLocation, strOutValue.fValue);
+    else if (nAuxType == NWNX_VM_AUXTYPE_OBJECT)
+        NWNX_VM_SetStackObjectValue(nStackLocation, strOutValue.oValue);
+    else if (nAuxType == NWNX_VM_AUXTYPE_STRING)
+        NWNX_VM_SetStackStringValue(nStackLocation, strOutValue.sValue);
+    else if (nAuxType == NWNX_VM_AUXTYPE_JSON)
+        NWNX_VM_SetStackJsonValue(nStackLocation, strOutValue.jValue);
+    else
+        return GetErrorValue("TYPE_MISMATCH:OUT_UNSUPPORTED_TYPE");
+
+    return GetValueFromString();
+}
+
 string InferDebugValueType(string sValue)
 {
     string sLower = GetStringLowerCase(trim(sValue));
@@ -5269,7 +5267,7 @@ string DumpStruct(json jStack, string sVarName, string sStructName, string sInst
                     sResult += DumpStruct(jStack, sKey, JsonObjectGetString(jStructVar, NWNX_VM_STRUCT_NAME_KEY), sMemberPath);
                 else
                 {
-                    string sValue = ValueToText(GetStackValue(jStack, sKey));
+                    string sValue = FormatValueForDisplay(GetStackValue(jStack, sKey));
                     if (nAuxType == NWNX_VM_AUXTYPE_STRING)
                         sValue = "\"" + sValue + "\"";
                     sResult += GetStringLowerCase(AuxTypeToString(nAuxType)) + " " + sMemberPath + " = " + sValue + "; ";

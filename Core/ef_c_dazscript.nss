@@ -48,6 +48,8 @@ const string DAZSCRIPT_META_SYMBOL                          = "@";
 const string DAZSCRIPT_ALIAS_SYMBOL                         = "$";
 const string DAZSCRIPT_FUNCTION_SYMBOL                      = "#";
 
+const string DAZSCRIPT_THIS_ALIAS                           = DAZSCRIPT_ALIAS_SYMBOL + "this";
+
 const int DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY               = 0;
 const int DAZSCRIPT_PROPERTY_SEGMENT_PARAMETERS             = 1;
 const int DAZSCRIPT_PROPERTY_SEGMENT_COMPILED_PARAMETERS    = 2;
@@ -180,6 +182,7 @@ json GetValueAsJson(struct Value strValue, json jDefault = JSON_NULL);
 struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct Value strValue);
 string ValueToText(struct Value strValue);
 int ValueToBoolish(struct Value strValue);
+struct Value EncodeValueAsJson(struct Value strValue);
 struct Value FormatValueAsFixed(struct Value strValue, int nPrecision);
 struct Value FormatValueAsHex(struct Value strValue);
 struct Value FormatValueAsBoolean(struct Value strValue);
@@ -215,7 +218,6 @@ struct Value CheckParameterParserError(struct PropertyChain strPC);
 json CompileTemplate(string sString);
 json CompileForcedStringTemplate(string sValue);
 void JsonArrayInsertLiteralNodeInplace(json jTemplate, string sLiteral);
-void JsonArrayInsertExprNodeInplace(json jTemplate, string sExpr);
 void JsonArrayInsertForceStringNodeInplace(json jTemplate, json jInnerTemplate);
 
 json CompileExpression(string sExpr);
@@ -231,6 +233,7 @@ string GetRawParameterText(struct PropertyChain strPC, int nIndex, string sDefau
 int GetRawParameterWasQuoted(struct PropertyChain strPC, int nIndex);
 int GetParameterCount(struct PropertyChain strPC);
 struct Value EvalCompiledParameter(struct PropertyChain strPC, int nIndex);
+struct Value EvalJsonArrayParameter(struct PropertyChain strPC, int nIndex, string sErrorCode);
 string GetArgTypeName(int nArgType);
 int IsValueArgType(struct Value strValue, int nArgType);
 struct Value CheckArity(struct PropertyChain strPC, int nMin, int nMax);
@@ -278,10 +281,11 @@ struct Value CheckSqlStateIsNot(sqlquery sqlQuery, int nState);
 int IsValidSqlAuxType(int nAuxType);
 int GetSqlAuxTypeFromShortType(string sChar);
 struct Value ValidateSqlRowSpec(string sSpec, int nColumnCount, string sErrorPrefix);
-struct Value SqlRowSetJsonValueInplace(json jObject, string sKey, struct Value strValue);
 struct Value SqlRowSetColumnInplace(json jRow, sqlquery sqlQuery, int nIndex, string sName, int nAuxType);
 struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, string sSpec);
-struct Value JsonArrayInsertValueInplace(json jArray, struct Value strValue);
+
+struct Value ValidateLoopAliases(string sMetaName, int bHasIndexAlias, string sIndexAlias, string sValueAlias);
+struct Value BindArrayLoopAliasesInplace(json jFrame, json jCollection, int nIndex, int bHasIndexAlias, string sIndexAlias, string sValueAlias);
 
 int IsSortDirectionLiteral(string sRaw);
 int SortKeyKind(struct Value strValue);
@@ -340,7 +344,7 @@ struct Value Eval(string sString, int bTraceEnabled = FALSE, int nDepthOverride 
         bPushedTrace = TRUE;
     }
 
-    if (IsTraceEnabled()) { Trace("eval.input", sString); }
+    if (IsTraceEnabled()) { Trace("eval.input", EscapeString(sString)); }
 
     json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sString);
     if (!JsonGetType(jTemplate))
@@ -852,6 +856,23 @@ int ValueToBoolish(struct Value strValue)
         }
     }
     return FALSE;
+}
+
+struct Value EncodeValueAsJson(struct Value strValue)
+{
+    if (IsErrorValue(strValue))
+        return strValue;
+
+    switch (strValue.nAuxType)
+    {
+        case NWNX_VM_AUXTYPE_INT:    return GetValueFromJson(JsonInt(strValue.nValue));
+        case NWNX_VM_AUXTYPE_FLOAT:  return GetValueFromJson(JsonFloat(strValue.fValue));
+        case NWNX_VM_AUXTYPE_STRING: return GetValueFromJson(JsonString(strValue.sValue));
+        case NWNX_VM_AUXTYPE_OBJECT: return GetValueFromJson(JsonString(ObjectIDToString(strValue.oValue)));
+        case NWNX_VM_AUXTYPE_JSON:   return GetValueFromJson(strValue.jValue);
+    }
+
+    return GetErrorValue("INVALID_JSON_VALUE_AUXTYPE:" + IntToString(strValue.nAuxType));
 }
 
 struct Value FormatValueAsFixed(struct Value strValue, int nPrecision)
@@ -1376,11 +1397,6 @@ void JsonArrayInsertLiteralNodeInplace(json jTemplate, string sLiteral)
     JsonArrayInsertInplace(jTemplate, jNode);
 }
 
-void JsonArrayInsertExprNodeInplace(json jTemplate, string sExpr)
-{
-    JsonArrayInsertInplace(jTemplate, CompileExpression(sExpr));
-}
-
 void JsonArrayInsertForceStringNodeInplace(json jTemplate, json jInnerTemplate)
 {
     json jNode = JsonArray();
@@ -1843,6 +1859,22 @@ struct Value EvalCompiledParameter(struct PropertyChain strPC, int nIndex)
     struct Value strValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), strPC.jStack);
 
     if (bTraceEnabled) { TraceExit("arg.exit", strPC.sCurrentProperty + "[" + IntToString(nIndex + 1) + "]" + " => " + TraceValue(strValue)); }
+
+    return strValue;
+}
+
+struct Value EvalJsonArrayParameter(struct PropertyChain strPC, int nIndex, string sErrorCode)
+{
+    struct Value strValue = EvalCompiledParameter(strPC, nIndex);
+    if (IsErrorValue(strValue))
+        return strValue;
+
+    strValue = CastValueToJson(strValue);
+    if (IsErrorValue(strValue))
+        return strValue;
+
+    if (JsonGetType(strValue.jValue) != JSON_TYPE_ARRAY)
+        return GetErrorValue(sErrorCode);
 
     return strValue;
 }
@@ -3223,7 +3255,7 @@ struct PropertyChain GetJsonProperty(struct PropertyChain strPC)
             return ReturnPropertyChainWithValue(strPC, strArgs.strError);
         int nIndent = -1;
         if (strArgs.nCount == 1)
-            nIndent = min(-1, GetValueAsInt(strArgs.strArg0, -1));
+            nIndent = max(-1, GetValueAsInt(strArgs.strArg0, -1));
         return ReturnPropertyChainWithValue(strPC, GetValueFromString(JsonDump(jValue, nIndent)));
     }
 
@@ -3707,10 +3739,6 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     // @foreach(collection, $key, $value, body)
     if (sMetaName == "foreach")
     {
-        struct Value strError = CheckParameterParserError(strPC);
-        if (IsErrorValue(strError))
-            return strError;
-
         int nCount = GetParameterCount(strPC);
         if (nCount != 3 && nCount != 4)
             return GetErrorValue("FOREACH_USAGE:@foreach(collection,$value,body) OR @foreach(collection,$key,$value,body)");
@@ -3799,10 +3827,6 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     //@map(array, $index, $value, body)
     if (sMetaName == "map")
     {
-        struct Value strError = CheckParameterParserError(strPC);
-        if (IsErrorValue(strError))
-            return strError;
-
         int nCount = GetParameterCount(strPC);
         if (nCount != 3 && nCount != 4)
             return GetErrorValue("MAP_USAGE:@map(array,$value,body) OR @map(array,$index,$value,body)");
@@ -3813,47 +3837,69 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
         string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1);
         int nBodyIndex = bHasIndexAlias ? 3 : 2;
 
-        if (bHasIndexAlias && !IsSymbol(sIndexAlias, DAZSCRIPT_ALIAS_SYMBOL))
-            return GetErrorValue("MAP_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
-        if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
-            return GetErrorValue("MAP_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
-        if (bHasIndexAlias && sIndexAlias == sValueAlias)
-            return GetErrorValue("MAP_VALUE_DUPLICATE_ALIAS:" + sIndexAlias);
-
-        struct Value strCollection = EvalCompiledParameter(strPC, 0);
+        struct Value strValidate = ValidateLoopAliases(sMetaName, bHasIndexAlias, sIndexAlias, sValueAlias);
+        if (IsErrorValue(strValidate))
+            return strValidate;
+        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "MAP_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
-        strCollection = CastValueToJson(strCollection);
-        if (IsErrorValue(strCollection))
-            return strCollection;
-        json jCollection = strCollection.jValue;
-
-        if (JsonGetType(jCollection) != JSON_TYPE_ARRAY)
-            return GetErrorValue("MAP_JSON_NOT_ARRAY");
 
         json jBody = JsonArrayGet(GetCompiledParameters(strPC), nBodyIndex);
         json jFrame = JsonCopyObject(strPC.jStack);
         json jResult = JsonArray();
 
-        int nIndex, nLength = JsonGetLength(jCollection);
+        int nIndex, nLength = JsonGetLength(strCollection.jValue);
         for (nIndex = 0; nIndex < nLength; nIndex++)
         {
-            if (bHasIndexAlias)
-                JsonObjectSetInplace(jFrame, sIndexAlias, MakeStackAliasEntryFromValue(GetValueFromInt(nIndex)));
-
-            struct Value strItem = ConvertJsonToValue(JsonArrayGet(jCollection, nIndex));
+            struct Value strItem = BindArrayLoopAliasesInplace(jFrame, strCollection.jValue, nIndex, bHasIndexAlias, sIndexAlias, sValueAlias);
             if (IsErrorValue(strItem))
                 return strItem;
-
-            JsonObjectSetInplace(jFrame, sValueAlias, MakeStackAliasEntryFromValue(strItem));
 
             struct Value strMapped = EvalTemplate(jBody, jFrame);
             if (IsErrorValue(strMapped))
                 return strMapped;
 
-            strError = JsonArrayInsertValueInplace(jResult, strMapped);
-            if (IsErrorValue(strError))
-                return strError;
+            struct Value strResult = EncodeValueAsJson(strMapped);
+            if (IsErrorValue(strResult))
+                return strResult;
+            JsonArrayInsertInplace(jResult, strResult.jValue);
+        }
+
+        return GetValueFromJson(jResult);
+    }
+
+    // @each(array, body)
+    if (sMetaName == "each")
+    {
+        int nCount = GetParameterCount(strPC);
+        if (nCount != 2)
+            return GetErrorValue("EACH_USAGE:@each(array,body))");
+
+        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "EACH_JSON_NOT_ARRAY");
+        if (IsErrorValue(strCollection))
+            return strCollection;
+
+        json jBody = JsonArrayGet(GetCompiledParameters(strPC), 1);
+        json jFrame = JsonCopyObject(strPC.jStack);
+        json jResult = JsonArray();
+
+        int nIndex, nLength = JsonGetLength(strCollection.jValue);
+        for (nIndex = 0; nIndex < nLength; nIndex++)
+        {
+            struct Value strItem = ConvertJsonToValue(JsonArrayGet(strCollection.jValue, nIndex));
+            if (IsErrorValue(strItem))
+                return strItem;
+
+            JsonObjectSetInplace(jFrame, DAZSCRIPT_THIS_ALIAS, MakeStackAliasEntryFromValue(strItem));
+
+            struct Value strEach = EvalTemplate(jBody, jFrame);
+            if (IsErrorValue(strEach))
+                return strEach;
+
+            struct Value strResult = EncodeValueAsJson(strEach);
+            if (IsErrorValue(strResult))
+                return strResult;
+            JsonArrayInsertInplace(jResult, strResult.jValue);
         }
 
         return GetValueFromJson(jResult);
@@ -3863,10 +3909,6 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     // @filter(array, $index, $value, predicate)
     if (sMetaName == "filter")
     {
-        struct Value strError = CheckParameterParserError(strPC);
-        if (IsErrorValue(strError))
-            return strError;
-
         int nCount = GetParameterCount(strPC);
         if (nCount != 3 && nCount != 4)
             return GetErrorValue("FILTER_USAGE:@filter(array,$value,predicate) OR @filter(array,$index,$value,predicate)");
@@ -3876,48 +3918,29 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
         string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1);
         int nPredicateIndex = bHasIndexAlias ? 3 : 2;
 
-        if (bHasIndexAlias && !IsSymbol(sIndexAlias, DAZSCRIPT_ALIAS_SYMBOL))
-            return GetErrorValue("FILTER_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
-        if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
-            return GetErrorValue("FILTER_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
-        if (bHasIndexAlias && sIndexAlias == sValueAlias)
-            return GetErrorValue("FILTER_DUPLICATE_ALIAS:" + sIndexAlias);
-
-        struct Value strCollection = EvalCompiledParameter(strPC, 0);
+        struct Value strValidate = ValidateLoopAliases(sMetaName, bHasIndexAlias, sIndexAlias, sValueAlias);
+        if (IsErrorValue(strValidate))
+            return strValidate;
+        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "FILTER_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
-        strCollection = CastValueToJson(strCollection);
-        if (IsErrorValue(strCollection))
-            return strCollection;
-        json jCollection = strCollection.jValue;
-
-        if (JsonGetType(jCollection) != JSON_TYPE_ARRAY)
-            return GetErrorValue("FILTER_JSON_NOT_ARRAY");
 
         json jPredicate = JsonArrayGet(GetCompiledParameters(strPC), nPredicateIndex);
         json jFrame = JsonCopyObject(strPC.jStack);
         json jResult = JsonArray();
 
-        int nIndex, nLength = JsonGetLength(jCollection);
+        int nIndex, nLength = JsonGetLength(strCollection.jValue);
         for (nIndex = 0; nIndex < nLength; nIndex++)
         {
-            if (bHasIndexAlias)
-                JsonObjectSetInplace(jFrame, sIndexAlias, MakeStackAliasEntryFromValue(GetValueFromInt(nIndex)));
-
-            json jItem = JsonArrayGet(jCollection, nIndex);
-
-            struct Value strItem = ConvertJsonToValue(jItem);
+            struct Value strItem = BindArrayLoopAliasesInplace(jFrame, strCollection.jValue, nIndex, bHasIndexAlias, sIndexAlias, sValueAlias);
             if (IsErrorValue(strItem))
                 return strItem;
-
-            JsonObjectSetInplace(jFrame, sValueAlias, MakeStackAliasEntryFromValue(strItem));
-
             struct Value strPredicate = EvalTemplate(jPredicate, jFrame);
             if (IsErrorValue(strPredicate))
                 return strPredicate;
 
             if (ValueToBoolish(strPredicate))
-                JsonArrayInsertInplace(jResult, jItem);
+                JsonArrayInsertInplace(jResult, JsonArrayGet(strCollection.jValue, nIndex));
         }
 
         return GetValueFromJson(jResult);
@@ -3929,9 +3952,6 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     // @sortby(array, $index, $value, key, asc|desc)
     if (sMetaName == "sortby")
     {
-        struct Value strError = CheckParameterParserError(strPC);
-        if (IsErrorValue(strError))
-            return strError;
         int nCount = GetParameterCount(strPC);
         if (nCount != 3 && nCount != 4 && nCount != 5)
             return GetErrorValue("SORTBY_USAGE:@sortby(array,$value,key[,asc|desc]) OR @sortby(array,$index,$value,key[,asc|desc])");
@@ -3959,12 +3979,9 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
         int nKeyIndex = bHasIndexAlias ? 3 : 2;
         int nDirectionIndex = bHasDirection ? nCount - 1 : -1;
 
-        if (bHasIndexAlias && !IsSymbol(sIndexAlias, DAZSCRIPT_ALIAS_SYMBOL))
-            return GetErrorValue("SORTBY_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
-        if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
-            return GetErrorValue("SORTBY_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
-        if (bHasIndexAlias && sIndexAlias == sValueAlias)
-            return GetErrorValue("SORTBY_DUPLICATE_ALIAS:" + sIndexAlias);
+        struct Value strValidate = ValidateLoopAliases(sMetaName, bHasIndexAlias, sIndexAlias, sValueAlias);
+        if (IsErrorValue(strValidate))
+            return strValidate;
 
         int bDescending = FALSE;
         if (bHasDirection)
@@ -3981,34 +3998,20 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
                 return GetErrorValue("SORTBY_DIRECTION_INVALID:" + sDirection);
         }
 
-        struct Value strCollection = EvalCompiledParameter(strPC, 0);
+        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "SORTBY_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
-        strCollection = CastValueToJson(strCollection);
-        if (IsErrorValue(strCollection))
-            return strCollection;
-
-        json jCollection = strCollection.jValue;
-        if (JsonGetType(jCollection) != JSON_TYPE_ARRAY)
-            return GetErrorValue("SORTBY_JSON_NOT_ARRAY");
 
         json jKey = JsonArrayGet(GetCompiledParameters(strPC), nKeyIndex);
         string sKeyRaw = GetRawParameterText(strPC, nKeyIndex);
         int bKeyIsRawAlias = IsSymbol(sKeyRaw, DAZSCRIPT_ALIAS_SYMBOL);
         json jFrame = JsonCopyObject(strPC.jStack), jDecorated = JsonArray();
-        int nIndex, nLength = JsonGetLength(jCollection), nKeyKind = 0;
+        int nIndex, nLength = JsonGetLength(strCollection.jValue), nKeyKind = 0;
         for (nIndex = 0; nIndex < nLength; nIndex++)
         {
-            if (bHasIndexAlias)
-                JsonObjectSetInplace(jFrame, sIndexAlias, MakeStackAliasEntryFromValue(GetValueFromInt(nIndex)));
-
-            json jItem = JsonArrayGet(jCollection, nIndex);
-
-            struct Value strItem = ConvertJsonToValue(jItem);
+            struct Value strItem = BindArrayLoopAliasesInplace(jFrame, strCollection.jValue, nIndex, bHasIndexAlias, sIndexAlias, sValueAlias);
             if (IsErrorValue(strItem))
                 return strItem;
-
-            JsonObjectSetInplace(jFrame, sValueAlias, MakeStackAliasEntryFromValue(strItem));
 
             struct Value strKey;
             if (bKeyIsRawAlias)
@@ -4027,14 +4030,14 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
             else if (nKeyKind != nThisKeyKind)
                 return GetErrorValue("SORTBY_MIXED_KEY_TYPES:" + TraceValue(strKey));
 
+            strKey = EncodeValueAsJson(strKey);
+            if (IsErrorValue(strKey))
+                return strKey;
+
             json jEntry = JsonObject();
             JsonObjectSetIntInplace(jEntry, "index", nIndex);
-
-            strError = SqlRowSetJsonValueInplace(jEntry, "key", strKey);
-            if (IsErrorValue(strError))
-                return strError;
-
-            JsonObjectSetInplace(jEntry, "value", jItem);
+            JsonObjectSetInplace(jEntry, "key", strKey.jValue);
+            JsonObjectSetInplace(jEntry, "value", JsonArrayGet(strCollection.jValue, nIndex));
             JsonArrayInsertInplace(jDecorated, jEntry);
         }
 
@@ -4087,10 +4090,6 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
     // @reduce(array, initial, $acc, $index, $value, body)
     if (sMetaName == "reduce")
     {
-        struct Value strError = CheckParameterParserError(strPC);
-        if (IsErrorValue(strError))
-            return strError;
-
         int nCount = GetParameterCount(strPC);
         if (nCount != 5 && nCount != 6)
             return GetErrorValue("REDUCE_USAGE:@reduce(array,initial,$acc,$value,body) OR @reduce(array,initial,$acc,$index,$value,body)");
@@ -4114,16 +4113,9 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
         if (bHasIndexAlias && sIndexAlias == sValueAlias)
             return GetErrorValue("REDUCE_DUPLICATE_ALIAS:" + sIndexAlias);
 
-        struct Value strCollection = EvalCompiledParameter(strPC, 0);
+        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "REDUCE_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
-        strCollection = CastValueToJson(strCollection);
-        if (IsErrorValue(strCollection))
-            return strCollection;
-        json jCollection = strCollection.jValue;
-
-        if (JsonGetType(jCollection) != JSON_TYPE_ARRAY)
-            return GetErrorValue("REDUCE_JSON_NOT_ARRAY");
 
         struct Value strAccumulator = EvalCompiledParameter(strPC, 1);
         if (IsErrorValue(strAccumulator))
@@ -4132,20 +4124,13 @@ struct Value HandleMetaCollection(struct PropertyChain strPC, string sMetaName)
         json jBody = JsonArrayGet(GetCompiledParameters(strPC), nBodyIndex);
         json jFrame = JsonCopyObject(strPC.jStack);
 
-        int nIndex, nLength = JsonGetLength(jCollection);
+        int nIndex, nLength = JsonGetLength(strCollection.jValue);
         for (nIndex = 0; nIndex < nLength; nIndex++)
         {
             JsonObjectSetInplace(jFrame, sAccumulatorAlias, MakeStackAliasEntryFromValue(strAccumulator));
-
-            if (bHasIndexAlias)
-                JsonObjectSetInplace(jFrame, sIndexAlias, MakeStackAliasEntryFromValue(GetValueFromInt(nIndex)));
-
-            struct Value strItem = ConvertJsonToValue(JsonArrayGet(jCollection, nIndex));
+            struct Value strItem = BindArrayLoopAliasesInplace(jFrame, strCollection.jValue, nIndex, bHasIndexAlias, sIndexAlias, sValueAlias);
             if (IsErrorValue(strItem))
                 return strItem;
-
-            JsonObjectSetInplace(jFrame, sValueAlias, MakeStackAliasEntryFromValue(strItem));
-
             strAccumulator = EvalTemplate(jBody, jFrame);
             if (IsErrorValue(strAccumulator))
                 return strAccumulator;
@@ -4164,26 +4149,15 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
     // @count(array, $index, $value, predicate)
     if (sMetaName == "count")
     {
-        struct Value strError = CheckArity(strPC, 1, 4);
-        if (IsErrorValue(strError))
-            return strError;
-
         int nCount = GetParameterCount(strPC);
         if (nCount != 1 && nCount != 3 && nCount != 4)
             return GetErrorValue("COUNT_USAGE:@count(array) OR @count(array,$value,predicate) OR @count(array,$index,$value,predicate)");
 
-        struct Value strCollection = EvalCompiledParameter(strPC, 0);
+        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, "COUNT_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
-        strCollection = CastValueToJson(strCollection);
-        if (IsErrorValue(strCollection))
-            return strCollection;
-        json jCollection = strCollection.jValue;
 
-        if (JsonGetType(jCollection) != JSON_TYPE_ARRAY)
-            return GetErrorValue("COUNT_JSON_NOT_ARRAY");
-
-        int nIndex, nLength = JsonGetLength(jCollection);
+        int nIndex, nLength = JsonGetLength(strCollection.jValue);
         if (nCount == 1)
             return GetValueFromInt(nLength);
 
@@ -4192,12 +4166,9 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
         string sValueAlias = GetRawParameterText(strPC, bHasIndexAlias ? 2 : 1);
         int nPredicateIndex = bHasIndexAlias ? 3 : 2;
 
-        if (bHasIndexAlias && !IsSymbol(sIndexAlias, DAZSCRIPT_ALIAS_SYMBOL))
-            return GetErrorValue("COUNT_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
-        if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
-            return GetErrorValue("COUNT_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
-        if (bHasIndexAlias && sIndexAlias == sValueAlias)
-            return GetErrorValue("COUNT_DUPLICATE_ALIAS:" + sIndexAlias);
+        struct Value strValidate = ValidateLoopAliases(sMetaName, bHasIndexAlias, sIndexAlias, sValueAlias);
+        if (IsErrorValue(strValidate))
+            return strValidate;
 
         json jPredicate = JsonArrayGet(GetCompiledParameters(strPC), nPredicateIndex);
         json jFrame = JsonCopyObject(strPC.jStack);
@@ -4205,19 +4176,12 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
 
         for (nIndex = 0; nIndex < nLength; nIndex++)
         {
-            if (bHasIndexAlias)
-                JsonObjectSetInplace(jFrame, sIndexAlias, MakeStackAliasEntryFromValue(GetValueFromInt(nIndex)));
-
-            struct Value strItem = ConvertJsonToValue(JsonArrayGet(jCollection, nIndex));
+            struct Value strItem = BindArrayLoopAliasesInplace(jFrame, strCollection.jValue, nIndex, bHasIndexAlias, sIndexAlias, sValueAlias);
             if (IsErrorValue(strItem))
                 return strItem;
-
-            JsonObjectSetInplace(jFrame, sValueAlias, MakeStackAliasEntryFromValue(strItem));
-
             struct Value strPredicate = EvalTemplate(jPredicate, jFrame);
             if (IsErrorValue(strPredicate))
                 return strPredicate;
-
             if (ValueToBoolish(strPredicate))
                 nMatched++;
         }
@@ -4233,24 +4197,13 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
     // @avg(array, $index, $value, selector)
     if (sMetaName == "sum" || sMetaName == "avg")
     {
-        struct Value strError = CheckArity(strPC, 1, 4);
-        if (IsErrorValue(strError))
-            return strError;
-
         int nCount = GetParameterCount(strPC);
         if (nCount != 1 && nCount != 3 && nCount != 4)
             return GetErrorValue(GetStringUpperCase(sMetaName) + "_USAGE:@" + sMetaName + "(array) OR @" + sMetaName + "(array,$value,selector) OR @" + sMetaName + "(array,$index,$value,selector)");
 
-        struct Value strCollection = EvalCompiledParameter(strPC, 0);
+        struct Value strCollection = EvalJsonArrayParameter(strPC, 0, GetStringUpperCase(sMetaName) + "_JSON_NOT_ARRAY");
         if (IsErrorValue(strCollection))
             return strCollection;
-        strCollection = CastValueToJson(strCollection);
-        if (IsErrorValue(strCollection))
-            return strCollection;
-        json jCollection = strCollection.jValue;
-
-        if (JsonGetType(jCollection) != JSON_TYPE_ARRAY)
-            return GetErrorValue(GetStringUpperCase(sMetaName) + "_JSON_NOT_ARRAY");
 
         int bHasSelector = nCount != 1;
         int bHasIndexAlias = nCount == 4;
@@ -4260,18 +4213,15 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
 
         if (bHasSelector)
         {
-            if (bHasIndexAlias && !IsSymbol(sIndexAlias, DAZSCRIPT_ALIAS_SYMBOL))
-                return GetErrorValue(GetStringUpperCase(sMetaName) + "_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
-            if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
-                return GetErrorValue(GetStringUpperCase(sMetaName) + "_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
-            if (bHasIndexAlias && sIndexAlias == sValueAlias)
-                return GetErrorValue(GetStringUpperCase(sMetaName) + "_DUPLICATE_ALIAS:" + sIndexAlias);
+            struct Value strValidate = ValidateLoopAliases(sMetaName, bHasIndexAlias, sIndexAlias, sValueAlias);
+            if (IsErrorValue(strValidate))
+                return strValidate;
         }
 
         json jSelector = bHasSelector ? JsonArrayGet(GetCompiledParameters(strPC), nSelectorIndex) : JSON_NULL;
         json jFrame = JsonCopyObject(strPC.jStack);
 
-        int nIndex, nLength = JsonGetLength(jCollection);
+        int nIndex, nLength = JsonGetLength(strCollection.jValue);
         if (sMetaName == "avg" && nLength == 0)
             return GetErrorValue("AVG_EMPTY_ARRAY");
 
@@ -4281,7 +4231,7 @@ struct Value HandleMetaAggregate(struct PropertyChain strPC, string sMetaName)
 
         for (nIndex = 0; nIndex < nLength; nIndex++)
         {
-            struct Value strValue = ConvertJsonToValue(JsonArrayGet(jCollection, nIndex));
+            struct Value strValue = ConvertJsonToValue(JsonArrayGet(strCollection.jValue, nIndex));
             if (IsErrorValue(strValue))
                 return strValue;
 
@@ -4439,6 +4389,28 @@ struct Value HandleMetaVariable(struct PropertyChain strPC, string sMetaName)
         int nStackLocation = JsonObjectGetInt(jStackVar, NWNX_VM_STACK_LOCATION_KEY);
 
         return SetStackLocationFromValue(nAuxType, nStackLocation, strValue);
+    }
+
+    if (sMetaName == "with")
+    {
+        struct Value strError = CheckArity(strPC, 2, 2);
+        if (IsErrorValue(strError))
+            return strError;
+
+        json jCompiledParameters = GetCompiledParameters(strPC);
+
+        string sRaw = GetRawParameterText(strPC, 0);
+        struct Value strValue;
+        if (!GetRawParameterWasQuoted(strPC, 0) && IsSymbol(sRaw, DAZSCRIPT_ALIAS_SYMBOL))
+            strValue = ResolveAliasValue(strPC.jStack, sRaw);
+        else
+            strValue = EvalCompiledParameter(strPC, 0);
+        if (IsErrorValue(strValue))
+            return strValue;
+
+        json jFrame = JsonCopyObject(strPC.jStack);
+        JsonObjectSetInplace(jFrame, DAZSCRIPT_THIS_ALIAS, MakeStackAliasEntryFromValue(strValue));
+        return EvalTemplate(JsonArrayGet(jCompiledParameters, 1), jFrame);
     }
 
     return GetInvalidValue();
@@ -4884,22 +4856,6 @@ struct Value ValidateSqlRowSpec(string sSpec, int nColumnCount, string sErrorPre
     return GetInvalidValue();
 }
 
-struct Value SqlRowSetJsonValueInplace(json jObject, string sKey, struct Value strValue)
-{
-    if (IsErrorValue(strValue))
-        return strValue;
-    switch (strValue.nAuxType)
-    {
-        case NWNX_VM_AUXTYPE_INT: JsonObjectSetIntInplace(jObject, sKey, strValue.nValue); break;
-        case NWNX_VM_AUXTYPE_FLOAT: JsonObjectSetFloatInplace(jObject, sKey, strValue.fValue); break;
-        case NWNX_VM_AUXTYPE_STRING: JsonObjectSetStringInplace(jObject, sKey, strValue.sValue); break;
-        case NWNX_VM_AUXTYPE_OBJECT: JsonObjectSetStringInplace(jObject, sKey, ObjectIDToString(strValue.oValue)); break;
-        case NWNX_VM_AUXTYPE_JSON: JsonObjectSetInplace(jObject, sKey, strValue.jValue); break;
-        default: return GetErrorValue("INVALID_JSON_OBJECT_VALUE_AUXTYPE:" + IntToString(strValue.nAuxType));
-    }
-    return GetInvalidValue();
-}
-
 struct Value SqlRowSetColumnInplace(json jRow, sqlquery sqlQuery, int nIndex, string sName, int nAuxType)
 {
     if (sName == "")
@@ -4909,7 +4865,11 @@ struct Value SqlRowSetColumnInplace(json jRow, sqlquery sqlQuery, int nIndex, st
     struct Value strValue = GetValueFromSqlColumn(sqlQuery, nIndex, nAuxType);
     if (IsErrorValue(strValue))
         return strValue;
-    return SqlRowSetJsonValueInplace(jRow, sName, strValue);
+    strValue = EncodeValueAsJson(strValue);
+    if (IsErrorValue(strValue))
+        return strValue;
+    JsonObjectSetInplace(jRow,  sName,  strValue.jValue);
+    return GetInvalidValue();
 }
 
 struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, string sSpec)
@@ -4939,19 +4899,26 @@ struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, string sSpec)
     return GetValueFromJson(jRow);
 }
 
-struct Value JsonArrayInsertValueInplace(json jArray, struct Value strValue)
+struct Value ValidateLoopAliases(string sMetaName, int bHasIndexAlias, string sIndexAlias, string sValueAlias)
 {
-    if (IsErrorValue(strValue))
-        return strValue;
-    switch (strValue.nAuxType)
-    {
-        case NWNX_VM_AUXTYPE_INT: JsonArrayInsertInplace(jArray, JsonInt(strValue.nValue)); break;
-        case NWNX_VM_AUXTYPE_FLOAT: JsonArrayInsertInplace(jArray, JsonFloat(strValue.fValue)); break;
-        case NWNX_VM_AUXTYPE_STRING: JsonArrayInsertInplace(jArray, JsonString(strValue.sValue)); break;
-        case NWNX_VM_AUXTYPE_OBJECT: JsonArrayInsertInplace(jArray, JsonString(ObjectIDToString(strValue.oValue))); break;
-        case NWNX_VM_AUXTYPE_JSON: JsonArrayInsertInplace(jArray, strValue.jValue); break;
-        default: return GetErrorValue("INVALID_JSON_ARRAY_VALUE_AUXTYPE:" + IntToString(strValue.nAuxType));
-    }
+    sMetaName = GetStringUpperCase(sMetaName);
+    if (bHasIndexAlias && !IsSymbol(sIndexAlias, DAZSCRIPT_ALIAS_SYMBOL))
+        return GetErrorValue(sMetaName + "_INDEX_ALIAS_IS_NON_ALIAS:" + sIndexAlias);
+    if (!IsSymbol(sValueAlias, DAZSCRIPT_ALIAS_SYMBOL))
+        return GetErrorValue(sMetaName + "_VALUE_ALIAS_IS_NON_ALIAS:" + sValueAlias);
+    if (bHasIndexAlias && sIndexAlias == sValueAlias)
+        return GetErrorValue(sMetaName + "_DUPLICATE_ALIAS:" + sIndexAlias);
+    return GetInvalidValue();
+}
+
+struct Value BindArrayLoopAliasesInplace(json jFrame, json jCollection, int nIndex, int bHasIndexAlias, string sIndexAlias, string sValueAlias)
+{
+    if (bHasIndexAlias)
+        JsonObjectSetInplace(jFrame, sIndexAlias, MakeStackAliasEntryFromValue(GetValueFromInt(nIndex)));
+    struct Value strItem = ConvertJsonToValue(JsonArrayGet(jCollection, nIndex));
+    if (IsErrorValue(strItem))
+        return strItem;
+    JsonObjectSetInplace(jFrame, sValueAlias, MakeStackAliasEntryFromValue(strItem));
     return GetInvalidValue();
 }
 

@@ -244,6 +244,7 @@ struct Value EvalJsonArrayParameter(struct ChainContext strCtx, int nIndex, stri
 string GetArgTypeName(int nArgType);
 int IsValueArgType(struct Value strValue, int nArgType);
 struct Value CheckArity(struct ChainContext strCtx, int nMin, int nMax);
+struct Value RequireNoArgs(struct ChainContext strCtx);
 struct Value EvalTypedParameter(struct ChainContext strCtx, int nIndex, int nArgType);
 struct Arguments EvalArgs(struct ChainContext strCtx, int nMin, int nMax, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY, int nType3 = DAZSCRIPT_ARG_ANY, int nType4 = DAZSCRIPT_ARG_ANY);
 struct Arguments EvalOneArg(struct ChainContext strCtx, int nType0 = DAZSCRIPT_ARG_ANY);
@@ -1934,8 +1935,12 @@ struct Value CheckArity(struct ChainContext strCtx, int nMin, int nMax)
         return GetErrorValue("ARITY:EXPECTED_" + IntToString(nMin) + "_TO_" + IntToString(nMax) + "_ARGUMENTS");
     }
 
-    struct Value strValue;
-    return strValue;
+    return GetInvalidValue();
+}
+
+struct Value RequireNoArgs(struct ChainContext strCtx)
+{
+    return CheckArity(strCtx, 0, 0);
 }
 
 struct Value EvalTypedParameter(struct ChainContext strCtx, int nIndex, int nArgType)
@@ -2439,7 +2444,12 @@ struct ChainContext ResolveIntProperty(struct ChainContext strCtx)
     int nValue = strCtx.strValue.nValue;
 
     if (sProperty == "abs")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(abs(nValue)));
+    }
 
     if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
@@ -2515,13 +2525,27 @@ struct ChainContext ResolveIntProperty(struct ChainContext strCtx)
     }
 
     if (sProperty == "incr")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(nValue + 1));
+    }
 
     if (sProperty == "decr")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(nValue - 1));
+    }
 
     if (sProperty == "even" || sProperty == "odd")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
+
         if (sProperty == "even")
             return SetChainContextValue(strCtx, GetValueFromInt(nValue % 2 == 0));
         else
@@ -2537,16 +2561,36 @@ struct ChainContext ResolveFloatProperty(struct ChainContext strCtx)
     float fValue = strCtx.strValue.fValue;
 
     if (sProperty == "abs")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromFloat(fabs(fValue)));
+    }
 
     if (sProperty == "floor")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(Floor(fValue)));
+    }
 
     if (sProperty == "ceil")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(Ceil(fValue)));
+    }
 
     if (sProperty == "round")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(Round(fValue)));
+    }
 
     if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
@@ -2594,22 +2638,52 @@ struct ChainContext ResolveStringProperty(struct ChainContext strCtx)
     string sValue = strCtx.strValue.sValue;
 
     if (sProperty == "length")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(GetStringLength(sValue)));
+    }
 
     if (sProperty == "upper")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(GetStringUpperCase(sValue)));
+    }
 
     if (sProperty == "lower")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(GetStringLowerCase(sValue)));
+    }
 
     if (sProperty == "trim")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(Trim(sValue)));
+    }
 
     if (sProperty == "empty")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(sValue == ""));
+    }
 
     if (sProperty == "notempty")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(sValue != ""));
+    }
 
     if (sProperty == "contains")
     {
@@ -2684,7 +2758,12 @@ struct ChainContext ResolveStringProperty(struct ChainContext strCtx)
     }
 
     if (sProperty == "capitalize")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(CapitalizeWord(sValue)));
+    }
 
     if (sProperty == "append" || sProperty == "prepend")
     {
@@ -2701,6 +2780,10 @@ struct ChainContext ResolveStringProperty(struct ChainContext strCtx)
 
     if (sProperty == "render")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
+
         json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sValue);
         if (!JsonGetType(jTemplate))
         {
@@ -2722,43 +2805,108 @@ struct ChainContext ResolveObjectProperty(struct ChainContext strCtx)
         return SetChainContextValue(strCtx, GetErrorValue("INVALID_OBJECT:SELF"));
 
     if (sProperty == "name")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(GetName(oValue)));
+    }
 
     if (sProperty == "tag")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(GetTag(oValue)));
+    }
 
     if (sProperty == "resref")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(GetResRef(oValue)));
+    }
 
     if (sProperty == "type")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(GetObjectTypeName(oValue)));
+    }
 
     if (sProperty == "area")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromObject(GetArea(oValue)));
+    }
 
     if (sProperty == "valid")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(GetIsObjectValid(oValue)));
+    }
 
     if (sProperty == "inspect")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(InspectObject(oValue)));
+    }
 
     if (sProperty == "ispc")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(GetIsPlayer(oValue)));
+    }
 
     if (sProperty == "isdm")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(GetIsDM(oValue)));
+    }
 
     if (sProperty == "isplayerdm")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(GetIsPlayerDM(oValue)));
+    }
 
     if (sProperty == "dead")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(GetIsDead(oValue)));
+    }
 
     if (sProperty == "hp")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(GetCurrentHitPoints(oValue)));
+    }
 
     if (sProperty == "maxhp")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(GetMaxHitPoints(oValue)));
+    }
 
     if (sProperty == "distance")
     {
@@ -2775,6 +2923,9 @@ struct ChainContext ResolveObjectProperty(struct ChainContext strCtx)
 
     if (sProperty == "x" || sProperty == "y" || sProperty == "z")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         vector vPosition = GetPosition(oValue);
         if (sProperty == "x")   return SetChainContextValue(strCtx, GetValueFromFloat(vPosition.x));
         if (sProperty == "y")   return SetChainContextValue(strCtx, GetValueFromFloat(vPosition.y));
@@ -2800,7 +2951,12 @@ struct ChainContext ResolveObjectProperty(struct ChainContext strCtx)
     }
 
     if (sProperty == "facing")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromFloat(GetFacing(oValue)));
+    }
 
     if (sProperty == "localvar")
     {
@@ -2832,20 +2988,42 @@ struct ChainContext ResolveSqlQueryProperty(struct ChainContext strCtx)
     sqlquery sqlValue = strCtx.strValue.sqlValue;
 
     if (sProperty == "query")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(SqlGetQuery(sqlValue)));
+    }
 
     if (sProperty == "state")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(SqlGetState(sqlValue)));
+    }
 
     if (sProperty == "statestr")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(SqlStateToString(SqlGetState(sqlValue))));
+    }
 
     if (sProperty == "error")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromString(SqlGetError(sqlValue)));
-
+    }
     if (sProperty == "columncount")
     {
-        struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
+        strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
         if (IsErrorValue(strError))
             return SetChainContextValue(strCtx, strError);
 
@@ -2869,7 +3047,10 @@ struct ChainContext ResolveSqlQueryProperty(struct ChainContext strCtx)
 
     if (sProperty == "columns")
     {
-        struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
+        strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
         if (IsErrorValue(strError))
             return SetChainContextValue(strCtx, strError);
 
@@ -2936,7 +3117,10 @@ struct ChainContext ResolveSqlQueryProperty(struct ChainContext strCtx)
 
     if (sProperty == "exec")
     {
-        struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
+        strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
         if (IsErrorValue(strError))
             return SetChainContextValue(strCtx, strError);
 
@@ -3108,6 +3292,10 @@ struct ChainContext ResolveJsonProperty(struct ChainContext strCtx)
 
     if (sProperty == "type")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
+
         switch (JsonGetType(jValue))
         {
             case JSON_TYPE_NULL:    return SetChainContextValue(strCtx, GetValueFromString("null"));
@@ -3122,34 +3310,75 @@ struct ChainContext ResolveJsonProperty(struct ChainContext strCtx)
     }
 
     if (sProperty == "isnull")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_NULL));
+    }
 
     if (sProperty == "isobject")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_OBJECT));
+    }
 
     if (sProperty == "isarray")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_ARRAY));
+    }
 
     if (sProperty == "isstring")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_STRING));
+    }
 
     if (sProperty == "isint" || sProperty == "isinteger")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_INTEGER));
+    }
 
     if (sProperty == "isfloat")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_FLOAT));
+    }
 
     if (sProperty == "isnumber")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         int nType = JsonGetType(jValue);
         return SetChainContextValue(strCtx, GetValueFromInt(nType == JSON_TYPE_INTEGER || nType == JSON_TYPE_FLOAT));
     }
 
     if (sProperty == "isbool")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_BOOL));
+    }
 
     if (sProperty == "scalar")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         int nType = JsonGetType(jValue);
         return SetChainContextValue(strCtx, GetValueFromInt(
             nType == JSON_TYPE_NULL || nType == JSON_TYPE_STRING ||
@@ -3158,12 +3387,20 @@ struct ChainContext ResolveJsonProperty(struct ChainContext strCtx)
     }
 
     if (sProperty == "length")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, GetValueFromInt(JsonGetLength(jValue)));
+    }
 
     if (sProperty == "empty" || sProperty == "notempty")
     {
-        int nType = JsonGetType(jValue), bEmpty = FALSE;
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
 
+        int nType = JsonGetType(jValue), bEmpty = FALSE;
         if (nType == JSON_TYPE_NULL)
             bEmpty = TRUE;
         else if (nType == JSON_TYPE_STRING)
@@ -3247,6 +3484,9 @@ struct ChainContext ResolveJsonProperty(struct ChainContext strCtx)
 
     if (sProperty == "keys")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
             return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_OBJECT"));
         return SetChainContextValue(strCtx, GetValueFromJson(JsonObjectKeys(jValue)));
@@ -3317,6 +3557,9 @@ struct ChainContext ResolveJsonProperty(struct ChainContext strCtx)
 
     if (sProperty == "shuffle")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
             return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
         return SetChainContextValue(strCtx, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_SHUFFLE)));
@@ -3324,6 +3567,9 @@ struct ChainContext ResolveJsonProperty(struct ChainContext strCtx)
 
     if (sProperty == "reverse")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
             return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
         return SetChainContextValue(strCtx, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_REVERSE)));
@@ -3331,6 +3577,9 @@ struct ChainContext ResolveJsonProperty(struct ChainContext strCtx)
 
     if (sProperty == "unique")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
             return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
         return SetChainContextValue(strCtx, GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_UNIQUE)));
@@ -3338,6 +3587,9 @@ struct ChainContext ResolveJsonProperty(struct ChainContext strCtx)
 
     if (sProperty == "coalesce")
     {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
             return SetChainContextValue(strCtx, GetErrorValue("JSON_NOT_ARRAY"));
         return SetChainContextValue(strCtx, ConvertJsonToValue(JsonArrayTransform(jValue, JSON_ARRAY_COALESCE)));
@@ -3395,13 +3647,36 @@ struct ChainContext ResolveSharedProperty(struct ChainContext strCtx)
     }
 
     if (sProperty == "int")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_INT));
+    }
 
     if (sProperty == "float")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_FLOAT));
+    }
 
     if (sProperty == "string")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_STRING));
+    }
+
+    if (sProperty == "json")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
+        return SetChainContextValue(strCtx, CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_JSON));
+    }
 
     if (sProperty == "fixed")
     {
@@ -3416,10 +3691,20 @@ struct ChainContext ResolveSharedProperty(struct ChainContext strCtx)
     }
 
     if (sProperty == "hex")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, FormatValueAsHex(strCtx.strValue));
+    }
 
     if (sProperty == "bool")
+    {
+        struct Value strError = RequireNoArgs(strCtx);
+        if (IsErrorValue(strError))
+            return SetChainContextValue(strCtx, strError);
         return SetChainContextValue(strCtx, FormatValueAsBoolean(strCtx.strValue));
+    }
 
     if (sProperty == "default")
     {

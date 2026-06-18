@@ -1372,7 +1372,7 @@ void CG_SetBaseSkillValues()
     int nClassSkillPointBase = StringToInt(Get2DAString("classes", "SkillPointBase", nClass));
     int nSkillPointModifierAbility = AbilityToConstant(Get2DAString("racialtypes", "SkillPointModifierAbility", nRace));
     int nAbilityBonus = CG_CalculateAbilityModifier(CG_GetAdjustedAbilityScore(nRace, nClass, nSkillPointModifierAbility));
-    int nSkillPointsRemaining = (nFirstLevelSkillPointsMultiplier * (max(1, nClassSkillPointBase + nAbilityBonus))) +
+    int nSkillPointsRemaining = (nFirstLevelSkillPointsMultiplier * (Max(1, nClassSkillPointBase + nAbilityBonus))) +
                                 (nFirstLevelSkillPointsMultiplier * nExtraSkillPointsPerLevel);
 
     CG_SetSkillPointsRemaining(nSkillPointsRemaining);

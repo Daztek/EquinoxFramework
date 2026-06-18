@@ -782,7 +782,7 @@ void BT_BehaviorTree_Tick(object oBehaviorTree, object oBlackboard, object oSelf
     json jLastOpenNodes = BT_Blackboard_GetJson(oBlackboard, BT_BLACKBOARD_KEY_LAST_OPEN_NODES, nBehaviorTreeID);
     int nLastOpenNodesLength = JsonGetLength(jLastOpenNodes);
     int nCurrentOpenNodesLength = JsonGetLength(jCurrentOpenNodes);
-    int nIndex, nStart = nLastOpenNodesLength, nNumNodes = min(nLastOpenNodesLength, nCurrentOpenNodesLength);
+    int nIndex, nStart = nLastOpenNodesLength, nNumNodes = Min(nLastOpenNodesLength, nCurrentOpenNodesLength);
     for (nIndex = 0; nIndex < nNumNodes; nIndex++)
     {
         if (JsonArrayGet(jLastOpenNodes, nIndex) != JsonArrayGet(jCurrentOpenNodes, nIndex))

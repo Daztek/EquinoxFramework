@@ -139,7 +139,6 @@ struct Arguments
     struct Value strError;
 };
 
-string FormatString(string sString, int nDepthOverride = 0);
 string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL);
 struct Value Eval(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL);
 
@@ -318,11 +317,6 @@ struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct 
 string InferDebugValueType(string sValue);
 string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "");
 string InspectObject(object oValue);
-
-string FormatString(string sString, int nDepthOverride = 0)
-{
-    return Interpret(sString, FALSE, 1 + nDepthOverride, JsonNull());
-}
 
 string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL)
 {
@@ -584,7 +578,7 @@ struct Value GetValueFromStackLocation(int nAuxType, int nStackLocation)
 
 struct Value GetValueFromTypedLiteral(string sValue)
 {
-    if (sValue != trim(sValue))
+    if (sValue != Trim(sValue))
         return GetValueFromString(sValue);
     string sLower = GetStringLowerCase(sValue);
 
@@ -652,7 +646,7 @@ struct Value GetValueFromJson(json jValue = JSON_NULL)
 
 int GetCastAuxTypeFromName(string sCast)
 {
-    sCast = GetStringLowerCase(trim(sCast));
+    sCast = GetStringLowerCase(Trim(sCast));
     if (sCast == "i" || sCast == "int")     return NWNX_VM_AUXTYPE_INT;
     if (sCast == "f" || sCast == "float")   return NWNX_VM_AUXTYPE_FLOAT;
     if (sCast == "s" || sCast == "string")  return NWNX_VM_AUXTYPE_STRING;
@@ -716,7 +710,7 @@ struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType)
             if (strValue.nAuxType == NWNX_VM_AUXTYPE_OBJECT)
                 return GetValueFromInt(HexStringToInt(ObjectToString(strValue.oValue)));
 
-            sValue = trim(sValue);
+            sValue = Trim(sValue);
             if (!IsInteger(sValue))
                 return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->int");
 
@@ -729,7 +723,7 @@ struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType)
             if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT)
                 return GetValueFromFloat(IntToFloat(strValue.nValue));
 
-            sValue = trim(sValue);
+            sValue = Trim(sValue);
             if (!IsNumeric(sValue))
                 return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->float");
 
@@ -762,7 +756,7 @@ string GetValueText(struct Value strValue, string sErrorFallback = "")
 
 string GetTrimmedValueText(struct Value strValue, string sErrorFallback = "")
 {
-    return trim(GetValueText(strValue, sErrorFallback ));
+    return Trim(GetValueText(strValue, sErrorFallback ));
 }
 
 int IsValueIntParameter(struct Value strValue)
@@ -907,7 +901,7 @@ struct Value ValueToJsonValue(struct Value strValue)
 
 struct Value FormatValueAsFixed(struct Value strValue, int nPrecision)
 {
-    nPrecision = clamp(nPrecision, 0, 9);
+    nPrecision = Clamp(nPrecision, 0, 9);
     if (IsValueNumericParameter(strValue))
         return GetValueFromString(FloatToString(GetValueAsFloat(strValue), 0, nPrecision));
     return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strValue.nAuxType) + "->fixed");
@@ -1250,9 +1244,9 @@ json ValidateParserSyntax(string sSource)
 string GetParserContext(string sSource, int nAt)
 {
     int nLength = GetStringLength(sSource);
-    nAt = clamp(nAt, 0, nLength);
-    int nStart = max(0, nAt - 12);
-    int nEnd = min(nLength, nAt + 12);
+    nAt = Clamp(nAt, 0, nLength);
+    int nStart = Max(0, nAt - 12);
+    int nEnd = Min(nLength, nAt + 12);
     string sBefore = GetSubString(sSource, nStart, nAt - nStart);
     string sCurrent = nAt < nLength ? GetSubString(sSource, nAt, 1) : "<eof>";
     string sAfter = GetSubString(sSource, nAt + 1, nEnd - nAt - 1);
@@ -1410,7 +1404,7 @@ void JsonArrayInsertForceStringNodeInplace(json jTemplate, json jInnerTemplate)
 json CompileExpression(string sExpr)
 {
     string sOriginalExpr = sExpr;
-    sExpr = trim(sExpr);
+    sExpr = Trim(sExpr);
     if (sExpr == "")
         return MakeParserError("EMPTY_TEMPLATE_EXPR", 0, sOriginalExpr);
     int nPropertyPosition = FindTopLevelToken(sExpr, DAZSCRIPT_PROPERTY_CHAIN_SYMBOL);
@@ -1420,8 +1414,8 @@ json CompileExpression(string sExpr)
         sBase = sExpr;
     else
     {
-        sBase = trim(GetStringLeft(sExpr, nPropertyPosition));
-        sPropertyPath = trim(GetSubString(sExpr, nPropertyPosition + 1, GetStringLength(sExpr) - nPropertyPosition - 1));
+        sBase = Trim(GetStringLeft(sExpr, nPropertyPosition));
+        sPropertyPath = Trim(GetSubString(sExpr, nPropertyPosition + 1, GetStringLength(sExpr) - nPropertyPosition - 1));
         if (sBase == "")
             return MakeParserError("EMPTY_BASE_EXPR", 0, sExpr);
         if (sPropertyPath == "")
@@ -1435,7 +1429,7 @@ json CompileExpression(string sExpr)
     if (sPrefix == DAZSCRIPT_META_SYMBOL)
     {
         nKind = DAZSCRIPT_EXPR_META;
-        string sMetaBase = trim(GetSubString(sBase, 1, GetStringLength(sBase) - 1));
+        string sMetaBase = Trim(GetSubString(sBase, 1, GetStringLength(sBase) - 1));
         if (sMetaBase == "" || GetStringLeft(sMetaBase, 1) == "(")
             return MakeParserError("EMPTY_META_NAME", 1, sExpr);
 
@@ -1459,7 +1453,7 @@ json CompileExpression(string sExpr)
     else if (sPrefix == DAZSCRIPT_FUNCTION_SYMBOL)
     {
         nKind = DAZSCRIPT_EXPR_FUNCTION;
-        string sFunctionBase = trim(GetSubString(sBase, 1, GetStringLength(sBase) - 1));
+        string sFunctionBase = Trim(GetSubString(sBase, 1, GetStringLength(sBase) - 1));
         if (sFunctionBase == "" || GetStringLeft(sFunctionBase, 1) == "(")
             return MakeParserError("EMPTY_FUNCTION_NAME", 1, sExpr);
 
@@ -1508,7 +1502,7 @@ json CompileExpression(string sExpr)
 json CompilePropertyChain(string sPropertyPath)
 {
     string sOriginalPath = sPropertyPath;
-    sPropertyPath = trim(sPropertyPath);
+    sPropertyPath = Trim(sPropertyPath);
 
     if (sPropertyPath == "")
         return MakeParserError("EMPTY_PROPERTY_SEGMENT", 0, sOriginalPath);
@@ -1533,7 +1527,7 @@ json CompilePropertyChain(string sPropertyPath)
 json CompilePropertySegment(string sPropertySegment)
 {
     string sOriginalSegment = sPropertySegment;
-    sPropertySegment = trim(sPropertySegment);
+    sPropertySegment = Trim(sPropertySegment);
     int nLength = GetStringLength(sPropertySegment);
 
     if (sPropertySegment == "")
@@ -1554,7 +1548,7 @@ json CompilePropertySegment(string sPropertySegment)
     }
     else
     {
-        sProperty = trim(GetStringLeft(sPropertySegment, nParameterStart));
+        sProperty = Trim(GetStringLeft(sPropertySegment, nParameterStart));
         int nParameterEnd = FindMatchingPropertyCallParen(sPropertySegment, nParameterStart);
 
         if (sProperty == "")
@@ -1578,7 +1572,7 @@ json CompilePropertySegment(string sPropertySegment)
 
         sParameters = GetSubString(sPropertySegment, nParameterStart + 1, nParameterEnd - nParameterStart - 1);
 
-        string sRemainder = trim(GetSubString(sPropertySegment, nParameterEnd + 1, nLength - nParameterEnd - 1));
+        string sRemainder = Trim(GetSubString(sPropertySegment, nParameterEnd + 1, nLength - nParameterEnd - 1));
         if (sRemainder != "")
         {
             json jError = MakeParserError("TRAILING_TEXT_AFTER_PROPERTY_CALL", nParameterEnd + 1, sPropertySegment);
@@ -1683,7 +1677,7 @@ json ParseParameterEntries(string sParameters)
             {
                 if (bRootDepth)
                 {
-                    if (trim(sCurrent) == "")
+                    if (Trim(sCurrent) == "")
                         sCurrent = "";
                 }
                 else
@@ -1744,7 +1738,7 @@ json ParseParameterEntries(string sParameters)
 
         if (sCharacter == "," && bRootDepth)
         {
-            JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : trim(sCurrent), bWasQuoted));
+            JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : Trim(sCurrent), bWasQuoted));
 
             sCurrent = "";
             bWasQuoted = FALSE;
@@ -1774,7 +1768,7 @@ json ParseParameterEntries(string sParameters)
     if (bLastWasComma)
         return CacheParameterParserError(sParameters, "TRAILING_COMMA_IN_ARGUMENT_LIST", str.nLength - 1);
 
-    JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : trim(sCurrent), bWasQuoted));
+    JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : Trim(sCurrent), bWasQuoted));
 
     SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jEntries);
     return jEntries;
@@ -2480,7 +2474,7 @@ struct ChainContext ResolveIntProperty(struct ChainContext strCtx)
         struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
         if (IsErrorValue(strArgs.strError))
             return SetChainContextValue(strCtx, strArgs.strError);
-        return SetChainContextValue(strCtx, GetValueFromInt(clamp(nValue, GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1))));
+        return SetChainContextValue(strCtx, GetValueFromInt(Clamp(nValue, GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1))));
     }
 
     if (sProperty == "mod")
@@ -2546,13 +2540,13 @@ struct ChainContext ResolveFloatProperty(struct ChainContext strCtx)
         return SetChainContextValue(strCtx, GetValueFromFloat(fabs(fValue)));
 
     if (sProperty == "floor")
-        return SetChainContextValue(strCtx, GetValueFromInt(floor(fValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(Floor(fValue)));
 
     if (sProperty == "ceil")
-        return SetChainContextValue(strCtx, GetValueFromInt(ceil(fValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(Ceil(fValue)));
 
     if (sProperty == "round")
-        return SetChainContextValue(strCtx, GetValueFromInt(round(fValue)));
+        return SetChainContextValue(strCtx, GetValueFromInt(Round(fValue)));
 
     if (sProperty == "eq" || sProperty == "neq" || sProperty == "gt" || sProperty == "gte" || sProperty == "lt" || sProperty == "lte")
     {
@@ -2588,7 +2582,7 @@ struct ChainContext ResolveFloatProperty(struct ChainContext strCtx)
         struct Arguments strArgs = EvalTwoArgs(strCtx, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
         if (IsErrorValue(strArgs.strError))
             return SetChainContextValue(strCtx, strArgs.strError);
-        return SetChainContextValue(strCtx, GetValueFromFloat(clampf(fValue, GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1))));
+        return SetChainContextValue(strCtx, GetValueFromFloat(Clampf(fValue, GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1))));
     }
 
     return SetChainContextValue(strCtx, GetInvalidValue());
@@ -2609,7 +2603,7 @@ struct ChainContext ResolveStringProperty(struct ChainContext strCtx)
         return SetChainContextValue(strCtx, GetValueFromString(GetStringLowerCase(sValue)));
 
     if (sProperty == "trim")
-        return SetChainContextValue(strCtx, GetValueFromString(trim(sValue)));
+        return SetChainContextValue(strCtx, GetValueFromString(Trim(sValue)));
 
     if (sProperty == "empty")
         return SetChainContextValue(strCtx, GetValueFromInt(sValue == ""));
@@ -2796,7 +2790,7 @@ struct ChainContext ResolveObjectProperty(struct ChainContext strCtx)
         int nPrecision = 2;
         if (strArgs.nCount == 1)
             nPrecision = GetValueAsInt(strArgs.strArg0, 2);
-        nPrecision = clamp(nPrecision, 0, 9);
+        nPrecision = Clamp(nPrecision, 0, 9);
 
         vector vPosition = GetPosition(oValue);
         string sX = FormatValueForDisplay(FormatValueAsFixed(GetValueFromFloat(vPosition.x), nPrecision));
@@ -3265,7 +3259,7 @@ struct ChainContext ResolveJsonProperty(struct ChainContext strCtx)
             return SetChainContextValue(strCtx, strArgs.strError);
         int nIndent = -1;
         if (strArgs.nCount == 1)
-            nIndent = max(-1, GetValueAsInt(strArgs.strArg0, -1));
+            nIndent = Max(-1, GetValueAsInt(strArgs.strArg0, -1));
         return SetChainContextValue(strCtx, GetValueFromString(JsonDump(jValue, nIndent)));
     }
 
@@ -3529,7 +3523,7 @@ struct Value HandleMetaControlFlow(struct ChainContext strCtx, string sMetaName)
             struct Value strLimit = EvalTypedParameter(strCtx, 2, DAZSCRIPT_ARG_INT);
             if (IsErrorValue(strLimit))
                 return strLimit;
-            nLimit = clamp(GetValueAsInt(strLimit), 0, DAZSCRIPT_WHILE_MAX_ITERATION_LIMIT);
+            nLimit = Clamp(GetValueAsInt(strLimit), 0, DAZSCRIPT_WHILE_MAX_ITERATION_LIMIT);
         }
         int bTraceEnabled = IsTraceEnabled();
         if (bTraceEnabled) { Trace("while.start", "limit=" + IntToString(nLimit)); }
@@ -4653,8 +4647,8 @@ struct Value HandleMetaMath(struct ChainContext strCtx, string sMetaName)
         if (IsErrorValue(strArgs.strError))
             return strArgs.strError;
         if (IsValueIntParameter(strArgs.strArg0) && IsValueIntParameter(strArgs.strArg1) && IsValueIntParameter(strArgs.strArg2))
-            return GetValueFromInt(clamp(GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
-        return GetValueFromFloat(clampf(GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1), GetValueAsFloat(strArgs.strArg2)));
+            return GetValueFromInt(Clamp(GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
+        return GetValueFromFloat(Clampf(GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1), GetValueAsFloat(strArgs.strArg2)));
     }
 
     if (sMetaName == "mod")
@@ -4962,12 +4956,12 @@ struct Value BindArrayLoopAliasesInplace(json jFrame, json jCollection, int nInd
 
 int IsSortDirectionLiteral(string sRaw)
 {
-    sRaw = GetStringLowerCase(trim(sRaw));
+    sRaw = GetStringLowerCase(Trim(sRaw));
     if ((GetStringLeft(sRaw, 1) == "'" && GetStringRight(sRaw, 1) == "'") ||
         (GetStringLeft(sRaw, 1) == "\"" && GetStringRight(sRaw, 1) == "\""))
     {
         sRaw = GetSubString(sRaw, 1, GetStringLength(sRaw) - 2);
-        sRaw = trim(sRaw);
+        sRaw = Trim(sRaw);
     }
 
     return sRaw == "asc"|| sRaw == "ascending" || sRaw == "desc" || sRaw == "descending";
@@ -5124,7 +5118,7 @@ string GetStackEntryType(json jEntry)
 
 string GetSymbolType(json jStack, string sName)
 {
-    sName = trim(sName);
+    sName = Trim(sName);
     if (sName == "")
         return "missing";
     string sPrefix = GetStringLeft(sName, 1);
@@ -5225,7 +5219,7 @@ struct Value SetStackLocationFromValue(int nAuxType, int nStackLocation, struct 
 
 string InferDebugValueType(string sValue)
 {
-    string sLower = GetStringLowerCase(trim(sValue));
+    string sLower = GetStringLowerCase(Trim(sValue));
 
     if (sLower == "true" || sLower == "false")
         return "boolish";

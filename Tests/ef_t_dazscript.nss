@@ -217,11 +217,11 @@ void DazScript_TestSmoke()
         "TRUE");
 
     DazScript_Test("int clamp",
-        "{@int(150)>clamp(0, 100)}",
+        "{@int(150)>Clamp(0, 100)}",
         "100");
 
     DazScript_Test("float clamp",
-        "{@float(12.5)>clamp(0.0, 10.0)>fixed(1)}",
+        "{@float(12.5)>Clamp(0.0, 10.0)>fixed(1)}",
         "10.0");
 
     DazScript_Test("math add int",
@@ -233,11 +233,11 @@ void DazScript_TestSmoke()
         "6.0");
 
     DazScript_Test("math min",
-        "{@min(8, 3, 5)}",
+        "{@Min(8, 3, 5)}",
         "3");
 
     DazScript_Test("math max float",
-        "{@max(8.5, 3.0, 5.0)>fixed(1)}",
+        "{@Max(8.5, 3.0, 5.0)>fixed(1)}",
         "8.5");
 
     DazScript_Test("bool not",
@@ -1117,7 +1117,7 @@ void DazScript_TestParserWhitespace()
         "123");
 
     DazScript_Test("parser trims property whitespace",
-        "{ @int( 150 ) > clamp( 0, 100 ) > int }",
+        "{ @int( 150 ) > Clamp( 0, 100 ) > int }",
         "100");
 
     DazScript_Test("quoted param ignores leading syntax space",
@@ -1256,7 +1256,7 @@ void DazScript_TestParserErrors()
         "PARSE_ERROR:TRAILING_COMMA_IN_ARGUMENT_LIST:IN_add");
 
     DazScript_TestContains("parser error trailing comma property arg",
-        "{@int(5)>clamp(0, 10,)}",
+        "{@int(5)>Clamp(0, 10,)}",
         "PARSE_ERROR:TRAILING_COMMA_IN_ARGUMENT_LIST:IN_clamp");
 
     DazScript_TestContains("parser error trailing comma function arg",
@@ -1784,11 +1784,11 @@ void DazScript_TestMath()
         "3");
 
     DazScript_Test("math clamp meta int",
-        "{@clamp(150, 0, 100)}",
+        "{@Clamp(150, 0, 100)}",
         "100");
 
     DazScript_Test("math clamp meta float",
-        "{@clamp(12.5, 0.0, 10.0)>fixed(1)}",
+        "{@Clamp(12.5, 0.0, 10.0)>fixed(1)}",
         "10.0");
 
     DazScript_Test("random equal bounds deterministic",
@@ -1967,11 +1967,11 @@ void DazScript_TestErrorHandling()
         "ARITY:EXPECTED_2_ARGUMENTS");
 
     DazScript_TestContains("arity error too many args",
-        "{@clamp(1, 2, 3, 4)}",
+        "{@Clamp(1, 2, 3, 4)}",
         "ARITY:EXPECTED_3_ARGUMENTS");
 
     DazScript_TestContains("type mismatch for int arg",
-        "{@int(5)>clamp(a, 10)}",
+        "{@int(5)>Clamp(a, 10)}",
         "TYPE_MISMATCH:ARG1_NOT_INT");
 
     DazScript_TestContains("division by zero error",

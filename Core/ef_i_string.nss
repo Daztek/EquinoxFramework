@@ -11,9 +11,8 @@ const int STRING_BAR_DEFAULT_WIDTH = 20;
 const int STRING_BAR_MAX_WIDTH = 80;
 const string STRING_OBJECT_INVALID = "0x7f000000";
 
-string ltrim(string sString);
-string rtrim(string sString);
-string trim(string sString);
+int IsTrimChar(string sChar);
+string Trim(string sString);
 int HexStringToInt(string sString);
 string EFIntToHexString(int nValue);
 string LeftPadString(string sString, int nLength, string sCharacter);
@@ -35,46 +34,21 @@ string ObjectIDToString(object oObject);
 string EscapeString(string sString);
 string Truncate(string sValue, int nLength);
 
-string ltrim(string sString)
+int IsTrimChar(string sChar)
 {
-    int nLength = GetStringLength(sString), nStart;
-
-    while (nStart < nLength && GetSubString(sString, nStart, 1) == " ")
-    {
-        nStart++;
-    }
-
-    if (nStart == 0)
-        return sString;
-
-    return GetSubString(sString, nStart, nLength - nStart);
+    return sChar == " " || sChar == "\n";
 }
 
-string rtrim(string sString)
-{
-    int nLength = GetStringLength(sString), nEnd = nLength - 1;
-
-    while (nEnd >= 0 && GetSubString(sString, nEnd, 1) == " ")
-    {
-        nEnd--;
-    }
-
-    if (nEnd == nLength - 1)
-        return sString;
-
-    return GetSubString(sString, 0, nEnd + 1);
-}
-
-string trim(string sString)
+string Trim(string sString)
 {
     int nLength = GetStringLength(sString), nStart, nEnd = nLength - 1;
 
-    while (nStart < nLength && GetSubString(sString, nStart, 1) == " ")
+    while (nStart < nLength && IsTrimChar(GetSubString(sString, nStart, 1)))
     {
         nStart++;
     }
 
-    while (nEnd >= nStart && GetSubString(sString, nEnd, 1) == " ")
+    while (nEnd >= nStart && IsTrimChar(GetSubString(sString, nEnd, 1)))
     {
         nEnd--;
     }
@@ -187,9 +161,9 @@ string GetAsciiTable()
 string ColorString(string sValue, int nRed, int nGreen, int nBlue)
 {
     string sAscii = GetAsciiTable();
-    return "<c" + GetSubString(sAscii, clamp(nRed, 0, 255), 1) +
-                  GetSubString(sAscii, clamp(nGreen, 0, 255), 1) +
-                  GetSubString(sAscii, clamp(nBlue, 0, 255), 1) + ">" + sValue + "</c>";
+    return "<c" + GetSubString(sAscii, Clamp(nRed, 0, 255), 1) +
+                  GetSubString(sAscii, Clamp(nGreen, 0, 255), 1) +
+                  GetSubString(sAscii, Clamp(nBlue, 0, 255), 1) + ">" + sValue + "</c>";
 }
 
 string CapitalizeWord(string sWord)
@@ -206,7 +180,7 @@ string CapitalizeWord(string sWord)
 
 int StringToBoolish(string sValue)
 {
-    sValue = GetStringLowerCase(trim(sValue));
+    sValue = GetStringLowerCase(Trim(sValue));
 
     if (sValue == "")
         return FALSE;
@@ -236,7 +210,7 @@ int IsStringSuffix(string sValue, string sSuffix)
 
 int IsObjectIDString(string sValue)
 {
-    sValue = GetStringLowerCase(trim(sValue));
+    sValue = GetStringLowerCase(Trim(sValue));
     if (GetStringLeft(sValue, 2) != "0x" || GetStringLength(sValue) < 3 )
         return FALSE;
 

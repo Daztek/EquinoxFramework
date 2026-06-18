@@ -367,7 +367,7 @@ void EP_PostProcess(object oArea, int nCurrentTile = 0, int nNumTiles = 0)
     string sQuery = "INSERT INTO " + EP_GetTilesTable() + " (area_id, tile_index, tile_x, tile_y, tile_id, entrance_dist, exit_dist, path_dist, group_tile, num_doors) " +
                     "VALUES(@area_id, @tile_index, @tile_x, @tile_y, @tile_id, @entrance_dist, @exit_dist, @path_dist, @group_tile, @num_doors);";
     sqlquery sql = SqlPrepareQueryModule(sQuery);
-    int nCurrentMaxTiles = min(nCurrentTile + EP_POSTPROCESS_TILE_BATCH, nNumTiles);
+    int nCurrentMaxTiles = Min(nCurrentTile + EP_POSTPROCESS_TILE_BATCH, nNumTiles);
     int nGrassBitflag = TS_GetTCBitflag(EP_AREA_TILESET, "GRASS");
     int nGrass2Bitflag = TS_GetTCBitflag(EP_AREA_TILESET, "GRASS2");
 

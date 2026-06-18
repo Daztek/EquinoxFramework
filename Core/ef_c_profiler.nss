@@ -45,7 +45,7 @@ string Profiler_FormatTime(int nMicroseconds)
 
 string Profiler_GetTimeStats(int nHash)
 {
-    sqlquery sql = SqlPrepareQueryModule("SELECT MIN(microseconds), MAX(microseconds), AVG(microseconds) FROM " + PROFILER_SCRIPT_NAME + " WHERE hash = @hash;");
+    sqlquery sql = SqlPrepareQueryModule("SELECT Min(microseconds), Max(microseconds), AVG(microseconds) FROM " + PROFILER_SCRIPT_NAME + " WHERE hash = @hash;");
     SqlBindInt(sql, "@hash", nHash);
 
     if(SqlStep(sql))
@@ -75,8 +75,8 @@ string Profiler_Stop(int bPrint = TRUE, int bStats = TRUE)
     string sIdentifierString = GetLocalString(oDataObject, PROFILER_IDENTIFIER_STRING);
     string sHashString = sIdentifierString == "" ? GetLocalString(oDataObject, PROFILER_CALLING_FUNCTION) : sIdentifierString;
     int nHash = HashString(sHashString);
-    int nUsedInstructions = max(0, GetLocalInt(oDataObject, PROFILER_START_INSTRUCTIONS) - nEndInstructions - PROFILER_INSTRUCTION_OVERHEAD);
-    int nElapsedMicroseconds = max(0, nEndMicroseconds - GetLocalInt(oDataObject, PROFILER_START_MICROSECONDS) - PROFILER_MICROSECOND_OVERHEAD);
+    int nUsedInstructions = Max(0, GetLocalInt(oDataObject, PROFILER_START_INSTRUCTIONS) - nEndInstructions - PROFILER_INSTRUCTION_OVERHEAD);
+    int nElapsedMicroseconds = Max(0, nEndMicroseconds - GetLocalInt(oDataObject, PROFILER_START_MICROSECONDS) - PROFILER_MICROSECOND_OVERHEAD);
 
     if (bStats)
         Profiler_Insert(nHash, nElapsedMicroseconds, nUsedInstructions);

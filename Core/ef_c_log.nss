@@ -59,25 +59,25 @@ void WriteLog(int nType, string sMessage, int bShowFunctionName, int bIncludeBac
 
 void LogInfo(string sMessage)
 {
-    sMessage = FormatString(sMessage, 1);
+    sMessage = Interpret(sMessage, FALSE, 1);
     WriteLog(LOG_TYPE_INFO, sMessage, FALSE, FALSE);
 }
 
 void LogDebug(string sMessage, int bIncludeBacktrace = FALSE)
 {
-    sMessage = FormatString(sMessage, 1);
+    sMessage = Interpret(sMessage, FALSE, 1);
     WriteLog(LOG_TYPE_DEBUG, sMessage, TRUE, bIncludeBacktrace);
 }
 
 void LogWarning(string sMessage)
 {
-    sMessage = FormatString(sMessage, 1);
+    sMessage = Interpret(sMessage, FALSE, 0);
     WriteLog(LOG_TYPE_WARNING, sMessage, TRUE, FALSE);
 }
 
 void LogError(string sMessage, int bIncludeBacktrace = TRUE)
 {
-    sMessage = FormatString(sMessage, 1);
+    sMessage = Interpret(sMessage, FALSE, 1);
     WriteLog(LOG_TYPE_ERROR, sMessage, TRUE, TRUE);
 }
 

@@ -780,7 +780,7 @@ string TE_GetFilterWhereClause(string sTileset)
 
 json TE_GetTCColor(json jTCColorArray, int nFlag)
 {
-    return nFlag ? JsonArrayGet(jTCColorArray, log2(nFlag)) : NuiColor(0, 0, 0, 0);
+    return nFlag ? JsonArrayGet(jTCColorArray, Log2(nFlag)) : NuiColor(0, 0, 0, 0);
 }
 
 void TE_UpdateTileList()

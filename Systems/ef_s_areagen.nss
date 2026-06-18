@@ -1406,7 +1406,7 @@ void AG_CreatePathExitDoorTile(string sAreaID)
         nExitTile = nRandom * nWidth;
     }
 
-    int nExitHeight = clamp(AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nEntranceTile) + (AG_Random(sAreaID, 3) - 1), 0, TS_MAX_TILE_HEIGHT - 1);
+    int nExitHeight = Clamp(AG_Tile_GetHeight(sAreaID, AG_DATA_KEY_ARRAY_TILES, nEntranceTile) + (AG_Random(sAreaID, 3) - 1), 0, TS_MAX_TILE_HEIGHT - 1);
     AG_Tile_Set(sAreaID, AG_DATA_KEY_ARRAY_TILES, nExitTile, nPathDoorTileID, nOrientation, nExitHeight, TRUE);
     AG_SetIntDataByKey(sAreaID, AG_DATA_KEY_EXIT_TILE_INDEX, nExitTile);
 }

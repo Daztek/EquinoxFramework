@@ -214,8 +214,8 @@ void DT_OnAreaGenerated(string sAreaID)
         int nTile = DT_GetTileFromGenerationType(oAreaDataObject, nGenerationType, nNumTiles, nCount);
         struct AG_Tile strTile = AG_GetTile(sAreaID, nTile);
 
-        nMin = min(nMin, strTile.nHeight);
-        nMax = max(nMax, strTile.nHeight);
+        nMin = Min(nMin, strTile.nHeight);
+        nMax = Max(nMax, strTile.nHeight);
         NWNX_Player_SetResManOverride(oPlayer, RESTYPE_MDL, DT_VISUALEFFECT_DUMMY_NAME + IntToString(nTile), NWNX_Tileset_GetTileModel(DT_AREA_TILESET, strTile.nTileID));
         DelayCommand(fDelay, DT_SetTile(oArea, nTile, strTile));
     }

@@ -347,7 +347,7 @@ void MusMan_DeletePlayerData(object oPlayer)
 
 void MusMan_SetPlayerVolumeModifier(object oPlayer, float fVolume)
 {
-    Session_SetJson(oPlayer, MUSMAN_SCRIPT_NAME, MUSMAN_PLAYER_VOLUME_MODIFIER, JsonFloat(clampf(fVolume, 0.0f, 1.0f)));
+    Session_SetJson(oPlayer, MUSMAN_SCRIPT_NAME, MUSMAN_PLAYER_VOLUME_MODIFIER, JsonFloat(Clampf(fVolume, 0.0f, 1.0f)));
 }
 
 float MusMan_GetPlayerVolumeModifier(object oPlayer)
@@ -402,7 +402,7 @@ void MusMan_StopOtherChannels(object oPlayer, int nCurrentChannel, int nNextChan
 
 void MusMan_SetChannelVolume(object oPlayer, int nChannel, float fVolume, float fFadeTime = 0.0f)
 {
-    SetAudioStreamVolume(oPlayer, nChannel, clampf(MusMan_GetPlayerVolumeModifier(oPlayer) * fVolume, 0.0f, 1.0f), fFadeTime);
+    SetAudioStreamVolume(oPlayer, nChannel, Clampf(MusMan_GetPlayerVolumeModifier(oPlayer) * fVolume, 0.0f, 1.0f), fFadeTime);
 }
 
 void MusMan_SetCurrentChannelVolume(object oPlayer, float fVolume, float fFadeTime = 0.0f)
@@ -426,7 +426,7 @@ void MusMan_UpdatePlayerMusic(object oPlayer)
         struct MusMan_MusicEventTrack strMusicEventTrack = MusMan_GetMusicEventTrackData(strMusicEvent.jTrack);
         int nCurrentChannel = strPlayerData.nChannel;
         int nNextChannel = (nCurrentChannel + 1) % MUSMAN_NUM_MUSIC_CHANNELS;
-        float fVolume = clampf(MusMan_GetPlayerVolumeModifier(oPlayer) * strMusicEventTrack.fVolume, 0.0f, 1.0f);
+        float fVolume = Clampf(MusMan_GetPlayerVolumeModifier(oPlayer) * strMusicEventTrack.fVolume, 0.0f, 1.0f);
 
         MusMan_StopOtherChannels(oPlayer, nCurrentChannel, nNextChannel);
 

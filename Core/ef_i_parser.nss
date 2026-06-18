@@ -45,7 +45,7 @@ struct ParserData ParserParse(struct ParserData str)
     if ((str.nDelimiterPos = FindSubString(str.sData, str.sDelimiter, str.nCurrentPos)) != PARSER_DELIMITER_NOT_FOUND)
     {
         str.sLine = GetSubString(str.sData, str.nCurrentPos, str.nDelimiterPos - str.nCurrentPos);
-        str.sLine = str.bTrim ? trim(str.sLine) : str.sLine;
+        str.sLine = str.bTrim ? Trim(str.sLine) : str.sLine;
         str.nLineNumber++;
         str.nCurrentPos = str.nDelimiterPos + str.nDelimiterLength;
         return str;
@@ -53,7 +53,7 @@ struct ParserData ParserParse(struct ParserData str)
     if (str.nCurrentPos < str.nDataLength)
     {
         str.sLine = GetSubString(str.sData, str.nCurrentPos, str.nDataLength - str.nCurrentPos);
-        str.sLine = str.bTrim ? trim(str.sLine) : str.sLine;
+        str.sLine = str.bTrim ? Trim(str.sLine) : str.sLine;
         str.nLineNumber++;
         str.nCurrentPos = str.nDataLength;
         return str;
@@ -70,7 +70,7 @@ string ParserPeek(struct ParserData str)
     if (nNewLinePos != PARSER_DELIMITER_NOT_FOUND)
     {
         string s = GetSubString(str.sData, str.nCurrentPos, nNewLinePos - str.nCurrentPos);
-        return str.bTrim ? trim(s) : s;
+        return str.bTrim ? Trim(s) : s;
     }
     return "";
 }

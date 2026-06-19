@@ -1323,9 +1323,11 @@ int AG_GetEdgeFromTile(string sAreaID, int nTile)
 
 int AG_GetRandomOtherEdge(string sAreaID, int nEdgeToSkip)
 {
-    int nEdge;
-    do nEdge = AG_Random(sAreaID, 4);
-    while (nEdge == nEdgeToSkip);
+    int nEdge = nEdgeToSkip;
+    while (nEdge == nEdgeToSkip)
+    {
+        nEdge = AG_Random(sAreaID, 4);
+    }
     return nEdge;
 }
 

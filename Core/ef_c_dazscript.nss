@@ -56,9 +56,12 @@ const int DAZSCRIPT_PARAMETER_ITEM_WAS_QUOTED               = 1;
 const int DAZSCRIPT_PARAMETER_ITEM_MODE                     = 2;
 const int DAZSCRIPT_PARAMETER_ITEM_TEMPLATE                 = 3;
 
-const int DAZSCRIPT_PARAMETER_MODE_TYPED_LITERAL            = 0;
+const int DAZSCRIPT_PARAMETER_MODE_TEMPLATE                 = 0;
 const int DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL           = 1;
-const int DAZSCRIPT_PARAMETER_MODE_TEMPLATE                 = 2;
+const int DAZSCRIPT_PARAMETER_MODE_INT_LITERAL              = 2;
+const int DAZSCRIPT_PARAMETER_MODE_FLOAT_LITERAL            = 3;
+const int DAZSCRIPT_PARAMETER_MODE_OBJECT_LITERAL           = 4;
+const int DAZSCRIPT_PARAMETER_MODE_RAW_LITERAL              = 5;
 
 const int DAZSCRIPT_EXPR_VAR                                = 0;
 const int DAZSCRIPT_EXPR_ALIAS                              = 1;
@@ -1425,8 +1428,7 @@ void JsonArrayInsertLiteralNodeInplace(json jTemplate, string sLiteral)
         json jPrevious = JsonArrayGet(jTemplate, nLength - 1);
         if (JsonArrayGetInt(jPrevious, 0) == DAZSCRIPT_NODE_LITERAL)
         {
-            string sExisting = JsonArrayGetString(jPrevious, 1);
-            JsonSetAtPointerInplace(jTemplate, "/" + IntToString(nLength - 1) + "/1", JsonString(sExisting + sLiteral));
+            JsonSetAtPointerInplace(jTemplate, "/" + IntToString(nLength - 1) + "/1", JsonString(JsonArrayGetString(jPrevious, 1) + sLiteral));
             return;
         }
     }
@@ -1678,11 +1680,51 @@ json MakeParameterItem(string sText, int bWasQuoted)
     if (!ParameterTextNeedsTemplateCompile(sText))
     {
         if (bWasQuoted)
+        {
             JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL);
-        else
-            JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_TYPED_LITERAL);
+            JsonArrayInsertInplace(jParameter, JsonString(sText));
+            return jParameter;
+        }
 
-        JsonArrayInsertInplace(jParameter, JsonNull());
+        string sLower = GetStringLowerCase(sText);
+
+        if (sLower == "true")
+        {
+            JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_INT_LITERAL);
+            JsonArrayInsertInplace(jParameter, JsonInt(TRUE));
+            return jParameter;
+        }
+
+        if (sLower == "false")
+        {
+            JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_INT_LITERAL);
+            JsonArrayInsertInplace(jParameter, JsonInt(FALSE));
+            return jParameter;
+        }
+
+        if (IsInteger(sText))
+        {
+            JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_INT_LITERAL);
+            JsonArrayInsertInplace(jParameter, JsonInt(StringToInt(sText)));
+            return jParameter;
+        }
+
+        if (IsFloat(sText))
+        {
+            JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_FLOAT_LITERAL);
+            JsonArrayInsertInplace(jParameter, JsonFloat(StringToFloat(sText)));
+            return jParameter;
+        }
+
+        if (IsObjectIDString(sText))
+        {
+            JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_OBJECT_LITERAL);
+            JsonArrayInsertInplace(jParameter, JsonString(sText));
+            return jParameter;
+        }
+
+        JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_RAW_LITERAL);
+        JsonArrayInsertInplace(jParameter, JsonString(sText));
         return jParameter;
     }
 
@@ -1907,10 +1949,13 @@ json GetParameterTemplateFromList(json jParameterList, int nIndex)
     json jParameter = JsonArrayGet(jParameterList, nIndex);
     int nMode = JsonArrayGetInt(jParameter, DAZSCRIPT_PARAMETER_ITEM_MODE);
 
-    if (nMode == DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL)
-        return MakeLiteralParameterTemplate(JsonArrayGetString(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEXT), TRUE);
-    if (nMode == DAZSCRIPT_PARAMETER_MODE_TYPED_LITERAL)
-        return MakeLiteralParameterTemplate(JsonArrayGetString(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEXT), FALSE);
+    if (nMode != DAZSCRIPT_PARAMETER_MODE_TEMPLATE)
+    {
+        return MakeLiteralParameterTemplate(
+            JsonArrayGetString(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEXT),
+            JsonArrayGetInt(jParameter, DAZSCRIPT_PARAMETER_ITEM_WAS_QUOTED)
+        );
+    }
 
     return JsonArrayGet(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEMPLATE);
 }
@@ -1969,28 +2014,22 @@ struct Value EvalParameterFromList(struct ArgContext strArgCtx, json jParameterL
 
     json jParameter = JsonArrayGet(jParameterList, nIndex);
     int nMode = JsonArrayGetInt(jParameter, DAZSCRIPT_PARAMETER_ITEM_MODE);
-    string sRaw;
 
     int bTraceEnabled = IsTraceEnabled();
-    if (bTraceEnabled || nMode == DAZSCRIPT_PARAMETER_MODE_TYPED_LITERAL || nMode == DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL)
-        sRaw = JsonArrayGetString(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEXT);
-
-    if (bTraceEnabled) { TraceEnter("arg.enter", strArgCtx.sCurrentProperty + "[" + IntToString(nIndex + 1) + "] raw=" + TraceQuoted(sRaw)); }
+    if (bTraceEnabled) { TraceEnter("arg.enter", strArgCtx.sCurrentProperty + "[" + IntToString(nIndex + 1) + "] raw=" + TraceQuoted(JsonArrayGetString(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEXT))); }
 
     struct Value strValue;
 
-    if (nMode == DAZSCRIPT_PARAMETER_MODE_TYPED_LITERAL)
-    {
-        strValue = GetValueFromTypedLiteral(sRaw);
-    }
-    else if (nMode == DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL)
-    {
-        strValue = GetValueFromString(sRaw);
-    }
+    if (nMode == DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL || nMode == DAZSCRIPT_PARAMETER_MODE_RAW_LITERAL)
+        strValue = GetValueFromString(JsonArrayGetString(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEMPLATE));
+    else if (nMode == DAZSCRIPT_PARAMETER_MODE_INT_LITERAL)
+        strValue = GetValueFromInt(JsonArrayGetInt(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEMPLATE));
+    else if (nMode == DAZSCRIPT_PARAMETER_MODE_FLOAT_LITERAL)
+        strValue = GetValueFromFloat(JsonGetFloat(JsonArrayGet(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEMPLATE)));
+    else if (nMode == DAZSCRIPT_PARAMETER_MODE_OBJECT_LITERAL)
+        strValue = GetValueFromObject(StringToObject(JsonArrayGetString(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEMPLATE)));
     else
-    {
         strValue = EvalTemplate(JsonArrayGet(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEMPLATE), strArgCtx.jStack);
-    }
 
     if (bTraceEnabled) { TraceExit("arg.exit", strArgCtx.sCurrentProperty + "[" + IntToString(nIndex + 1) + "] => " + TraceValue(strValue)); }
 

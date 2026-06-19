@@ -9,7 +9,6 @@
 #include "ef_i_dataobject"
 #include "ef_i_util"
 #include "ef_i_sqlite"
-#include "ef_c_profiler"
 #include "nwnx_util"
 #include "nwnx_vm"
 
@@ -308,17 +307,12 @@ struct Value CheckSqlStateIsNot(sqlquery sqlQuery, int nState);
 int IsValidSqlAuxType(int nAuxType);
 int GetSqlAuxTypeFromShortType(string sChar);
 struct Value ValidateSqlRowSpec(string sSpec, int nColumnCount, string sErrorPrefix);
-struct Value SqlRowSetColumnInplace(json jRow, sqlquery sqlQuery, int nIndex, string sName, int nAuxType);
-struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, string sSpec);
+struct Value BuildSqlRowSchemaInplace(json jColumnNames, json jColumnAuxTypes, sqlquery sqlQuery, string sSpec, int nColumnCount);
+struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, json jColumnNames, json jColumnAuxTypes);
 struct Value GetValueFromSqlColumn(sqlquery sqlQuery, int nIndex, int nAuxType);
 
 struct Value ValidateLoopAliases(string sMetaName, int bHasIndexAlias, string sIndexAlias, string sValueAlias);
 struct Value BindArrayLoopAliasesInplace(json jFrame, json jCollection, int nIndex, int bHasIndexAlias, string sIndexAlias, string sValueAlias);
-int IsSortDirectionLiteral(string sRaw);
-int SortKeyKind(struct Value strValue);
-int SortCharRank(string sChar);
-int CompareSortStrings(string sLeft, string sRight);
-int CompareSortKeys(struct Value strLeft, struct Value strRight, int nKeyKind);
 
 int IsStackVar(string sVarName);
 int IsSymbol(string sVarName, string sSymbol);
@@ -346,7 +340,7 @@ string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride =
 
 struct Value Eval(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL)
 {
-    if (sString == "" || (FindSubString(sString, "{", 0) == -1 && FindSubString(sString, "}", 0) == -1))
+    if (sString == "" || FindSubString(sString, "{", 0) == -1)
         return GetValueFromString(sString);
 
     int bPushedTrace = FALSE;
@@ -770,13 +764,13 @@ struct Value CastValueToAuxType(struct Value strValue, int nTargetAuxType)
 string GetValueText(struct Value strValue, string sErrorFallback = "")
 {
     if (IsErrorValue(strValue))
-        return sErrorFallback ;
+        return sErrorFallback;
     return FormatValueForDisplay(strValue);
 }
 
 string GetTrimmedValueText(struct Value strValue, string sErrorFallback = "")
 {
-    return Trim(GetValueText(strValue, sErrorFallback ));
+    return Trim(GetValueText(strValue, sErrorFallback));
 }
 
 int IsValueIntParameter(struct Value strValue)
@@ -1182,7 +1176,7 @@ json SplitTopLevelToken(string sString, string sToken, int bIncludeEmpty = TRUE)
         str = ParserAdvance(str);
     }
 
-    string sFinalPart = GetSubString(sString, nStart, GetStringLength(sString) - nStart);
+    string sFinalPart = GetSubString(sString, nStart, str.nLength - nStart);
     if (bIncludeEmpty || sFinalPart != "")
         JsonArrayInsertStringInplace(jParts, sFinalPart);
 
@@ -1991,6 +1985,17 @@ int IsValueArgType(struct Value strValue, int nArgType)
 
 struct Value CheckArity(struct ArgContext strArgCtx, int nMin, int nMax)
 {
+    if (strArgCtx.sCurrentParameters == "")
+    {
+        if (nMin <= 0)
+            return GetInvalidValue();
+
+        if (nMin == nMax)
+            return GetErrorValue("ARITY:EXPECTED_" + IntToString(nMin) + "_ARGUMENTS");
+
+        return GetErrorValue("ARITY:EXPECTED_AT_LEAST_" + IntToString(nMin) + "_ARGUMENTS");
+    }
+
     struct Value strParseError = CheckParameterParserError(strArgCtx);
     if (IsErrorValue(strParseError))
         return strParseError;
@@ -2014,6 +2019,8 @@ struct Value CheckArity(struct ArgContext strArgCtx, int nMin, int nMax)
 
 struct Value RequireNoArgs(struct ArgContext strArgCtx)
 {
+    if (strArgCtx.sCurrentParameters == "")
+        return GetInvalidValue();
     return CheckArity(strArgCtx, 0, 0);
 }
 
@@ -2334,44 +2341,63 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, int nMetaNameHash, 
     strMeta.sCurrentParameters = sBaseParameters;
     strMeta.jCurrentParameters = jBaseCompiledParameters;
     strMeta = PrepareCurrentParameters(strMeta);
+
     struct Value strReturnValue = CheckParameterParserError(strMeta);
 
     if (!IsErrorValue(strReturnValue))
     {
-        strReturnValue = GetInvalidValue();
+        switch (nMetaNameHash)
+        {
+            case "int": case "float": case "string": case "object": case "json":
+                strReturnValue = HandleMetaPrimitive(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaPrimitive(strMeta);
+            case "fn":
+                strReturnValue = HandleMetaFunction(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaFunction(strMeta);
+            case "if": case "while": case "pick": case "not": case "and": case "all":
+            case "or": case "any": case "switch": case "foreachpc": case "try": case "do":
+                strReturnValue = HandleMetaControlFlow(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaControlFlow(strMeta);
+            case "foreach": case "map": case "each": case "filter": case "reduce":
+                strReturnValue = HandleMetaCollection(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaCollection(strMeta);
+            case "count": case "sum": case "avg":
+                strReturnValue = HandleMetaAggregate(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaAggregate(strMeta);
+            case "let": case "set": case "unset": case "cast": case "out": case "with":
+                strReturnValue = HandleMetaVariable(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaVariable(strMeta);
+            case "exists": case "type": case "debug":
+                strReturnValue = HandleMetaIntrospection(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaIntrospection(strMeta);
+            case "tellpc": case "print": case "trace":
+                strReturnValue = HandleMetaOutput(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaOutput(strMeta);
+            case "add": case "sub": case "mul":  case "div": case "idiv":
+            case "min": case "max": case "clamp": case "mod": case "random":
+                strReturnValue = HandleMetaMath(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaMath(strMeta);
+            case "firstpc": case "nextpc": case "module": case "objectbytag":
+                strReturnValue = HandleMetaObject(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaObject(strMeta);
+            case "sqlobject": case "sqlcampaign": case "sqlmodule":
+                strReturnValue = HandleMetaSqlQuery(strMeta);
+                break;
 
-        if (IsInvalidValue(strReturnValue))
-            strReturnValue = HandleMetaSqlQuery(strMeta);
+            default:
+                strReturnValue = GetErrorValue("UNKNOWN_META:" + sMetaName);
+                break;
+        }
 
         if (IsInvalidValue(strReturnValue))
             strReturnValue = GetErrorValue("UNKNOWN_META:" + sMetaName);
@@ -2522,113 +2548,120 @@ struct Value ResolveIntProperty(struct ChainContext strCtx)
     int nHashedProperty = strCtx.strArgs.nHashedCurrentProperty;
     int nValue = strCtx.strValue.nValue;
 
-    if (nHashedProperty == h"abs")
+    switch (nHashedProperty)
     {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(abs(nValue));
-    }
-
-    if (nHashedProperty == h"eq" || nHashedProperty == h"neq" || nHashedProperty == h"gt" || nHashedProperty == h"gte" || nHashedProperty == h"lt" || nHashedProperty == h"lte")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        int nCompare = GetValueAsInt(strArgs.strArg0);
-        if (nHashedProperty == h"eq")  return GetValueFromInt(nValue == nCompare);
-        if (nHashedProperty == h"neq") return GetValueFromInt(nValue != nCompare);
-        if (nHashedProperty == h"gt")  return GetValueFromInt(nValue > nCompare);
-        if (nHashedProperty == h"gte") return GetValueFromInt(nValue >= nCompare);
-        if (nHashedProperty == h"lt")  return GetValueFromInt(nValue < nCompare);
-        if (nHashedProperty == h"lte") return GetValueFromInt(nValue <= nCompare);
-    }
-
-    if (nHashedProperty == h"min" || nHashedProperty == h"max")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        int nOther = GetValueAsInt(strArgs.strArg0);
-        if (nHashedProperty == h"min")
-            return GetValueFromInt(nValue < nOther ? nValue : nOther);
-        else
-            return GetValueFromInt(nValue > nOther ? nValue : nOther);
-    }
-
-    if (nHashedProperty == h"clamp")
-    {
-        struct Arguments strArgs = EvalTwoArgs(strCtx.strArgs, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        return GetValueFromInt(Clamp(nValue, GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1)));
-    }
-
-    if (nHashedProperty == h"mod")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        int nDivisor = GetValueAsInt(strArgs.strArg0);
-        if (nDivisor != 0)
-            return GetValueFromInt(nValue % nDivisor);
-        else
-            return GetErrorValue("DIVISION_BY_ZERO");
-    }
-
-    if (nHashedProperty == h"then")
-    {
-        struct Value strError = CheckArity(strCtx.strArgs, 2, 2);
-        if (IsErrorValue(strError))
-            return strError;
-        return EvalCompiledParameter(strCtx.strArgs, nValue != 0 ? 0 : 1);
-    }
-
-    if (nHashedProperty == h"plural")
-    {
-        struct Value strError = CheckArity(strCtx.strArgs, 1, 2);
-        if (IsErrorValue(strError))
-            return strError;
-        if (GetParameterCount(strCtx.strArgs) == 1)
+        case "abs":
         {
-            if (nValue == 1)
-                return GetValueFromString();
-            else
-                return EvalCompiledParameter(strCtx.strArgs, 0);
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(abs(nValue));
         }
-        else
-            return EvalCompiledParameter(strCtx.strArgs, nValue != 1);
-    }
 
-    if (nHashedProperty == h"incr")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(nValue + 1);
-    }
+        case "eq": case "neq": case "gt": case "gte": case "lt": case "lte":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
 
-    if (nHashedProperty == h"decr")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(nValue - 1);
-    }
+            int nCompare = GetValueAsInt(strArgs.strArg0);
+            switch (nHashedProperty)
+            {
+                case "eq":  return GetValueFromInt(nValue == nCompare);
+                case "neq": return GetValueFromInt(nValue != nCompare);
+                case "gt":  return GetValueFromInt(nValue > nCompare);
+                case "gte": return GetValueFromInt(nValue >= nCompare);
+                case "lt":  return GetValueFromInt(nValue < nCompare);
+                case "lte": return GetValueFromInt(nValue <= nCompare);
+            }
+            break;
+        }
 
-    if (nHashedProperty == h"even" || nHashedProperty == h"odd")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
+        case "min": case "max":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
 
-        if (nHashedProperty == h"even")
-            return GetValueFromInt(nValue % 2 == 0);
-        else
-            return GetValueFromInt(nValue % 2 != 0);
+            int nOther = GetValueAsInt(strArgs.strArg0);
+            if (nHashedProperty == h"min")
+                return GetValueFromInt(nValue < nOther ? nValue : nOther);
+            else
+                return GetValueFromInt(nValue > nOther ? nValue : nOther);
+        }
+
+        case "clamp":
+        {
+            struct Arguments strArgs = EvalTwoArgs(strCtx.strArgs, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            return GetValueFromInt(Clamp(nValue, GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1)));
+        }
+
+        case "mod":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+
+            int nDivisor = GetValueAsInt(strArgs.strArg0);
+            if (nDivisor != 0)
+                return GetValueFromInt(nValue % nDivisor);
+            else
+                return GetErrorValue("DIVISION_BY_ZERO");
+        }
+
+        case "then":
+        {
+            struct Value strError = CheckArity(strCtx.strArgs, 2, 2);
+            if (IsErrorValue(strError))
+                return strError;
+            return EvalCompiledParameter(strCtx.strArgs, nValue != 0 ? 0 : 1);
+        }
+
+        case "plural":
+        {
+            struct Value strError = CheckArity(strCtx.strArgs, 1, 2);
+            if (IsErrorValue(strError))
+                return strError;
+            if (GetParameterCount(strCtx.strArgs) == 1)
+            {
+                if (nValue == 1)
+                    return GetValueFromString();
+                else
+                    return EvalCompiledParameter(strCtx.strArgs, 0);
+            }
+            else
+                return EvalCompiledParameter(strCtx.strArgs, nValue != 1);
+        }
+
+        case "incr":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(nValue + 1);
+        }
+
+        case "decr":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(nValue - 1);
+        }
+
+        case "even": case "odd":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+
+            if (nHashedProperty == h"even")
+                return GetValueFromInt(nValue % 2 == 0);
+            else
+                return GetValueFromInt(nValue % 2 != 0);
+        }
     }
 
     return GetInvalidValue();
@@ -2639,73 +2672,80 @@ struct Value ResolveFloatProperty(struct ChainContext strCtx)
     int nHashedProperty = strCtx.strArgs.nHashedCurrentProperty;
     float fValue = strCtx.strValue.fValue;
 
-    if (nHashedProperty == h"abs")
+    switch (nHashedProperty)
     {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromFloat(fabs(fValue));
-    }
+        case "abs":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromFloat(fabs(fValue));
+        }
 
-    if (nHashedProperty == h"floor")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(Floor(fValue));
-    }
+        case "floor":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(Floor(fValue));
+        }
 
-    if (nHashedProperty == h"ceil")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(Ceil(fValue));
-    }
+        case "ceil":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(Ceil(fValue));
+        }
 
-    if (nHashedProperty == h"round")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(Round(fValue));
-    }
+        case "round":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(Round(fValue));
+        }
 
-    if (nHashedProperty == h"eq" || nHashedProperty == h"neq" || nHashedProperty == h"gt" || nHashedProperty == h"gte" || nHashedProperty == h"lt" || nHashedProperty == h"lte")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_NUMERIC);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
+        case "eq": case "neq": case "gt": case "gte": case "lt": case "lte":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_NUMERIC);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
 
-        float fCompare = GetValueAsFloat(strArgs.strArg0);
-        float fDiff = fValue - fCompare;
-        if (nHashedProperty == h"eq")  return GetValueFromInt(fabs(fDiff) < FLOAT_EPSILON);
-        if (nHashedProperty == h"neq") return GetValueFromInt(fabs(fDiff) >= FLOAT_EPSILON);
-        if (nHashedProperty == h"gt")  return GetValueFromInt(fDiff > FLOAT_EPSILON);
-        if (nHashedProperty == h"gte") return GetValueFromInt(fDiff >= -FLOAT_EPSILON);
-        if (nHashedProperty == h"lt")  return GetValueFromInt(fDiff < -FLOAT_EPSILON);
-        if (nHashedProperty == h"lte") return GetValueFromInt(fDiff <= FLOAT_EPSILON);
-    }
+            float fCompare = GetValueAsFloat(strArgs.strArg0);
+            float fDiff = fValue - fCompare;
+            switch (nHashedProperty)
+            {
+                case "eq":  return GetValueFromInt(fabs(fDiff) < FLOAT_EPSILON);
+                case "neq": return GetValueFromInt(fabs(fDiff) >= FLOAT_EPSILON);
+                case "gt":  return GetValueFromInt(fDiff > FLOAT_EPSILON);
+                case "gte": return GetValueFromInt(fDiff >= -FLOAT_EPSILON);
+                case "lt":  return GetValueFromInt(fDiff < -FLOAT_EPSILON);
+                case "lte": return GetValueFromInt(fDiff <= FLOAT_EPSILON);
+            }
+            break;
+        }
 
-    if (nHashedProperty == h"min" || nHashedProperty == h"max")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_NUMERIC);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
+        case "min": case "max":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_NUMERIC);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
 
-        float fOther = GetValueAsFloat(strArgs.strArg0);
-        if (nHashedProperty == h"min")
-            return GetValueFromFloat(fValue < fOther ? fValue : fOther);
-        else
-            return GetValueFromFloat(fValue > fOther ? fValue : fOther);
-    }
+            float fOther = GetValueAsFloat(strArgs.strArg0);
+            if (nHashedProperty == h"min")
+                return GetValueFromFloat(fValue < fOther ? fValue : fOther);
+            else
+                return GetValueFromFloat(fValue > fOther ? fValue : fOther);
+        }
 
-    if (nHashedProperty == h"clamp")
-    {
-        struct Arguments strArgs = EvalTwoArgs(strCtx.strArgs, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        return GetValueFromFloat(Clampf(fValue, GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1)));
+        case "clamp":
+        {
+            struct Arguments strArgs = EvalTwoArgs(strCtx.strArgs, DAZSCRIPT_ARG_NUMERIC, DAZSCRIPT_ARG_NUMERIC);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            return GetValueFromFloat(Clampf(fValue, GetValueAsFloat(strArgs.strArg0), GetValueAsFloat(strArgs.strArg1)));
+        }
     }
 
     return GetInvalidValue();
@@ -2716,160 +2756,163 @@ struct Value ResolveStringProperty(struct ChainContext strCtx)
     int nHashedProperty = strCtx.strArgs.nHashedCurrentProperty;
     string sValue = strCtx.strValue.sValue;
 
-    if (nHashedProperty == h"length")
+    switch (nHashedProperty)
     {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(GetStringLength(sValue));
-    }
-
-    if (nHashedProperty == h"upper")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(GetStringUpperCase(sValue));
-    }
-
-    if (nHashedProperty == h"lower")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(GetStringLowerCase(sValue));
-    }
-
-    if (nHashedProperty == h"trim")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(Trim(sValue));
-    }
-
-    if (nHashedProperty == h"empty")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(sValue == "");
-    }
-
-    if (nHashedProperty == h"notempty")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(sValue != "");
-    }
-
-    if (nHashedProperty == h"contains")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        return GetValueFromInt(FindSubString(sValue, GetValueText(strArgs.strArg0), 0) != -1);
-    }
-
-    if (nHashedProperty == h"startswith")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        return GetValueFromInt(IsStringPrefix(sValue, GetValueText(strArgs.strArg0)));
-    }
-
-    if (nHashedProperty == h"endswith")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        return GetValueFromInt(IsStringSuffix(sValue, GetValueText(strArgs.strArg0)));
-    }
-
-    if (nHashedProperty == h"substring")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        int nStart = GetValueAsInt(strArgs.strArg0);
-        int nCount = GetStringLength(sValue) - nStart;
-        if (strArgs.nCount == 2)
-            nCount = GetValueAsInt(strArgs.strArg1);
-        return GetValueFromString(GetSubString(sValue, nStart, nCount));
-    }
-
-    if (nHashedProperty == h"left" || nHashedProperty == h"right")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        int nLength = GetValueAsInt(strArgs.strArg0);
-        if (nHashedProperty == h"left")
-            return GetValueFromString(GetStringLeft(sValue, nLength));
-        else
-            return GetValueFromString(GetStringRight(sValue, nLength));
-    }
-
-    if (nHashedProperty == h"replace")
-    {
-        struct Arguments strArgs = EvalTwoArgs(strCtx.strArgs);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        string sSearch = NWNX_Util_RegExpEscape(GetValueText(strArgs.strArg0));
-        string sReplace = GetValueText(strArgs.strArg1);
-        return GetValueFromString(RegExpReplace(sSearch, sValue, sReplace));
-    }
-
-    if (nHashedProperty == h"eq" || nHashedProperty == h"neq")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        string sCompare = GetValueText(strArgs.strArg0);
-        int nResult = nHashedProperty == h"eq" ? sValue == sCompare : sValue != sCompare;
-        return GetValueFromInt(nResult);
-    }
-
-    if (nHashedProperty == h"capitalize")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(CapitalizeWord(sValue));
-    }
-
-    if (nHashedProperty == h"append" || nHashedProperty == h"prepend")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        string sOther = GetValueText(strArgs.strArg0);
-        if (nHashedProperty == h"append")
-            return GetValueFromString(sValue + sOther);
-        else
-            return GetValueFromString(sOther + sValue);
-    }
-
-    if (nHashedProperty == h"render")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-
-        json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sValue);
-        if (!JsonGetType(jTemplate))
+        case "length":
         {
-            jTemplate = CompileTemplate(sValue);
-            SetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sValue, jTemplate);
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(GetStringLength(sValue));
         }
-        return EvalTemplate(jTemplate, strCtx.strArgs.jStack);
+
+        case "upper":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(GetStringUpperCase(sValue));
+        }
+
+        case "lower":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(GetStringLowerCase(sValue));
+        }
+
+        case "trim":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(Trim(sValue));
+        }
+
+        case "empty":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(sValue == "");
+        }
+
+        case "notempty":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(sValue != "");
+        }
+
+        case "contains":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            return GetValueFromInt(FindSubString(sValue, GetValueText(strArgs.strArg0), 0) != -1);
+        }
+
+        case "startswith":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            return GetValueFromInt(IsStringPrefix(sValue, GetValueText(strArgs.strArg0)));
+        }
+
+        case "endswith":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            return GetValueFromInt(IsStringSuffix(sValue, GetValueText(strArgs.strArg0)));
+        }
+
+        case "substring":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+
+            int nStart = GetValueAsInt(strArgs.strArg0);
+            int nCount = GetStringLength(sValue) - nStart;
+            if (strArgs.nCount == 2)
+                nCount = GetValueAsInt(strArgs.strArg1);
+            return GetValueFromString(GetSubString(sValue, nStart, nCount));
+        }
+
+        case "left": case "right":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+
+            int nLength = GetValueAsInt(strArgs.strArg0);
+            if (nHashedProperty == h"left")
+                return GetValueFromString(GetStringLeft(sValue, nLength));
+            else
+                return GetValueFromString(GetStringRight(sValue, nLength));
+        }
+
+        case "replace":
+        {
+            struct Arguments strArgs = EvalTwoArgs(strCtx.strArgs);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+
+            string sSearch = NWNX_Util_RegExpEscape(GetValueText(strArgs.strArg0));
+            string sReplace = GetValueText(strArgs.strArg1);
+            return GetValueFromString(RegExpReplace(sSearch, sValue, sReplace));
+        }
+
+        case "eq": case "neq":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+
+            string sCompare = GetValueText(strArgs.strArg0);
+            int nResult = nHashedProperty == h"eq" ? sValue == sCompare : sValue != sCompare;
+            return GetValueFromInt(nResult);
+        }
+
+        case "capitalize":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(CapitalizeWord(sValue));
+        }
+
+        case "append": case "prepend":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+
+            string sOther = GetValueText(strArgs.strArg0);
+            if (nHashedProperty == h"append")
+                return GetValueFromString(sValue + sOther);
+            else
+                return GetValueFromString(sOther + sValue);
+        }
+
+        case "render":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+
+            json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sValue);
+            if (!JsonGetType(jTemplate))
+            {
+                jTemplate = CompileTemplate(sValue);
+                SetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sValue, jTemplate);
+            }
+            return EvalTemplate(jTemplate, strCtx.strArgs.jStack);
+        }
     }
 
     return GetInvalidValue();
@@ -2883,179 +2926,183 @@ struct Value ResolveObjectProperty(struct ChainContext strCtx)
     if (!GetIsObjectValid(oValue) && nHashedProperty != h"valid")
         return GetErrorValue("INVALID_OBJECT:SELF");
 
-    if (nHashedProperty == h"name")
+    switch (nHashedProperty)
     {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(GetName(oValue));
-    }
+        case "name":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(GetName(oValue));
+        }
 
-    if (nHashedProperty == h"tag")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(GetTag(oValue));
-    }
+        case "tag":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(GetTag(oValue));
+        }
 
-    if (nHashedProperty == h"resref")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(GetResRef(oValue));
-    }
+        case "resref":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(GetResRef(oValue));
+        }
 
-    if (nHashedProperty == h"type")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(GetObjectTypeName(oValue));
-    }
+        case "type":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(GetObjectTypeName(oValue));
+        }
 
-    if (nHashedProperty == h"area")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromObject(GetArea(oValue));
-    }
+        case "area":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromObject(GetArea(oValue));
+        }
 
-    if (nHashedProperty == h"valid")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(GetIsObjectValid(oValue));
-    }
+        case "valid":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(GetIsObjectValid(oValue));
+        }
 
-    if (nHashedProperty == h"inspect")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(InspectObject(oValue));
-    }
+        case "inspect":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(InspectObject(oValue));
+        }
 
-    if (nHashedProperty == h"ispc")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(GetIsPlayer(oValue));
-    }
+        case "ispc":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(GetIsPlayer(oValue));
+        }
 
-    if (nHashedProperty == h"isdm")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(GetIsDM(oValue));
-    }
+        case "isdm":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(GetIsDM(oValue));
+        }
 
-    if (nHashedProperty == h"isplayerdm")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(GetIsPlayerDM(oValue));
-    }
+        case "isplayerdm":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(GetIsPlayerDM(oValue));
+        }
 
-    if (nHashedProperty == h"dead")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(GetIsDead(oValue));
-    }
+        case "dead":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(GetIsDead(oValue));
+        }
 
-    if (nHashedProperty == h"hp")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(GetCurrentHitPoints(oValue));
-    }
+        case "hp":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(GetCurrentHitPoints(oValue));
+        }
 
-    if (nHashedProperty == h"maxhp")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(GetMaxHitPoints(oValue));
-    }
+        case "maxhp":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(GetMaxHitPoints(oValue));
+        }
 
-    if (nHashedProperty == h"distance")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_OBJECT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
+        case "distance":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_OBJECT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
 
-        object oOther = GetValueAsObject(strArgs.strArg0);
-        if (!GetIsObjectValid(oOther))
-            return GetErrorValue("INVALID_OBJECT:ARG1");
-        else
-            return GetValueFromFloat(GetDistanceBetween(oValue, oOther));
-    }
+            object oOther = GetValueAsObject(strArgs.strArg0);
+            if (!GetIsObjectValid(oOther))
+                return GetErrorValue("INVALID_OBJECT:ARG1");
+            else
+                return GetValueFromFloat(GetDistanceBetween(oValue, oOther));
+        }
 
-    if (nHashedProperty == h"x" || nHashedProperty == h"y" || nHashedProperty == h"z")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        vector vPosition = GetPosition(oValue);
-        if (nHashedProperty == h"x")   return GetValueFromFloat(vPosition.x);
-        if (nHashedProperty == h"y")   return GetValueFromFloat(vPosition.y);
-        if (nHashedProperty == h"z")   return GetValueFromFloat(vPosition.z);
-    }
+        case "x": case "y": case "z":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            vector vPosition = GetPosition(oValue);
+            if (nHashedProperty == h"x") return GetValueFromFloat(vPosition.x);
+            if (nHashedProperty == h"y") return GetValueFromFloat(vPosition.y);
+            if (nHashedProperty == h"z") return GetValueFromFloat(vPosition.z);
+            break;
+        }
 
-    if (nHashedProperty == h"position")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
+        case "position":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
 
-        int nPrecision = 2;
-        if (strArgs.nCount == 1)
-            nPrecision = GetValueAsInt(strArgs.strArg0, 2);
-        nPrecision = Clamp(nPrecision, 0, 9);
+            int nPrecision = 2;
+            if (strArgs.nCount == 1)
+                nPrecision = GetValueAsInt(strArgs.strArg0, 2);
+            nPrecision = Clamp(nPrecision, 0, 9);
 
-        vector vPosition = GetPosition(oValue);
-        string sX = FormatValueForDisplay(FormatValueAsFixed(GetValueFromFloat(vPosition.x), nPrecision));
-        string sY = FormatValueForDisplay(FormatValueAsFixed(GetValueFromFloat(vPosition.y), nPrecision));
-        string sZ = FormatValueForDisplay(FormatValueAsFixed(GetValueFromFloat(vPosition.z), nPrecision));
-        return GetValueFromString("[" + sX + "," + sY + "," + sZ + "]");
-    }
+            vector vPosition = GetPosition(oValue);
+            string sX = FormatValueForDisplay(FormatValueAsFixed(GetValueFromFloat(vPosition.x), nPrecision));
+            string sY = FormatValueForDisplay(FormatValueAsFixed(GetValueFromFloat(vPosition.y), nPrecision));
+            string sZ = FormatValueForDisplay(FormatValueAsFixed(GetValueFromFloat(vPosition.z), nPrecision));
+            return GetValueFromString("[" + sX + "," + sY + "," + sZ + "]");
+        }
 
-    if (nHashedProperty == h"facing")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromFloat(GetFacing(oValue));
-    }
+        case "facing":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromFloat(GetFacing(oValue));
+        }
 
-    if (nHashedProperty == h"localvar")
-    {
-        struct Arguments strArgs = EvalTwoArgs(strCtx.strArgs);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
+        case "localvar":
+        {
+            struct Arguments strArgs = EvalTwoArgs(strCtx.strArgs);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
 
-        string sType = GetStringLowerCase(GetTrimmedValueText(strArgs.strArg0));
-        if (sType == "i")
-            return GetValueFromInt(GetLocalInt(oValue, GetTrimmedValueText(strArgs.strArg1)));
-        else if (sType == "f")
-            return GetValueFromFloat(GetLocalFloat(oValue, GetTrimmedValueText(strArgs.strArg1)));
-        else if (sType == "s")
-            return GetValueFromString(GetLocalString(oValue, GetTrimmedValueText(strArgs.strArg1)));
-        else if (sType == "o")
-            return GetValueFromObject(GetLocalObject(oValue, GetTrimmedValueText(strArgs.strArg1)));
-        else if (sType == "j")
-            return GetValueFromJson(GetLocalJson(oValue, GetTrimmedValueText(strArgs.strArg1)));
-        else
-            return GetErrorValue("INVALID_LOCALVAR_TYPE:" + sType);
+            string sType = GetStringLowerCase(GetTrimmedValueText(strArgs.strArg0));
+            if (sType == "i")
+                return GetValueFromInt(GetLocalInt(oValue, GetTrimmedValueText(strArgs.strArg1)));
+            else if (sType == "f")
+                return GetValueFromFloat(GetLocalFloat(oValue, GetTrimmedValueText(strArgs.strArg1)));
+            else if (sType == "s")
+                return GetValueFromString(GetLocalString(oValue, GetTrimmedValueText(strArgs.strArg1)));
+            else if (sType == "o")
+                return GetValueFromObject(GetLocalObject(oValue, GetTrimmedValueText(strArgs.strArg1)));
+            else if (sType == "j")
+                return GetValueFromJson(GetLocalJson(oValue, GetTrimmedValueText(strArgs.strArg1)));
+            else
+                return GetErrorValue("INVALID_LOCALVAR_TYPE:" + sType);
+        }
     }
 
     return GetInvalidValue();
@@ -3066,299 +3113,318 @@ struct Value ResolveSqlQueryProperty(struct ChainContext strCtx)
     int nHashedProperty = strCtx.strArgs.nHashedCurrentProperty;
     sqlquery sqlValue = strCtx.strValue.sqlValue;
 
-    if (nHashedProperty == h"query")
+    switch (nHashedProperty)
     {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(SqlGetQuery(sqlValue));
-    }
-
-    if (nHashedProperty == h"state")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(SqlGetState(sqlValue));
-    }
-
-    if (nHashedProperty == h"statestr")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(SqlStateToString(SqlGetState(sqlValue)));
-    }
-
-    if (nHashedProperty == h"error")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromString(SqlGetError(sqlValue));
-    }
-    if (nHashedProperty == h"columncount")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
-        if (IsErrorValue(strError))
-            return strError;
-
-        return GetValueFromInt(SqlGetColumnCount(sqlValue));
-    }
-
-    if (nHashedProperty == h"columnname")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
-        if (IsErrorValue(strError))
-            return strError;
-
-        int nIndex = GetValueAsInt(strArgs.strArg0);
-        if (nIndex < 0 || nIndex >= SqlGetColumnCount(sqlValue))
-            return GetErrorValue("COLUMN_INDEX_OUT_OF_RANGE:" + IntToString(nIndex));
-        return GetValueFromString(SqlGetColumnName(sqlValue, nIndex));
-    }
-
-    if (nHashedProperty == h"columns")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
-        if (IsErrorValue(strError))
-            return strError;
-
-        json jColumns = JsonArray();
-        int nIndex, nNumColumns = SqlGetColumnCount(sqlValue);
-        for (nIndex = 0; nIndex < nNumColumns; nIndex++)
+        case "query":
         {
-            JsonArrayInsertStringInplace(jColumns, SqlGetColumnName(sqlValue, nIndex));
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(SqlGetQuery(sqlValue));
         }
-        return GetValueFromJson(jColumns);
-    }
 
-    if (nHashedProperty == h"bind" || nHashedProperty == h"bindi" || nHashedProperty == h"bindf" || nHashedProperty == h"binds" || nHashedProperty == h"bindo" || nHashedProperty == h"bindj")
-    {
-        int nValueArgType = DAZSCRIPT_ARG_ANY;
-        if (nHashedProperty == h"bindi") nValueArgType = DAZSCRIPT_ARG_INT;
-        else if (nHashedProperty == h"bindf") nValueArgType = DAZSCRIPT_ARG_NUMERIC;
-        else if (nHashedProperty == h"bindo") nValueArgType = DAZSCRIPT_ARG_OBJECT;
-        else if (nHashedProperty == h"bindj") nValueArgType = DAZSCRIPT_ARG_JSON;
-        else if (nHashedProperty == h"binds") nValueArgType = DAZSCRIPT_ARG_ANY;
-
-        struct Arguments strArgs = EvalTwoArgs(strCtx.strArgs, DAZSCRIPT_ARG_STRING, nValueArgType);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
-        if (IsErrorValue(strError))
-            return strError;
-
-        string sBind = GetTrimmedValueText(strArgs.strArg0);
-        if (sBind == "")
-            return GetErrorValue("EMPTY_BIND_NAME");
-
-        if (GetStringLeft(sBind, 1) != "@")
-            sBind = "@" + sBind;
-
-        if (nHashedProperty == h"bindi")
-            SqlBindInt(sqlValue, sBind, GetValueAsInt(strArgs.strArg1));
-        else if (nHashedProperty == h"bindf")
-            SqlBindFloat(sqlValue, sBind, GetValueAsFloat(strArgs.strArg1));
-        else if (nHashedProperty == h"binds")
-            SqlBindString(sqlValue, sBind, GetValueText(strArgs.strArg1));
-        else if (nHashedProperty == h"bindo")
-            SqlBindObjectRef(sqlValue, sBind, GetValueAsObject(strArgs.strArg1));
-        else if (nHashedProperty == h"bindj")
-            SqlBindJson(sqlValue, sBind, GetValueAsJson(strArgs.strArg1));
-        else
+        case "state":
         {
-            switch (strArgs.strArg1.nAuxType)
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(SqlGetState(sqlValue));
+        }
+
+        case "statestr":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(SqlStateToString(SqlGetState(sqlValue)));
+        }
+
+        case "error":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromString(SqlGetError(sqlValue));
+        }
+
+        case "columncount":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
+            if (IsErrorValue(strError))
+                return strError;
+
+            return GetValueFromInt(SqlGetColumnCount(sqlValue));
+        }
+
+        case "columnname":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
+            if (IsErrorValue(strError))
+                return strError;
+
+            int nIndex = GetValueAsInt(strArgs.strArg0);
+            if (nIndex < 0 || nIndex >= SqlGetColumnCount(sqlValue))
+                return GetErrorValue("COLUMN_INDEX_OUT_OF_RANGE:" + IntToString(nIndex));
+            return GetValueFromString(SqlGetColumnName(sqlValue, nIndex));
+        }
+
+        case "columns":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
+            if (IsErrorValue(strError))
+                return strError;
+
+            json jColumns = JsonArray();
+            int nIndex, nNumColumns = SqlGetColumnCount(sqlValue);
+            for (nIndex = 0; nIndex < nNumColumns; nIndex++)
             {
-                case NWNX_VM_AUXTYPE_INT: SqlBindInt(sqlValue, sBind, strArgs.strArg1.nValue); break;
-                case NWNX_VM_AUXTYPE_FLOAT: SqlBindFloat(sqlValue, sBind, strArgs.strArg1.fValue); break;
-                case NWNX_VM_AUXTYPE_OBJECT: SqlBindObjectRef(sqlValue, sBind, strArgs.strArg1.oValue); break;
-                case NWNX_VM_AUXTYPE_JSON: SqlBindJson(sqlValue, sBind, strArgs.strArg1.jValue); break;
-                default: SqlBindString(sqlValue, sBind, GetValueText(strArgs.strArg1));
+                JsonArrayInsertStringInplace(jColumns, SqlGetColumnName(sqlValue, nIndex));
             }
+            return GetValueFromJson(jColumns);
         }
 
-        strError = CheckSqlQueryError(sqlValue);
-        if (IsErrorValue(strError))
-            return strError;
-
-        return GetValueFromSqlQuery(sqlValue);
-    }
-
-    if (nHashedProperty == h"exec")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
-        if (IsErrorValue(strError))
-            return strError;
-
-        if (SqlGetColumnCount(sqlValue) > 0)
-            return GetErrorValue("SQL_EXEC_REQUIRES_NO_COLUMNS");
-
-        SqlStep(sqlValue);
-        strError = CheckSqlQueryError(sqlValue);
-        if (IsErrorValue(strError))
-            return strError;
-
-        return GetValueFromString();
-    }
-
-    if (nHashedProperty == h"reset")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_ANY);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
-        if (IsErrorValue(strError))
-            return strError;
-
-        int bClearBinds = FALSE;
-        if (strArgs.nCount == 1)
-            bClearBinds = IsValueTruthy(strArgs.strArg0);
-
-        strError = CheckSqlQueryError(sqlValue);
-        if (IsErrorValue(strError))
-            return strError;
-
-        SqlResetQuery(sqlValue, bClearBinds);
-        return GetValueFromSqlQuery(sqlValue);
-    }
-
-    if (nHashedProperty == h"scalar")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_ANY);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
-        if (IsErrorValue(strError))
-            return strError;
-
-        string sType = GetTrimmedValueText(strArgs.strArg0);
-        int nAuxType = GetCastAuxTypeFromName(sType);
-
-        if (!IsValidSqlAuxType(nAuxType))
-            return GetErrorValue("INVALID_SCALAR_AUXTYPE:" + sType);
-
-        if (SqlGetColumnCount(sqlValue) < 1)
-            return GetErrorValue("SQL_NO_COLUMNS");
-
-        int bStepped = SqlStep(sqlValue);
-        strError = CheckSqlQueryError(sqlValue);
-        if (IsErrorValue(strError))
-            return strError;
-
-        if (!bStepped)
+        case "bind": case "bindi": case "bindf": case "binds": case "bindo": case "bindj":
         {
+            int nValueArgType = DAZSCRIPT_ARG_ANY;
+            switch(nHashedProperty)
+            {
+                case "bindi": nValueArgType = DAZSCRIPT_ARG_INT; break;
+                case "bindf": nValueArgType = DAZSCRIPT_ARG_NUMERIC; break;
+                case "binds": nValueArgType = DAZSCRIPT_ARG_ANY; break;
+                case "bindo": nValueArgType = DAZSCRIPT_ARG_OBJECT; break;
+                case "bindj": nValueArgType = DAZSCRIPT_ARG_JSON; break;
+            }
+
+            struct Arguments strArgs = EvalTwoArgs(strCtx.strArgs, DAZSCRIPT_ARG_STRING, nValueArgType);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
+            if (IsErrorValue(strError))
+                return strError;
+
+            string sBind = GetTrimmedValueText(strArgs.strArg0);
+            if (sBind == "")
+                return GetErrorValue("EMPTY_BIND_NAME");
+
+            if (GetStringLeft(sBind, 1) != "@")
+                sBind = "@" + sBind;
+
+            switch(nHashedProperty)
+            {
+                case "bindi": SqlBindInt(sqlValue, sBind, GetValueAsInt(strArgs.strArg1)); break;
+                case "bindf": SqlBindFloat(sqlValue, sBind, GetValueAsFloat(strArgs.strArg1)); break;
+                case "binds": SqlBindString(sqlValue, sBind, GetValueText(strArgs.strArg1)); break;
+                case "bindo": SqlBindObjectRef(sqlValue, sBind, GetValueAsObject(strArgs.strArg1)); break;
+                case "bindj": SqlBindJson(sqlValue, sBind, GetValueAsJson(strArgs.strArg1)); break;
+                default:
+                {
+                    switch (strArgs.strArg1.nAuxType)
+                    {
+                        case NWNX_VM_AUXTYPE_INT: SqlBindInt(sqlValue, sBind, strArgs.strArg1.nValue); break;
+                        case NWNX_VM_AUXTYPE_FLOAT: SqlBindFloat(sqlValue, sBind, strArgs.strArg1.fValue); break;
+                        case NWNX_VM_AUXTYPE_OBJECT: SqlBindObjectRef(sqlValue, sBind, strArgs.strArg1.oValue); break;
+                        case NWNX_VM_AUXTYPE_JSON: SqlBindJson(sqlValue, sBind, strArgs.strArg1.jValue); break;
+                        default: SqlBindString(sqlValue, sBind, GetValueText(strArgs.strArg1));
+                    }
+                }
+            }
+
+            strError = CheckSqlQueryError(sqlValue);
+            if (IsErrorValue(strError))
+                return strError;
+
+            return GetValueFromSqlQuery(sqlValue);
+        }
+
+        case "exec":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
+            if (IsErrorValue(strError))
+                return strError;
+
+            if (SqlGetColumnCount(sqlValue) > 0)
+                return GetErrorValue("SQL_EXEC_REQUIRES_NO_COLUMNS");
+
+            SqlStep(sqlValue);
+            strError = CheckSqlQueryError(sqlValue);
+            if (IsErrorValue(strError))
+                return strError;
+
+            return GetValueFromString();
+        }
+
+        case "reset":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_ANY);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            struct Value strError = CheckSqlStateIsNot(sqlValue, SQLQUERY_STATE_EMPTY);
+            if (IsErrorValue(strError))
+                return strError;
+
+            int bClearBinds = FALSE;
+            if (strArgs.nCount == 1)
+                bClearBinds = IsValueTruthy(strArgs.strArg0);
+
+            strError = CheckSqlQueryError(sqlValue);
+            if (IsErrorValue(strError))
+                return strError;
+
+            SqlResetQuery(sqlValue, bClearBinds);
+            return GetValueFromSqlQuery(sqlValue);
+        }
+
+        case "scalar":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_ANY);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+
+            struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
+            if (IsErrorValue(strError))
+                return strError;
+
+            string sType = GetTrimmedValueText(strArgs.strArg0);
+            int nAuxType = GetCastAuxTypeFromName(sType);
+
+            if (!IsValidSqlAuxType(nAuxType))
+                return GetErrorValue("INVALID_SCALAR_AUXTYPE:" + sType);
+
+            if (SqlGetColumnCount(sqlValue) < 1)
+                return GetErrorValue("SQL_NO_COLUMNS");
+
+            int bStepped = SqlStep(sqlValue);
+            strError = CheckSqlQueryError(sqlValue);
+            if (IsErrorValue(strError))
+                return strError;
+
+            if (!bStepped)
+            {
+                if (strArgs.nCount == 2)
+                    return CastValueToAuxType(strArgs.strArg1, nAuxType);
+                return GetErrorValue("SQL_NO_ROW_DATA");
+            }
+
+            struct Value strScalar = GetValueFromSqlColumn(sqlValue, 0, nAuxType);
+            if (IsErrorValue(strScalar))
+                return strScalar;
+
+            strError = CheckSqlQueryError(sqlValue);
+            if (IsErrorValue(strError))
+                return strError;
+
+            return strScalar;
+        }
+
+        case "row": case "rows":
+        {
+            int bRows = (nHashedProperty == h"rows");
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 2, DAZSCRIPT_ARG_ANY, DAZSCRIPT_ARG_ANY);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
+            if (IsErrorValue(strError))
+                return strError;
+
+            int nColumnCount = SqlGetColumnCount(sqlValue);
+            strError = CheckSqlQueryError(sqlValue);
+            if (IsErrorValue(strError))
+                return strError;
+            if (nColumnCount < 1)
+                return GetErrorValue("SQL_NO_COLUMNS");
+
+            string sSpec = "";
+            int nLimit = 1;
+            if (bRows)
+                nLimit = DAZSCRIPT_SQL_ROWS_DEFAULT_LIMIT;
+
+            if (strArgs.nCount == 1)
+            {
+                if (strArgs.strArg0.nAuxType == NWNX_VM_AUXTYPE_STRING)
+                    sSpec = GetTrimmedValueText(strArgs.strArg0);
+                else if (bRows && IsValueIntParameter(strArgs.strArg0))
+                    nLimit = GetValueAsInt(strArgs.strArg0);
+                else
+                    return GetErrorValue(bRows ? "INVALID_ROWS_ARGUMENT_1" : "INVALID_ROW_ARGUMENT_1");
+            }
+
             if (strArgs.nCount == 2)
-                return CastValueToAuxType(strArgs.strArg1, nAuxType);
-            return GetErrorValue("SQL_NO_ROW_DATA");
-        }
-
-        return GetValueFromSqlColumn(sqlValue, 0, nAuxType);
-    }
-
-    if (nHashedProperty == h"row" || nHashedProperty == h"rows")
-    {
-        int bRows = (nHashedProperty == h"rows");
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 2, DAZSCRIPT_ARG_ANY, DAZSCRIPT_ARG_ANY);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        struct Value strError = CheckSqlStateIs(sqlValue, SQLQUERY_STATE_PREPARED);
-        if (IsErrorValue(strError))
-            return strError;
-
-        int nColumnCount = SqlGetColumnCount(sqlValue);
-        strError = CheckSqlQueryError(sqlValue);
-        if (IsErrorValue(strError))
-            return strError;
-        if (nColumnCount < 1)
-            return GetErrorValue("SQL_NO_COLUMNS");
-
-        string sSpec = "";
-        int nLimit = 1;
-        if (bRows)
-            nLimit = DAZSCRIPT_SQL_ROWS_DEFAULT_LIMIT;
-
-        if (strArgs.nCount == 1)
-        {
-            if (strArgs.strArg0.nAuxType == NWNX_VM_AUXTYPE_STRING)
-                sSpec = GetTrimmedValueText(strArgs.strArg0);
-            else if (bRows && IsValueIntParameter(strArgs.strArg0))
-                nLimit = GetValueAsInt(strArgs.strArg0);
-            else
-                return GetErrorValue(bRows ? "INVALID_ROWS_ARGUMENT_1" : "INVALID_ROW_ARGUMENT_1");
-        }
-
-        if (strArgs.nCount == 2)
-        {
-            if (!bRows)
-                return GetErrorValue("ROW_TOO_MANY_ARGUMENTS");
-            if (strArgs.strArg0.nAuxType != NWNX_VM_AUXTYPE_STRING)
-                return GetErrorValue("INVALID_ROWS_SPEC");
-            if (!IsValueIntParameter(strArgs.strArg1))
-                return GetErrorValue("INVALID_ROWS_LIMIT");
-
-            sSpec = GetTrimmedValueText(strArgs.strArg0);
-            nLimit = GetValueAsInt(strArgs.strArg1);
-        }
-
-        if (nLimit < 1)
-            return GetErrorValue("SQL_ROWS_LIMIT_MUST_BE_POSITIVE");
-        if (nLimit > DAZSCRIPT_SQL_ROWS_MAX_LIMIT)
-            return GetErrorValue("SQL_ROWS_LIMIT_TOO_HIGH");
-
-        strError = ValidateSqlRowSpec(sSpec, nColumnCount, "INVALID_ROW_AUXTYPE:");
-        if (IsErrorValue(strError))
-            return strError;
-
-        if (bRows)
-        {
-            json jRows = JsonArray();
-
-            int nRows = 0;
-            while (nRows < nLimit)
             {
-                int bStepped = SqlStep(sqlValue);
-                strError = CheckSqlQueryError(sqlValue);
-                if (IsErrorValue(strError))
-                    return strError;
+                if (!bRows)
+                    return GetErrorValue("ROW_TOO_MANY_ARGUMENTS");
+                if (strArgs.strArg0.nAuxType != NWNX_VM_AUXTYPE_STRING)
+                    return GetErrorValue("INVALID_ROWS_SPEC");
+                if (!IsValueIntParameter(strArgs.strArg1))
+                    return GetErrorValue("INVALID_ROWS_LIMIT");
 
-                if (!bStepped)
-                    break;
-
-                struct Value strRow = GetSqlCurrentRowAsJson(sqlValue, sSpec);
-                if (IsErrorValue(strRow))
-                    return strRow;
-
-                JsonArrayInsertInplace(jRows, strRow.jValue);
-                nRows++;
+                sSpec = GetTrimmedValueText(strArgs.strArg0);
+                nLimit = GetValueAsInt(strArgs.strArg1);
             }
 
-            return GetValueFromJson(jRows);
+            if (nLimit < 1)
+                return GetErrorValue("SQL_ROWS_LIMIT_MUST_BE_POSITIVE");
+            if (nLimit > DAZSCRIPT_SQL_ROWS_MAX_LIMIT)
+                return GetErrorValue("SQL_ROWS_LIMIT_TOO_HIGH");
+
+            strError = ValidateSqlRowSpec(sSpec, nColumnCount, "INVALID_ROW_AUXTYPE:");
+            if (IsErrorValue(strError))
+                return strError;
+
+            json jColumnNames = JsonArray();
+            json jColumnAuxTypes = JsonArray();
+            strError = BuildSqlRowSchemaInplace(jColumnNames, jColumnAuxTypes, sqlValue, sSpec, nColumnCount);
+            if (IsErrorValue(strError))
+                return strError;
+
+            if (bRows)
+            {
+                json jRows = JsonArray();
+
+                int nRows = 0;
+                while (nRows < nLimit)
+                {
+                    int bStepped = SqlStep(sqlValue);
+                    strError = CheckSqlQueryError(sqlValue);
+                    if (IsErrorValue(strError))
+                        return strError;
+
+                    if (!bStepped)
+                        break;
+
+                    struct Value strRow = GetSqlCurrentRowAsJson(sqlValue, jColumnNames, jColumnAuxTypes);
+                    if (IsErrorValue(strRow))
+                        return strRow;
+
+                    JsonArrayInsertInplace(jRows, strRow.jValue);
+                    nRows++;
+                }
+
+                return GetValueFromJson(jRows);
+            }
+
+            int bStepped = SqlStep(sqlValue);
+
+            strError = CheckSqlQueryError(sqlValue);
+            if (IsErrorValue(strError))
+                return strError;
+
+            if (!bStepped)
+                return GetErrorValue("SQL_NO_ROW_DATA");
+
+            return GetSqlCurrentRowAsJson(sqlValue, jColumnNames, jColumnAuxTypes);
         }
-
-        int bStepped = SqlStep(sqlValue);
-
-        strError = CheckSqlQueryError(sqlValue);
-        if (IsErrorValue(strError))
-            return strError;
-
-        if (!bStepped)
-            return GetErrorValue("SQL_NO_ROW_DATA");
-
-        return GetSqlCurrentRowAsJson(sqlValue, sSpec);
     }
 
     return GetInvalidValue();
@@ -3369,308 +3435,310 @@ struct Value ResolveJsonProperty(struct ChainContext strCtx)
     int nHashedProperty = strCtx.strArgs.nHashedCurrentProperty;
     json jValue = strCtx.strValue.jValue;
 
-    if (nHashedProperty == h"type")
+    switch (nHashedProperty)
     {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-
-        switch (JsonGetType(jValue))
+        case "type":
         {
-            case JSON_TYPE_NULL:    return GetValueFromString("null");
-            case JSON_TYPE_OBJECT:  return GetValueFromString("object");
-            case JSON_TYPE_ARRAY:   return GetValueFromString("array");
-            case JSON_TYPE_STRING:  return GetValueFromString("string");
-            case JSON_TYPE_INTEGER: return GetValueFromString("int");
-            case JSON_TYPE_FLOAT:   return GetValueFromString("float");
-            case JSON_TYPE_BOOL:    return GetValueFromString("bool");
-            default:                return GetValueFromString("invalid");
-        }
-    }
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
 
-    if (nHashedProperty == h"isnull")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_NULL);
-    }
-
-    if (nHashedProperty == h"isobject")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_OBJECT);
-    }
-
-    if (nHashedProperty == h"isarray")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_ARRAY);
-    }
-
-    if (nHashedProperty == h"isstring")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_STRING);
-    }
-
-    if (nHashedProperty == h"isint" || nHashedProperty == h"isinteger")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_INTEGER);
-    }
-
-    if (nHashedProperty == h"isfloat")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_FLOAT);
-    }
-
-    if (nHashedProperty == h"isnumber")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        int nType = JsonGetType(jValue);
-        return GetValueFromInt(nType == JSON_TYPE_INTEGER || nType == JSON_TYPE_FLOAT);
-    }
-
-    if (nHashedProperty == h"isbool")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_BOOL);
-    }
-
-    if (nHashedProperty == h"scalar")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        int nType = JsonGetType(jValue);
-        return GetValueFromInt(nType == JSON_TYPE_NULL || nType == JSON_TYPE_STRING || nType == JSON_TYPE_INTEGER || nType == JSON_TYPE_FLOAT || nType == JSON_TYPE_BOOL);
-    }
-
-    if (nHashedProperty == h"length")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return GetValueFromInt(JsonGetLength(jValue));
-    }
-
-    if (nHashedProperty == h"empty" || nHashedProperty == h"notempty")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-
-        int nType = JsonGetType(jValue), bEmpty = FALSE;
-        if (nType == JSON_TYPE_NULL)
-            bEmpty = TRUE;
-        else if (nType == JSON_TYPE_STRING)
-            bEmpty = JsonGetString(jValue) == "";
-        else if (nType == JSON_TYPE_ARRAY || nType == JSON_TYPE_OBJECT)
-            bEmpty = JsonGetLength(jValue) == 0;
-
-        if (nHashedProperty == h"notempty")
-            bEmpty = !bEmpty;
-
-        return GetValueFromInt(bEmpty);
-    }
-
-    if (nHashedProperty == h"has")
-    {
-        struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_STRING);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
-            return GetErrorValue("JSON_NOT_OBJECT");
-        return GetValueFromInt(JsonObjectContainsKey(jValue, GetValueText(strArgs.strArg0)));
-    }
-
-    if (nHashedProperty == h"get")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_ANY);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
-            return GetErrorValue("JSON_NOT_OBJECT");
-
-        string sKey = GetValueText(strArgs.strArg0);
-        if (JsonObjectContainsKey(jValue, sKey))
-            return ConvertJsonToValue(JsonObjectGet(jValue, sKey));
-        else if (strArgs.nCount == 2)
-            return strArgs.strArg1;
-        else
-            return GetErrorValue("JSON_MISSING_KEY:" + sKey);
-    }
-
-    if (nHashedProperty == h"at")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return GetErrorValue("JSON_NOT_ARRAY");
-
-        int nIndex = GetValueAsInt(strArgs.strArg0), nLength = JsonGetLength(jValue);
-        if (nIndex < 0)
-            nIndex = nLength + nIndex;
-
-        if (nIndex >= 0 && nIndex < nLength)
-            return ConvertJsonToValue(JsonArrayGet(jValue, nIndex));
-        else if (strArgs.nCount == 2)
-            return strArgs.strArg1;
-        else
-            return GetErrorValue("JSON_INDEX_OUT_OF_RANGE:" + IntToString(nIndex));
-    }
-
-    if (nHashedProperty == h"first" || nHashedProperty == h"last")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_ANY);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return GetErrorValue("JSON_NOT_ARRAY");
-
-        int nLength = JsonGetLength(jValue);
-        if (nLength <= 0)
-        {
-            if (strArgs.nCount == 1)
-                return strArgs.strArg0;
-            return GetErrorValue("JSON_INDEX_OUT_OF_RANGE:0");
+            switch (JsonGetType(jValue))
+            {
+                case JSON_TYPE_NULL:    return GetValueFromString("null");
+                case JSON_TYPE_OBJECT:  return GetValueFromString("object");
+                case JSON_TYPE_ARRAY:   return GetValueFromString("array");
+                case JSON_TYPE_STRING:  return GetValueFromString("string");
+                case JSON_TYPE_INTEGER: return GetValueFromString("int");
+                case JSON_TYPE_FLOAT:   return GetValueFromString("float");
+                case JSON_TYPE_BOOL:    return GetValueFromString("bool");
+                default:                return GetValueFromString("invalid");
+            }
         }
 
-        int nIndex = nHashedProperty == h"first" ? 0 : nLength - 1;
-        return ConvertJsonToValue(JsonArrayGet(jValue, nIndex));
-    }
-
-    if (nHashedProperty == h"keys")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
-            return GetErrorValue("JSON_NOT_OBJECT");
-        return GetValueFromJson(JsonObjectKeys(jValue));
-    }
-
-    if (nHashedProperty == h"raw" || nHashedProperty == h"dump")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        int nIndent = -1;
-        if (strArgs.nCount == 1)
-            nIndent = Max(-1, GetValueAsInt(strArgs.strArg0, -1));
-        return GetValueFromString(JsonDump(jValue, nIndent));
-    }
-
-    if (nHashedProperty == h"join")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_ANY);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return GetErrorValue("JSON_NOT_ARRAY");
-
-        string sSeparator = "";
-        if (strArgs.nCount == 1)
-            sSeparator = GetValueText(strArgs.strArg0);
-
-        string sResult = "";
-        int nIndex, nLength = JsonGetLength(jValue);
-        for (nIndex = 0; nIndex < nLength; nIndex++)
+        case "isnull":
         {
-            if (nIndex > 0)
-                sResult += sSeparator;
-
-            struct Value strItem = ConvertJsonToValue(JsonArrayGet(jValue, nIndex));
-            if (IsErrorValue(strItem))
-                return strItem;
-
-            sResult += FormatValueForDisplay(strItem);
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_NULL);
         }
 
-        return GetValueFromString(sResult);
-    }
-
-    if (nHashedProperty == h"sort")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_ANY);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return GetErrorValue("JSON_NOT_ARRAY");
-
-        int nTransform = JSON_ARRAY_SORT_ASCENDING;
-        if (strArgs.nCount == 1)
+        case "isobject":
         {
-            string sDirection = GetStringLowerCase(GetTrimmedValueText(strArgs.strArg0));
-            if (sDirection == "" || sDirection == "asc" || sDirection == "ascending")
-                nTransform = JSON_ARRAY_SORT_ASCENDING;
-            else if (sDirection == "desc" || sDirection == "descending")
-                nTransform = JSON_ARRAY_SORT_DESCENDING;
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_OBJECT);
+        }
+
+        case "isarray":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_ARRAY);
+        }
+
+        case "isstring":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_STRING);
+        }
+
+        case "isint": case "isinteger":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_INTEGER);
+        }
+
+        case "isfloat":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_FLOAT);
+        }
+
+        case "isnumber":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            int nType = JsonGetType(jValue);
+            return GetValueFromInt(nType == JSON_TYPE_INTEGER || nType == JSON_TYPE_FLOAT);
+        }
+
+        case "isbool":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(JsonGetType(jValue) == JSON_TYPE_BOOL);
+        }
+
+        case "scalar":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            int nType = JsonGetType(jValue);
+            return GetValueFromInt(nType == JSON_TYPE_NULL || nType == JSON_TYPE_STRING || nType == JSON_TYPE_INTEGER || nType == JSON_TYPE_FLOAT || nType == JSON_TYPE_BOOL);
+        }
+
+        case "length":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return GetValueFromInt(JsonGetLength(jValue));
+        }
+
+        case "empty": case "notempty":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+
+            int nType = JsonGetType(jValue), bEmpty = FALSE;
+            if (nType == JSON_TYPE_NULL)
+                bEmpty = TRUE;
+            else if (nType == JSON_TYPE_STRING)
+                bEmpty = JsonGetString(jValue) == "";
+            else if (nType == JSON_TYPE_ARRAY || nType == JSON_TYPE_OBJECT)
+                bEmpty = JsonGetLength(jValue) == 0;
+
+            if (nHashedProperty == h"notempty")
+                bEmpty = !bEmpty;
+
+            return GetValueFromInt(bEmpty);
+        }
+
+        case "has":
+        {
+            struct Arguments strArgs = EvalOneArg(strCtx.strArgs, DAZSCRIPT_ARG_STRING);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
+                return GetErrorValue("JSON_NOT_OBJECT");
+            return GetValueFromInt(JsonObjectContainsKey(jValue, GetValueText(strArgs.strArg0)));
+        }
+
+        case "get":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 1, 2, DAZSCRIPT_ARG_STRING, DAZSCRIPT_ARG_ANY);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
+                return GetErrorValue("JSON_NOT_OBJECT");
+
+            string sKey = GetValueText(strArgs.strArg0);
+            if (JsonObjectContainsKey(jValue, sKey))
+                return ConvertJsonToValue(JsonObjectGet(jValue, sKey));
+            else if (strArgs.nCount == 2)
+                return strArgs.strArg1;
             else
-                return GetErrorValue("SORT_DIRECTION_INVALID:" + sDirection);
+                return GetErrorValue("JSON_MISSING_KEY:" + sKey);
         }
 
-        return GetValueFromJson(JsonArrayTransform(jValue, nTransform));
-    }
+        case "at":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+                return GetErrorValue("JSON_NOT_ARRAY");
 
-    if (nHashedProperty == h"shuffle")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return GetErrorValue("JSON_NOT_ARRAY");
-        return GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_SHUFFLE));
-    }
+            int nIndex = GetValueAsInt(strArgs.strArg0), nLength = JsonGetLength(jValue);
+            if (nIndex < 0)
+                nIndex = nLength + nIndex;
 
-    if (nHashedProperty == h"reverse")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return GetErrorValue("JSON_NOT_ARRAY");
-        return GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_REVERSE));
-    }
+            if (nIndex >= 0 && nIndex < nLength)
+                return ConvertJsonToValue(JsonArrayGet(jValue, nIndex));
+            else if (strArgs.nCount == 2)
+                return strArgs.strArg1;
+            else
+                return GetErrorValue("JSON_INDEX_OUT_OF_RANGE:" + IntToString(nIndex));
+        }
 
-    if (nHashedProperty == h"unique")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return GetErrorValue("JSON_NOT_ARRAY");
-        return GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_UNIQUE));
-    }
+        case "first": case "last":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_ANY);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
 
-    if (nHashedProperty == h"coalesce")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
-            return GetErrorValue("JSON_NOT_ARRAY");
-        return ConvertJsonToValue(JsonArrayTransform(jValue, JSON_ARRAY_COALESCE));
-    }
+            if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+                return GetErrorValue("JSON_NOT_ARRAY");
 
+            int nLength = JsonGetLength(jValue);
+            if (nLength <= 0)
+            {
+                if (strArgs.nCount == 1)
+                    return strArgs.strArg0;
+                return GetErrorValue("JSON_INDEX_OUT_OF_RANGE:0");
+            }
+
+            int nIndex = nHashedProperty == h"first" ? 0 : nLength - 1;
+            return ConvertJsonToValue(JsonArrayGet(jValue, nIndex));
+        }
+
+        case "keys":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            if (JsonGetType(jValue) != JSON_TYPE_OBJECT)
+                return GetErrorValue("JSON_NOT_OBJECT");
+            return GetValueFromJson(JsonObjectKeys(jValue));
+        }
+
+        case "raw": case "dump":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_INT);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            int nIndent = -1;
+            if (strArgs.nCount == 1)
+                nIndent = Max(-1, GetValueAsInt(strArgs.strArg0, -1));
+            return GetValueFromString(JsonDump(jValue, nIndent));
+        }
+
+        case "join":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_ANY);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+                return GetErrorValue("JSON_NOT_ARRAY");
+
+            string sSeparator = "";
+            if (strArgs.nCount == 1)
+                sSeparator = GetValueText(strArgs.strArg0);
+
+            string sResult = "";
+            int nIndex, nLength = JsonGetLength(jValue);
+            for (nIndex = 0; nIndex < nLength; nIndex++)
+            {
+                if (nIndex > 0)
+                    sResult += sSeparator;
+
+                struct Value strItem = ConvertJsonToValue(JsonArrayGet(jValue, nIndex));
+                if (IsErrorValue(strItem))
+                    return strItem;
+
+                sResult += FormatValueForDisplay(strItem);
+            }
+
+            return GetValueFromString(sResult);
+        }
+
+        case "sort":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_ANY);
+            if (IsErrorValue(strArgs.strError))
+                return strArgs.strError;
+            if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+                return GetErrorValue("JSON_NOT_ARRAY");
+
+            int nTransform = JSON_ARRAY_SORT_ASCENDING;
+            if (strArgs.nCount == 1)
+            {
+                string sDirection = GetStringLowerCase(GetTrimmedValueText(strArgs.strArg0));
+                if (sDirection == "" || sDirection == "asc" || sDirection == "ascending")
+                    nTransform = JSON_ARRAY_SORT_ASCENDING;
+                else if (sDirection == "desc" || sDirection == "descending")
+                    nTransform = JSON_ARRAY_SORT_DESCENDING;
+                else
+                    return GetErrorValue("SORT_DIRECTION_INVALID:" + sDirection);
+            }
+
+            return GetValueFromJson(JsonArrayTransform(jValue, nTransform));
+        }
+
+        case "shuffle":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+                return GetErrorValue("JSON_NOT_ARRAY");
+            return GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_SHUFFLE));
+        }
+
+        case "reverse":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+                return GetErrorValue("JSON_NOT_ARRAY");
+            return GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_REVERSE));
+        }
+
+        case "unique":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+                return GetErrorValue("JSON_NOT_ARRAY");
+            return GetValueFromJson(JsonArrayTransform(jValue, JSON_ARRAY_UNIQUE));
+        }
+
+        case "coalesce":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            if (JsonGetType(jValue) != JSON_TYPE_ARRAY)
+                return GetErrorValue("JSON_NOT_ARRAY");
+            return ConvertJsonToValue(JsonArrayTransform(jValue, JSON_ARRAY_COALESCE));
+        }
+    }
 
     return GetInvalidValue();
 }
@@ -3679,118 +3747,121 @@ struct Value ResolveSharedProperty(struct ChainContext strCtx)
 {
     int nHashedProperty = strCtx.strArgs.nHashedCurrentProperty;
 
-    if (nHashedProperty == h"color")
+    switch (nHashedProperty)
     {
-        int nNumParameters = GetParameterCount(strCtx.strArgs);
-        if (nNumParameters == 1)
+        case "color":
         {
-            struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
+            int nNumParameters = GetParameterCount(strCtx.strArgs);
+            if (nNumParameters == 1)
+            {
+                struct Arguments strArgs = EvalOneArg(strCtx.strArgs);
+                if (IsErrorValue(strArgs.strError))
+                    return strArgs.strError;
+
+                string sValue = FormatValueForDisplay(strCtx.strValue);
+                string sColor = GetStringLowerCase(GetTrimmedValueText(strArgs.strArg0));
+                if (GetStringLeft(sColor, 1) == "#")
+                    return GetValueFromHexColor(sValue, sColor);
+                else
+                    return GetValueFromNamedColor(sValue, sColor);
+            }
+
+            if (nNumParameters == 3)
+            {
+                struct Arguments strArgs = EvalThreeArgs(strCtx.strArgs, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+                if (IsErrorValue(strArgs.strError))
+                    return strArgs.strError;
+                return GetValueFromString(ColorString(FormatValueForDisplay(strCtx.strValue), GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
+            }
+            return GetErrorValue("ARITY:EXPECTED_1_OR_3_ARGUMENTS");
+        }
+
+        case "padleft": case "padright":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
             if (IsErrorValue(strArgs.strError))
                 return strArgs.strError;
 
-            string sValue = FormatValueForDisplay(strCtx.strValue);
-            string sColor = GetStringLowerCase(GetTrimmedValueText(strArgs.strArg0));
-            if (GetStringLeft(sColor, 1) == "#")
-                return GetValueFromHexColor(sValue, sColor);
+            int nLength = GetValueAsInt(strArgs.strArg0);
+            string sPadding = " ";
+            if (strArgs.nCount >= 2)
+                sPadding = GetValueText(strArgs.strArg1, " ");
+            if (nHashedProperty == h"padleft")
+                return GetValueFromString(LeftPadString(FormatValueForDisplay(strCtx.strValue), nLength, sPadding));
             else
-                return GetValueFromNamedColor(sValue, sColor);
+                return GetValueFromString(RightPadString(FormatValueForDisplay(strCtx.strValue), nLength, sPadding));
         }
 
-        if (nNumParameters == 3)
+        case "int":
         {
-            struct Arguments strArgs = EvalThreeArgs(strCtx.strArgs, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_INT);
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_INT);
+        }
+
+        case "float":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_FLOAT);
+        }
+
+        case "string":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_STRING);
+        }
+
+        case "json":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_JSON);
+        }
+
+        case "fixed":
+        {
+            struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_INT);
             if (IsErrorValue(strArgs.strError))
                 return strArgs.strError;
-            return GetValueFromString(ColorString(FormatValueForDisplay(strCtx.strValue), GetValueAsInt(strArgs.strArg0), GetValueAsInt(strArgs.strArg1), GetValueAsInt(strArgs.strArg2)));
+
+            int nPrecision = 2;
+            if (strArgs.nCount == 1)
+                nPrecision = GetValueAsInt(strArgs.strArg0, 2);
+            return FormatValueAsFixed(strCtx.strValue, nPrecision);
         }
-        return GetErrorValue("ARITY:EXPECTED_1_OR_3_ARGUMENTS");
-    }
 
-    if (nHashedProperty == h"padleft" || nHashedProperty == h"padright")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 1, 2, DAZSCRIPT_ARG_INT, DAZSCRIPT_ARG_ANY);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
+        case "hex":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return FormatValueAsHex(strCtx.strValue);
+        }
 
-        int nLength = GetValueAsInt(strArgs.strArg0);
-        string sPadding = " ";
-        if (strArgs.nCount >= 2)
-            sPadding = GetValueText(strArgs.strArg1, " ");
-        if (nHashedProperty == h"padleft")
-            return GetValueFromString(LeftPadString(FormatValueForDisplay(strCtx.strValue), nLength, sPadding));
-        else
-            return GetValueFromString(RightPadString(FormatValueForDisplay(strCtx.strValue), nLength, sPadding));
-    }
+        case "bool":
+        {
+            struct Value strError = RequireNoArgs(strCtx.strArgs);
+            if (IsErrorValue(strError))
+                return strError;
+            return FormatValueAsBoolean(strCtx.strValue);
+        }
 
-    if (nHashedProperty == h"int")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_INT);
-    }
-
-    if (nHashedProperty == h"float")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_FLOAT);
-    }
-
-    if (nHashedProperty == h"string")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_STRING);
-    }
-
-    if (nHashedProperty == h"json")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return CastValueToAuxType(strCtx.strValue, NWNX_VM_AUXTYPE_JSON);
-    }
-
-    if (nHashedProperty == h"fixed")
-    {
-        struct Arguments strArgs = EvalArgs(strCtx.strArgs, 0, 1, DAZSCRIPT_ARG_INT);
-        if (IsErrorValue(strArgs.strError))
-            return strArgs.strError;
-
-        int nPrecision = 2;
-        if (strArgs.nCount == 1)
-            nPrecision = GetValueAsInt(strArgs.strArg0, 2);
-        return FormatValueAsFixed(strCtx.strValue, nPrecision);
-    }
-
-    if (nHashedProperty == h"hex")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return FormatValueAsHex(strCtx.strValue);
-    }
-
-    if (nHashedProperty == h"bool")
-    {
-        struct Value strError = RequireNoArgs(strCtx.strArgs);
-        if (IsErrorValue(strError))
-            return strError;
-        return FormatValueAsBoolean(strCtx.strValue);
-    }
-
-    if (nHashedProperty == h"default")
-    {
-        struct Value strError = CheckArity(strCtx.strArgs, 1, 1);
-        if (IsErrorValue(strError))
-            return strError;
-        if (ValueNeedsDefault(strCtx.strValue))
-            return EvalCompiledParameter(strCtx.strArgs, 0);
-        else
-            return strCtx.strValue;
+        case "default":
+        {
+            struct Value strError = CheckArity(strCtx.strArgs, 1, 1);
+            if (IsErrorValue(strError))
+                return strError;
+            if (ValueNeedsDefault(strCtx.strValue))
+                return EvalCompiledParameter(strCtx.strArgs, 0);
+            else
+                return strCtx.strValue;
+        }
     }
 
     return GetInvalidValue();
@@ -4313,146 +4384,6 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
 
             if (IsValueTruthy(strPredicate))
                 JsonArrayInsertInplace(jResult, JsonArrayGet(strCollection.jValue, nIndex));
-        }
-
-        return GetValueFromJson(jResult);
-    }
-
-    // @sortby(array, $value, key)
-    // @sortby(array, $value, key, asc|desc)
-    // @sortby(array, $index, $value, key)
-    // @sortby(array, $index, $value, key, asc|desc)
-    if (nHashedMetaName == h"sortby")
-    {
-        int nCount = GetParameterCount(strArgCtx);
-        if (nCount != 3 && nCount != 4 && nCount != 5)
-            return GetErrorValue("SORTBY_USAGE:@sortby(array,$value,key[,asc|desc]) OR @sortby(array,$index,$value,key[,asc|desc])");
-
-        int bHasIndexAlias = FALSE;
-        int bHasDirection = FALSE;
-        if (nCount == 4)
-        {
-            string sThirdArg = GetRawParameterText(strArgCtx, 2);
-            string sLastArg = GetRawParameterText(strArgCtx, 3);
-
-            if (IsSortDirectionLiteral(sLastArg) || !IsSymbol(sThirdArg, DAZSCRIPT_ALIAS_SYMBOL))
-                bHasDirection = TRUE;
-            else
-                bHasIndexAlias = TRUE;
-        }
-        else if (nCount == 5)
-        {
-            bHasIndexAlias = TRUE;
-            bHasDirection = TRUE;
-        }
-
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strArgCtx, 1) : "";
-        string sValueAlias = GetRawParameterText(strArgCtx, bHasIndexAlias ? 2 : 1);
-        int nKeyIndex = bHasIndexAlias ? 3 : 2;
-        int nDirectionIndex = bHasDirection ? nCount - 1 : -1;
-
-        struct Value strValidate = ValidateLoopAliases(strArgCtx.sCurrentProperty, bHasIndexAlias, sIndexAlias, sValueAlias);
-        if (IsErrorValue(strValidate))
-            return strValidate;
-
-        int bDescending = FALSE;
-        if (bHasDirection)
-        {
-            struct Value strDirection = EvalCompiledParameter(strArgCtx, nDirectionIndex);
-            if (IsErrorValue(strDirection))
-                return strDirection;
-            string sDirection = GetStringLowerCase(GetTrimmedValueText(strDirection));
-            if (sDirection == "" || sDirection == "asc" || sDirection == "ascending")
-                bDescending = FALSE;
-            else if (sDirection == "desc" || sDirection == "descending")
-                bDescending = TRUE;
-            else
-                return GetErrorValue("SORTBY_DIRECTION_INVALID:" + sDirection);
-        }
-
-        struct Value strCollection = EvalJsonArrayParameter(strArgCtx, 0, "SORTBY_JSON_NOT_ARRAY");
-        if (IsErrorValue(strCollection))
-            return strCollection;
-
-        json jKey = JsonArrayGet(GetCompiledParameters(strArgCtx), nKeyIndex);
-        string sKeyRaw = GetRawParameterText(strArgCtx, nKeyIndex);
-        int bKeyIsRawAlias = IsSymbol(sKeyRaw, DAZSCRIPT_ALIAS_SYMBOL);
-        json jFrame = JsonCopyObject(strArgCtx.jStack), jDecorated = JsonArray();
-        int nIndex, nLength = JsonGetLength(strCollection.jValue), nKeyKind = 0;
-        for (nIndex = 0; nIndex < nLength; nIndex++)
-        {
-            struct Value strItem = BindArrayLoopAliasesInplace(jFrame, strCollection.jValue, nIndex, bHasIndexAlias, sIndexAlias, sValueAlias);
-            if (IsErrorValue(strItem))
-                return strItem;
-
-            struct Value strKey;
-            if (bKeyIsRawAlias)
-                strKey = ResolveAliasValue(jFrame, sKeyRaw);
-            else
-                strKey = EvalTemplate(jKey, jFrame);
-            if (IsErrorValue(strKey))
-                return strKey;
-
-            int nThisKeyKind = SortKeyKind(strKey);
-            if (!nThisKeyKind)
-                return GetErrorValue("SORTBY_KEY_NOT_COMPARABLE:" + TraceValue(strKey));
-
-            if (!nKeyKind)
-                nKeyKind = nThisKeyKind;
-            else if (nKeyKind != nThisKeyKind)
-                return GetErrorValue("SORTBY_MIXED_KEY_TYPES:" + TraceValue(strKey));
-
-            strKey = ValueToJsonValue(strKey);
-            if (IsErrorValue(strKey))
-                return strKey;
-
-            json jEntry = JsonObject();
-            JsonObjectSetIntInplace(jEntry, "index", nIndex);
-            JsonObjectSetInplace(jEntry, "key", strKey.jValue);
-            JsonObjectSetInplace(jEntry, "value", JsonArrayGet(strCollection.jValue, nIndex));
-            JsonArrayInsertInplace(jDecorated, jEntry);
-        }
-
-        json jUsed = JsonObject();
-        json jResult = JsonArray();
-
-        int nOut;
-        for (nOut = 0; nOut < nLength; nOut++)
-        {
-            int nBest = -1;
-            struct Value strBestKey;
-
-            int nCandidate;
-            for (nCandidate = 0; nCandidate < nLength; nCandidate++)
-            {
-                string sCandidateKey = IntToString(nCandidate);
-                if (JsonObjectContainsKey(jUsed, sCandidateKey))
-                    continue;
-
-                json jCandidateEntry = JsonArrayGet(jDecorated, nCandidate);
-                struct Value strCandidateKey = ConvertJsonToValue(JsonObjectGet(jCandidateEntry, "key"));
-                if (IsErrorValue(strCandidateKey))
-                    return strCandidateKey;
-
-                if (nBest == -1)
-                {
-                    nBest = nCandidate;
-                    strBestKey = strCandidateKey;
-                    continue;
-                }
-
-                int nCompare = CompareSortKeys(strCandidateKey, strBestKey, nKeyKind);
-
-                if ((!bDescending && nCompare < 0) || (bDescending && nCompare > 0))
-                {
-                    nBest = nCandidate;
-                    strBestKey = strCandidateKey;
-                }
-            }
-
-            JsonObjectSetIntInplace(jUsed, IntToString(nBest), TRUE);
-            json jBestEntry = JsonArrayGet(jDecorated, nBest);
-            JsonArrayInsertInplace(jResult, JsonObjectGet(jBestEntry, "value"));
         }
 
         return GetValueFromJson(jResult);
@@ -5250,75 +5181,67 @@ struct Value ValidateSqlRowSpec(string sSpec, int nColumnCount, string sErrorPre
     return GetInvalidValue();
 }
 
-struct Value SqlRowSetColumnInplace(json jRow, sqlquery sqlQuery, int nIndex, string sName, int nAuxType)
+struct Value BuildSqlRowSchemaInplace(json jColumnNames, json jColumnAuxTypes, sqlquery sqlQuery, string sSpec, int nColumnCount)
 {
-    if (sName == "")
-        sName = "col" + IntToString(nIndex);
-    if (!IsValidSqlAuxType(nAuxType))
-        return GetErrorValue("INVALID_ROW_AUXTYPE:" + IntToString(nAuxType));
-    struct Value strValue = GetValueFromSqlColumn(sqlQuery, nIndex, nAuxType);
-    if (IsErrorValue(strValue))
-        return strValue;
-    strValue = ValueToJsonValue(strValue);
-    if (IsErrorValue(strValue))
-        return strValue;
-    JsonObjectSetInplace(jRow,  sName,  strValue.jValue);
-    return GetInvalidValue();
-}
-
-struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, string sSpec)
-{
-    int nColumnCount = SqlGetColumnCount(sqlQuery);
-    struct Value strError = CheckSqlQueryError(sqlQuery);
-    if (IsErrorValue(strError))
-        return strError;
-    if (nColumnCount < 1)
-        return GetErrorValue("SQL_NO_COLUMNS");
-
-    json jRow = JsonObject();
     int nIndex, bHasSpec = (sSpec != "");
     for (nIndex = 0; nIndex < nColumnCount; nIndex++)
     {
         string sName = SqlGetColumnName(sqlQuery, nIndex);
+        if (sName == "")
+            sName = "col" + IntToString(nIndex);
 
         int nAuxType = NWNX_VM_AUXTYPE_STRING;
         if (bHasSpec)
             nAuxType = GetSqlAuxTypeFromShortType(GetSubString(sSpec, nIndex, 1));
 
-        strError = SqlRowSetColumnInplace(jRow, sqlQuery, nIndex, sName, nAuxType);
-        if (IsErrorValue(strError))
-            return strError;
+        if (!IsValidSqlAuxType(nAuxType))
+            return GetErrorValue("INVALID_ROW_AUXTYPE:" + IntToString(nAuxType));
+
+        JsonArrayInsertStringInplace(jColumnNames, sName);
+        JsonArrayInsertIntInplace(jColumnAuxTypes, nAuxType);
     }
+
+    return CheckSqlQueryError(sqlQuery);
+}
+
+struct Value GetSqlCurrentRowAsJson(sqlquery sqlQuery, json jColumnNames, json jColumnAuxTypes)
+{
+    json jRow = JsonObject();
+    int nIndex, nColumnCount = JsonGetLength(jColumnNames);
+    for (nIndex = 0; nIndex < nColumnCount; nIndex++)
+    {
+        string sName = JsonArrayGetString(jColumnNames, nIndex);
+        int nAuxType = JsonArrayGetInt(jColumnAuxTypes, nIndex);
+
+        struct Value strValue = GetValueFromSqlColumn(sqlQuery, nIndex, nAuxType);
+        if (IsErrorValue(strValue))
+            return strValue;
+
+        strValue = ValueToJsonValue(strValue);
+        if (IsErrorValue(strValue))
+            return strValue;
+
+        JsonObjectSetInplace(jRow, sName, strValue.jValue);
+    }
+
+    struct Value strError = CheckSqlQueryError(sqlQuery);
+    if (IsErrorValue(strError))
+        return strError;
 
     return GetValueFromJson(jRow);
 }
 
 struct Value GetValueFromSqlColumn(sqlquery sqlQuery, int nIndex, int nAuxType)
 {
-    int nColumnCount = SqlGetColumnCount(sqlQuery);
-    if (nIndex < 0 || nIndex >= nColumnCount)
-        return GetErrorValue("COLUMN_INDEX_OUT_OF_RANGE:" + IntToString(nIndex));
-
-    struct Value strError = CheckSqlQueryError(sqlQuery);
-    if (IsErrorValue(strError))
-        return strError;
-
-    struct Value strValue;
     switch (nAuxType)
     {
-        case NWNX_VM_AUXTYPE_INT: strValue = GetValueFromInt(SqlGetInt(sqlQuery, nIndex)); break;
-        case NWNX_VM_AUXTYPE_FLOAT: strValue = GetValueFromFloat(SqlGetFloat(sqlQuery, nIndex)); break;
-        case NWNX_VM_AUXTYPE_STRING: strValue = GetValueFromString(SqlGetString(sqlQuery, nIndex)); break;
-        case NWNX_VM_AUXTYPE_OBJECT: strValue = GetValueFromObject(SqlGetObjectRef(sqlQuery, nIndex)); break;
-        case NWNX_VM_AUXTYPE_JSON: strValue = GetValueFromJson(SqlGetJson(sqlQuery, nIndex)); break;
-        default: return GetErrorValue("INVALID_SQL_COLUMN_AUXTYPE:" + IntToString(nAuxType));
+        case NWNX_VM_AUXTYPE_INT:    return GetValueFromInt(SqlGetInt(sqlQuery, nIndex));
+        case NWNX_VM_AUXTYPE_FLOAT:  return GetValueFromFloat(SqlGetFloat(sqlQuery, nIndex));
+        case NWNX_VM_AUXTYPE_STRING: return GetValueFromString(SqlGetString(sqlQuery, nIndex));
+        case NWNX_VM_AUXTYPE_OBJECT: return GetValueFromObject(SqlGetObjectRef(sqlQuery, nIndex));
+        case NWNX_VM_AUXTYPE_JSON:   return GetValueFromJson(SqlGetJson(sqlQuery, nIndex));
     }
-
-    strError = CheckSqlQueryError(sqlQuery);
-    if (IsErrorValue(strError))
-        return strError;
-
-    return strValue;
+    return GetErrorValue("INVALID_SQL_COLUMN_AUXTYPE:" + IntToString(nAuxType));
 }
 
 struct Value ValidateLoopAliases(string sMetaName, int bHasIndexAlias, string sIndexAlias, string sValueAlias)
@@ -5342,81 +5265,6 @@ struct Value BindArrayLoopAliasesInplace(json jFrame, json jCollection, int nInd
         return strItem;
     JsonObjectSetInplace(jFrame, sValueAlias, MakeStackAliasEntryFromValue(strItem));
     return GetInvalidValue();
-}
-
-int IsSortDirectionLiteral(string sRaw)
-{
-    sRaw = GetStringLowerCase(Trim(sRaw));
-    if ((GetStringLeft(sRaw, 1) == "'" && GetStringRight(sRaw, 1) == "'") ||
-        (GetStringLeft(sRaw, 1) == "\"" && GetStringRight(sRaw, 1) == "\""))
-    {
-        sRaw = GetSubString(sRaw, 1, GetStringLength(sRaw) - 2);
-        sRaw = Trim(sRaw);
-    }
-
-    return sRaw == "asc"|| sRaw == "ascending" || sRaw == "desc" || sRaw == "descending";
-}
-
-int SortKeyKind(struct Value strValue)
-{
-    if (strValue.nAuxType == NWNX_VM_AUXTYPE_INT || strValue.nAuxType == NWNX_VM_AUXTYPE_FLOAT)
-        return 1;
-    if (strValue.nAuxType == NWNX_VM_AUXTYPE_STRING)
-        return 2;
-    return 0;
-}
-
-int SortCharRank(string sChar)
-{
-    string sOrder = " 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-.,:;!?/'\"()[]{}";
-    int nRank = FindSubString(sOrder, sChar, 0);
-    if (nRank == -1)
-        return 999;
-    return nRank;
-}
-
-int CompareSortStrings(string sLeft, string sRight)
-{
-    string sLeftCmp = GetStringLowerCase(sLeft), sRightCmp = GetStringLowerCase(sRight);
-    int nLeftLength = GetStringLength(sLeftCmp), nRightLength = GetStringLength(sRightCmp);
-    int nIndex, nLength = nLeftLength < nRightLength ? nLeftLength : nRightLength;
-
-    for (nIndex = 0; nIndex < nLength; nIndex++)
-    {
-        int nLeftRank = SortCharRank(GetSubString(sLeftCmp, nIndex, 1));
-        int nRightRank = SortCharRank(GetSubString(sRightCmp, nIndex, 1));
-
-        if (nLeftRank < nRightRank)
-            return -1;
-        if (nLeftRank > nRightRank)
-            return 1;
-    }
-
-    if (nLeftLength < nRightLength)
-        return -1;
-    if (nLeftLength > nRightLength)
-        return 1;
-    return 0;
-}
-
-int CompareSortKeys(struct Value strLeft, struct Value strRight, int nKeyKind)
-{
-    if (nKeyKind == 1)
-    {
-        float fLeft = GetValueAsFloat(strLeft), fRight = GetValueAsFloat(strRight);
-        float fDiff = fLeft - fRight;
-
-        if (fDiff < -FLOAT_EPSILON)
-            return -1;
-        if (fDiff > FLOAT_EPSILON)
-            return 1;
-
-        return 0;
-    }
-
-    if (nKeyKind == 2)
-        return CompareSortStrings(GetValueText(strLeft), GetValueText(strRight));
-    return 0;
 }
 
 int IsStackVar(string sVarName)

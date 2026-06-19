@@ -1052,58 +1052,6 @@ void DazScript_TestMoreJsonLikeCollectionOrAggregate()
     DazScript_TestContains("join rejects object",
         "{@json('{{\"x\":1}}')>join(',')}",
         "JSON_NOT_ARRAY");
-
-    DazScript_Test("sortby int asc",
-        "{@sortby({@json('[3,1,2]')},$v,{$v})>join(',')}",
-        "1,2,3");
-
-    DazScript_Test("sortby int desc",
-        "{@sortby({@json('[3,1,2]')},$v,{$v},desc)>join(',')}",
-        "3,2,1");
-
-    DazScript_Test("sortby index alias",
-        "{@sortby({@json('[3,1,2]')},$i,$v,{$i},desc)>join(',')}",
-        "2,1,3");
-
-    DazScript_Test("sortby object int key",
-        "{@map({@sortby({@json('[{{\"n\":\"b\",\"g\":2}},{{\"n\":\"a\",\"g\":1}}]')},$row,{$row>get(g)})},$row,{$row>get(n)})>join(',')}",
-        "a,b");
-
-    DazScript_Test("sortby object string key",
-        "{@map({@sortby({@json('[{{\"n\":\"b\"}},{{\"n\":\"a\"}}]')},$row,{$row>get(n)})},$row,{$row>get(n)})>join(',')}",
-        "a,b");
-
-    DazScript_TestContains("sortby usage",
-        "{@sortby({@json('[1,2,3]')})}",
-        "SORTBY_USAGE");
-
-    DazScript_TestContains("sortby duplicate alias",
-        "{@sortby({@json('[1,2,3]')},$x,$x,{$x})}",
-        "SORTBY_DUPLICATE_ALIAS:$x");
-
-    DazScript_TestContains("sortby bad direction",
-        "{@sortby({@json('[1,2,3]')},$v,{$v},sideways)}",
-        "SORTBY_DIRECTION_INVALID:sideways");
-
-    DazScript_Test("sortby stable equal keys",
-        "{@map({@sortby({@json('[{{\"n\":\"a\",\"g\":1}},{{\"n\":\"b\",\"g\":1}},{{\"n\":\"c\",\"g\":2}}]')},$row,{$row>get(g)})},$row,{$row>get(n)})>join(',')}",
-        "a,b,c");
-
-    DazScript_TestContains("sortby mixed key types",
-        "{@sortby({@json('[1,\"2\"]')},$v,{$v})}",
-        "SORTBY_MIXED_KEY_TYPES");
-
-    DazScript_Test("sortby raw alias key desc",
-        "{@sortby({@json('[3,1,2]')},$v,$v,desc)>join(',')}",
-        "3,2,1");
-
-    DazScript_Test("sortby raw alias key asc",
-        "{@sortby({@json('[3,1,2]')},$v,$v,asc)>join(',')}",
-        "1,2,3");
-
-    DazScript_Test("sortby index alias still works",
-        "{@sortby({@json('[3,1,2]')},$i,$v,{$i},desc)>join(',')}",
-        "2,1,3");
 }
 
 void DazScript_TestParserWhitespace()

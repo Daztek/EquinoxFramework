@@ -23,15 +23,11 @@ const string DAZSCRIPT_TRACE_INDENT_KEY                     = "DazScriptTraceInd
 
 const string DAZSCRIPT_TEMPLATE_CACHE_PREFIX                = "DazScriptTemplateCache_";
 const string DAZSCRIPT_PROPERTY_CHAIN_CACHE_PREFIX          = "DazScriptPropertyChainCache_";
-const string DAZSCRIPT_COMPILED_PARAMETER_CACHE_PREFIX      = "DazScriptCompiledParameterCache_";
-const string DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX         = "DazScriptParameterEntryCache_";
+const string DAZSCRIPT_PARAMETER_LIST_CACHE_PREFIX          = "DazScriptParameterListCache_";
 
 const string DAZSCRIPT_ALIAS_TYPE                           = "type";
 const string DAZSCRIPT_ALIAS_VALUE                          = "value";
 const string DAZSCRIPT_ALIAS_ERROR                          = "error";
-
-const string DAZSCRIPT_PARAMETER_TEXT                       = "text";
-const string DAZSCRIPT_PARAMETER_WAS_QUOTED                 = "was_quoted";
 
 const string DAZSCRIPT_PARSE_ERROR                          = "parse_error";
 const string DAZSCRIPT_PARSE_CODE                           = "code";
@@ -53,8 +49,16 @@ const string DAZSCRIPT_THIS_ALIAS                           = DAZSCRIPT_ALIAS_SY
 const int DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY               = 0;
 const int DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY_HASH          = 1;
 const int DAZSCRIPT_PROPERTY_SEGMENT_PARAMETERS             = 2;
-const int DAZSCRIPT_PROPERTY_SEGMENT_COMPILED_PARAMETERS    = 3;
-const int DAZSCRIPT_PROPERTY_SEGMENT_PARAMETER_ENTRIES      = 4;
+const int DAZSCRIPT_PROPERTY_SEGMENT_PARAMETER_LIST         = 3;
+
+const int DAZSCRIPT_PARAMETER_ITEM_TEXT                     = 0;
+const int DAZSCRIPT_PARAMETER_ITEM_WAS_QUOTED               = 1;
+const int DAZSCRIPT_PARAMETER_ITEM_MODE                     = 2;
+const int DAZSCRIPT_PARAMETER_ITEM_TEMPLATE                 = 3;
+
+const int DAZSCRIPT_PARAMETER_MODE_TYPED_LITERAL            = 0;
+const int DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL           = 1;
+const int DAZSCRIPT_PARAMETER_MODE_TEMPLATE                 = 2;
 
 const int DAZSCRIPT_EXPR_VAR                                = 0;
 const int DAZSCRIPT_EXPR_ALIAS                              = 1;
@@ -67,7 +71,7 @@ const int DAZSCRIPT_EXPR_BASE_NAME_HASH                     = 3;
 const int DAZSCRIPT_EXPR_CHAIN                              = 4;
 const int DAZSCRIPT_EXPR_BASE_PARAMETERS                    = 5;
 const int DAZSCRIPT_EXPR_PROPERTY_PATH                      = 6;
-const int DAZSCRIPT_EXPR_BASE_COMPILED_PARAMETERS           = 7;
+const int DAZSCRIPT_EXPR_BASE_PARAMETER_LIST                = 7;
 
 const int DAZSCRIPT_ARG_ANY                                 = 0;
 const int DAZSCRIPT_ARG_INT                                 = 1;
@@ -127,8 +131,7 @@ struct ArgContext
 
     string sCurrentParameters;
 
-    json jCurrentParameters;
-    json jCurrentParameterEntries;
+    json jCurrentParameterList;
 
     int bCurrentParametersPrepared;
     int nCurrentParameterCount;
@@ -239,31 +242,36 @@ struct Value GetValueFromParserError(json jError, string sWhere = "");
 struct Value CheckParameterParserError(struct ArgContext strArgCtx);
 
 json CompileTemplate(string sString);
+json CompileTemplateCached(string sString);
 json CompileForcedStringTemplate(string sValue);
 void JsonArrayInsertLiteralNodeInplace(json jTemplate, string sLiteral);
 void JsonArrayInsertForceStringNodeInplace(json jTemplate, json jInnerTemplate);
 json CompileExpression(string sExpr);
 json CompilePropertyChain(string sPropertyPath);
 json CompilePropertySegment(string sPropertySegment);
-json MakeParameterEntry(string sText, int bWasQuoted);
-json ParseParameterEntries(string sParameters);
-json CompileParsedParameters(string sParameters, json jParameterEntries);
-json CompileParameters(string sParameters);
+int ParameterTextNeedsTemplateCompile(string sText);
+json MakeLiteralParameterTemplate(string sText, int bWasQuoted);
+json MakeParameterItem(string sText, int bWasQuoted);
+json CompileParameterList(string sParameters);
 
 struct ArgContext PrepareCurrentParameters(struct ArgContext strArgCtx);
-json GetCompiledParameters(struct ArgContext strArgCtx);
-json GetParameterEntries(struct ArgContext strArgCtx);
+json GetParameterList(struct ArgContext strArgCtx);
+json GetParameterTemplateFromList(json jParameterList, int nIndex);
+json GetParameterTemplate(struct ArgContext strArgCtx, int nIndex);
+string GetRawParameterTextFromList(json jParameterList, int nIndex, string sDefault = "");
 string GetRawParameterText(struct ArgContext strArgCtx, int nIndex, string sDefault = "");
+int GetRawParameterWasQuotedFromList(json jParameterList, int nIndex);
 int GetRawParameterWasQuoted(struct ArgContext strArgCtx, int nIndex);
 int GetParameterCount(struct ArgContext strArgCtx);
-struct Value EvalCompiledParameterFromArray(struct ArgContext strArgCtx, json jCompiledParameters, int nIndex);
-struct Value EvalCompiledParameter(struct ArgContext strArgCtx, int nIndex);
+struct Value EvalParameterFromList(struct ArgContext strArgCtx, json jParameterList, int nIndex);
+struct Value EvalParameter(struct ArgContext strArgCtx, int nIndex);
+struct Value EvalParameterFromListWithStack(struct ArgContext strArgCtx, json jParameterList, int nIndex, json jEvalStack);
 struct Value EvalJsonArrayParameter(struct ArgContext strArgCtx, int nIndex, string sErrorCode);
 string GetArgTypeName(int nArgType);
 int IsValueArgType(struct Value strValue, int nArgType);
 struct Value CheckArity(struct ArgContext strArgCtx, int nMin, int nMax);
 struct Value RequireNoArgs(struct ArgContext strArgCtx);
-struct Value EvalTypedParameterFromArray(struct ArgContext strArgCtx, json jCompiledParameters, int nIndex, int nArgType);
+struct Value EvalTypedParameterFromList(struct ArgContext strArgCtx, json jParameterList, int nIndex, int nArgType);
 struct Value EvalTypedParameter(struct ArgContext strArgCtx, int nIndex, int nArgType);
 struct Arguments EvalArgs(struct ArgContext strArgCtx, int nMin, int nMax, int nType0 = DAZSCRIPT_ARG_ANY, int nType1 = DAZSCRIPT_ARG_ANY, int nType2 = DAZSCRIPT_ARG_ANY, int nType3 = DAZSCRIPT_ARG_ANY, int nType4 = DAZSCRIPT_ARG_ANY);
 struct Arguments EvalOneArg(struct ArgContext strArgCtx, int nType0 = DAZSCRIPT_ARG_ANY);
@@ -275,8 +283,8 @@ struct Value EvalTemplateToString(json jTemplate, json jStack);
 struct Value EvalCompiledExpressionToValue(json jExpr, json jStack);
 struct Value GetStackValue(json jStack, string sVarName);
 struct Value ResolveAliasValue(json jStack, string sAliasName);
-struct Value ResolveMetaValue(json jStack, string sMetaName, int nMetaNameHash, string sBaseParameters, json jBaseCompiledParameters);
-struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBaseParameters, json jBaseCompiledParameters);
+struct Value ResolveMetaValue(json jStack, string sMetaName, int nMetaNameHash, string sBaseParameters, json jBaseParameterList);
+struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBaseParameters, json jBaseParameterList);
 struct ChainContext ApplyCompiledPropertySegment(struct ChainContext strCtx, json jSegment);
 struct ChainContext EvalCompiledPropertyChain(struct ChainContext strCtx, json jSegments);
 struct Value ResolveCurrentPropertyByValueType(struct ChainContext strCtx);
@@ -332,6 +340,8 @@ string InferDebugValueType(string sValue);
 string DumpStruct(json jStack, string sVarName, string sStructName, string sInstanceName = "");
 string InspectObject(object oValue);
 
+object g_oDazScriptDataObject;
+
 string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL)
 {
     struct Value strEval = Eval(sString, bTraceEnabled, 1 + nDepthOverride, jStack);
@@ -343,6 +353,8 @@ struct Value Eval(string sString, int bTraceEnabled = FALSE, int nDepthOverride 
     if (sString == "" || FindSubString(sString, "{", 0) == -1)
         return GetValueFromString(sString);
 
+    g_oDazScriptDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
+
     int bPushedTrace = FALSE;
     if (bTraceEnabled)
     {
@@ -352,17 +364,10 @@ struct Value Eval(string sString, int bTraceEnabled = FALSE, int nDepthOverride 
 
     if (IsTraceEnabled()) { Trace("eval.input", EscapeString(sString)); }
 
-    json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sString);
-    if (!JsonGetType(jTemplate))
-    {
-        jTemplate = CompileTemplate(sString);
-        SetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sString, jTemplate);
-    }
-
     if (!JsonGetType(jStack))
         jStack = NWNX_VM_GetStackVariables(1 + nDepthOverride);
 
-    struct Value strEval = EvalTemplate(jTemplate, jStack);
+    struct Value strEval = EvalTemplate(CompileTemplateCached(sString), jStack);
 
     if (bPushedTrace)
         PopTrace();
@@ -402,57 +407,55 @@ string MakeCacheKey(string sPrefix, string sString)
 
 json GetCachedJson(string sPrefix, string sInput)
 {
-    return GetLocalJson(GetDataObject(DAZSCRIPT_SCRIPT_NAME), MakeCacheKey(sPrefix, sInput));
+    return GetLocalJson(g_oDazScriptDataObject, MakeCacheKey(sPrefix, sInput));
 }
 
 void SetCachedJson(string sPrefix, string sInput, json jValue)
 {
-    SetLocalJson(GetDataObject(DAZSCRIPT_SCRIPT_NAME), MakeCacheKey(sPrefix, sInput), jValue);
+    SetLocalJson(g_oDazScriptDataObject, MakeCacheKey(sPrefix, sInput), jValue);
 }
 
 int IsTraceEnabled()
 {
-    return GetLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_DEPTH_KEY) > 0;
+    return GetLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_DEPTH_KEY) > 0;
 }
 
 void PushTrace()
 {
-    IncrementLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_DEPTH_KEY);
+    IncrementLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_DEPTH_KEY);
 }
 
 void PopTrace()
 {
-    object oDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
-    int nDepth = GetLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY) - 1;
+    int nDepth = GetLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_DEPTH_KEY) - 1;
     if (nDepth <= 0)
     {
-        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY);
-        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
+        DeleteLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_DEPTH_KEY);
+        DeleteLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
     }
     else
     {
-        SetLocalInt(oDataObject, DAZSCRIPT_TRACE_DEPTH_KEY, nDepth);
+        SetLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_DEPTH_KEY, nDepth);
     }
 }
 
 void PushTraceIndent()
 {
-    IncrementLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_INDENT_KEY);
+    IncrementLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
 }
 
 void PopTraceIndent()
 {
-    object oDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
-    int nDepth = GetLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY) - 1;
+    int nDepth = GetLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_INDENT_KEY) - 1;
     if (nDepth <= 0)
-        DeleteLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
+        DeleteLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
     else
-        SetLocalInt(oDataObject, DAZSCRIPT_TRACE_INDENT_KEY, nDepth);
+        SetLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_INDENT_KEY, nDepth);
 }
 
 string GetTraceIndent()
 {
-    int nDepth = GetLocalInt(GetDataObject(DAZSCRIPT_SCRIPT_NAME), DAZSCRIPT_TRACE_INDENT_KEY);
+    int nDepth = GetLocalInt(g_oDazScriptDataObject, DAZSCRIPT_TRACE_INDENT_KEY);
     string sIndent = "";
     while (nDepth > 0)
     {
@@ -1252,7 +1255,7 @@ json ValidateParserSyntax(string sSource)
     if (str.nParenDepth > 0)
         return MakeParserError("UNTERMINATED_PAREN", str.nLength, sSource);
 
-    return JSON_NULL;
+    return JsonNull();
 }
 
 string GetParserContext(string sSource, int nAt)
@@ -1283,9 +1286,8 @@ json MakeParserErrorPropertySegment(string sProperty, string sParameters, json j
     json jSegment = JsonArray();
     sProperty = GetStringLowerCase(sProperty);
     JsonArrayInsertStringInplace(jSegment, sProperty);
-    JsonArrayInsertInt(jSegment, HashString(sProperty));
+    JsonArrayInsertIntInplace(jSegment, HashString(sProperty));
     JsonArrayInsertStringInplace(jSegment, sParameters);
-    JsonArrayInsertInplace(jSegment, jError);
     JsonArrayInsertInplace(jSegment, jError);
     return jSegment;
 }
@@ -1293,7 +1295,7 @@ json MakeParserErrorPropertySegment(string sProperty, string sParameters, json j
 json CacheParameterParserError(string sParameters, string sCode, int nAt)
 {
     json jError = MakeParserError(sCode, nAt, sParameters);
-    SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jError);
+    SetCachedJson(DAZSCRIPT_PARAMETER_LIST_CACHE_PREFIX, sParameters, jError);
     return jError;
 }
 
@@ -1325,9 +1327,9 @@ struct Value CheckParameterParserError(struct ArgContext strArgCtx)
 {
     if (strArgCtx.bCurrentParametersPrepared)
         return strArgCtx.strCurrentParameterError;
-    json jCompiledParameters = GetCompiledParameters(strArgCtx);
-    if (IsParserError(jCompiledParameters))
-        return GetValueFromParserError(jCompiledParameters, strArgCtx.sCurrentProperty);
+    json jParameterList = GetParameterList(strArgCtx);
+    if (IsParserError(jParameterList))
+        return GetValueFromParserError(jParameterList, strArgCtx.sCurrentProperty);
     return GetInvalidValue();
 }
 
@@ -1391,6 +1393,17 @@ json CompileTemplate(string sString)
     return jTemplate;
 }
 
+json CompileTemplateCached(string sString)
+{
+    json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sString);
+    if (JsonGetType(jTemplate) == JSON_TYPE_ARRAY || IsParserError(jTemplate))
+        return jTemplate;
+
+    jTemplate = CompileTemplate(sString);
+    SetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sString, jTemplate);
+    return jTemplate;
+}
+
 json CompileForcedStringTemplate(string sValue)
 {
     json jInner = CompileTemplate(sValue);
@@ -1405,6 +1418,19 @@ void JsonArrayInsertLiteralNodeInplace(json jTemplate, string sLiteral)
 {
     if (sLiteral == "")
         return;
+
+    int nLength = JsonGetLength(jTemplate);
+    if (nLength > 0)
+    {
+        json jPrevious = JsonArrayGet(jTemplate, nLength - 1);
+        if (JsonArrayGetInt(jPrevious, 0) == DAZSCRIPT_NODE_LITERAL)
+        {
+            string sExisting = JsonArrayGetString(jPrevious, 1);
+            JsonSetAtPointerInplace(jTemplate, "/" + IntToString(nLength - 1) + "/1", JsonString(sExisting + sLiteral));
+            return;
+        }
+    }
+
     json jNode = JsonArray();
     JsonArrayInsertIntInplace(jNode, DAZSCRIPT_NODE_LITERAL);
     JsonArrayInsertStringInplace(jNode, sLiteral);
@@ -1442,7 +1468,7 @@ json CompileExpression(string sExpr)
 
     int nKind = DAZSCRIPT_EXPR_VAR;
     string sBaseName = sBase, sBaseParameters, sPrefix = GetStringLeft(sBase, 1);
-    json jBaseCompiledParameters = JsonArray();
+    json jBaseParameterList = JsonArray();
 
     if (sPrefix == DAZSCRIPT_META_SYMBOL)
     {
@@ -1454,7 +1480,7 @@ json CompileExpression(string sExpr)
         json jBase = CompilePropertySegment(sMetaBase);
         sBaseName = JsonArrayGetString(jBase, DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY);
         sBaseParameters = JsonArrayGetString(jBase, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETERS);
-        jBaseCompiledParameters = JsonArrayGet(jBase, DAZSCRIPT_PROPERTY_SEGMENT_COMPILED_PARAMETERS);
+        jBaseParameterList = JsonArrayGet(jBase, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETER_LIST);
     }
     else if (sPrefix == DAZSCRIPT_ALIAS_SYMBOL)
     {
@@ -1478,7 +1504,7 @@ json CompileExpression(string sExpr)
         json jBase = CompilePropertySegment(sBase);
         sBaseName = JsonArrayGetString(jBase, DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY);
         sBaseParameters = JsonArrayGetString(jBase, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETERS);
-        jBaseCompiledParameters = JsonArrayGet(jBase, DAZSCRIPT_PROPERTY_SEGMENT_COMPILED_PARAMETERS);
+        jBaseParameterList = JsonArrayGet(jBase, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETER_LIST);
     }
     else
     {
@@ -1513,7 +1539,7 @@ json CompileExpression(string sExpr)
     JsonArrayInsertInplace(jExpr, jChain);
     JsonArrayInsertStringInplace(jExpr, sBaseParameters);
     JsonArrayInsertStringInplace(jExpr, sPropertyPath);
-    JsonArrayInsertInplace(jExpr, jBaseCompiledParameters);
+    JsonArrayInsertInplace(jExpr, jBaseParameterList);
 
     return jExpr;
 }
@@ -1605,37 +1631,82 @@ json CompilePropertySegment(string sPropertySegment)
         return MakeParserErrorPropertySegment("", sParameters, jError);
     }
 
-    json jParameterEntries = ParseParameterEntries(sParameters);
-    json jCompiledParameters = CompileParsedParameters(sParameters, jParameterEntries);
+    json jParameterList = CompileParameterList(sParameters);
 
     json jSegment = JsonArray();
     sProperty = GetStringLowerCase(sProperty);
     JsonArrayInsertStringInplace(jSegment, sProperty);
     JsonArrayInsertIntInplace(jSegment, HashString(sProperty));
     JsonArrayInsertStringInplace(jSegment, sParameters);
-    JsonArrayInsertInplace(jSegment, jCompiledParameters);
-    JsonArrayInsertInplace(jSegment, jParameterEntries);
+    JsonArrayInsertInplace(jSegment, jParameterList);
 
     return jSegment;
 }
 
-json MakeParameterEntry(string sText, int bWasQuoted)
+int ParameterTextNeedsTemplateCompile(string sText)
 {
-    json jEntry = JsonObject();
-    JsonObjectSetStringInplace(jEntry, DAZSCRIPT_PARAMETER_TEXT, sText);
-    JsonObjectSetIntInplace(jEntry, DAZSCRIPT_PARAMETER_WAS_QUOTED, bWasQuoted);
-    return jEntry;
+    if (FindSubString(sText, "{", 0) != -1)
+        return TRUE;
+    if (FindSubString(sText, "}", 0) != -1)
+        return TRUE;
+    return FALSE;
 }
 
-json ParseParameterEntries(string sParameters)
+json MakeLiteralParameterTemplate(string sText, int bWasQuoted)
+{
+    json jTemplate = JsonArray();
+
+    if (bWasQuoted)
+    {
+        json jInnerTemplate = JsonArray();
+        JsonArrayInsertLiteralNodeInplace(jInnerTemplate, sText);
+        JsonArrayInsertForceStringNodeInplace(jTemplate, jInnerTemplate);
+        return jTemplate;
+    }
+
+    JsonArrayInsertLiteralNodeInplace(jTemplate, sText);
+    return jTemplate;
+}
+
+json MakeParameterItem(string sText, int bWasQuoted)
+{
+    json jParameter = JsonArray();
+
+    JsonArrayInsertStringInplace(jParameter, sText);
+    JsonArrayInsertIntInplace(jParameter, bWasQuoted);
+
+    if (!ParameterTextNeedsTemplateCompile(sText))
+    {
+        if (bWasQuoted)
+            JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL);
+        else
+            JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_TYPED_LITERAL);
+
+        JsonArrayInsertInplace(jParameter, JsonNull());
+        return jParameter;
+    }
+
+    JsonArrayInsertIntInplace(jParameter, DAZSCRIPT_PARAMETER_MODE_TEMPLATE);
+
+    json jTemplate;
+    if (bWasQuoted)
+        jTemplate = CompileForcedStringTemplate(sText);
+    else
+        jTemplate = CompileTemplate(sText);
+
+    JsonArrayInsertInplace(jParameter, jTemplate);
+    return jParameter;
+}
+
+json CompileParameterList(string sParameters)
 {
     if (sParameters == "")
         return JsonArray();
-    json jEntries = GetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters);
-    if (JsonGetType(jEntries) == JSON_TYPE_ARRAY || IsParserError(jEntries))
-        return jEntries;
+    json jParameterList = GetCachedJson(DAZSCRIPT_PARAMETER_LIST_CACHE_PREFIX, sParameters);
+    if (JsonGetType(jParameterList) == JSON_TYPE_ARRAY || IsParserError(jParameterList))
+        return jParameterList;
 
-    jEntries = JsonArray();
+    jParameterList = JsonArray();
     string sCurrent;
     int bWasQuoted, bLastWasComma, bAfterTopLevelQuote, nQuotedTemplateEnd = -1;
     struct Parser str = ParserBegin(sParameters);
@@ -1759,7 +1830,7 @@ json ParseParameterEntries(string sParameters)
 
         if (sCharacter == "," && bRootDepth)
         {
-            JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : Trim(sCurrent), bWasQuoted));
+            JsonArrayInsertInplace(jParameterList, MakeParameterItem(bWasQuoted ? sCurrent : Trim(sCurrent), bWasQuoted));
 
             sCurrent = "";
             bWasQuoted = FALSE;
@@ -1789,156 +1860,157 @@ json ParseParameterEntries(string sParameters)
     if (bLastWasComma)
         return CacheParameterParserError(sParameters, "TRAILING_COMMA_IN_ARGUMENT_LIST", str.nLength - 1);
 
-    JsonArrayInsertInplace(jEntries, MakeParameterEntry(bWasQuoted ? sCurrent : Trim(sCurrent), bWasQuoted));
+    JsonArrayInsertInplace(jParameterList, MakeParameterItem(bWasQuoted ? sCurrent : Trim(sCurrent), bWasQuoted));
 
-    SetCachedJson(DAZSCRIPT_PARAMETER_ENTRY_CACHE_PREFIX, sParameters, jEntries);
-    return jEntries;
-}
-
-json CompileParsedParameters(string sParameters, json jParameterEntries)
-{
-    if (IsParserError(jParameterEntries))
-        return jParameterEntries;
-    if (sParameters == "")
-        return JsonArray();
-
-    json jCached = GetCachedJson(DAZSCRIPT_COMPILED_PARAMETER_CACHE_PREFIX, sParameters);
-    if (JsonGetType(jCached) == JSON_TYPE_ARRAY || IsParserError(jCached))
-        return jCached;
-
-    json jCompiledParameters = JsonArray();
-    int nIndex, nNumParameters = JsonGetLength(jParameterEntries);
-    for (nIndex = 0; nIndex < nNumParameters; nIndex++)
-    {
-        json jEntry = JsonArrayGet(jParameterEntries, nIndex);
-        string sText = JsonObjectGetString(jEntry, DAZSCRIPT_PARAMETER_TEXT);
-        int bWasQuoted = JsonObjectGetInt(jEntry, DAZSCRIPT_PARAMETER_WAS_QUOTED);
-
-        if (bWasQuoted)
-            JsonArrayInsertInplace(jCompiledParameters, CompileForcedStringTemplate(sText));
-        else
-            JsonArrayInsertInplace(jCompiledParameters, CompileTemplate(sText));
-    }
-
-    SetCachedJson(DAZSCRIPT_COMPILED_PARAMETER_CACHE_PREFIX, sParameters, jCompiledParameters);
-    return jCompiledParameters;
-}
-
-json CompileParameters(string sParameters)
-{
-    json jParameterEntries = ParseParameterEntries(sParameters);
-    return CompileParsedParameters(sParameters, jParameterEntries);
+    SetCachedJson(DAZSCRIPT_PARAMETER_LIST_CACHE_PREFIX, sParameters, jParameterList);
+    return jParameterList;
 }
 
 struct ArgContext PrepareCurrentParameters(struct ArgContext strArgCtx)
 {
-    json jParameterEntries = strArgCtx.jCurrentParameterEntries;
-    if (!(JsonGetType(jParameterEntries) == JSON_TYPE_ARRAY || IsParserError(jParameterEntries)))
-        jParameterEntries = ParseParameterEntries(strArgCtx.sCurrentParameters);
-    strArgCtx.jCurrentParameterEntries = jParameterEntries;
-
-    json jCompiledParameters = strArgCtx.jCurrentParameters;
-    if (!(JsonGetType(jCompiledParameters) == JSON_TYPE_ARRAY || IsParserError(jCompiledParameters)))
-        jCompiledParameters = CompileParsedParameters(strArgCtx.sCurrentParameters, jParameterEntries);
-    strArgCtx.jCurrentParameters = jCompiledParameters;
+    json jParameterList = strArgCtx.jCurrentParameterList;
+    if (!(JsonGetType(jParameterList) == JSON_TYPE_ARRAY || IsParserError(jParameterList)))
+        jParameterList = CompileParameterList(strArgCtx.sCurrentParameters);
+    strArgCtx.jCurrentParameterList = jParameterList;
 
     strArgCtx.bCurrentParametersPrepared = TRUE;
     strArgCtx.strCurrentParameterError = GetInvalidValue();
 
-    if (IsParserError(jCompiledParameters))
+    if (IsParserError(jParameterList))
     {
         strArgCtx.nCurrentParameterCount = -1;
-        strArgCtx.strCurrentParameterError = GetValueFromParserError(jCompiledParameters, strArgCtx.sCurrentProperty);
+        strArgCtx.strCurrentParameterError = GetValueFromParserError(jParameterList, strArgCtx.sCurrentProperty);
         return strArgCtx;
     }
 
-    if (IsParserError(jParameterEntries))
-    {
-        strArgCtx.nCurrentParameterCount = -1;
-        strArgCtx.strCurrentParameterError = GetValueFromParserError(jParameterEntries, strArgCtx.sCurrentProperty);
-        return strArgCtx;
-    }
-
-    strArgCtx.nCurrentParameterCount = JsonGetLength(jCompiledParameters);
+    strArgCtx.nCurrentParameterCount = JsonGetLength(jParameterList);
     return strArgCtx;
 }
 
-json GetCompiledParameters(struct ArgContext strArgCtx)
+json GetParameterList(struct ArgContext strArgCtx)
 {
     if (strArgCtx.bCurrentParametersPrepared)
-        return strArgCtx.jCurrentParameters;
-    json jCompiledParameters = strArgCtx.jCurrentParameters;
-    if (JsonGetType(jCompiledParameters) == JSON_TYPE_ARRAY || IsParserError(jCompiledParameters))
-        return jCompiledParameters;
-    return CompileParameters(strArgCtx.sCurrentParameters);
+        return strArgCtx.jCurrentParameterList;
+    json jParameterList = strArgCtx.jCurrentParameterList;
+    if (JsonGetType(jParameterList) == JSON_TYPE_ARRAY || IsParserError(jParameterList))
+        return jParameterList;
+    return CompileParameterList(strArgCtx.sCurrentParameters);
 }
 
-json GetParameterEntries(struct ArgContext strArgCtx)
+json GetParameterTemplateFromList(json jParameterList, int nIndex)
 {
-    if (strArgCtx.bCurrentParametersPrepared)
-        return strArgCtx.jCurrentParameterEntries;
-    json jParameterEntries = strArgCtx.jCurrentParameterEntries;
-    if (JsonGetType(jParameterEntries) == JSON_TYPE_ARRAY || IsParserError(jParameterEntries))
-        return jParameterEntries;
-    return ParseParameterEntries(strArgCtx.sCurrentParameters);
+    if (IsParserError(jParameterList))
+        return jParameterList;
+    if (nIndex < 0 || nIndex >= JsonGetLength(jParameterList))
+        return JsonNull();
+
+    json jParameter = JsonArrayGet(jParameterList, nIndex);
+    int nMode = JsonArrayGetInt(jParameter, DAZSCRIPT_PARAMETER_ITEM_MODE);
+
+    if (nMode == DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL)
+        return MakeLiteralParameterTemplate(JsonArrayGetString(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEXT), TRUE);
+    if (nMode == DAZSCRIPT_PARAMETER_MODE_TYPED_LITERAL)
+        return MakeLiteralParameterTemplate(JsonArrayGetString(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEXT), FALSE);
+
+    return JsonArrayGet(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEMPLATE);
+}
+
+json GetParameterTemplate(struct ArgContext strArgCtx, int nIndex)
+{
+    return GetParameterTemplateFromList(GetParameterList(strArgCtx), nIndex);
+}
+
+string GetRawParameterTextFromList(json jParameterList, int nIndex, string sDefault = "")
+{
+    if (IsParserError(jParameterList))
+        return sDefault;
+    if (nIndex < 0 || nIndex >= JsonGetLength(jParameterList))
+        return sDefault;
+    return JsonArrayGetString(JsonArrayGet(jParameterList, nIndex), DAZSCRIPT_PARAMETER_ITEM_TEXT);
 }
 
 string GetRawParameterText(struct ArgContext strArgCtx, int nIndex, string sDefault = "")
 {
-    json jParameterEntries = GetParameterEntries(strArgCtx);
-    if (IsParserError(jParameterEntries))
-        return sDefault;
-    if (nIndex < 0 || nIndex >= JsonGetLength(jParameterEntries))
-        return sDefault;
-    return JsonObjectGetString(JsonArrayGet(jParameterEntries, nIndex), DAZSCRIPT_PARAMETER_TEXT);
+    return GetRawParameterTextFromList(GetParameterList(strArgCtx), nIndex, sDefault);
+}
+
+int GetRawParameterWasQuotedFromList(json jParameterList, int nIndex)
+{
+    if (IsParserError(jParameterList))
+        return FALSE;
+    if (nIndex < 0 || nIndex >= JsonGetLength(jParameterList))
+        return FALSE;
+    return JsonArrayGetInt(JsonArrayGet(jParameterList, nIndex), DAZSCRIPT_PARAMETER_ITEM_WAS_QUOTED);
 }
 
 int GetRawParameterWasQuoted(struct ArgContext strArgCtx, int nIndex)
 {
-    json jParameterEntries = GetParameterEntries(strArgCtx);
-    if (IsParserError(jParameterEntries))
-        return FALSE;
-    if (nIndex < 0 || nIndex >= JsonGetLength(jParameterEntries))
-        return FALSE;
-    return JsonObjectGetInt(JsonArrayGet(jParameterEntries, nIndex), DAZSCRIPT_PARAMETER_WAS_QUOTED);
+    return GetRawParameterWasQuotedFromList(GetParameterList(strArgCtx), nIndex);
 }
 
 int GetParameterCount(struct ArgContext strArgCtx)
 {
     if (strArgCtx.bCurrentParametersPrepared)
         return strArgCtx.nCurrentParameterCount;
-    json jCompiledParameters = GetCompiledParameters(strArgCtx);
-    if (IsParserError(jCompiledParameters))
+    json jParameterList = GetParameterList(strArgCtx);
+    if (IsParserError(jParameterList))
         return -1;
-    return JsonGetLength(jCompiledParameters);
+    return JsonGetLength(jParameterList);
 }
 
-struct Value EvalCompiledParameterFromArray(struct ArgContext strArgCtx, json jCompiledParameters, int nIndex)
+struct Value EvalParameterFromList(struct ArgContext strArgCtx, json jParameterList, int nIndex)
 {
-    if (IsParserError(jCompiledParameters))
-        return GetValueFromParserError(jCompiledParameters, strArgCtx.sCurrentProperty);
+    if (IsParserError(jParameterList))
+        return GetValueFromParserError(jParameterList, strArgCtx.sCurrentProperty);
 
-        int nCount = strArgCtx.bCurrentParametersPrepared ? strArgCtx.nCurrentParameterCount : JsonGetLength(jCompiledParameters);
-
+    int nCount = strArgCtx.bCurrentParametersPrepared ? strArgCtx.nCurrentParameterCount : JsonGetLength(jParameterList);
     if (nIndex < 0 || nIndex >= nCount)
         return GetErrorValue("PARAM_INDEX_OUT_OF_RANGE");
 
+    json jParameter = JsonArrayGet(jParameterList, nIndex);
+    int nMode = JsonArrayGetInt(jParameter, DAZSCRIPT_PARAMETER_ITEM_MODE);
+    string sRaw;
+
     int bTraceEnabled = IsTraceEnabled();
-    if (bTraceEnabled) { TraceEnter("arg.enter", strArgCtx.sCurrentProperty + "[" + IntToString(nIndex + 1) + "] raw=" + TraceQuoted(GetRawParameterText(strArgCtx, nIndex))); }
-    struct Value strValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), strArgCtx.jStack);
+    if (bTraceEnabled || nMode == DAZSCRIPT_PARAMETER_MODE_TYPED_LITERAL || nMode == DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL)
+        sRaw = JsonArrayGetString(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEXT);
+
+    if (bTraceEnabled) { TraceEnter("arg.enter", strArgCtx.sCurrentProperty + "[" + IntToString(nIndex + 1) + "] raw=" + TraceQuoted(sRaw)); }
+
+    struct Value strValue;
+
+    if (nMode == DAZSCRIPT_PARAMETER_MODE_TYPED_LITERAL)
+    {
+        strValue = GetValueFromTypedLiteral(sRaw);
+    }
+    else if (nMode == DAZSCRIPT_PARAMETER_MODE_STRING_LITERAL)
+    {
+        strValue = GetValueFromString(sRaw);
+    }
+    else
+    {
+        strValue = EvalTemplate(JsonArrayGet(jParameter, DAZSCRIPT_PARAMETER_ITEM_TEMPLATE), strArgCtx.jStack);
+    }
+
     if (bTraceEnabled) { TraceExit("arg.exit", strArgCtx.sCurrentProperty + "[" + IntToString(nIndex + 1) + "] => " + TraceValue(strValue)); }
 
     return strValue;
 }
 
-struct Value EvalCompiledParameter(struct ArgContext strArgCtx, int nIndex)
+struct Value EvalParameter(struct ArgContext strArgCtx, int nIndex)
 {
-    return EvalCompiledParameterFromArray(strArgCtx, GetCompiledParameters(strArgCtx), nIndex);
+    return EvalParameterFromList(strArgCtx, GetParameterList(strArgCtx), nIndex);
+}
+
+struct Value EvalParameterFromListWithStack(struct ArgContext strArgCtx, json jParameterList, int nIndex, json jEvalStack)
+{
+    strArgCtx.jStack = jEvalStack;
+    return EvalParameterFromList(strArgCtx, jParameterList, nIndex);
 }
 
 struct Value EvalJsonArrayParameter(struct ArgContext strArgCtx, int nIndex, string sErrorCode)
 {
-    struct Value strValue = EvalCompiledParameter(strArgCtx, nIndex);
+    struct Value strValue = EvalParameter(strArgCtx, nIndex);
     if (IsErrorValue(strValue))
         return strValue;
 
@@ -2024,9 +2096,9 @@ struct Value RequireNoArgs(struct ArgContext strArgCtx)
     return CheckArity(strArgCtx, 0, 0);
 }
 
-struct Value EvalTypedParameterFromArray(struct ArgContext strArgCtx, json jCompiledParameters, int nIndex, int nArgType)
+struct Value EvalTypedParameterFromList(struct ArgContext strArgCtx, json jParameterList, int nIndex, int nArgType)
 {
-    struct Value strArg = EvalCompiledParameterFromArray(strArgCtx, jCompiledParameters, nIndex);
+    struct Value strArg = EvalParameterFromList(strArgCtx, jParameterList, nIndex);
     if (IsErrorValue(strArg))
         return strArg;
     if (!IsValueArgType(strArg, nArgType))
@@ -2036,7 +2108,7 @@ struct Value EvalTypedParameterFromArray(struct ArgContext strArgCtx, json jComp
 
 struct Value EvalTypedParameter(struct ArgContext strArgCtx, int nIndex, int nArgType)
 {
-    struct Value strArg = EvalCompiledParameter(strArgCtx, nIndex);
+    struct Value strArg = EvalParameter(strArgCtx, nIndex);
     if (IsErrorValue(strArg))
         return strArg;
     if (!IsValueArgType(strArg, nArgType))
@@ -2051,12 +2123,12 @@ struct Arguments EvalArgs(struct ArgContext strArgCtx, int nMin, int nMax, int n
     if (IsErrorValue(strArgs.strError))
         return strArgs;
 
-    json jCompiledParameters = GetCompiledParameters(strArgCtx);
+    json jParameterList = GetParameterList(strArgCtx);
     strArgs.nCount = GetParameterCount(strArgCtx);
 
     if (strArgs.nCount > 0)
     {
-        strArgs.strArg0 = EvalTypedParameterFromArray(strArgCtx, jCompiledParameters, 0, nType0);
+        strArgs.strArg0 = EvalTypedParameterFromList(strArgCtx, jParameterList, 0, nType0);
         if (IsErrorValue(strArgs.strArg0))
         {
             strArgs.strError = strArgs.strArg0;
@@ -2066,7 +2138,7 @@ struct Arguments EvalArgs(struct ArgContext strArgCtx, int nMin, int nMax, int n
 
     if (strArgs.nCount > 1)
     {
-        strArgs.strArg1 = EvalTypedParameterFromArray(strArgCtx, jCompiledParameters, 1, nType1);
+        strArgs.strArg1 = EvalTypedParameterFromList(strArgCtx, jParameterList, 1, nType1);
         if (IsErrorValue(strArgs.strArg1))
         {
             strArgs.strError = strArgs.strArg1;
@@ -2076,7 +2148,7 @@ struct Arguments EvalArgs(struct ArgContext strArgCtx, int nMin, int nMax, int n
 
     if (strArgs.nCount > 2)
     {
-        strArgs.strArg2 = EvalTypedParameterFromArray(strArgCtx, jCompiledParameters, 2, nType2);
+        strArgs.strArg2 = EvalTypedParameterFromList(strArgCtx, jParameterList, 2, nType2);
         if (IsErrorValue(strArgs.strArg2))
         {
             strArgs.strError = strArgs.strArg2;
@@ -2086,7 +2158,7 @@ struct Arguments EvalArgs(struct ArgContext strArgCtx, int nMin, int nMax, int n
 
     if (strArgs.nCount > 3)
     {
-        strArgs.strArg3 = EvalTypedParameterFromArray(strArgCtx, jCompiledParameters, 3, nType3);
+        strArgs.strArg3 = EvalTypedParameterFromList(strArgCtx, jParameterList, 3, nType3);
         if (IsErrorValue(strArgs.strArg3))
         {
             strArgs.strError = strArgs.strArg3;
@@ -2096,7 +2168,7 @@ struct Arguments EvalArgs(struct ArgContext strArgCtx, int nMin, int nMax, int n
 
     if (strArgs.nCount > 4)
     {
-        strArgs.strArg4 = EvalTypedParameterFromArray(strArgCtx, jCompiledParameters, 4, nType4);
+        strArgs.strArg4 = EvalTypedParameterFromList(strArgCtx, jParameterList, 4, nType4);
         if (IsErrorValue(strArgs.strArg4))
         {
             strArgs.strError = strArgs.strArg4;
@@ -2194,7 +2266,7 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
     json jChain = JsonArrayGet(jExpr, DAZSCRIPT_EXPR_CHAIN);
     string sBaseParameters = JsonArrayGetString(jExpr, DAZSCRIPT_EXPR_BASE_PARAMETERS);
     string sPropertyPath = JsonArrayGetString(jExpr, DAZSCRIPT_EXPR_PROPERTY_PATH);
-    json jBaseCompiledParameters = JsonArrayGet(jExpr, DAZSCRIPT_EXPR_BASE_COMPILED_PARAMETERS);
+    json jBaseParameterList = JsonArrayGet(jExpr, DAZSCRIPT_EXPR_BASE_PARAMETER_LIST);
 
     if (bTraceEnabled) { TraceEnter("expr.enter", "kind=" + TraceExprKind(nKind) + "; base=" + sBaseName + "; params=" + TraceQuoted(sBaseParameters) + "; chain=" + TraceQuoted(sPropertyPath)); }
 
@@ -2205,9 +2277,9 @@ struct Value EvalCompiledExpressionToValue(json jExpr, json jStack)
     else if (nKind == DAZSCRIPT_EXPR_ALIAS)
         strValue = ResolveAliasValue(jStack, sBaseName);
     else if (nKind == DAZSCRIPT_EXPR_META)
-        strValue = ResolveMetaValue(jStack, sBaseName, nBaseNameHash, sBaseParameters, jBaseCompiledParameters);
+        strValue = ResolveMetaValue(jStack, sBaseName, nBaseNameHash, sBaseParameters, jBaseParameterList);
     else if (nKind == DAZSCRIPT_EXPR_FUNCTION)
-        strValue = ResolveFunctionValue(jStack, sBaseName, sBaseParameters, jBaseCompiledParameters);
+        strValue = ResolveFunctionValue(jStack, sBaseName, sBaseParameters, jBaseParameterList);
 
     int bHasPropertyChain = (JsonGetLength(jChain) > 0);
     int bTraceBaseValue = bTraceEnabled;
@@ -2329,7 +2401,7 @@ struct Value ResolveAliasValue(json jStack, string sAliasName)
     return GetErrorValue("INVALID_ALIAS_TYPE:" + sAliasName);
 }
 
-struct Value ResolveMetaValue(json jStack, string sMetaName, int nMetaNameHash, string sBaseParameters, json jBaseCompiledParameters)
+struct Value ResolveMetaValue(json jStack, string sMetaName, int nMetaNameHash, string sBaseParameters, json jBaseParameterList)
 {
     int bTraceEnabled = IsTraceEnabled();
     if (bTraceEnabled) { TraceEnter("meta.enter", "base=" + sMetaName + "; params=" + TraceQuoted(sBaseParameters)); }
@@ -2339,7 +2411,7 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, int nMetaNameHash, 
     strMeta.sCurrentProperty = sMetaName;
     strMeta.nHashedCurrentProperty = nMetaNameHash;
     strMeta.sCurrentParameters = sBaseParameters;
-    strMeta.jCurrentParameters = jBaseCompiledParameters;
+    strMeta.jCurrentParameterList = jBaseParameterList;
     strMeta = PrepareCurrentParameters(strMeta);
 
     struct Value strReturnValue = CheckParameterParserError(strMeta);
@@ -2408,7 +2480,7 @@ struct Value ResolveMetaValue(json jStack, string sMetaName, int nMetaNameHash, 
     return strReturnValue;
 }
 
-struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBaseParameters, json jBaseCompiledParameters)
+struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBaseParameters, json jBaseParameterList)
 {
     int bTraceEnabled = IsTraceEnabled();
     if (bTraceEnabled) { TraceEnter("fn.enter", "base=" + sFunctionName + "; params=" + TraceQuoted(sBaseParameters)); }
@@ -2435,7 +2507,7 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
                 strFunction.jStack = jStack;
                 strFunction.sCurrentProperty = sFunctionName;
                 strFunction.sCurrentParameters = sBaseParameters;
-                strFunction.jCurrentParameters = jBaseCompiledParameters;
+                strFunction.jCurrentParameterList = jBaseParameterList;
                 strFunction = PrepareCurrentParameters(strFunction);
                 strReturnValue = CheckParameterParserError(strFunction);
 
@@ -2445,18 +2517,14 @@ struct Value ResolveFunctionValue(json jStack, string sFunctionName, string sBas
                         strReturnValue = GetErrorValue("FUNCTION_ARITY:" + sFunctionName);
                     else
                     {
-                        json jCompiledParameters = GetCompiledParameters(strFunction);
+                        json jParameterList = GetParameterList(strFunction);
                         json jFrame = JsonCopyObject(jStack);
                         int nIndex, nNumArgs = JsonGetLength(jArgNames);
                         for (nIndex = 0; nIndex < nNumArgs; nIndex++)
                         {
                             string sArgName = JsonArrayGetString(jArgNames, nIndex);
 
-                            if (bTraceEnabled) { TraceEnter("arg.enter", sFunctionName + "[" + IntToString(nIndex + 1) + "]" + " raw=" + TraceQuoted(GetRawParameterText(strFunction, nIndex))); }
-
-                            struct Value strArgValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex), jStack);
-
-                            if (bTraceEnabled) { TraceExit("arg.exit", sFunctionName + "[" + IntToString(nIndex + 1) + "]" + " => " + TraceValue(strArgValue)); }
+                            struct Value strArgValue = EvalParameterFromList(strFunction, jParameterList, nIndex);
 
                             if (IsErrorValue(strArgValue))
                             {
@@ -2487,8 +2555,7 @@ struct ChainContext ApplyCompiledPropertySegment(struct ChainContext strCtx, jso
     strCtx.strArgs.sCurrentProperty = JsonArrayGetString(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY);
     strCtx.strArgs.nHashedCurrentProperty = JsonArrayGetInt(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PROPERTY_HASH);
     strCtx.strArgs.sCurrentParameters = JsonArrayGetString(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETERS);
-    strCtx.strArgs.jCurrentParameters = JsonArrayGet(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_COMPILED_PARAMETERS);
-    strCtx.strArgs.jCurrentParameterEntries = JsonArrayGet(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETER_ENTRIES);
+    strCtx.strArgs.jCurrentParameterList = JsonArrayGet(jSegment, DAZSCRIPT_PROPERTY_SEGMENT_PARAMETER_LIST);
     strCtx.strArgs = PrepareCurrentParameters(strCtx.strArgs);
     return strCtx;
 }
@@ -2616,7 +2683,7 @@ struct Value ResolveIntProperty(struct ChainContext strCtx)
             struct Value strError = CheckArity(strCtx.strArgs, 2, 2);
             if (IsErrorValue(strError))
                 return strError;
-            return EvalCompiledParameter(strCtx.strArgs, nValue != 0 ? 0 : 1);
+            return EvalParameter(strCtx.strArgs, nValue != 0 ? 0 : 1);
         }
 
         case "plural":
@@ -2629,10 +2696,10 @@ struct Value ResolveIntProperty(struct ChainContext strCtx)
                 if (nValue == 1)
                     return GetValueFromString();
                 else
-                    return EvalCompiledParameter(strCtx.strArgs, 0);
+                    return EvalParameter(strCtx.strArgs, 0);
             }
             else
-                return EvalCompiledParameter(strCtx.strArgs, nValue != 1);
+                return EvalParameter(strCtx.strArgs, nValue != 1);
         }
 
         case "incr":
@@ -2904,14 +2971,7 @@ struct Value ResolveStringProperty(struct ChainContext strCtx)
             struct Value strError = RequireNoArgs(strCtx.strArgs);
             if (IsErrorValue(strError))
                 return strError;
-
-            json jTemplate = GetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sValue);
-            if (!JsonGetType(jTemplate))
-            {
-                jTemplate = CompileTemplate(sValue);
-                SetCachedJson(DAZSCRIPT_TEMPLATE_CACHE_PREFIX, sValue, jTemplate);
-            }
-            return EvalTemplate(jTemplate, strCtx.strArgs.jStack);
+            return EvalTemplate(CompileTemplateCached(sValue), strCtx.strArgs.jStack);
         }
     }
 
@@ -3858,7 +3918,7 @@ struct Value ResolveSharedProperty(struct ChainContext strCtx)
             if (IsErrorValue(strError))
                 return strError;
             if (ValueNeedsDefault(strCtx.strValue))
-                return EvalCompiledParameter(strCtx.strArgs, 0);
+                return EvalParameter(strCtx.strArgs, 0);
             else
                 return strCtx.strValue;
         }
@@ -3892,7 +3952,8 @@ struct Value HandleMetaFunction(struct ArgContext strArgCtx)
         if (nParameterCount < 2)
             return GetErrorValue("FN_USAGE:@fn(#name, $arg..., body)");
 
-        string sFunctionName = GetStringLowerCase(GetRawParameterText(strArgCtx, 0));
+        json jParameterList = GetParameterList(strArgCtx);
+        string sFunctionName = GetStringLowerCase(GetRawParameterTextFromList(jParameterList, 0));
         if (!IsSymbol(sFunctionName, DAZSCRIPT_FUNCTION_SYMBOL))
             return GetErrorValue("INVALID_FUNCTION_NAME:" + sFunctionName);
 
@@ -3900,7 +3961,7 @@ struct Value HandleMetaFunction(struct ArgContext strArgCtx)
         int nIndex, nLast = nParameterCount - 1;
         for (nIndex = 1; nIndex < nLast; nIndex++)
         {
-            string sAlias = GetRawParameterText(strArgCtx, nIndex);
+            string sAlias = GetRawParameterTextFromList(jParameterList, nIndex);
             if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
                 return GetErrorValue("FUNCTION_PARAMETER_IS_NON_ALIAS:" + sAlias);
             if (JsonArrayContainsString(jArgs, sAlias))
@@ -3909,8 +3970,8 @@ struct Value HandleMetaFunction(struct ArgContext strArgCtx)
             JsonArrayInsertStringInplace(jArgs, sAlias);
         }
 
-        string sBody = GetRawParameterText(strArgCtx, nLast);
-        json jCompiledBody = CompileTemplate(sBody);
+        string sBody = GetRawParameterTextFromList(jParameterList, nLast);
+        json jCompiledBody = CompileTemplateCached(sBody);
 
         if (IsParserError(jCompiledBody))
             return GetValueFromParserError(jCompiledBody, "function_body");
@@ -3938,7 +3999,8 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
         struct Value strError = CheckArity(strArgCtx, 3, 3);
         if (IsErrorValue(strError))
             return strError;
-        struct Value strCondition = EvalCompiledParameter(strArgCtx, 0);
+        json jParameterList = GetParameterList(strArgCtx);
+        struct Value strCondition = EvalParameterFromList(strArgCtx, jParameterList, 0);
         if (IsErrorValue(strCondition))
             return strCondition;
 
@@ -3946,7 +4008,7 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
 
         if (IsTraceEnabled()) { Trace("if.branch", nBranch == 1 ? "then[1]" : "else[2]"); }
 
-        return EvalCompiledParameter(strArgCtx, nBranch);
+        return EvalParameterFromList(strArgCtx, jParameterList, nBranch);
     }
 
     if (nHashedMetaName == h"while")
@@ -3966,10 +4028,12 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
         int bTraceEnabled = IsTraceEnabled();
         if (bTraceEnabled) { Trace("while.start", "limit=" + IntToString(nLimit)); }
 
+        json jParameterList = GetParameterList(strArgCtx);
+
         string sAccumulator;
         while (TRUE)
         {
-            struct Value strConditionResult = EvalCompiledParameter(strArgCtx, 0);
+            struct Value strConditionResult = EvalParameterFromList(strArgCtx, jParameterList, 0);
             if (IsErrorValue(strConditionResult))
                 return strConditionResult;
 
@@ -3990,7 +4054,7 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
             if (bTraceEnabled) TraceEnter("while.iter.start", "iteration=" + IntToString(nIteration));
 
             nIterations++;
-            struct Value strBodyResult = EvalCompiledParameter(strArgCtx, 1);
+            struct Value strBodyResult = EvalParameterFromList(strArgCtx, jParameterList, 1);
 
             if (bTraceEnabled) { TraceExit("while.iter.exit", "iteration=" + IntToString(nIteration) + "; result=" + TraceValue(strBodyResult)); }
 
@@ -4011,7 +4075,7 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
 
         int nNumParameters = GetParameterCount(strArgCtx);
         int nIndex = Random(nNumParameters);
-        return EvalCompiledParameter(strArgCtx, nIndex);
+        return EvalParameter(strArgCtx, nIndex);
     }
 
     if (nHashedMetaName == h"not")
@@ -4029,10 +4093,11 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
         if (IsErrorValue(strError))
             return strError;
 
+        json jParameterList = GetParameterList(strArgCtx);
         int nIndex, nCount = GetParameterCount(strArgCtx), bResult = TRUE;
         for (nIndex = 0; nIndex < nCount; nIndex++)
         {
-            struct Value strParameter = EvalCompiledParameter(strArgCtx, nIndex);
+            struct Value strParameter = EvalParameterFromList(strArgCtx, jParameterList, nIndex);
             if (IsErrorValue(strParameter))
                 return strParameter;
 
@@ -4052,10 +4117,11 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
         if (IsErrorValue(strError))
             return strError;
 
+        json jParameterList = GetParameterList(strArgCtx);
         int nIndex, nCount = GetParameterCount(strArgCtx), bResult = FALSE;
         for (nIndex = 0; nIndex < nCount; nIndex++)
         {
-            struct Value strParameter = EvalCompiledParameter(strArgCtx, nIndex);
+            struct Value strParameter = EvalParameterFromList(strArgCtx, jParameterList, nIndex);
             if (IsErrorValue(strParameter))
                 return strParameter;
 
@@ -4076,7 +4142,9 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
             return strError;
 
         int nCount = GetParameterCount(strArgCtx);
-        struct Value strSelectorValue = EvalCompiledParameter(strArgCtx, 0);
+        json jParameterList = GetParameterList(strArgCtx);
+
+        struct Value strSelectorValue = EvalParameterFromList(strArgCtx, jParameterList, 0);
         if (IsErrorValue(strSelectorValue))
             return strSelectorValue;
 
@@ -4089,17 +4157,17 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
         int nIndex, nEnd = nDefaultIndex == -1 ? nCount : nDefaultIndex;
         for (nIndex = 1; nIndex + 1 < nEnd; nIndex += 2)
         {
-            struct Value strCaseValue = EvalCompiledParameter(strArgCtx, nIndex);
+            struct Value strCaseValue = EvalParameterFromList(strArgCtx, jParameterList, nIndex);
             if (IsErrorValue(strCaseValue))
                 return strCaseValue;
 
             string sCase = FormatValueForDisplay(strCaseValue);
             if (sSelector == sCase)
-                return EvalCompiledParameter(strArgCtx, nIndex + 1);
+                return EvalParameterFromList(strArgCtx, jParameterList, nIndex + 1);
         }
 
         if (nDefaultIndex != -1)
-            return EvalCompiledParameter(strArgCtx, nDefaultIndex);
+            return EvalParameterFromList(strArgCtx, jParameterList, nDefaultIndex);
 
         return GetValueFromString();
     }
@@ -4110,12 +4178,12 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
         if (IsErrorValue(strError))
             return strError;
 
-        string sAlias = GetRawParameterText(strArgCtx, 0);
+        json jParameterList = GetParameterList(strArgCtx);
+        string sAlias = GetRawParameterTextFromList(jParameterList, 0);
         if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("FOREACHPC_ALIAS_IS_NON_ALIAS:" + sAlias);
 
-        json jCompiledParameters = GetCompiledParameters(strArgCtx);
-        json jBody = JsonArrayGet(jCompiledParameters, 1);
+        json jBody = GetParameterTemplateFromList(jParameterList, 1);
         json jFrame = JsonCopyObject(strArgCtx.jStack);
         string sAccumulator = "";
 
@@ -4141,12 +4209,13 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
         if (IsErrorValue(strError))
             return strError;
 
+        json jParameterList = GetParameterList(strArgCtx);
         int nIndex, nCount = GetParameterCount(strArgCtx);
         struct Value strLastError = GetInvalidValue();
 
         for (nIndex = 0; nIndex < nCount; nIndex++)
         {
-            struct Value strCandidate = EvalCompiledParameter(strArgCtx, nIndex);
+            struct Value strCandidate = EvalParameterFromList(strArgCtx, jParameterList, nIndex);
             if (!IsErrorValue(strCandidate))
                 return strCandidate;
             strLastError = strCandidate;
@@ -4161,11 +4230,13 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
         if (nCount < 1)
             return GetErrorValue("ARITY:EXPECTED_AT_LEAST_1_ARGUMENT");
 
+
         int nIndex;
         struct Value strResult = GetValueFromString();
+        json jParameterList = GetParameterList(strArgCtx);
         for (nIndex = 0; nIndex < nCount; nIndex++)
         {
-            strResult = EvalCompiledParameter(strArgCtx, nIndex);
+            strResult = EvalParameterFromList(strArgCtx, jParameterList, nIndex);
             if (IsErrorValue(strResult))
                 return strResult;
         }
@@ -4187,9 +4258,10 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
         if (nCount != 3 && nCount != 4)
             return GetErrorValue("FOREACH_USAGE:@foreach(collection,$value,body) OR @foreach(collection,$key,$value,body)");
 
+        json jParameterList = GetParameterList(strArgCtx);
         int bHasKeyAlias = nCount == 4;
-        string sKeyAlias = bHasKeyAlias ? GetRawParameterText(strArgCtx, 1) : "";
-        string sValueAlias = GetRawParameterText(strArgCtx, bHasKeyAlias ? 2 : 1);
+        string sKeyAlias = bHasKeyAlias ? GetRawParameterTextFromList(jParameterList, 1) : "";
+        string sValueAlias = GetRawParameterTextFromList(jParameterList, bHasKeyAlias ? 2 : 1);
         int nBodyIndex = bHasKeyAlias ? 3 : 2;
 
         if (bHasKeyAlias && !IsSymbol(sKeyAlias, DAZSCRIPT_ALIAS_SYMBOL))
@@ -4199,7 +4271,7 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
         if (bHasKeyAlias && sKeyAlias == sValueAlias)
             return GetErrorValue("FOREACH_DUPLICATE_ALIAS:" + sKeyAlias);
 
-        struct Value strCollection = EvalCompiledParameter(strArgCtx, 0);
+        struct Value strCollection = EvalParameterFromList(strArgCtx, jParameterList, 0);
         if (IsErrorValue(strCollection))
             return strCollection;
         strCollection = CastValueToJson(strCollection);
@@ -4212,7 +4284,7 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
         if (nJsonType != JSON_TYPE_ARRAY && nJsonType != JSON_TYPE_OBJECT)
             return GetErrorValue("FOREACH_JSON_NOT_ARRAY_OR_OBJECT");
 
-        json jBody = JsonArrayGet(GetCompiledParameters(strArgCtx), nBodyIndex);
+        json jBody = GetParameterTemplateFromList(jParameterList, nBodyIndex);
         json jFrame = JsonCopyObject(strArgCtx.jStack);
         string sAccumulator = "";
         int nIndex, nLength;
@@ -4275,9 +4347,9 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
             return GetErrorValue("MAP_USAGE:@map(array,$value,body) OR @map(array,$index,$value,body)");
 
         int bHasIndexAlias = nCount == 4;
-
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strArgCtx, 1) : "";
-        string sValueAlias = GetRawParameterText(strArgCtx, bHasIndexAlias ? 2 : 1);
+        json jParameterList = GetParameterList(strArgCtx);
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterTextFromList(jParameterList, 1) : "";
+        string sValueAlias = GetRawParameterTextFromList(jParameterList, bHasIndexAlias ? 2 : 1);
         int nBodyIndex = bHasIndexAlias ? 3 : 2;
 
         struct Value strValidate = ValidateLoopAliases(strArgCtx.sCurrentProperty, bHasIndexAlias, sIndexAlias, sValueAlias);
@@ -4287,7 +4359,7 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
         if (IsErrorValue(strCollection))
             return strCollection;
 
-        json jBody = JsonArrayGet(GetCompiledParameters(strArgCtx), nBodyIndex);
+        json jBody = GetParameterTemplateFromList(jParameterList, nBodyIndex);
         json jFrame = JsonCopyObject(strArgCtx.jStack);
         json jResult = JsonArray();
 
@@ -4322,7 +4394,7 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
         if (IsErrorValue(strCollection))
             return strCollection;
 
-        json jBody = JsonArrayGet(GetCompiledParameters(strArgCtx), 1);
+        json jBody = GetParameterTemplate(strArgCtx, 1);
         json jFrame = JsonCopyObject(strArgCtx.jStack);
         json jResult = JsonArray();
 
@@ -4356,9 +4428,10 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
         if (nCount != 3 && nCount != 4)
             return GetErrorValue("FILTER_USAGE:@filter(array,$value,predicate) OR @filter(array,$index,$value,predicate)");
 
+        json jParameterList = GetParameterList(strArgCtx);
         int bHasIndexAlias = nCount == 4;
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strArgCtx, 1) : "";
-        string sValueAlias = GetRawParameterText(strArgCtx, bHasIndexAlias ? 2 : 1);
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterTextFromList(jParameterList, 1) : "";
+        string sValueAlias = GetRawParameterTextFromList(jParameterList, bHasIndexAlias ? 2 : 1);
         int nPredicateIndex = bHasIndexAlias ? 3 : 2;
 
         struct Value strValidate = ValidateLoopAliases(strArgCtx.sCurrentProperty, bHasIndexAlias, sIndexAlias, sValueAlias);
@@ -4368,7 +4441,7 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
         if (IsErrorValue(strCollection))
             return strCollection;
 
-        json jPredicate = JsonArrayGet(GetCompiledParameters(strArgCtx), nPredicateIndex);
+        json jPredicate = GetParameterTemplateFromList(jParameterList, nPredicateIndex);
         json jFrame = JsonCopyObject(strArgCtx.jStack);
         json jResult = JsonArray();
 
@@ -4397,10 +4470,11 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
         if (nCount != 5 && nCount != 6)
             return GetErrorValue("REDUCE_USAGE:@reduce(array,initial,$acc,$value,body) OR @reduce(array,initial,$acc,$index,$value,body)");
 
+        json jParameterList = GetParameterList(strArgCtx);
         int bHasIndexAlias = nCount == 6;
-        string sAccumulatorAlias = GetRawParameterText(strArgCtx, 2);
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strArgCtx, 3) : "";
-        string sValueAlias = GetRawParameterText(strArgCtx, bHasIndexAlias ? 4 : 3);
+        string sAccumulatorAlias = GetRawParameterTextFromList(jParameterList, 2);
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterTextFromList(jParameterList, 3) : "";
+        string sValueAlias = GetRawParameterTextFromList(jParameterList, bHasIndexAlias ? 4 : 3);
         int nBodyIndex = bHasIndexAlias ? 5 : 4;
 
         if (!IsSymbol(sAccumulatorAlias, DAZSCRIPT_ALIAS_SYMBOL))
@@ -4420,11 +4494,11 @@ struct Value HandleMetaCollection(struct ArgContext strArgCtx)
         if (IsErrorValue(strCollection))
             return strCollection;
 
-        struct Value strAccumulator = EvalCompiledParameter(strArgCtx, 1);
+        struct Value strAccumulator = EvalParameterFromList(strArgCtx, jParameterList, 1);
         if (IsErrorValue(strAccumulator))
             return strAccumulator;
 
-        json jBody = JsonArrayGet(GetCompiledParameters(strArgCtx), nBodyIndex);
+        json jBody = GetParameterTemplateFromList(jParameterList, nBodyIndex);
         json jFrame = JsonCopyObject(strArgCtx.jStack);
 
         int nIndex, nLength = JsonGetLength(strCollection.jValue);
@@ -4466,16 +4540,17 @@ struct Value HandleMetaAggregate(struct ArgContext strArgCtx)
         if (nCount == 1)
             return GetValueFromInt(nLength);
 
+        json jParameterList = GetParameterList(strArgCtx);
         int bHasIndexAlias = nCount == 4;
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strArgCtx, 1) : "";
-        string sValueAlias = GetRawParameterText(strArgCtx, bHasIndexAlias ? 2 : 1);
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterTextFromList(jParameterList, 1) : "";
+        string sValueAlias = GetRawParameterTextFromList(jParameterList, bHasIndexAlias ? 2 : 1);
         int nPredicateIndex = bHasIndexAlias ? 3 : 2;
 
         struct Value strValidate = ValidateLoopAliases(strArgCtx.sCurrentProperty, bHasIndexAlias, sIndexAlias, sValueAlias);
         if (IsErrorValue(strValidate))
             return strValidate;
 
-        json jPredicate = JsonArrayGet(GetCompiledParameters(strArgCtx), nPredicateIndex);
+        json jPredicate = GetParameterTemplateFromList(jParameterList, nPredicateIndex);
         json jFrame = JsonCopyObject(strArgCtx.jStack);
         int nMatched = 0;
 
@@ -4512,10 +4587,11 @@ struct Value HandleMetaAggregate(struct ArgContext strArgCtx)
         if (IsErrorValue(strCollection))
             return strCollection;
 
+        json jParameterList = GetParameterList(strArgCtx);
         int bHasSelector = nCount != 1;
         int bHasIndexAlias = nCount == 4;
-        string sIndexAlias = bHasIndexAlias ? GetRawParameterText(strArgCtx, 1) : "";
-        string sValueAlias = bHasSelector ? GetRawParameterText(strArgCtx, bHasIndexAlias ? 2 : 1) : "";
+        string sIndexAlias = bHasIndexAlias ? GetRawParameterTextFromList(jParameterList, 1) : "";
+        string sValueAlias = bHasSelector ? GetRawParameterTextFromList(jParameterList, bHasIndexAlias ? 2 : 1) : "";
         int nSelectorIndex = bHasIndexAlias ? 3 : 2;
 
         if (bHasSelector)
@@ -4525,8 +4601,12 @@ struct Value HandleMetaAggregate(struct ArgContext strArgCtx)
                 return strValidate;
         }
 
-        json jSelector = bHasSelector ? JsonArrayGet(GetCompiledParameters(strArgCtx), nSelectorIndex) : JSON_NULL;
-        json jFrame = JsonCopyObject(strArgCtx.jStack);
+        json jSelector, jFrame;
+        if (bHasSelector)
+        {
+            jSelector = GetParameterTemplateFromList(jParameterList, nSelectorIndex);
+            jFrame = JsonCopyObject(strArgCtx.jStack);
+        }
 
         int nIndex, nLength = JsonGetLength(strCollection.jValue);
         if (nHashedMetaName == h"avg" && nLength == 0)
@@ -4595,24 +4675,24 @@ struct Value HandleMetaVariable(struct ArgContext strArgCtx)
         if (nCount % 2 != 1)
             return GetErrorValue("LET_EXPECTS_BINDINGS_PLUS_BODY");
 
-        json jCompiledParameters = GetCompiledParameters(strArgCtx);
+        json jParameterList = GetParameterList(strArgCtx);
         json jFrame = JsonCopyObject(strArgCtx.jStack);
 
         int nIndex;
         for (nIndex = 0; nIndex < nCount - 1; nIndex += 2)
         {
-            string sAlias = GetRawParameterText(strArgCtx, nIndex);
+            string sAlias = GetRawParameterTextFromList(jParameterList, nIndex);
             if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
                 return GetErrorValue("LET_ALIAS_IS_NON_ALIAS:" + sAlias);
 
-            struct Value strValue = EvalTemplate(JsonArrayGet(jCompiledParameters, nIndex + 1), jFrame);
+            struct Value strValue = EvalParameterFromListWithStack(strArgCtx, jParameterList, nIndex + 1, jFrame);
             if (IsErrorValue(strValue))
                 return strValue;
 
             JsonObjectSetInplace(jFrame, sAlias, MakeStackAliasEntryFromValue(strValue));
         }
 
-        return EvalTemplate(JsonArrayGet(jCompiledParameters, nCount - 1), jFrame);
+        return EvalParameterFromListWithStack(strArgCtx, jParameterList, nCount - 1, jFrame);
     }
 
     if (nHashedMetaName == h"set")
@@ -4621,10 +4701,11 @@ struct Value HandleMetaVariable(struct ArgContext strArgCtx)
         if (IsErrorValue(strError))
             return strError;
 
-        string sAlias = GetRawParameterText(strArgCtx, 0);
+        json jParameterList = GetParameterList(strArgCtx);
+        string sAlias = GetRawParameterTextFromList(jParameterList, 0);
         if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("SET_ALIAS_IS_NON_ALIAS:" + sAlias);
-        struct Value strValue = EvalCompiledParameter(strArgCtx, 1);
+        struct Value strValue = EvalParameterFromList(strArgCtx, jParameterList, 1);
         if (IsErrorValue(strValue))
             return strValue;
 
@@ -4652,14 +4733,15 @@ struct Value HandleMetaVariable(struct ArgContext strArgCtx)
         if (IsErrorValue(strError))
             return strError;
 
-        string sAlias = GetRawParameterText(strArgCtx, 0);
+        json jParameterList = GetParameterList(strArgCtx);
+        string sAlias = GetRawParameterTextFromList(jParameterList, 0);
         if (!IsSymbol(sAlias, DAZSCRIPT_ALIAS_SYMBOL))
             return GetErrorValue("CAST_ALIAS_IS_NON_ALIAS:" + sAlias);
 
         if (!JsonObjectContainsKey(strArgCtx.jStack, sAlias))
             return GetErrorValue("UNKNOWN_ALIAS:" + sAlias);
 
-        string sCast = GetRawParameterText(strArgCtx, 1);
+        string sCast = GetRawParameterTextFromList(jParameterList, 1);
         int nTargetAuxType = GetCastAuxTypeFromName(sCast);
 
         if (nTargetAuxType == NWNX_VM_AUXTYPE_INVALID)
@@ -4683,13 +4765,14 @@ struct Value HandleMetaVariable(struct ArgContext strArgCtx)
         if (IsErrorValue(strError))
             return strError;
 
-        string sVarName = GetRawParameterText(strArgCtx, 0);
+        json jParameterList = GetParameterList(strArgCtx);
+        string sVarName = GetRawParameterTextFromList(jParameterList, 0);
         if (!IsStackVar(sVarName))
             return GetErrorValue("OUT_ARGUMENT_IS_NON_STACKVAR:" + sVarName);
         if (!JsonObjectContainsKey(strArgCtx.jStack, sVarName))
             return GetErrorValue("UNKNOWN_STACK_VAR:" + sVarName);
 
-        struct Value strValue = EvalCompiledParameter(strArgCtx, 1);
+        struct Value strValue = EvalParameterFromList(strArgCtx, jParameterList, 1);
         if (IsErrorValue(strValue))
             return strValue;
 
@@ -4706,20 +4789,19 @@ struct Value HandleMetaVariable(struct ArgContext strArgCtx)
         if (IsErrorValue(strError))
             return strError;
 
-        json jCompiledParameters = GetCompiledParameters(strArgCtx);
-
-        string sRaw = GetRawParameterText(strArgCtx, 0);
+        json jParameterList = GetParameterList(strArgCtx);
+        string sRaw = GetRawParameterTextFromList(jParameterList, 0);
         struct Value strValue;
-        if (!GetRawParameterWasQuoted(strArgCtx, 0) && IsSymbol(sRaw, DAZSCRIPT_ALIAS_SYMBOL))
+        if (!GetRawParameterWasQuotedFromList(jParameterList, 0) && IsSymbol(sRaw, DAZSCRIPT_ALIAS_SYMBOL))
             strValue = ResolveAliasValue(strArgCtx.jStack, sRaw);
         else
-            strValue = EvalCompiledParameter(strArgCtx, 0);
+            strValue = EvalParameterFromList(strArgCtx, jParameterList, 0);
         if (IsErrorValue(strValue))
             return strValue;
 
         json jFrame = JsonCopyObject(strArgCtx.jStack);
         JsonObjectSetInplace(jFrame, DAZSCRIPT_THIS_ALIAS, MakeStackAliasEntryFromValue(strValue));
-        return EvalTemplate(JsonArrayGet(jCompiledParameters, 1), jFrame);
+        return EvalParameterFromListWithStack(strArgCtx, jParameterList, 1, jFrame);
     }
 
     return GetInvalidValue();
@@ -4752,7 +4834,7 @@ struct Value HandleMetaIntrospection(struct ArgContext strArgCtx)
             return strError;
 
         string sExpr = GetRawParameterText(strArgCtx, 0);
-        struct Value strValue = EvalCompiledParameter(strArgCtx, 0);
+        struct Value strValue = EvalParameter(strArgCtx, 0);
         if (IsErrorValue(strValue))
             return strValue;
 
@@ -4903,9 +4985,10 @@ struct Value HandleMetaMath(struct ArgContext strArgCtx)
         int bAllInt = TRUE, nIntResult = 0;
         float fResult = 0.0;
 
+        json jParameterList = GetParameterList(strArgCtx);
         for (nIndex = 0; nIndex < nNumParameters; nIndex++)
         {
-            struct Value strArg = EvalCompiledParameter(strArgCtx, nIndex);
+            struct Value strArg = EvalParameterFromList(strArgCtx, jParameterList, nIndex);
             if (IsErrorValue(strArg))
                  return strArg;
             if (!IsValueNumericParameter(strArg))

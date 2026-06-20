@@ -125,7 +125,7 @@ void DazScript_SetupSqlTests()
     sqlquery q;
 
     q = SqlPrepareQueryModule(
-        "CREATE TABLE IF NOT EXISTS test_players (" +
+        "CREATE TABLE IF NOT EXISTS dazscript_tests (" +
         "id INTEGER PRIMARY KEY," +
         "name TEXT," +
         "level INTEGER," +
@@ -137,8 +137,10 @@ void DazScript_SetupSqlTests()
         ");");
     SqlStep(q);
 
+    SqlStep(SqlPrepareQueryModule("DELETE FROM dazscript_tests"));
+
     q = SqlPrepareQueryModule(
-        "REPLACE INTO test_players (id, name, level, xp, gold, rating, payload, owner) " +
+        "INSERT INTO dazscript_tests (id, name, level, xp, gold, rating, payload, owner) " +
         "VALUES (@id, @name, @level, @xp, @gold, @rating, @payload, @owner);");
 
     SqlBindInt(q, "@id", 1);
@@ -1007,7 +1009,7 @@ void DazScript_TestMoreJsonLikeCollectionOrAggregate()
         "");
 
     DazScript_Test("map filter reduce join sql composition",
-        "{@set($rows,{@sqlmodule('SELECT name, gold FROM test_players ORDER BY id;')>rows(si)})}" +
+        "{@set($rows,{@sqlmodule('SELECT name, gold FROM dazscript_tests ORDER BY id;')>rows(si)})}" +
         "{@set($rich,{@filter({$rows}, $row, {$row>get(gold)>gte(400)})})}" +
         "{@map({$rich}, $row, '{$row>get(name)}={$row>get(gold)}')>join('|')} " +
         "total={@reduce({$rich}, 0, $sum, $row, {@add({$sum}, {$row>get(gold)})})}",
@@ -1941,130 +1943,128 @@ void DazScript_TestErrorHandling()
 
 void DazScript_TestSql()
 {
-    DazScript_SetupSqlTests();
-
     DazScript_Test("sql module scalar int",
-        "{@sqlmodule('SELECT COUNT(*) FROM test_players;')>scalar(i)}",
+        "{@sqlmodule('SELECT COUNT(*) FROM dazscript_tests;')>scalar(i)}",
         "3");
 
     DazScript_Test("sql module scalar string",
-        "{@sqlmodule('SELECT name FROM test_players WHERE id = @id;')>bind(id,2)>scalar(s)}",
+        "{@sqlmodule('SELECT name FROM dazscript_tests WHERE id = @id;')>bind(id,2)>scalar(s)}",
         "Test Player 2");
 
     DazScript_Test("sql bind with explicit at prefix",
-        "{@sqlmodule('SELECT name FROM test_players WHERE id = @id;')>bind('@id',3)>scalar(s)}",
+        "{@sqlmodule('SELECT name FROM dazscript_tests WHERE id = @id;')>bind('@id',3)>scalar(s)}",
         "Test Player 3");
 
     DazScript_Test("sql scalar float",
-        "{@sqlmodule('SELECT rating FROM test_players WHERE id = 2;')>scalar(f)>fixed(1)}",
+        "{@sqlmodule('SELECT rating FROM dazscript_tests WHERE id = 2;')>scalar(f)>fixed(1)}",
         "2.5");
 
     DazScript_Test("sql scalar default on no row",
-        "{@sqlmodule('SELECT name FROM test_players WHERE id = 999;')>scalar(s,'missing')}",
+        "{@sqlmodule('SELECT name FROM dazscript_tests WHERE id = 999;')>scalar(s,'missing')}",
         "missing");
 
     DazScript_TestContains("sql scalar no row strict",
-        "{@sqlmodule('SELECT name FROM test_players WHERE id = 999;')>scalar(s)}",
+        "{@sqlmodule('SELECT name FROM dazscript_tests WHERE id = 999;')>scalar(s)}",
         "SQL_NO_ROW_DATA");
 
     DazScript_TestContains("sql scalar invalid type",
-        "{@sqlmodule('SELECT name FROM test_players WHERE id = 1;')>scalar(x)}",
+        "{@sqlmodule('SELECT name FROM dazscript_tests WHERE id = 1;')>scalar(x)}",
         "INVALID_SCALAR_AUXTYPE:x");
 
     DazScript_TestContains("sql scalar no columns",
-        "{@sqlmodule('UPDATE test_players SET gold = gold WHERE id = 1;')>scalar(s)}",
+        "{@sqlmodule('UPDATE dazscript_tests SET gold = gold WHERE id = 1;')>scalar(s)}",
         "SQL_NO_COLUMNS");
 
     DazScript_Test("sql exec update is quiet",
-        "{@sqlmodule('UPDATE test_players SET gold = 500 WHERE id = @id;')>bind(id,1)>exec}",
+        "{@sqlmodule('UPDATE dazscript_tests SET gold = 500 WHERE id = @id;')>bind(id,1)>exec}",
         "");
 
     DazScript_Test("sql exec updated row visible",
-        "{@sqlmodule('SELECT gold FROM test_players WHERE id = 1;')>scalar(i)}",
+        "{@sqlmodule('SELECT gold FROM dazscript_tests WHERE id = 1;')>scalar(i)}",
         "500");
 
     DazScript_TestContains("sql exec rejects result columns",
-        "{@sqlmodule('SELECT id FROM test_players;')>exec}",
+        "{@sqlmodule('SELECT id FROM dazscript_tests;')>exec}",
         "SQL_EXEC_REQUIRES_NO_COLUMNS");
 
     DazScript_Test("sql columncount",
-        "{@sqlmodule('SELECT id, name FROM test_players;')>columncount}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests;')>columncount}",
         "2");
 
     DazScript_Test("sql columnname",
-        "{@sqlmodule('SELECT id, name AS player_name FROM test_players;')>columnname(1)}",
+        "{@sqlmodule('SELECT id, name AS player_name FROM dazscript_tests;')>columnname(1)}",
         "player_name");
 
     DazScript_Test("sql columns",
-        "{@sqlmodule('SELECT id, name AS player_name FROM test_players;')>columns}",
+        "{@sqlmodule('SELECT id, name AS player_name FROM dazscript_tests;')>columns}",
         "[\"id\",\"player_name\"]");
 
     DazScript_Test("sql row default id string",
-        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 2;')>row>get(id)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests WHERE id = 2;')>row>get(id)}",
         "2");
 
     DazScript_Test("sql row default name string",
-        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 2;')>row>get(name)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests WHERE id = 2;')>row>get(name)}",
         "Test Player 2");
 
     DazScript_Test("sql row typed compact id",
-        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 2;')>row(is)>get(id)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests WHERE id = 2;')>row(is)>get(id)}",
         "2");
 
     DazScript_Test("sql row typed compact name",
-        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 2;')>row(is)>get(name)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests WHERE id = 2;')>row(is)>get(name)}",
         "Test Player 2");
 
     DazScript_Test("sql row typed json get class",
-        "{@sqlmodule('SELECT payload FROM test_players WHERE id = 1;')>row(j)>get(payload)>get(class)}",
+        "{@sqlmodule('SELECT payload FROM dazscript_tests WHERE id = 1;')>row(j)>get(payload)>get(class)}",
         "fighter");
 
     DazScript_Test("sql row typed float",
-        "{@sqlmodule('SELECT rating FROM test_players WHERE id = 1;')>row(f)>get(rating)>fixed(1)}",
+        "{@sqlmodule('SELECT rating FROM dazscript_tests WHERE id = 1;')>row(f)>get(rating)>fixed(1)}",
         "1.5");
 
     DazScript_TestContains("sql row no row strict",
-        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 999;')>row(is)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests WHERE id = 999;')>row(is)}",
         "SQL_NO_ROW_DATA");
 
     DazScript_TestContains("sql row spec mismatch",
-        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 1;')>row(i)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests WHERE id = 1;')>row(i)}",
         "SQL_ROW_SPEC_COLUMN_COUNT_MISMATCH");
 
     DazScript_TestContains("sql row invalid spec char",
-        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 1;')>row(ix)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests WHERE id = 1;')>row(ix)}",
         "INVALID_ROW_AUXTYPE:x");
 
     DazScript_Test("sql rows typed limit at get",
-        "{@sqlmodule('SELECT id, name FROM test_players ORDER BY id;')>rows(is,2)>at(1)>get(name)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests ORDER BY id;')>rows(is,2)>at(1)>get(name)}",
         "Test Player 2");
 
     DazScript_Test("sql rows limit as first arg",
-        "{@sqlmodule('SELECT id, name FROM test_players ORDER BY id;')>rows(2)>at(1)>get(name)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests ORDER BY id;')>rows(2)>at(1)>get(name)}",
         "Test Player 2");
 
     DazScript_Test("sql rows empty result is empty array",
-        "{@sqlmodule('SELECT id, name FROM test_players WHERE id = 999;')>rows(is)>length}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests WHERE id = 999;')>rows(is)>length}",
         "0");
 
     DazScript_TestContains("sql rows limit zero",
-        "{@sqlmodule('SELECT id, name FROM test_players;')>rows(is,0)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests;')>rows(is,0)}",
         "SQL_ROWS_LIMIT_MUST_BE_POSITIVE");
 
     DazScript_TestContains("sql rows limit too high",
-        "{@sqlmodule('SELECT id, name FROM test_players;')>rows(is,999999)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests;')>rows(is,999999)}",
         "SQL_ROWS_LIMIT_TOO_HIGH");
 
     DazScript_TestContains("sql rows invalid first arg",
-        "{@sqlmodule('SELECT id, name FROM test_players;')>rows(1.5)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests;')>rows(1.5)}",
         "INVALID_ROWS_ARGUMENT");
 
     DazScript_Test("sql rows compose with json at get",
-        "{@sqlmodule('SELECT id, name FROM test_players ORDER BY id;')>rows(is,3)>at(2)>get(name)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests ORDER BY id;')>rows(is,3)>at(2)>get(name)}",
         "Test Player 3");
 
     DazScript_Test("sql nested scalar in chain arg",
-        "{@sqlmodule('SELECT id, name FROM test_players ORDER BY id;')>rows(is)>at({@sub({@sqlmodule('SELECT COUNT(*) FROM test_players;')>scalar(i)},1)})>get(name)}",
+        "{@sqlmodule('SELECT id, name FROM dazscript_tests ORDER BY id;')>rows(is)>at({@sub({@sqlmodule('SELECT COUNT(*) FROM dazscript_tests;')>scalar(i)},1)})>get(name)}",
         "Test Player 3");
 
     DazScript_TestContains("sql empty query",
@@ -2072,11 +2072,11 @@ void DazScript_TestSql()
         "EMPTY_SQL_QUERY");
 
     DazScript_TestContains("sql empty bind name",
-        "{@sqlmodule('SELECT id FROM test_players WHERE id = @id;')>bind('',1)>scalar(i)}",
+        "{@sqlmodule('SELECT id FROM dazscript_tests WHERE id = @id;')>bind('',1)>scalar(i)}",
         "EMPTY_BIND_NAME");
 
     DazScript_Test("sql rows foreach formatter",
-        "{@set($rows,{@sqlmodule('SELECT id, name, xp FROM test_players ORDER BY id;')>rows(isi)})}" +
+        "{@set($rows,{@sqlmodule('SELECT id, name, xp FROM dazscript_tests ORDER BY id;')>rows(isi)})}" +
         "{@foreach({$rows}, $row," +
             "'{@foreach({$row},$key,$value," +
                 "'{$key>capitalize} = {@if({@type($value)>eq(alias:string)},'\"{$value}\"',{$value})}; ')>trim}\n'" +

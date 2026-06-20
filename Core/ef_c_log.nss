@@ -59,26 +59,30 @@ void WriteLog(int nType, string sMessage, int bShowFunctionName, int bIncludeBac
 
 void LogInfo(string sMessage)
 {
-    sMessage = Interpret(sMessage, FALSE, 1);
+    if (FindSubString(sMessage, "{", 0) != -1)
+        sMessage = Interpret(sMessage, FALSE, 1);
     WriteLog(LOG_TYPE_INFO, sMessage, FALSE, FALSE);
 }
 
 void LogDebug(string sMessage, int bIncludeBacktrace = FALSE)
 {
-    sMessage = Interpret(sMessage, FALSE, 1);
+    if (FindSubString(sMessage, "{", 0) != -1)
+        sMessage = Interpret(sMessage, FALSE, 1);
     WriteLog(LOG_TYPE_DEBUG, sMessage, TRUE, bIncludeBacktrace);
 }
 
 void LogWarning(string sMessage)
 {
-    sMessage = Interpret(sMessage, FALSE, 0);
+    if (FindSubString(sMessage, "{", 0) != -1)
+        sMessage = Interpret(sMessage, FALSE, 1);
     WriteLog(LOG_TYPE_WARNING, sMessage, TRUE, FALSE);
 }
 
 void LogError(string sMessage, int bIncludeBacktrace = TRUE)
 {
-    sMessage = Interpret(sMessage, FALSE, 1);
-    WriteLog(LOG_TYPE_ERROR, sMessage, TRUE, TRUE);
+    if (FindSubString(sMessage, "{", 0) != -1)
+        sMessage = Interpret(sMessage, FALSE, 1);
+    WriteLog(LOG_TYPE_ERROR, sMessage, TRUE, bIncludeBacktrace);
 }
 
 json LogGetRingBufferAsArray()

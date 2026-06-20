@@ -352,9 +352,6 @@ string Interpret(string sString, int bTraceEnabled = FALSE, int nDepthOverride =
 
 struct Value Eval(string sString, int bTraceEnabled = FALSE, int nDepthOverride = 0, json jStack = JSON_NULL)
 {
-    if (sString == "" || FindSubString(sString, "{", 0) == -1)
-        return GetValueFromString(sString);
-
     g_oDazScriptDataObject = GetDataObject(DAZSCRIPT_SCRIPT_NAME);
 
     int bPushedTrace = FALSE;
@@ -1767,7 +1764,7 @@ json MakeParameterItem(string sText, int bWasQuoted)
 
 json CompileParameterList(string sParameters)
 {
-    if (sParameters == "")
+    if (Trim(sParameters) == "")
         return JsonArray();
     json jParameterList = GetCachedJson(DAZSCRIPT_PARAMETER_LIST_CACHE_PREFIX, sParameters);
     if (JsonGetType(jParameterList) == JSON_TYPE_ARRAY || IsParserError(jParameterList))
@@ -3494,7 +3491,7 @@ struct Value ResolveJsonProperty(struct ChainContext strCtx)
             }
         }
 
-        case "isnull": case "isobject": case "isarray": case "isstring": case "isinteger":
+        case "isnull": case "isobject": case "isarray": case "isstring": case "isint":
         case "isfloat": case "isnumber": case "isbool": case "scalar":
         {
             struct Value strError = CheckZeroArgs(strCtx.strArgs);

@@ -372,6 +372,10 @@ void DazScript_TestPrimitives()
     DazScript_Test("unquoted float alias remains float",
         "{@set($x, 12.50)}{@type($x)}|{$x>fixed(1)}",
         "alias:float|12.5");
+
+    DazScript_Test("zero arg property call accepts whitespace",
+        "{@string(hello)>upper( )}",
+        "HELLO");
 }
 
 void DazScript_TestJson()
@@ -636,10 +640,6 @@ void DazScript_TestJson()
 
     DazScript_Test("json isint true",
         "{@json('123')>isint>bool}",
-        "TRUE");
-
-    DazScript_Test("json isinteger true",
-        "{@json('123')>isinteger>bool}",
         "TRUE");
 
     DazScript_Test("json isfloat true",

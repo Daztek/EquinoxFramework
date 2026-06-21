@@ -33,6 +33,8 @@ void DazScript_TestRender();
 void DazScript_TestFunctionParams();
 void DazScript_TestLazy();
 void DazScript_TestControlFlow();
+void DazScript_TestEvalAndTee();
+void DazScript_TestCatch();
 
 void DazScript_TestMath();
 void DazScript_TestOut();
@@ -376,6 +378,77 @@ void DazScript_TestPrimitives()
     DazScript_Test("zero arg property call accepts whitespace",
         "{@string(hello)>upper( )}",
         "HELLO");
+
+    string sValue = "Hi!";
+    int nValue = 10;
+
+    DazScript_Test("array primitive length",
+        "{@jsonarray({nValue}, {sValue}, 1.0, {@json('[0,1,2]')})>length}",
+        "4");
+
+    DazScript_Test("array primitive int item",
+        "{@arr({nValue}, {sValue}, 1.0, {@json('[0,1,2]')})>at(0)}",
+        "10");
+
+    DazScript_Test("array primitive string item",
+        "{@jsonarray({nValue}, {sValue}, 1.0, {@json('[0,1,2]')})>at(1)}",
+        "Hi!");
+
+    DazScript_Test("array primitive nested json item",
+        "{@jsonarray({nValue}, {sValue}, 1.0, {@json('[0,1,2]')})>at(3)>at(2)}",
+        "2");
+
+    DazScript_Test("array primitive string does not parse json",
+        "{@arr('[0,1,2]')>at(0)}",
+        "[0,1,2]");
+
+    DazScript_Test("jsonobject empty",
+        "{@jsonobject()>dump}",
+        "{}");
+
+    DazScript_Test("jsonobject has name",
+        "{@jsonobject(name, {sValue}, hp, {nValue}, ratio, 1.0f)>has(name)}",
+        "1");
+
+    DazScript_Test("jsonobject has hp",
+        "{@obj(name, {sValue}, hp, {nValue}, ratio, 1.0f)>has(hp)}",
+        "1");
+
+    DazScript_Test("jsonobject has ratio",
+        "{@jsonobject(name, {sValue}, hp, {nValue}, ratio, 1.0f)>has(ratio)}",
+        "1");
+
+    DazScript_Test("jsonobject simple value name",
+        "{@jsonobject(name, {sValue}, hp, {nValue}, ratio, 1.0f)>get(name)}",
+        "Hi!");
+
+    DazScript_Test("jsonobject simple value hp",
+        "{@obj(name, {sValue}, hp, {nValue}, ratio, 1.0f)>get(hp)}",
+        "10");
+
+    DazScript_Test("jsonobject simple value ratio",
+        "{@jsonobject(name, {sValue}, hp, {nValue}, ratio, 1.0f)>get(ratio)>fixed(1)}",
+        "1.0");
+
+    DazScript_Test("jsonobject nested json array",
+        "{@jsonobject(nums, {@json('[0,1,2]')})>get(nums)>at(2)}",
+        "2");
+
+    DazScript_Test("jsonobject stringified json remains string",
+        "{@jsonobject(nums, '[0,1,2]')>get(nums)}",
+        "[0,1,2]");
+
+    DazScript_TestContains("jsonobject odd parameter count errors",
+        "{@obj(name)}",
+        "OBJ_USAGE:@obj(key,value,...)");
+
+    DazScript_TestContains("jsonobject non-string key errors",
+        "{@jsonobject({nValue}, bad)}",
+        "TYPE_MISMATCH:ARG1_NOT_STRING");
+
+    DazScript_Test("jsonobject duplicate key last wins",
+        "{@jsonobject(name, first, name, second)>get(name)}",
+        "second");
 }
 
 void DazScript_TestJson()
@@ -1711,6 +1784,157 @@ void DazScript_TestControlFlow()
         "");
 }
 
+void DazScript_TestEvalAndTee()
+{
+    string sOut = "";
+    int nOut = 0;
+
+    DazScript_Test("eval literal string",
+        "{@eval('hello')}",
+        "hello");
+
+    DazScript_Test("eval escaped template expression",
+        "{@eval('{{@add(2, 3)}}')}",
+        "5");
+
+    DazScript_Test("eval alias supplied template",
+        "{@set($tpl, '{{@mul(3, 4)}}')}{@eval({$tpl})}",
+        "12");
+
+    DazScript_Test("eval sees current alias stack",
+        "{@set($x, 4)}{@eval('{{$x>incr}}')}",
+        "5");
+
+    DazScript_Test("eval can mutate caller alias stack",
+        "{@set($x, old)}{@eval('{{@set($x, new)}}')}{$x}",
+        "new");
+
+    sOut = "";
+    DazScript_Test("eval evaluates parameter before compile",
+        "{@eval('{@out(sOut, arg)}body')}",
+        "body");
+    DazScript_TestStateString("eval parameter side effect happened",
+        sOut,
+        "arg");
+
+    DazScript_TestContains("eval rejects non string argument",
+        "{@eval(123)}",
+        "TYPE_MISMATCH:ARG1_NOT_STRING");
+
+    DazScript_TestContains("eval reports parser errors",
+        "{@eval('{missing')}",
+        "PARSE_ERROR");
+
+    DazScript_Test("tee returns original value",
+        "{@int(5)>tee({@string(ignored)})>incr}",
+        "6");
+
+    sOut = "";
+    DazScript_Test("tee body sees this alias",
+        "{@int(5)>tee({@out(sOut, {$this>incr})})}",
+        "5");
+    DazScript_TestStateString("tee body can emit derived this",
+        sOut,
+        "6");
+
+    DazScript_Test("tee does not leak alias writes",
+        "{@string(x)>tee({@set($tmp, {$this>append(y)})})}{@exists($tmp)>bool}",
+        "xFALSE");
+
+    nOut = 0;
+    DazScript_Test("tee passes json through",
+        "{@json('[1,2,3]')>tee({@out(nOut, {$this>length})})>length}",
+        "3");
+    DazScript_TestStateInt("tee body can read json this",
+        nOut,
+        3);
+
+    DazScript_TestContains("tee propagates body error",
+        "{@int(5)>tee({@div(1, 0)})>incr}",
+        "DIVISION_BY_ZERO");
+
+    DazScript_TestContains("tee requires one argument",
+        "{@int(5)>tee}",
+        "ARITY:EXPECTED_1_ARGUMENTS");
+}
+
+void DazScript_TestCatch()
+{
+    string sOut = "";
+
+    DazScript_Test("catch success returns primary value",
+        "{@catch(ok, $err, {$err>contains('NOPE')}, fallback)}",
+        "ok");
+
+    sOut = "";
+    DazScript_Test("catch success skips predicate and fallback",
+        "{@catch(ok, $err, {@out(sOut,bad)}, {@out(sOut,worse)}fallback)}|{sOut}",
+        "ok|");
+    DazScript_TestStateString("catch success caused no side effects",
+        sOut,
+        "");
+
+    DazScript_Test("catch all returns fallback on error",
+        "{@catch({missingVar}, $err, unknown)}",
+        "unknown");
+
+    DazScript_Test("catch all fallback can read err string",
+        "{@catch({@div(1, 0)}, $err, caught={$err})}",
+        "caught=DIVISION_BY_ZERO");
+
+    DazScript_Test("catch predicate true returns fallback",
+        "{@catch({@json('{{\"name\":\"Daz\"}}')>get(id)}, $err, {$err>contains('JSON_MISSING_KEY:id')}, unknown)}",
+        "unknown");
+
+    DazScript_Test("catch predicate true fallback can read err string",
+        "{@catch({@json('{{\"name\":\"Daz\"}}')>get(id)}, $err, {$err>contains('JSON_MISSING_KEY')}, missing={$err})}",
+        "missing=INVALID_PROPERTY_CHAIN:json>get(id) -> FAILED@get -> JSON_MISSING_KEY:id");
+
+    DazScript_TestContains("catch predicate false returns original error",
+        "{@catch({@div(1, 0)}, $err, {$err>contains('JSON_MISSING_KEY')}, unknown)}",
+        "DIVISION_BY_ZERO");
+
+    sOut = "";
+    DazScript_TestContains("catch predicate false skips fallback",
+        "{@catch({@div(1, 0)}, $err, {$err>contains('JSON_MISSING_KEY')}, {@out(sOut,bad)}unknown)}",
+        "DIVISION_BY_ZERO");
+    DazScript_TestStateString("catch predicate false caused no fallback side effect",
+        sOut,
+        "");
+
+    DazScript_TestContains("catch falsey predicate returns original error",
+        "{@catch({missingVar}, $err, 0, unknown)}",
+        "MISSING_OR_INVALID_STACK_VAR:missingVar");
+
+    DazScript_TestContains("catch predicate error propagates",
+        "{@catch({missingVar}, $err, {@json('[]')>get(id)}, unknown)}",
+        "JSON_NOT_OBJECT");
+
+    DazScript_TestContains("catch fallback error propagates",
+        "{@catch({missingVar}, $err, {$err>contains('MISSING_OR_INVALID_STACK_VAR')}, {@div(1, 0)})}",
+        "DIVISION_BY_ZERO");
+
+    DazScript_Test("catch err alias does not leak",
+        "{@catch({missingVar}, $err, TRUE, caught)}{@exists($err)>bool}",
+        "caughtFALSE");
+
+    DazScript_Test("catch err alias shadows only inside handler",
+        "{@set($err, outer)}{@catch({missingVar}, $err, TRUE, caught={$err})}:{$err}",
+        "caught=MISSING_OR_INVALID_STACK_VAR:missingVar:outer");
+
+    DazScript_TestContains("catch requires error alias",
+        "{@catch({missingVar}, err, TRUE, fallback)}",
+        "CATCH_ALIAS_IS_NON_ALIAS:err");
+
+    DazScript_TestContains("catch rejects too few arguments",
+        "{@catch({missingVar}, $err)}",
+        "ARITY");
+
+    DazScript_TestContains("catch rejects too many arguments",
+        "{@catch({missingVar}, $err, TRUE, fallback, extra)}",
+        "ARITY");
+}
+
 void DazScript_TestMath()
 {
     DazScript_Test("math sub int",
@@ -2114,6 +2338,8 @@ void main()
     DazScript_TestFunctionParams();
     DazScript_TestLazy();
     DazScript_TestControlFlow();
+    DazScript_TestEvalAndTee();
+    DazScript_TestCatch();
     DazScript_TestMath();
     DazScript_TestOut();
     DazScript_TestSymbolTypes();

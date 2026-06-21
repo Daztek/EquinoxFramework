@@ -2442,15 +2442,16 @@ struct Value ResolveMetaValue(struct ArgContext strMeta)
     switch (strMeta.nNameHash)
     {
         case "int": case "float": case "string": case "object": case "json":
+        case "jsonarray": case "arr": case "jsonobject": case "obj":
             strReturnValue = HandleMetaPrimitive(strMeta);
             break;
 
-        case "fn":
+        case "fn": case "eval":
             strReturnValue = HandleMetaFunction(strMeta);
             break;
 
-        case "if": case "while": case "pick": case "not": case "and": case "all":
-        case "or": case "any": case "switch": case "foreachpc": case "try": case "do":
+        case "if": case "while": case "pick": case "not": case "and": case "all": case "or":
+        case "any": case "switch": case "foreachpc": case "try": case "catch": case "do":
             strReturnValue = HandleMetaControlFlow(strMeta);
             break;
 
@@ -3818,6 +3819,22 @@ struct Value ResolveSharedProperty(struct ChainContext strCtx)
             else
                 return strCtx.strValue;
         }
+
+        case "tee":
+        {
+            struct Value strError = CheckArity(strCtx.strArgs, 1, 1);
+            if (IsErrorValue(strError))
+                return strError;
+            if (!IsAliasValueAuxType(strCtx.strValue.nAuxType))
+                return GetErrorValue("TYPE_MISMATCH:" + AuxTypeToString(strCtx.strValue.nAuxType));
+            json jFrame = JsonCopyObject(strCtx.strArgs.jStack);
+            JsonObjectSetInplace(jFrame, DAZSCRIPT_THIS_ALIAS, MakeStackAliasEntryFromValue(strCtx.strValue));
+            strError = EvalParameterUsingStack(strCtx.strArgs, 0, jFrame);
+            if (IsErrorValue(strError))
+                return strError;
+
+            return strCtx.strValue;
+        }
     }
 
     return GetInvalidValue();
@@ -3833,6 +3850,50 @@ struct Value HandleMetaPrimitive(struct ArgContext strArgCtx)
             if (IsErrorValue(strArg))
                 return strArg;
             return CastValueToAuxType(strArg, GetCastAuxTypeFromName(strArgCtx.sName));
+        }
+
+        case "jsonarray": case "arr":
+        {
+            json jArray = JsonArray();
+
+            int nIndex;
+            for (nIndex = 0; nIndex < strArgCtx.nParameterCount; nIndex++)
+            {
+                struct Value strValue = EvalParameter(strArgCtx, nIndex);
+                if (IsErrorValue(strValue))
+                    return strValue;
+                strValue = ValueToJsonValue(strValue);
+                if (IsErrorValue(strValue))
+                    return strValue;
+                JsonArrayInsertInplace(jArray, strValue.jValue);
+            }
+            return GetValueFromJson(jArray);
+        }
+
+        case "jsonobject": case "obj":
+        {
+            if (strArgCtx.nParameterCount % 2 != 0)
+                return GetErrorValue(GetStringUpperCase(strArgCtx.sName) + "_USAGE:@" +  strArgCtx.sName + "(key,value,...)");
+
+            json jObject = JsonObject();
+
+            int nIndex;
+            for (nIndex = 0; nIndex < strArgCtx.nParameterCount; nIndex += 2)
+            {
+                struct Value strKey = EvalTypedParameter(strArgCtx, nIndex, DAZSCRIPT_ARG_STRING);
+                if (IsErrorValue(strKey))
+                    return strKey;
+                struct Value strValue = EvalParameter(strArgCtx, nIndex + 1);
+                if (IsErrorValue(strValue))
+                    return strValue;
+                strValue = ValueToJsonValue(strValue);
+                if (IsErrorValue(strValue))
+                    return strValue;
+
+                JsonObjectSetInplace(jObject, GetValueText(strKey), strValue.jValue);
+            }
+
+            return GetValueFromJson(jObject);
         }
     }
 
@@ -3880,6 +3941,14 @@ struct Value HandleMetaFunction(struct ArgContext strArgCtx)
             JsonObjectSetInplace(strArgCtx.jStack, sFunctionName, jFunction);
 
             return GetValueFromString();
+        }
+
+        case "eval":
+        {
+            struct Value strArg = EvalSingleArg(strArgCtx, DAZSCRIPT_ARG_STRING);
+            if (IsErrorValue(strArg))
+                return strArg;
+            return EvalTemplate(CompileTemplateCached(GetValueText(strArg)), strArgCtx.jStack);
         }
     }
 
@@ -4108,6 +4177,35 @@ struct Value HandleMetaControlFlow(struct ArgContext strArgCtx)
             }
 
             return strLastError;
+        }
+
+        case "catch":
+        {
+            struct Value strError = CheckArity(strArgCtx, 3, 4);
+            if (IsErrorValue(strError))
+                return strError;
+
+            string sErrorAlias = GetRawParameterText(strArgCtx, 1);
+            if (!IsSymbol(sErrorAlias, DAZSCRIPT_ALIAS_SYMBOL))
+                return GetErrorValue("CATCH_ALIAS_IS_NON_ALIAS:" + sErrorAlias);
+
+            struct Value strCandidate = EvalParameter(strArgCtx, 0);
+            if (!IsErrorValue(strCandidate))
+                return strCandidate;
+
+            json jFrame = JsonCopyObject(strArgCtx.jStack);
+            JsonObjectSetInplace(jFrame, sErrorAlias, MakeStackAliasEntryFromValue(GetValueFromString(strCandidate.sErrorMessage)));
+
+            if (strArgCtx.nParameterCount == 3)
+                return EvalParameterUsingStack(strArgCtx, 2, jFrame);
+
+            struct Value strPredicate = EvalParameterUsingStack(strArgCtx, 2, jFrame);
+            if (IsErrorValue(strPredicate))
+                return strPredicate;
+            if (!IsValueTruthy(strPredicate))
+                return strCandidate;
+
+            return EvalParameterUsingStack(strArgCtx, 3, jFrame);
         }
 
         case "do":

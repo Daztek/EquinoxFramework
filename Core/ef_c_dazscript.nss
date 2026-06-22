@@ -22,7 +22,9 @@ const string DAZSCRIPT_TRACE_DEPTH_KEY                      = "DazScriptTraceDep
 const string DAZSCRIPT_TRACE_INDENT_KEY                     = "DazScriptTraceIndent";
 
 const string DAZSCRIPT_TEMPLATE_CACHE_PREFIX                = "DazScriptTemplateCache_";
+const string DAZSCRIPT_EXPRESSION_CACHE_PREFIX              = "DazScriptExpressionCache_";
 const string DAZSCRIPT_PROPERTY_CHAIN_CACHE_PREFIX          = "DazScriptPropertyChainCache_";
+const string DAZSCRIPT_PROPERTY_SEGMENT_CACHE_PREFIX        = "DazScriptPropertySegmentCache_";
 const string DAZSCRIPT_PARAMETER_LIST_CACHE_PREFIX          = "DazScriptParameterListCache_";
 
 const string DAZSCRIPT_ALIAS_TYPE                           = "type";
@@ -254,8 +256,10 @@ json CompileForcedStringTemplate(string sValue);
 void JsonArrayInsertLiteralNodeInplace(json jTemplate, string sLiteral);
 void JsonArrayInsertForceStringNodeInplace(json jTemplate, json jInnerTemplate);
 json CompileExpression(string sExpr);
+json CompileExpressionCached(string sString);
 json CompilePropertyChain(string sPropertyPath);
 json CompilePropertySegment(string sPropertySegment);
+json CompilePropertySegmentCached(string sPropertySegment);
 int ParameterTextNeedsTemplateCompile(string sText);
 json MakeLiteralParameterTemplate(string sText, int bWasQuoted);
 json MakeParameterItem(string sText, int bWasQuoted);
@@ -1379,7 +1383,7 @@ json CompileTemplate(string sString)
         if (nStart > nLiteralStart)
             JsonArrayInsertLiteralNodeInplace(jTemplate, GetSubString(sString, nLiteralStart, nStart - nLiteralStart));
 
-        json jExpr = CompileExpression(GetSubString(sString, nStart + 1, nEnd - nStart - 1));
+        json jExpr = CompileExpressionCached(GetSubString(sString, nStart + 1, nEnd - nStart - 1));
         if (IsParserError(jExpr))
             return jExpr;
 
@@ -1479,7 +1483,7 @@ json CompileExpression(string sExpr)
         if (sMetaBase == "" || GetStringLeft(sMetaBase, 1) == "(")
             return MakeParserError("EMPTY_META_NAME", 1, sExpr);
 
-        json jBase = CompilePropertySegment(sMetaBase);
+        json jBase = CompilePropertySegmentCached(sMetaBase);
         if (IsParserError(jBase))
             return jBase;
 
@@ -1507,7 +1511,7 @@ json CompileExpression(string sExpr)
         if (sFunctionBase == "" || GetStringLeft(sFunctionBase, 1) == "(")
             return MakeParserError("EMPTY_FUNCTION_NAME", 1, sExpr);
 
-        json jBase = CompilePropertySegment(sBase);
+        json jBase = CompilePropertySegmentCached(sBase);
         if (IsParserError(jBase))
             return jBase;
 
@@ -1555,6 +1559,17 @@ json CompileExpression(string sExpr)
     return jExpr;
 }
 
+json CompileExpressionCached(string sString)
+{
+    json jTemplate = GetCachedJson(DAZSCRIPT_EXPRESSION_CACHE_PREFIX, sString);
+    if (JsonGetType(jTemplate) == JSON_TYPE_ARRAY || IsParserError(jTemplate))
+        return jTemplate;
+
+    jTemplate = CompileExpression(sString);
+    SetCachedJson(DAZSCRIPT_EXPRESSION_CACHE_PREFIX, sString, jTemplate);
+    return jTemplate;
+}
+
 json CompilePropertyChain(string sPropertyPath)
 {
     string sOriginalPath = sPropertyPath;
@@ -1573,7 +1588,7 @@ json CompilePropertyChain(string sPropertyPath)
 
     for (nSegment = 0; nSegment < nNumSegments; nSegment++)
     {
-        json jSegment = CompilePropertySegment(JsonArrayGetString(jRawSegments, nSegment));
+        json jSegment = CompilePropertySegmentCached(JsonArrayGetString(jRawSegments, nSegment));
         if (IsParserError(jSegment))
         {
             SetCachedJson(DAZSCRIPT_PROPERTY_CHAIN_CACHE_PREFIX, sPropertyPath, jSegment);
@@ -1665,6 +1680,18 @@ json CompilePropertySegment(string sPropertySegment)
     JsonArrayInsertIntInplace(jSegment, nParameterCount);
 
     return jSegment;
+}
+
+json CompilePropertySegmentCached(string sPropertySegment)
+{
+    sPropertySegment = Trim(sPropertySegment);
+    json jTemplate = GetCachedJson(DAZSCRIPT_PROPERTY_SEGMENT_CACHE_PREFIX, sPropertySegment);
+    if (JsonGetType(jTemplate) == JSON_TYPE_ARRAY || IsParserError(jTemplate))
+        return jTemplate;
+
+    jTemplate = CompilePropertySegment(sPropertySegment);
+    SetCachedJson(DAZSCRIPT_PROPERTY_SEGMENT_CACHE_PREFIX, sPropertySegment, jTemplate);
+    return jTemplate;
 }
 
 int ParameterTextNeedsTemplateCompile(string sText)
@@ -2969,9 +2996,6 @@ struct Value ResolveObjectProperty(struct ChainContext strCtx)
 {
     object oValue = strCtx.strValue.oValue;
 
-    if (!GetIsObjectValid(oValue) && strCtx.strArgs.nNameHash != h"valid")
-        return GetErrorValue("INVALID_OBJECT:SELF");
-
     switch (strCtx.strArgs.nNameHash)
     {
         case "name":
@@ -3068,19 +3092,6 @@ struct Value ResolveObjectProperty(struct ChainContext strCtx)
             if (IsErrorValue(strError))
                 return strError;
             return GetValueFromInt(GetMaxHitPoints(oValue));
-        }
-
-        case "distance":
-        {
-            struct Value strArg = EvalSingleArg(strCtx.strArgs, DAZSCRIPT_ARG_OBJECT);
-            if (IsErrorValue(strArg))
-                return strArg;
-
-            object oOther = GetValueAsObject(strArg);
-            if (!GetIsObjectValid(oOther))
-                return GetErrorValue("INVALID_OBJECT:ARG1");
-            else
-                return GetValueFromFloat(GetDistanceBetween(oValue, oOther));
         }
 
         case "x": case "y": case "z":

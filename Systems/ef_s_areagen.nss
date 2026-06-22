@@ -5,7 +5,7 @@
     Currently optimized for TILESET_RESREF_MEDIEVAL_RURAL_2
 */
 
-#include "ef_i_include"
+#include "ef_i_array"
 #include "ef_c_log"
 #include "ef_c_profiler"
 #include "ef_s_tileset"

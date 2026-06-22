@@ -3,7 +3,8 @@
     Author: Daz
 */
 
-#include "ef_i_include"
+#include "ef_i_json"
+#include "ef_i_nui"
 #include "ef_c_log"
 
 const string NB_SCRIPT_NAME             = "ef_s_nuibuilder";

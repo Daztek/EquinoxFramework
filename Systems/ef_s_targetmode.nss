@@ -5,7 +5,6 @@
     @TARGETMODE[TARGET_MODE_ID]
 */
 
-#include "ef_i_include"
 #include "ef_c_annotations"
 #include "ef_c_log"
 #include "ef_s_session"

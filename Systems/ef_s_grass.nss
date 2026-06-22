@@ -3,7 +3,6 @@
     Author: Daz
 */
 
-#include "ef_i_include"
 #include "ef_c_log"
 #include "ef_s_endlesspath"
 
@@ -32,8 +31,7 @@ void Grass_SetGrass(object oArea, string sTexture)
     float fHeight = 0.5f + ((SqlMersenneTwisterGetValue(GRASS_SCRIPT_NAME, 9) + 1) / 10.0f);
     vector vColor = Vector(1.0f, 1.0f, 1.0f);
 
-    string sTag = GetTag(oArea);
-    LogInfo("Setting Grass for Area: {sTag} - > Texture: {sTexture}, Density: {fDensity>fixed(2)}, Height: {fHeight>fixed(2)}");
+    LogInfo("Setting Grass for Area: {oArea>tag} - > Texture: {sTexture}, Density: {fDensity>fixed(2)}, Height: {fHeight>fixed(2)}");
     SetAreaGrassOverride(oArea, 3, sTexture, fDensity, fHeight, vColor, vColor);
 }
 

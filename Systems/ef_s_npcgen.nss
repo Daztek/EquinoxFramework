@@ -3,10 +3,8 @@
     Author: Daz
 */
 
-#include "ef_i_include"
-#include "ef_c_log"
 #include "ef_s_eventman"
-#include  "nwnx_nwsqliteext"
+#include "nwnx_nwsqliteext"
 
 const string NPCGEN_SCRIPT_NAME             = "ef_s_ambientnpc";
 const string NPCGEN_NPC_TEMPLATE            = "NPCGenTemplate";

@@ -3,7 +3,6 @@
     Author: Daz
 */
 
-#include "ef_i_include"
 #include "ef_c_dazscript"
 #include "ef_c_profiler"
 #include "ef_s_nuibuilder"

@@ -5,7 +5,7 @@
     @SQLFUNCTION[NAME:DETERMINISTIC:DIRECTONLY]
 */
 
-#include "ef_i_include"
+#include "ef_i_sqlite"
 #include "ef_c_annotations"
 #include "ef_c_log"
 

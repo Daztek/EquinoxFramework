@@ -5,8 +5,6 @@
     @SKIPSYSTEM
 */
 
-#include "ef_i_include"
-#include "ef_c_log"
 #include "nwnx_objectlayer"
 
 // @CORE[CORE_SYSTEM_INIT]

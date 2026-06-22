@@ -6,7 +6,7 @@
         Does not work with domain spells or spontaneous spells.
 */
 
-#include "ef_i_include"
+#include "ef_i_array"
 #include "ef_c_log"
 #include "ef_c_profiler"
 #include "ef_s_nuibuilder"

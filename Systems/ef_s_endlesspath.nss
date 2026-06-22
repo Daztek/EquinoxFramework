@@ -3,11 +3,10 @@
     Author: Daz
 */
 
-#include "ef_i_include"
+#include "ef_i_sqlite"
 #include "ef_c_log"
 #include "ef_c_mediator"
 #include "ef_c_messagebus"
-#include "ef_c_profiler"
 #include "ef_s_areagen"
 #include "ef_s_eventman"
 #include "ef_s_areamusic"

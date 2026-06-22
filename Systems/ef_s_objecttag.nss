@@ -3,8 +3,7 @@
     Author: Daz
 */
 
-#include "ef_i_include"
-#include "ef_c_log"
+#include "ef_i_sqlite"
 #include "ef_c_profiler"
 
 const string OBJECTTAG_SCRIPT_NAME  = "ef_s_objecttag";

@@ -3,94 +3,44 @@
     Author: Daz
 */
 
-#include "ef_i_dataobject"
 #include "ef_i_vm"
-#include "ef_i_ringbuffer"
-#include "ef_i_sqlite"
 #include "ef_c_dazscript"
-#include "ef_c_messagebus"
+#include "ef_c_profiler"
 
 const string LOG_SCRIPT_NAME        = "ef_c_log";
-const int LOG_RINGBUFFER_SIZE       = 10;
-const string LOG_BROADCAST_EVENT    = "LOG_BROADCAST_EVENT";
 
 const int LOG_TYPE_INFO             = 1;
 const int LOG_TYPE_WARNING          = 2;
 const int LOG_TYPE_ERROR            = 3;
 const int LOG_TYPE_DEBUG            = 4;
 
-void LogInfo(string sMessage);
-void LogDebug(string sMessage, int bIncludeBacktrace = FALSE);
-void LogWarning(string sMessage);
-void LogError(string sMessage, int bIncludeBacktrace = TRUE);
-json LogGetRingBufferAsArray();
-string LogTypeToString(int nType);
+const string _FILE_;
+const string _FUNCTION_;
+const int _LINE_;
 
-void Log_Init()
-{
-    RingBuffer_Init(GetDataObject(LOG_SCRIPT_NAME), LOG_SCRIPT_NAME, LOG_RINGBUFFER_SIZE);
-}
+void LogInfo(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
+void LogDebug(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
+void LogWarning(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
+void LogError(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
 
-void LogAddToRingBuffer(int nType, string sMessage, struct VMFrame str)
-{
-    json jLogMessage = JsonObject();
-    JsonObjectSetStringInplace(jLogMessage, "file", str.sFile);
-    JsonObjectSetStringInplace(jLogMessage, "function", str.sFunction);
-    JsonObjectSetIntInplace(jLogMessage, "line", str.nLine);
-    JsonObjectSetIntInplace(jLogMessage, "type", nType);
-    JsonObjectSetStringInplace(jLogMessage, "time", SqlGetLocalTimeAsString());
-    JsonObjectSetStringInplace(jLogMessage, "message", sMessage);
-
-    RingBuffer_PushJson(GetDataObject(LOG_SCRIPT_NAME), LOG_SCRIPT_NAME, jLogMessage);
-
-    if (MessageBus_GetNumberOfSubscribers(LOG_BROADCAST_EVENT))
-        MessageBus_Broadcast(LOG_BROADCAST_EVENT, GetModule());
-}
-
-void WriteLog(int nType, string sMessage, int bShowFunctionName, int bIncludeBacktrace)
-{
-    struct VMFrame str = GetVMFrame(2);
-    LogAddToRingBuffer(nType, sMessage, str);
-    string sType = LogTypeToString(nType);
-    if (bIncludeBacktrace)
-        sMessage += "\nBACKTRACE:\n" + GetVMBacktrace(2);
-    PrintString("(" + str.sFile + (bShowFunctionName ? ":" + str.sFunction : "") + ":" + IntToString(str.nLine) + ") " + (sType != "" ? sType + ": " : "") + sMessage);
-}
-
-void LogInfo(string sMessage)
+string FormatString(string sMessage, string sFile, string sFunction, int nLine)
 {
     if (FindSubString(sMessage, "{", 0) != -1)
-        sMessage = Interpret(sMessage, FALSE, 1);
-    WriteLog(LOG_TYPE_INFO, sMessage, FALSE, FALSE);
+    {
+        object oDataObject = GetDataObject(LOG_SCRIPT_NAME);
+        string sKey = sFile + ":" + sFunction + ":" + IntToString(nLine) + ":" + IntToString(NWNX_VM_GetCallsiteHash(2));
+        json jStack = GetLocalJson(oDataObject, sKey);
+        if (!JsonGetType(jStack))
+        {
+            jStack = NWNX_VM_GetStackVariables(2);
+            SetLocalJson(oDataObject, sKey, jStack);
+        }
+        return Interpret(sMessage, FALSE, 2, jStack);
+    }
+    return sMessage;
 }
 
-void LogDebug(string sMessage, int bIncludeBacktrace = FALSE)
-{
-    if (FindSubString(sMessage, "{", 0) != -1)
-        sMessage = Interpret(sMessage, FALSE, 1);
-    WriteLog(LOG_TYPE_DEBUG, sMessage, TRUE, bIncludeBacktrace);
-}
-
-void LogWarning(string sMessage)
-{
-    if (FindSubString(sMessage, "{", 0) != -1)
-        sMessage = Interpret(sMessage, FALSE, 1);
-    WriteLog(LOG_TYPE_WARNING, sMessage, TRUE, FALSE);
-}
-
-void LogError(string sMessage, int bIncludeBacktrace = TRUE)
-{
-    if (FindSubString(sMessage, "{", 0) != -1)
-        sMessage = Interpret(sMessage, FALSE, 1);
-    WriteLog(LOG_TYPE_ERROR, sMessage, TRUE, bIncludeBacktrace);
-}
-
-json LogGetRingBufferAsArray()
-{
-    return RingBuffer_ToArray(GetDataObject(LOG_SCRIPT_NAME), LOG_SCRIPT_NAME);
-}
-
-string LogTypeToString(int nType)
+void WriteLog(int nType, string sMessage, int bShowFunctionName, string sFile, string sFunction, int nLine)
 {
     string sType;
     switch (nType)
@@ -101,5 +51,30 @@ string LogTypeToString(int nType)
         case LOG_TYPE_DEBUG: sType = "DEBUG"; break;
         default: sType = "?"; break;
     }
-    return sType;
+
+    PrintString("(" + sFile + (bShowFunctionName ? ":" + sFunction : "") + ":" + IntToString(nLine) + ") " + (sType != "" ? sType + ": " : "") + sMessage);
+}
+
+void LogInfo(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_)
+{
+    sMessage = FormatString(sMessage, sFile, sFunction, nLine);
+    WriteLog(LOG_TYPE_INFO, sMessage, FALSE, sFile, sFunction, nLine);
+}
+
+void LogDebug(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_)
+{
+    sMessage = FormatString(sMessage, sFile, sFunction, nLine);
+    WriteLog(LOG_TYPE_DEBUG, sMessage, TRUE, sFile, sFunction, nLine);
+}
+
+void LogWarning(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_)
+{
+    sMessage = FormatString(sMessage, sFile, sFunction, nLine);
+    WriteLog(LOG_TYPE_WARNING, sMessage, TRUE, sFile, sFunction, nLine);
+}
+
+void LogError(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_)
+{
+    sMessage = FormatString(sMessage, sFile, sFunction, nLine);
+    WriteLog(LOG_TYPE_ERROR, sMessage, TRUE, sFile, sFunction, nLine);
 }

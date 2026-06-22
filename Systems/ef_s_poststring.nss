@@ -3,7 +3,8 @@
     Author: Daz
 */
 
-#include "ef_i_include"
+#include "ef_i_dataobject"
+#include "ef_i_vm"
 #include "ef_c_log"
 
 const string POSTSTRING_SCRIPT_NAME     = "ef_s_poststring";

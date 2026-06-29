@@ -9,14 +9,10 @@
 
 const string LOG_SCRIPT_NAME        = "ef_c_log";
 
-const int LOG_TYPE_INFO             = 1;
-const int LOG_TYPE_WARNING          = 2;
-const int LOG_TYPE_ERROR            = 3;
-const int LOG_TYPE_DEBUG            = 4;
-
 const string _FILE_;
 const string _FUNCTION_;
 const int _LINE_;
+const int _FUNCTIONHASH_;
 
 void LogInfo(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
 void LogDebug(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
@@ -28,7 +24,8 @@ string FormatString(string sMessage, string sFile, string sFunction, int nLine)
     if (FindSubString(sMessage, "{", 0) != -1)
     {
         object oDataObject = GetDataObject(LOG_SCRIPT_NAME);
-        string sKey = sFile + ":" + sFunction + ":" + IntToString(nLine) + ":" + IntToString(NWNX_VM_GetCallsiteHash(2));
+        int nHash = NWNX_VM_GetScriptCallStackHash(2);
+        string sKey = sFile + ":" + sFunction + ":" + IntToString(nLine) + ":" + IntToString(nHash);
         json jStack = GetLocalJson(oDataObject, sKey);
         if (!JsonGetType(jStack))
         {
@@ -40,16 +37,16 @@ string FormatString(string sMessage, string sFile, string sFunction, int nLine)
     return sMessage;
 }
 
-void WriteLog(int nType, string sMessage, int bShowFunctionName, string sFile, string sFunction, int nLine)
+void WriteLog(string sMessage, int bShowFunctionName, string sFile, string sFunction, int nLine, int nType = _FUNCTIONHASH_)
 {
     string sType;
     switch (nType)
     {
-        case LOG_TYPE_INFO: sType = ""; break;
-        case LOG_TYPE_WARNING: sType = "WARNING"; break;
-        case LOG_TYPE_ERROR: sType = "ERROR"; break;
-        case LOG_TYPE_DEBUG: sType = "DEBUG"; break;
-        default: sType = "?"; break;
+        case "LogInfo": sType = ""; break;
+        case "LogWarning": sType = "WARNING"; break;
+        case "LogError": sType = "ERROR"; break;
+        case "LogDebug": sType = "DEBUG"; break;
+        default: sType = "UNKNOWN"; break;
     }
 
     PrintString("(" + sFile + (bShowFunctionName ? ":" + sFunction : "") + ":" + IntToString(nLine) + ") " + (sType != "" ? sType + ": " : "") + sMessage);
@@ -58,23 +55,23 @@ void WriteLog(int nType, string sMessage, int bShowFunctionName, string sFile, s
 void LogInfo(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_)
 {
     sMessage = FormatString(sMessage, sFile, sFunction, nLine);
-    WriteLog(LOG_TYPE_INFO, sMessage, FALSE, sFile, sFunction, nLine);
+    WriteLog(sMessage, FALSE, sFile, sFunction, nLine);
 }
 
 void LogDebug(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_)
 {
     sMessage = FormatString(sMessage, sFile, sFunction, nLine);
-    WriteLog(LOG_TYPE_DEBUG, sMessage, TRUE, sFile, sFunction, nLine);
+    WriteLog(sMessage, TRUE, sFile, sFunction, nLine);
 }
 
 void LogWarning(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_)
 {
     sMessage = FormatString(sMessage, sFile, sFunction, nLine);
-    WriteLog(LOG_TYPE_WARNING, sMessage, TRUE, sFile, sFunction, nLine);
+    WriteLog(sMessage, TRUE, sFile, sFunction, nLine);
 }
 
 void LogError(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_)
 {
     sMessage = FormatString(sMessage, sFile, sFunction, nLine);
-    WriteLog(LOG_TYPE_ERROR, sMessage, TRUE, sFile, sFunction, nLine);
+    WriteLog(sMessage, TRUE, sFile, sFunction, nLine);
 }

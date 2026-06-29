@@ -15,6 +15,7 @@ const string PROFILER_IDENTIFIER_STRING                 = "IdentifierString";
 const string PROFILER_START_INSTRUCTIONS                = "StartInstructions";
 const string PROFILER_START_MICROSECONDS                = "StartMicroseconds";
 
+const int PROFILER_MICROSECONDS_IN_MILLISECOND          = 1000;
 const int PROFILER_MICROSECONDS_IN_SECOND               = 1000000;
 const int PROFILER_INSTRUCTION_OVERHEAD                 = 20;
 const int PROFILER_MICROSECOND_OVERHEAD                 = 1;
@@ -40,12 +41,16 @@ void Profiler_Insert(int nHash, int nMicroseconds, int nInstructions)
 
 string Profiler_FormatTime(int nMicroseconds)
 {
+    if(nMicroseconds < PROFILER_MICROSECONDS_IN_MILLISECOND)
+        return IntToString(nMicroseconds) + "us";
+    if(nMicroseconds < PROFILER_MICROSECONDS_IN_SECOND)
+        return IntToString(nMicroseconds / PROFILER_MICROSECONDS_IN_MILLISECOND) + "." + LeftPadString(IntToString(nMicroseconds % PROFILER_MICROSECONDS_IN_MILLISECOND), 3, "0") + "ms";
     return IntToString(nMicroseconds / PROFILER_MICROSECONDS_IN_SECOND) + "." + LeftPadString(IntToString(nMicroseconds % PROFILER_MICROSECONDS_IN_SECOND), 6, "0") + "s";
 }
 
 string Profiler_GetTimeStats(int nHash)
 {
-    sqlquery sql = SqlPrepareQueryModule("SELECT Min(microseconds), Max(microseconds), AVG(microseconds) FROM " + PROFILER_SCRIPT_NAME + " WHERE hash = @hash;");
+    sqlquery sql = SqlPrepareQueryModule("SELECT MIN(microseconds), MAX(microseconds), AVG(microseconds) FROM " + PROFILER_SCRIPT_NAME + " WHERE hash = @hash;");
     SqlBindInt(sql, "@hash", nHash);
 
     if(SqlStep(sql))

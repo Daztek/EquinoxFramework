@@ -1412,7 +1412,7 @@ json CompileTemplateCached(string sString)
 
 json CompileForcedStringTemplate(string sValue)
 {
-    json jInner = CompileTemplate(sValue);
+    json jInner = CompileTemplateCached(sValue);
     if (IsParserError(jInner))
         return jInner;
     json jTemplate = JsonArray();
@@ -1783,7 +1783,7 @@ json MakeParameterItem(string sText, int bWasQuoted)
     if (bWasQuoted)
         jTemplate = CompileForcedStringTemplate(sText);
     else
-        jTemplate = CompileTemplate(sText);
+        jTemplate = CompileTemplateCached(sText);
 
     JsonArrayInsertInplace(jParameter, jTemplate);
     return jParameter;

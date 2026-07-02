@@ -4,7 +4,6 @@
 */
 
 #include "ef_i_math"
-#include "ef_i_vm"
 #include "nwnx_util"
 
 const int STRING_BAR_DEFAULT_WIDTH = 20;

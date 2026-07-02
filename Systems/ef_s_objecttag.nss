@@ -3,6 +3,7 @@
     Author: Daz
 */
 
+#include "ef_i_json"
 #include "ef_i_sqlite"
 #include "ef_c_profiler"
 

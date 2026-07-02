@@ -3,7 +3,9 @@
     Author: Daz
 */
 
+#include "ef_i_nss"
 #include "ef_i_sqlite"
+#include "ef_i_vm"
 #include "ef_c_registry"
 #include "ef_c_profiler"
 

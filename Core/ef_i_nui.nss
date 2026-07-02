@@ -4,7 +4,7 @@
 */
 
 #include "ef_i_json"
-#include "nw_inc_nui"
+#include "base_inc_nui"
 
 const string NUI_WINDOW_ROOT_GROUP          = "_window_";
 

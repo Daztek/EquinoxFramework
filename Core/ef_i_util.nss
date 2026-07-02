@@ -5,9 +5,6 @@
     Description: Utility Include for the Equinox Framework
 */
 
-#include "ef_i_gff"
-#include "ef_i_string"
-
 const int EF_UNSET_INTEGER_VALUE            = 0x7FFFFFFF;
 
 const int OBJECT_TYPE_INTERNAL_MODULE       = 3;
@@ -24,12 +21,16 @@ const int OBJECT_TYPE_INTERNAL_STORE        = 14;
 const int OBJECT_TYPE_INTERNAL_PORTAL       = 15;
 const int OBJECT_TYPE_INTERNAL_SOUND        = 16;
 
+const string _FILE_;
+const string _FUNCTION_;
+const int _LINE_;
+const int _FUNCTIONHASH_;
+
 json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, string sOnlyKeyTable = "", json jArray = JSON_NULL);
 void RemoveEffectsWithTag(object oObject, string sTag);
 string Get2DAStrRefString(string s2DA, string sColumn, int nRow);
 void VoidJsonToObject(json jObject, location locLocation, object oOwner = OBJECT_INVALID, int bLoadObjectState = FALSE);
 string GetItemName(object oItem, int bIdentified);
-string GetItemIconResref(object oItem, json jItem, int nBaseItem);
 vector GetAreaCenterPosition(object oArea, float fZ = 0.0f);
 vector GetTilePosition(int nX, int nY);
 int GetLocationWalkable(location loc);
@@ -57,7 +58,7 @@ json GetResRefArray(string sPrefix, int nResType, int bSearchBaseData = FALSE, s
 
     while ((sResRef = ResManFindPrefix(sPrefix, nResType, ++nNth, bSearchBaseData, sOnlyKeyTable)) != "")
     {
-        JsonArrayInsertStringInplace(jArray, sResRef);
+        JsonArrayInsertInplace(jArray, JsonString(sResRef));
     }
 
     return jArray;
@@ -87,67 +88,6 @@ void VoidJsonToObject(json jObject, location locLocation, object oOwner = OBJECT
 string GetItemName(object oItem, int bIdentified)
 {
     return bIdentified ? GetName(oItem) : Get2DAStrRefString("baseitems", "Name", GetBaseItemType(oItem)) + " (Unidentified)";
-}
-
-string GetItemIconResref(object oItem, json jItem, int nBaseItem)
-{
-    if (nBaseItem == BASE_ITEM_CLOAK)
-        return "iit_cloak";
-    else if (nBaseItem == BASE_ITEM_SPELLSCROLL || nBaseItem == BASE_ITEM_ENCHANTED_SCROLL)
-    {
-        if (GetItemHasItemProperty(oItem, ITEM_PROPERTY_CAST_SPELL))
-        {
-            itemproperty ip = GetFirstItemProperty(oItem);
-            while (GetIsItemPropertyValid(ip))
-            {
-                if (GetItemPropertyType(ip) == ITEM_PROPERTY_CAST_SPELL)
-                    return Get2DAString("iprp_spells", "Icon", GetItemPropertySubType(ip));
-
-                ip = GetNextItemProperty(oItem);
-            }
-        }
-    }
-    else if (Get2DAString("baseitems", "ModelType", nBaseItem) == "0")
-    {
-        json jSimpleModel = GffGetByte(jItem, "ModelPart1");
-        if (JsonGetType(jSimpleModel) == JSON_TYPE_INTEGER)
-        {
-            string sSimpleModelId = IntToString(JsonGetInt(jSimpleModel));
-            while (GetStringLength(sSimpleModelId) < 3)
-            {
-                sSimpleModelId = "0" + sSimpleModelId;
-            }
-
-            string sDefaultIcon = Get2DAString("baseitems", "DefaultIcon", nBaseItem);
-            switch (nBaseItem)
-            {
-                case BASE_ITEM_MISCSMALL:
-                case BASE_ITEM_CRAFTMATERIALSML:
-                    sDefaultIcon = "iit_smlmisc_" + sSimpleModelId;
-                    break;
-                case BASE_ITEM_MISCMEDIUM:
-                case BASE_ITEM_CRAFTMATERIALMED:
-                case 112:/* Crafting Base Material */
-                    sDefaultIcon = "iit_midmisc_" + sSimpleModelId;
-                    break;
-                case BASE_ITEM_MISCLARGE:
-                    sDefaultIcon = "iit_talmisc_" + sSimpleModelId;
-                    break;
-                case BASE_ITEM_MISCTHIN:
-                    sDefaultIcon = "iit_thnmisc_" + sSimpleModelId;
-                    break;
-            }
-
-            int nLength = GetStringLength(sDefaultIcon);
-            if (GetSubString(sDefaultIcon, nLength - 4, 1) == "_")
-                sDefaultIcon = GetStringLeft(sDefaultIcon, nLength - 4);
-            string sIcon = sDefaultIcon + "_" + sSimpleModelId;
-            if (ResManGetAliasFor(sIcon, RESTYPE_TGA) != "")
-                return sIcon;
-        }
-    }
-
-    return Get2DAString("baseitems", "DefaultIcon", nBaseItem);
 }
 
 vector GetAreaCenterPosition(object oArea, float fZ = 0.0f)

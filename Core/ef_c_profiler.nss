@@ -6,7 +6,7 @@
 #include "ef_i_dataobject"
 #include "ef_i_math"
 #include "ef_i_sqlite"
-#include "ef_i_vm"
+#include "ef_i_util"
 
 const string PROFILER_SCRIPT_NAME                       = "ef_c_profiler";
 
@@ -20,7 +20,7 @@ const int PROFILER_MICROSECONDS_IN_SECOND               = 1000000;
 const int PROFILER_INSTRUCTION_OVERHEAD                 = 20;
 const int PROFILER_MICROSECOND_OVERHEAD                 = 1;
 
-void Profiler_Start(string sIdentifier = "");
+void Profiler_Start(string sIdentifier = "", string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
 string Profiler_Stop(int bPrint = TRUE, int bStats = TRUE);
 
 void Profiler_Init()
@@ -62,11 +62,10 @@ string Profiler_GetTimeStats(int nHash)
     return "Stats: (Min: N/A, Max: N/A, Avg: N/A)";
 }
 
-void Profiler_Start(string sIdentifier = "")
+void Profiler_Start(string sIdentifier = "", string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_)
 {
-    struct VMFrame strFrame = GetVMFrame(1);
     object oDataObject = GetDataObject(PROFILER_SCRIPT_NAME);
-    SetLocalString(oDataObject, PROFILER_CALLING_FUNCTION, strFrame.sFile + "::" + strFrame.sFunction + ":" + IntToString(strFrame.nLine));
+    SetLocalString(oDataObject, PROFILER_CALLING_FUNCTION, sFile + ":" + sFunction + ":" + IntToString(nLine));
     SetLocalString(oDataObject, PROFILER_IDENTIFIER_STRING, sIdentifier);
     SetLocalInt(oDataObject, PROFILER_START_INSTRUCTIONS, GetScriptInstructionsRemaining());
     SetLocalInt(oDataObject, PROFILER_START_MICROSECONDS, GetMicrosecondCounter());

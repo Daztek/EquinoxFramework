@@ -3,16 +3,9 @@
     Author: Daz
 */
 
-#include "ef_i_vm"
 #include "ef_c_dazscript"
-#include "ef_c_profiler"
 
 const string LOG_SCRIPT_NAME        = "ef_c_log";
-
-const string _FILE_;
-const string _FUNCTION_;
-const int _LINE_;
-const int _FUNCTIONHASH_;
 
 void LogInfo(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
 void LogDebug(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);

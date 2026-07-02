@@ -9,6 +9,8 @@
 #include "ef_i_dataobject"
 #include "ef_i_util"
 #include "ef_i_sqlite"
+#include "ef_i_json"
+#include "ef_i_vm"
 #include "nwnx_util"
 #include "nwnx_vm"
 

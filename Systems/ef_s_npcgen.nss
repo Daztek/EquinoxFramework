@@ -3,6 +3,7 @@
     Author: Daz
 */
 
+#include "ef_i_gff"
 #include "ef_s_eventman"
 #include "nwnx_nwsqliteext"
 

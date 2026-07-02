@@ -3,8 +3,7 @@
     Author: Daz
 */
 
-#include "ef_i_json"
-#include "nw_inc_gff"
+#include "base_inc_gff"
 
 const int GFF_LOCAL_VAR_TYPE_INT    = 1;
 const int GFF_LOCAL_VAR_TYPE_FLOAT  = 2;

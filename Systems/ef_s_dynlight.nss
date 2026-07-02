@@ -5,7 +5,7 @@
 
 #include "ef_i_array"
 #include "ef_s_eventman"
-#include "nw_inc_dynlight"
+#include "base_inc_dynlght"
 #include "nwnx_area"
 
 const string DYNLIGHT_SCRIPT_NAME                       = "ef_s_dynlight";

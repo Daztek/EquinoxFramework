@@ -40,9 +40,9 @@ string ObjectTag_TestNearest(string sTag = "SEAT")
 {
     Profiler_Start("ObjectTag_GetNearestObjectWithTag");
     object oObject = ObjectTag_GetNearestObjectWithTag(OBJECT_SELF, sTag);
-    string s = Profiler_Stop(FALSE);
+    Profiler_Stop();
     ApplyEffectToObject(DURATION_TYPE_INSTANT, EffectVisualEffect(VFX_IMP_KNOCK), oObject);
-    return s;
+    return Profiler_Finalize(FALSE);
 }
 
 // @CONSOLE[ObjectTag_GetObjectsWithTag::]
@@ -50,9 +50,8 @@ string ObjectTag_TestObjects(string sTag = "SEAT")
 {
     Profiler_Start("ObjectTag_GetObjectsWithTag");
     json jObjects = ObjectTag_GetObjectsWithTag(OBJECT_SELF, sTag);
-    string s = Profiler_Stop(FALSE);
-
-    return s + "\n\n" + JsonDump(jObjects, 0);
+    Profiler_Stop();
+    return Profiler_Finalize(FALSE) + "\n\n" + JsonDump(jObjects, 0);
 }
 
 int ObjectTag_IsTaggable(object oObject)

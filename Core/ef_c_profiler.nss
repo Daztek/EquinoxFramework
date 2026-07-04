@@ -10,18 +10,27 @@
 
 const string PROFILER_SCRIPT_NAME                       = "ef_c_profiler";
 
-const string PROFILER_CALLING_FUNCTION                  = "CallingFunction";
-const string PROFILER_IDENTIFIER_STRING                 = "IdentifierString";
-const string PROFILER_START_INSTRUCTIONS                = "StartInstructions";
-const string PROFILER_START_MICROSECONDS                = "StartMicroseconds";
+const string PROFILER_COUNT                             = "Count";
+const string PROFILER_DEPTH                             = "Depth";
+const string PROFILER_STACK                             = "Stack_";
+const string PROFILER_CALL_DEPTH                        = "CallDepth_";
+const string PROFILER_CHILD_COUNT                       = "ChildCount_";
+const string PROFILER_ORIGIN                            = "Origin_";
+const string PROFILER_IDENTIFIER                        = "Identifier_";
+const string PROFILER_INSTRUCTIONS                      = "Instructions_";
+const string PROFILER_MICROSECONDS                      = "Microseconds_";
 
 const int PROFILER_MICROSECONDS_IN_MILLISECOND          = 1000;
 const int PROFILER_MICROSECONDS_IN_SECOND               = 1000000;
-const int PROFILER_INSTRUCTION_OVERHEAD                 = 20;
-const int PROFILER_MICROSECOND_OVERHEAD                 = 1;
 
-void Profiler_Start(string sIdentifier = "", string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
-string Profiler_Stop(int bPrint = TRUE, int bStats = TRUE);
+const int PROFILER_CALL_INSTRUCTION_OVERHEAD            = 21;
+const int PROFILER_CALL_MICROSECOND_OVERHEAD            = 1;
+const int PROFILER_CHILD_INSTRUCTION_OVERHEAD           = 261;
+const int PROFILER_CHILD_MICROSECOND_OVERHEAD           = 12;
+
+void Profiler_Start(string sIdentifier = "", string sOrigin = _ORIGIN_);
+void Profiler_Stop();
+string Profiler_Finalize(int bPrint = TRUE, int bStats = TRUE);
 
 void Profiler_Init()
 {
@@ -62,31 +71,95 @@ string Profiler_GetTimeStats(int nHash)
     return "Stats: (Min: N/A, Max: N/A, Avg: N/A)";
 }
 
-void Profiler_Start(string sIdentifier = "", string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_)
+void Profiler_Start(string sIdentifier = "", string sOrigin = _ORIGIN_)
 {
     object oDataObject = GetDataObject(PROFILER_SCRIPT_NAME);
-    SetLocalString(oDataObject, PROFILER_CALLING_FUNCTION, sFile + ":" + sFunction + ":" + IntToString(nLine));
-    SetLocalString(oDataObject, PROFILER_IDENTIFIER_STRING, sIdentifier);
-    SetLocalInt(oDataObject, PROFILER_START_INSTRUCTIONS, GetScriptInstructionsRemaining());
-    SetLocalInt(oDataObject, PROFILER_START_MICROSECONDS, GetMicrosecondCounter());
+    int nDepth = GetLocalInt(oDataObject, PROFILER_DEPTH);
+    int nCount = GetLocalInt(oDataObject, PROFILER_COUNT);
+
+    string sSlot  = IntToString(nCount);
+    string sDepth = IntToString(nDepth);
+
+    if (nDepth > 0)
+    {
+        string sParentSlot = IntToString(GetLocalInt(oDataObject, PROFILER_STACK + IntToString(nDepth - 1)));
+        SetLocalInt(oDataObject, PROFILER_CHILD_COUNT + sParentSlot, GetLocalInt(oDataObject, PROFILER_CHILD_COUNT + sParentSlot) + 1);
+    }
+
+    SetLocalInt(oDataObject, PROFILER_STACK + sDepth, nCount);
+    SetLocalInt(oDataObject, PROFILER_COUNT, nCount + 1);
+    SetLocalInt(oDataObject, PROFILER_DEPTH, nDepth + 1);
+
+    SetLocalString(oDataObject, PROFILER_IDENTIFIER + sSlot, sIdentifier);
+    SetLocalString(oDataObject, PROFILER_ORIGIN + sSlot, sOrigin);
+    SetLocalInt(oDataObject, PROFILER_CALL_DEPTH + sSlot, nDepth);
+    SetLocalInt(oDataObject, PROFILER_INSTRUCTIONS + sSlot, GetScriptInstructionsRemaining());
+    SetLocalInt(oDataObject, PROFILER_MICROSECONDS + sSlot, GetMicrosecondCounter());
 }
 
-string Profiler_Stop(int bPrint = TRUE, int bStats = TRUE)
+void Profiler_Stop()
 {
     int nEndMicroseconds = GetMicrosecondCounter();
-    int nEndInstructions = GetScriptInstructionsRemaining();
+    int nEndInstructions  = GetScriptInstructionsRemaining();
+
     object oDataObject = GetDataObject(PROFILER_SCRIPT_NAME);
-    string sIdentifierString = GetLocalString(oDataObject, PROFILER_IDENTIFIER_STRING);
-    string sHashString = sIdentifierString == "" ? GetLocalString(oDataObject, PROFILER_CALLING_FUNCTION) : sIdentifierString;
-    int nHash = HashString(sHashString);
-    int nUsedInstructions = Max(0, GetLocalInt(oDataObject, PROFILER_START_INSTRUCTIONS) - nEndInstructions - PROFILER_INSTRUCTION_OVERHEAD);
-    int nElapsedMicroseconds = Max(0, nEndMicroseconds - GetLocalInt(oDataObject, PROFILER_START_MICROSECONDS) - PROFILER_MICROSECOND_OVERHEAD);
+    int nDepth = GetLocalInt(oDataObject, PROFILER_DEPTH) - 1;
+    SetLocalInt(oDataObject, PROFILER_DEPTH, nDepth);
 
-    if (bStats)
-        Profiler_Insert(nHash, nElapsedMicroseconds, nUsedInstructions);
+    string sDepth = IntToString(nDepth);
+    int nSlot = GetLocalInt(oDataObject, PROFILER_STACK + sDepth);
+    string sSlot = IntToString(nSlot);
 
-    string sRetVal = "[" + sHashString + "] Time: " + Profiler_FormatTime(nElapsedMicroseconds) +
-                     " | Instructions: " + IntToString(nUsedInstructions) + (bStats ? " | " + Profiler_GetTimeStats(nHash) : "");
+    int nUsedInstructions = Max(0, GetLocalInt(oDataObject, PROFILER_INSTRUCTIONS + sSlot) - nEndInstructions - PROFILER_CALL_INSTRUCTION_OVERHEAD);
+    int nElapsedMicroseconds = Max(0, nEndMicroseconds - GetLocalInt(oDataObject, PROFILER_MICROSECONDS + sSlot) - PROFILER_CALL_MICROSECOND_OVERHEAD);
+
+    SetLocalInt(oDataObject, PROFILER_INSTRUCTIONS + sSlot, nUsedInstructions);
+    SetLocalInt(oDataObject, PROFILER_MICROSECONDS + sSlot, nElapsedMicroseconds);
+}
+
+string Profiler_Finalize(int bPrint = TRUE, int bStats = TRUE)
+{
+    object oDataObject = GetDataObject(PROFILER_SCRIPT_NAME);
+    int nSlot, nNumSlots = GetLocalInt(oDataObject, PROFILER_COUNT);
+    string sRetVal;
+
+    for (nSlot = 0; nSlot < nNumSlots; nSlot++)
+    {
+        string sIndent, sSlot = IntToString(nSlot);
+        int nCallDepthIndex, nCallDepth = GetLocalInt(oDataObject, PROFILER_CALL_DEPTH + sSlot);
+        for (nCallDepthIndex = 0; nCallDepthIndex < nCallDepth; nCallDepthIndex++)
+        {
+            sIndent += "  ";
+        }
+
+        string sIdentifier = GetLocalString(oDataObject, PROFILER_IDENTIFIER + sSlot);
+        if (sIdentifier == "")
+            sIdentifier = GetLocalString(oDataObject, PROFILER_ORIGIN + sSlot);
+        int nInstructions = GetLocalInt(oDataObject, PROFILER_INSTRUCTIONS + sSlot);
+        int nMicroSeconds = GetLocalInt(oDataObject, PROFILER_MICROSECONDS + sSlot);
+        int nChildCount = GetLocalInt(oDataObject, PROFILER_CHILD_COUNT + sSlot);
+
+        nInstructions = Max(0, nInstructions - (PROFILER_CHILD_INSTRUCTION_OVERHEAD * nChildCount));
+        nMicroSeconds = Max(0, nMicroSeconds - (PROFILER_CHILD_MICROSECOND_OVERHEAD * nChildCount));
+
+        sRetVal += sIndent + "[" + sIdentifier + "] " + Profiler_FormatTime(nMicroSeconds) + " | " + IntToString(nInstructions) + " Instructions";
+
+        if (bStats && nCallDepth == 0)
+        {
+            int nHash = HashString(sIdentifier);
+            Profiler_Insert(nHash, nMicroSeconds, nInstructions);
+            sRetVal += " | " + Profiler_GetTimeStats(nHash);
+        }
+
+        if (nSlot < nNumSlots - 1)
+            sRetVal += "\n";
+
+        DeleteLocalInt(oDataObject, PROFILER_CHILD_COUNT + sSlot);
+    }
+
+    DeleteLocalInt(oDataObject, PROFILER_COUNT);
+    DeleteLocalInt(oDataObject, PROFILER_DEPTH);
+
     if (bPrint)
         PrintString(sRetVal);
 

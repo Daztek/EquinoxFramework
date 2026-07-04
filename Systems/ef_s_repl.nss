@@ -197,8 +197,9 @@ string Repl_Interpret(string sInput)
 
     Profiler_Start("REPL");
     string sOutput = Interpret(sInput, FALSE, 0, jStack);
-    string sProfiler = Profiler_Stop(FALSE, FALSE);
-    NWM_SetBindString(REPL_NUI_BIND_PROFILER, sProfiler);
+    Profiler_Stop();
+
+    NWM_SetBindString(REPL_NUI_BIND_PROFILER, Profiler_Finalize(FALSE));
 
     return sOutput;
 }

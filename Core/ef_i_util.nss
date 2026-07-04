@@ -23,6 +23,7 @@ const int OBJECT_TYPE_INTERNAL_SOUND        = 16;
 
 const string _FILE_;
 const string _FUNCTION_;
+const string _ORIGIN_;
 const int _LINE_;
 const int _FUNCTIONHASH_;
 

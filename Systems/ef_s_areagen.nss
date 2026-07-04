@@ -905,7 +905,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     strQuery.sTL = AG_ResolveCorner(strTop.sBL, strLeft.sTR, strTopLeft.sBR);
     if (strQuery.sTL == AG_INVALID_CORNER)
     {
-        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) { Profiler_Stop(); Profiler_Finalize(); }
         return tile;
     }
 
@@ -914,7 +914,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     strQuery.sTR = AG_ResolveCorner(strTop.sBR, strRight.sTL, strTopRight.sBL);
     if (strQuery.sTR == AG_INVALID_CORNER)
     {
-        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) { Profiler_Stop(); Profiler_Finalize(); }
         return tile;
     }
 
@@ -923,7 +923,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     strQuery.sBR = AG_ResolveCorner(strRight.sBL, strBottom.sTR, strBottomRight.sTL);
     if (strQuery.sBR == AG_INVALID_CORNER)
     {
-        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) { Profiler_Stop(); Profiler_Finalize(); }
         return tile;
     }
 
@@ -931,7 +931,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
     strQuery.sBL = AG_ResolveCorner(strBottom.sTL, strLeft.sBR, strBottomLeft.sTR);
     if (strQuery.sBL == AG_INVALID_CORNER)
     {
-        if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
+        if (AG_PROFILE_GETRANDOMMATCHINGTILE) { Profiler_Stop(); Profiler_Finalize(); }
         return tile;
     }
 
@@ -1006,7 +1006,7 @@ struct AG_Tile AG_GetRandomMatchingTile(string sAreaID, object oAreaDataObject, 
         tile.nHeight = 0;
     }
 
-    if (AG_PROFILE_GETRANDOMMATCHINGTILE) Profiler_Stop();
+    if (AG_PROFILE_GETRANDOMMATCHINGTILE) { Profiler_Stop(); Profiler_Finalize(); }
 
     return tile;
 }

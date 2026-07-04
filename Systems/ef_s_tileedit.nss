@@ -486,6 +486,7 @@ void TE_ToggleATSWindow()
         NWM_SetBind(NUI_WINDOW_GEOMETRY_BIND, NuiRect(-1.0, -1.0f, fWidth, fHeight));
         TE_SetAreaTilesColorBinds(oArea, nAreaWidth, nAreaHeight);
         Profiler_Stop();
+        Profiler_Finalize();
     }
 }
 
@@ -834,6 +835,7 @@ void TE_UpdateTileList()
     NWM_SetBind(TE_BIND_LIST_TILE_COLOR_L, jTileColorLArray);
 
     Profiler_Stop();
+    Profiler_Finalize();
 }
 
 void TE_SetAreaTilesColorBinds(object oArea, int nAreaWidth, int nAreaHeight)

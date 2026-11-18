@@ -34,7 +34,7 @@
     ");";
 
     "CREATE TABLE IF NOT EXISTS vault_log ("
-    "id TEXT NOT NULL, "
+    "id INTEGER NOT NULL, "
     "cdkey TEXT NOT NULL, "
     "event INTEGER NOT NULL, "
     "timestamp INTEGER NOT NULL"
@@ -503,13 +503,13 @@ void VMan_SetClassInfo(int nClassPosition, int nClassId, int nLevel)
 
 void VMan_UpdateSelectedCharacterData(int nNewId)
 {
-    Profiler_Start("VMan_UpdateSelectedCharacterData");
-
     object oPlayer = OBJECT_SELF;
     int nCurrentId = JsonGetInt(NWM_GetUserData(VMAN_NUI_USERDATA_SELECTED_ID));
 
     if (nCurrentId == nNewId)
         return;
+
+    Profiler_Start("VMan_UpdateSelectedCharacterData");
 
     string sQuery = "SELECT owner, " +
                            "JSON_EXTRACT(character, '$.FirstName.value.0'), " +
@@ -546,7 +546,7 @@ void VMan_UpdateSelectedCharacterData(int nNewId)
         int nClassLevel3 = SqlGetInt(sql, 13);
         int nTotalLevel = nClassLevel1 + nClassLevel2 + nClassLevel3;
 
-        NWM_SetBindString(VMAN_BIND_SELECTED_NAME, sName + " the " + (nGender ? "Female" : "Male") + " " + Get2DAStrRefString("racialtypes", "Name", nRace));
+        NWM_SetBindString(VMAN_BIND_SELECTED_NAME, sName + ", " + (nGender ? "Female" : "Male") + " " + Get2DAStrRefString("racialtypes", "Name", nRace));
         NWM_SetBindString(VMAN_BIND_SELECTED_PORTRAIT, sPortrait);
         NWM_SetBindString(VMAN_BIND_SELECTED_GOLD_LABEL, "Gold: " + IntToString(nGold));
         NWM_SetBindString(VMAN_BIND_SELECTED_XP_LABEL, "XP: " + IntToString(nExperience) + " / " + Get2DAString("exptable", "XP", nTotalLevel));
@@ -628,7 +628,7 @@ string VMan_EventToIcon(int nEvent)
 void VMan_UpdateEventLog(int nCharacterId, string sName)
 {
     json jIcons = JsonArray(), jLabels = JsonArray();
-    sqlquery sql = VMan_PrepareQuery("SELECT cdkey, event, datetime(timestamp, 'unixepoch', 'localtime') FROM vault_log WHERE id = @id ORDER BY rowid DESC LIMIT 25;");
+    sqlquery sql = VMan_PrepareQuery("SELECT cdkey, event, datetime(timestamp, 'unixepoch', 'localtime') FROM vault_log WHERE id = @id ORDER BY timestamp DESC LIMIT 25;");
     SqlBindInt(sql, "@id", nCharacterId);
 
     while (SqlStep(sql))
@@ -654,9 +654,10 @@ string VMan_GetItemIconResref(int nBaseItem, int nModelPart1, json jProperties)
         {
             string sQuery = "SELECT JSON_EXTRACT(properties.value, '$.Subtype.value') " +
                             "FROM JSON_EACH(@properties) AS properties " +
-                            "WHERE JSON_EXTRACT(properties.value, '$.PropertyName.value') = " + IntToString(ITEM_PROPERTY_CAST_SPELL) + " LIMIT 1;";
+                            "WHERE JSON_EXTRACT(properties.value, '$.PropertyName.value') = @ip LIMIT 1;";
             sqlquery sql = SqlPrepareQueryModule(sQuery);
             SqlBindJson(sql, "@properties", jProperties);
+            SqlBindInt(sql, "@ip",  ITEM_PROPERTY_CAST_SPELL);
 
             if (SqlStep(sql))
                 return Get2DAString("iprp_spells", "Icon", SqlGetInt(sql, 0));

@@ -39,8 +39,6 @@ void TargetMode_OnPlayerTarget()
                     LogError("ScriptChunk '{sScriptChunk}' failed with error: {sError}");
             }
         }
-
-        TargetMode_SetTargetMode(oPlayer, "");
     }
 }
 

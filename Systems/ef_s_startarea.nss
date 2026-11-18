@@ -138,7 +138,7 @@ void SA_OnAreaGenerated(string sAreaID)
         AG_ExtractExitEdgeTerrains(sAreaID, AG_AREA_EDGE_TOP);
 
         object oArea = GetObjectByTag(SA_STARTING_AREA_TAG);
-        SetTileJson(oArea, jTileData, SETTILE_FLAG_RELOAD_BORDER | SETTILE_FLAG_RECOMPUTE_LIGHTING);
+        SetTileJson(oArea, jTileData, SETTILE_FLAG_RELOAD_BORDER | SETTILE_FLAG_RECOMPUTE_LIGHTING | SETTILE_FLAG_RELOAD_GRASS);
         DelayCommand(1.0f, RetVoid(Call(Function("ef_s_endlesspath", "EP_BeginPath"), ObjectArg(oArea))));
     }
 }

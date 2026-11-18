@@ -43,6 +43,8 @@ int NWM_GetBindBool(string sBindName);
 void NWM_SetBindBool(string sBindName, int bValue);
 int NWM_GetBindInt(string sBindName);
 void NWM_SetBindInt(string sBindName, int nValue);
+float NWM_GetBindFloat(string sBindName);
+void NWM_SetBindFloat(string sBindName, float fValue);
 void NWM_SetBindWatch(string sBind, int bWatch = TRUE);
 json NWM_GetUserData(string sKey);
 void NWM_SetUserData(string sKey, json jValue);
@@ -334,6 +336,16 @@ int NWM_GetBindInt(string sBindName)
 void NWM_SetBindInt(string sBindName, int nValue)
 {
     NWM_SetBind(sBindName, JsonInt(nValue));
+}
+
+float NWM_GetBindFloat(string sBindName)
+{
+    return JsonGetFloat(NWM_GetBind(sBindName));
+}
+
+void NWM_SetBindFloat(string sBindName, float fValue)
+{
+    NWM_SetBind(sBindName, JsonFloat(fValue));
 }
 
 void NWM_SetBindWatch(string sBind, int bWatch = TRUE)

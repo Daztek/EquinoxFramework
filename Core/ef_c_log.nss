@@ -4,8 +4,10 @@
 */
 
 #include "ef_c_dazscript"
+#include "ef_c_profiler"
 
 const string LOG_SCRIPT_NAME        = "ef_c_log";
+const int LOG_FORMAT_STRING_DEPTH   = 2;
 
 void LogInfo(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
 void LogDebug(string sMessage, string sFile = _FILE_, string sFunction = _FUNCTION_, int nLine = _LINE_);
@@ -17,15 +19,15 @@ string FormatString(string sMessage, string sFile, string sFunction, int nLine)
     if (FindSubString(sMessage, "{", 0) != -1)
     {
         object oDataObject = GetDataObject(LOG_SCRIPT_NAME);
-        int nHash = NWNX_VM_GetScriptCallStackHash(2);
+        int nHash = NWNX_VM_GetScriptCallStackHash(LOG_FORMAT_STRING_DEPTH);
         string sKey = sFile + ":" + sFunction + ":" + IntToString(nLine) + ":" + IntToString(nHash);
         json jStack = GetLocalJson(oDataObject, sKey);
         if (!JsonGetType(jStack))
         {
-            jStack = NWNX_VM_GetStackVariables(2);
+            jStack = NWNX_VM_GetStackVariables(LOG_FORMAT_STRING_DEPTH);
             SetLocalJson(oDataObject, sKey, jStack);
         }
-        return Interpret(sMessage, FALSE, 2, jStack);
+        return Interpret(sMessage, FALSE, LOG_FORMAT_STRING_DEPTH, jStack);
     }
     return sMessage;
 }

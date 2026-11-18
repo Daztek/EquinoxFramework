@@ -32,7 +32,7 @@ const string PC_BIND_DEPOSIT_MODE           = "deposit_mode";
 const string PC_BIND_BUTTON_DEPOSIT         = "btn_deposit";
 const string PC_BIND_BUTTON_CLOSE           = "btn_close";
 
-string GetItemIconResref(object oItem, json jItem, int nBaseItem);
+string GetItemIconResref(object oItem);
 int PC_GetStoredItemAmount(object oPlayer);
 void PC_UpdateItemList();
 void PC_WithdrawItem();
@@ -84,7 +84,7 @@ void PC_DropItem()
 
         int nItemBaseItem = GetBaseItemType(oItem);
         json jItemData = ObjectToJson(oItem, PC_SAVE_ITEM_OBJECT_STATE);
-        string sItemIconResRef = GetItemIconResref(oItem, jItemData, nItemBaseItem);
+        string sItemIconResRef = GetItemIconResref(oItem);
         string sQuery = "INSERT INTO " + PC_TABLE_NAME +
                         "(player_uuid, item_uuid, item_name, item_baseitem, item_stacksize, item_iconresref, item_data) " +
                         "VALUES(@player_uuid, @item_uuid, @item_name, @item_baseitem, @item_stacksize, @item_iconresref, @item_data);";
@@ -204,11 +204,12 @@ void PC_OpenPersistentChest()
     }
 }
 
-string GetItemIconResref(object oItem, json jItem, int nBaseItem)
+string GetItemIconResref(object oItem)
 {
-    if (nBaseItem == BASE_ITEM_CLOAK)
+    int nBaseItemType = GetBaseItemType(oItem);
+    if (nBaseItemType == BASE_ITEM_CLOAK)
         return "iit_cloak";
-    else if (nBaseItem == BASE_ITEM_SPELLSCROLL || nBaseItem == BASE_ITEM_ENCHANTED_SCROLL)
+    else if (nBaseItemType == BASE_ITEM_SPELLSCROLL || nBaseItemType == BASE_ITEM_ENCHANTED_SCROLL)
     {
         if (GetItemHasItemProperty(oItem, ITEM_PROPERTY_CAST_SPELL))
         {
@@ -217,52 +218,47 @@ string GetItemIconResref(object oItem, json jItem, int nBaseItem)
             {
                 if (GetItemPropertyType(ip) == ITEM_PROPERTY_CAST_SPELL)
                     return Get2DAString("iprp_spells", "Icon", GetItemPropertySubType(ip));
-
                 ip = GetNextItemProperty(oItem);
             }
         }
     }
-    else if (Get2DAString("baseitems", "ModelType", nBaseItem) == "0")
+    else if (Get2DAString("baseitems", "ModelType", nBaseItemType) == "0")
     {
-        json jSimpleModel = GffGetByte(jItem, "ModelPart1");
-        if (JsonGetType(jSimpleModel) == JSON_TYPE_INTEGER)
+        string sSimpleModelId = IntToString(GetItemAppearance(oItem, ITEM_APPR_TYPE_SIMPLE_MODEL, 0));
+        while (GetStringLength(sSimpleModelId) < 3)
         {
-            string sSimpleModelId = IntToString(JsonGetInt(jSimpleModel));
-            while (GetStringLength(sSimpleModelId) < 3)
-            {
-                sSimpleModelId = "0" + sSimpleModelId;
-            }
-
-            string sDefaultIcon = Get2DAString("baseitems", "DefaultIcon", nBaseItem);
-            switch (nBaseItem)
-            {
-                case BASE_ITEM_MISCSMALL:
-                case BASE_ITEM_CRAFTMATERIALSML:
-                    sDefaultIcon = "iit_smlmisc_" + sSimpleModelId;
-                    break;
-                case BASE_ITEM_MISCMEDIUM:
-                case BASE_ITEM_CRAFTMATERIALMED:
-                case 112:/* Crafting Base Material */
-                    sDefaultIcon = "iit_midmisc_" + sSimpleModelId;
-                    break;
-                case BASE_ITEM_MISCLARGE:
-                    sDefaultIcon = "iit_talmisc_" + sSimpleModelId;
-                    break;
-                case BASE_ITEM_MISCTHIN:
-                    sDefaultIcon = "iit_thnmisc_" + sSimpleModelId;
-                    break;
-            }
-
-            int nLength = GetStringLength(sDefaultIcon);
-            if (GetSubString(sDefaultIcon, nLength - 4, 1) == "_")
-                sDefaultIcon = GetStringLeft(sDefaultIcon, nLength - 4);
-            string sIcon = sDefaultIcon + "_" + sSimpleModelId;
-            if (ResManGetAliasFor(sIcon, RESTYPE_TGA) != "")
-                return sIcon;
+            sSimpleModelId = "0" + sSimpleModelId;
         }
+
+        string sDefaultIcon = Get2DAString("baseitems", "DefaultIcon", nBaseItemType);
+        switch (nBaseItemType)
+        {
+            case BASE_ITEM_MISCSMALL:
+            case BASE_ITEM_CRAFTMATERIALSML:
+                sDefaultIcon = "iit_smlmisc_" + sSimpleModelId;
+                break;
+            case BASE_ITEM_MISCMEDIUM:
+            case BASE_ITEM_CRAFTMATERIALMED:
+            case 112:/* Crafting Base Material */
+                sDefaultIcon = "iit_midmisc_" + sSimpleModelId;
+                break;
+            case BASE_ITEM_MISCLARGE:
+                sDefaultIcon = "iit_talmisc_" + sSimpleModelId;
+                break;
+            case BASE_ITEM_MISCTHIN:
+                sDefaultIcon = "iit_thnmisc_" + sSimpleModelId;
+                break;
+        }
+
+        int nLength = GetStringLength(sDefaultIcon);
+        if (GetSubString(sDefaultIcon, nLength - 4, 1) == "_")
+            sDefaultIcon = GetStringLeft(sDefaultIcon, nLength - 4);
+        string sIcon = sDefaultIcon + "_" + sSimpleModelId;
+        if (ResManGetAliasFor(sIcon, RESTYPE_TGA) != "")
+            return sIcon;
     }
 
-    return Get2DAString("baseitems", "DefaultIcon", nBaseItem);
+    return Get2DAString("baseitems", "DefaultIcon", nBaseItemType);
 }
 
 int PC_GetStoredItemAmount(object oPlayer)
